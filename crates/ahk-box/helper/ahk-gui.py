@@ -27,7 +27,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk  # noqa: E402
 
-state = {"window": None}
+state = {"window": None, "box": None, "controls": [], "next_id": 1}
 
 
 def answer(what):
@@ -42,14 +42,47 @@ def the_window(title):
     window = Gtk.Window(title=title)
     window.set_default_size(320, 180)
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-    box.pack_start(Gtk.Label(label="the label of the window"), True, True, 0)
-    entry = Gtk.Entry()
-    entry.set_text("the text of the entry")
-    box.pack_start(entry, False, False, 0)
     window.add(box)
-    window.show_all()
     state["window"] = window
+    state["box"] = box
+    state["controls"] = []
+    state["next_id"] = 1
+    window.show_all()
     answer({"ok": True})
+
+
+def the_control(kind, text):
+    """Add a control to the window, and give it the number that names it.
+
+    The number is the `Hwnd` the script will see. This desktop has no window
+    handles -- a window here is a Wayland toplevel and a node of the
+    accessibility tree -- so the runtime numbers its **own** controls as it makes
+    them, which is honest because the window is the runtime's own. The same
+    number is the `ClassNN` of the control: `Edit1` and `Button2` are the first
+    of each kind, in the order of `Add`.
+    """
+    if state["box"] is None:
+        answer({"ok": False, "error": "there is no window to add a control to"})
+        return
+    if kind == "Edit":
+        control = Gtk.Entry()
+        control.set_text(text)
+    elif kind == "Button":
+        control = Gtk.Button(label=text)
+    elif kind == "Text":
+        control = Gtk.Label(label=text)
+    else:
+        answer({"ok": False, "error": "%s is not a kind of control" % kind})
+        return
+    number = state["next_id"]
+    state["next_id"] += 1
+    state["controls"].append((number, kind, control))
+    state["box"].pack_start(control, False, False, 0)
+    control.show_all()
+    # The class and number of v2: `Edit1` is the first edit, `Button1` the first
+    # button, whatever the order of the Add calls.
+    same_kind = sum(1 for _n, k, _c in state["controls"] if k == kind)
+    answer({"ok": True, "id": number, "classnn": "%s%d" % (kind, same_kind)})
 
 
 def run_on_loop(what):
@@ -61,6 +94,10 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "add":
+        run_on_loop(
+            lambda: the_control(command.get("kind", ""), command.get("text", ""))
+        )
     elif op == "quit":
         answer({"ok": True})
         GLib.idle_add(Gtk.main_quit)

@@ -1720,6 +1720,46 @@ window handle; the `Gui` class of the tree is not wired to the helper; `Add`,
 `Show`, `Destroy`, `Title`, `Value` and `GetPos` are not carried. Each is
 measurable against the shape table of round 39.
 
+### Round 41 — 2026-11-09: the handle and the controls of the window
+
+Step one of the build: **the number that names a control**, and the controls
+themselves.
+
+The helper takes a control now, and answers with the two names a script will
+use:
+
+```
+in   {"op": "add", "kind": "Edit",   "text": "the field"}
+out  {"ok": true, "id": 1, "classnn": "Edit1"}
+in   {"op": "add", "kind": "Button", "text": "the button"}
+out  {"ok": true, "id": 2, "classnn": "Button1"}
+```
+
+**The `Hwnd` question of round 39 is answered.** This desktop has no window
+handles -- a window is a Wayland toplevel, and a control is a node of the
+accessibility tree -- so the runtime numbers its **own** controls as it makes
+them, and that number is the `Hwnd`. It is honest here in a way it could not be
+for a foreign window: the window is the runtime's own, so the number names
+something the runtime really created.
+
+**`ClassNN` is made the way v2 makes it**: `Edit1` is the first edit and
+`Button1` the first button, **whatever the order of the `Add` calls** -- the
+count is per kind, not the global id. That distinction is in the code and in the
+answers above, where the second control added has the id 2 and the class
+`Button1`.
+
+**Verified on the box**: the two answers above came back, and the window is in
+the tree with the entry's text:
+
+```
+frame name=[ahk-gui-helper-probe] role=[frame]
+  text  name=[] role=[text] text=[the field]
+```
+
+**What is still not done**: the `Gui` class of the tree is not wired to the
+helper, so no name of the surface has moved. The next slice is that wiring --
+`Gui()`, `Add`, `Show`, `Destroy` -- with the properties after it.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
