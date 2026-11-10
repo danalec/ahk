@@ -2450,6 +2450,37 @@ whose state was reset by an intervening command, or a window that survives `Show
 but not a flag change. **Nine steps through the whole family is the shape that
 finds those**, and it is cheap enough to run every time.
 
+### Round 96 — 2026-11-09: the three pieces left of the events, named
+
+Round 95 built the producer: the helper writes `close` and `click:<n>` to a file
+that the runtime can look at. **The other half is three pieces**, and none of them
+is a discovery any more:
+
+**1. The registration.** `g.OnEvent("Close", fn)` has to keep `fn` somewhere the
+winning of an event can find it. The `Gui` object is written directly (round 75),
+so its property table is the place -- a key that only this module reads, holding
+the function value. The member answers the empty text and validates the two
+parameters the way round 92 measured: the event must be one the **window** has
+(`Close`, `Escape`; not `Click`), and the second parameter must be a function.
+
+**2. The polling point.** The file is drained **between statements**, which is
+where the runner already checks its timeout and its step count -- so the loop that
+would read it already exists and already has the right cadence. The read is a
+`Vec<String>` of what is there, taken and cleared; an empty answer is the common
+case and must cost almost nothing.
+
+**3. The dispatch.** A line `close` calls the function kept for `close`, and a
+line `click:<n>` calls the one kept for that control's `click`. **What the function
+is called with**, and what happens to the line when there is no function for it,
+are the two details still to settle -- v2 passes the control object to a control's
+event, and the window is not a control, so `close` takes no argument. A line with
+no function should be **dropped and not queued**, because an event that happened
+before the handler existed is not a thing a later handler expects to receive.
+
+**The order is 1, 2, 3** -- registration has to exist before there is anything to
+poll for, and polling before there is anything to dispatch. Each is small and each
+is testable on the box with the smoke-style script of round 91.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
