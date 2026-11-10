@@ -97,6 +97,16 @@ pub struct LabDesktop {
     keyboard: Option<Keyboard>,
     pointer: Option<Pointer>,
     screen: Option<(i64, i64)>,
+    /// The program that draws the windows of the script, once a script has
+    /// asked for one.
+    ///
+    /// It is lazy: a script that never makes a `Gui` never starts it. The
+    /// desktop owns it because the desktop is the thing that already holds the
+    /// hands of the box -- the pointer device, the keyboard device -- and a
+    /// class of the language crate cannot hold a process. Dropping it drops its
+    /// input pipe, and the helper ends its own loop when its input closes, so
+    /// every way out of the runner closes it without a shutdown hook.
+    gui: Option<crate::gui::TheWindow>,
     notes: Vec<String>,
     /// The files that are open. A handle is the place of the file in
     /// this list, and a closed file is a hole in it.
@@ -145,6 +155,7 @@ impl LabDesktop {
             keyboard: None,
             pointer: None,
             screen: None,
+            gui: None,
             notes: Vec::new(),
             files: Vec::new(),
             pictures: Vec::new(),
@@ -1004,6 +1015,58 @@ impl ahk::desktop::Windows for LabDesktop {
         let address = crate::atspi::address()?;
         crate::atspi::app_pid(&address, title)
     }
+
+    fn gui_open(&mut self, title: &str) -> Result<u64, String> {
+        box_tools_are_near()?;
+        if self.gui.is_none() {
+            let helper = Path::new(env!("CARGO_MANIFEST_DIR")).join("helper/ahk-gui.py");
+            self.gui = Some(crate::gui::TheWindow::open(&helper)?);
+        }
+        let window = self.gui.as_mut().ok_or("the helper of the window did not start")?;
+        let answer = window.send(&format!(
+            "{{\"op\": \"window\", \"title\": {}}}",
+            quoted(title)
+        ))?;
+        if !answer.contains("\"ok\": true") {
+            return Err(format!("the window of the script was not made: {answer}"));
+        }
+        // One window at a time is what the helper holds, so the handle of it is a
+        // constant of this desktop: a second `Gui` replaces the first.
+        Ok(1)
+    }
+
+    fn gui_add(&mut self, _handle: u64, kind: &str, text: &str) -> Result<(u64, String), String> {
+        let window = self.gui.as_mut().ok_or("there is no window of the script")?;
+        let answer = window.send(&format!(
+            "{{\"op\": \"add\", \"kind\": {}, \"text\": {}}}",
+            quoted(kind),
+            quoted(text)
+        ))?;
+        let id = the_number_in(&answer, "\"id\": ")
+            .ok_or_else(|| format!("the control was not added: {answer}"))?;
+        let classnn = the_text_in(&answer, "\"classnn\": ")
+            .ok_or_else(|| format!("the control was not added: {answer}"))?;
+        Ok((id as u64, classnn))
+    }
+
+    fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
+        self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
+    }
+
+    fn gui_destroy(&mut self, _handle: u64) -> Result<(), String> {
+        self.the_gui_says("{\"op\": \"destroy\"}").map(|_| ())
+    }
+
+    fn gui_title(&mut self, _handle: u64, setting: Option<&str>) -> Result<String, String> {
+        let command = match setting {
+            Some(title) => format!("{{\"op\": \"title\", \"set\": {}}}", quoted(title)),
+            None => "{\"op\": \"title\"}".to_string(),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_text_in(&answer, "\"title\": ")
+            .ok_or_else(|| format!("the window of the script gave no title: {answer}"))
+    }
+
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.
@@ -1769,6 +1832,75 @@ impl ahk::desktop::Dialogs for LabDesktop {
 /// The box drives the desktop by running the tools of it -- `notify-send` for
 /// a notification, and the same family for the capture, the clipboard and the
 /// sound. A host that is not Linux has none of them, and it says that instead
+impl LabDesktop {
+    /// Send one command to the program that draws the windows of the script, and
+    /// refuse when it says it did not do the thing.
+    fn the_gui_says(&mut self, command: &str) -> Result<String, String> {
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("there is no window of the script")?;
+        let answer = window.send(command)?;
+        if !answer.contains("\"ok\": true") {
+            return Err(format!("the window of the script refused: {answer}"));
+        }
+        Ok(answer)
+    }
+}
+
+/// A text as the JSON string of it, with the characters that JSON needs.
+fn quoted(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for letter in text.chars() {
+        match letter {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(letter),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// The number after a name in an answer of the helper.
+fn the_number_in(answer: &str, name: &str) -> Option<i64> {
+    let rest = answer.split_once(name)?.1;
+    let digits: String = rest
+        .chars()
+        .take_while(|letter| letter.is_ascii_digit() || *letter == '-')
+        .collect();
+    digits.parse().ok()
+}
+
+/// The text after a name in an answer of the helper.
+fn the_text_in(answer: &str, name: &str) -> Option<String> {
+    let rest = answer.split_once(name)?.1.trim_start();
+    let rest = rest.strip_prefix('"')?;
+    let mut out = String::new();
+    let mut letters = rest.chars();
+    while let Some(letter) = letters.next() {
+        match letter {
+            '"' => return Some(out),
+            '\\' => {
+                if let Some(next) = letters.next() {
+                    out.push(match next {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        other => other,
+                    });
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    None
+}
+
 /// of letting the shell answer "not found": a failure that names a missing
 /// program of another platform tells the script nothing it can act on.
 #[cfg(target_os = "linux")]

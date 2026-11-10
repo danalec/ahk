@@ -533,6 +533,40 @@ pub trait Windows {
     fn window_pid(&mut self, _title: &str) -> Result<Option<i64>, String> {
         Err("this desktop cannot say the process of a window".to_string())
     }
+
+    /// Open a window of the script's own, and answer the handle of it.
+    ///
+    /// This is the `Gui` of v2. The window is **not shown**: measured on the
+    /// binary of v2.0.19 on 2026-11-09, `Gui()` makes it and `Show()` puts it on
+    /// the screen, and a script may add to it in between.
+    fn gui_open(&mut self, _title: &str) -> Result<u64, String> {
+        Err("this desktop cannot make a window of the script".to_string())
+    }
+
+    /// Add a control to a window of the script.
+    ///
+    /// The answer is the number that names the control and its `ClassNN`, which
+    /// is the file name of the kind and the count of that kind -- `Edit1` for the
+    /// first edit, whatever else was added before it. Measured on the binary of
+    /// v2.0.19 on 2026-11-09.
+    fn gui_add(&mut self, _handle: u64, _kind: &str, _text: &str) -> Result<(u64, String), String> {
+        Err("this desktop cannot add a control to a window of the script".to_string())
+    }
+
+    /// Put a window of the script on the screen.
+    fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
+        Err("this desktop cannot show a window of the script".to_string())
+    }
+
+    /// Take a window of the script away.
+    fn gui_destroy(&mut self, _handle: u64) -> Result<(), String> {
+        Err("this desktop cannot take away a window of the script".to_string())
+    }
+
+    /// Read the title of a window of the script, or write it.
+    fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop cannot say the title of a window of the script".to_string())
+    }
 }
 
 /// The processes of the desktop.
