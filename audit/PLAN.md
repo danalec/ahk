@@ -1926,6 +1926,35 @@ panic -- with no shutdown hook to remember to call.
 the transport, the handle in the `Gui` class's reserved key, and the five members
 of the surface (`Gui()`, `Add`, `Show`, `Destroy`, `Title`).
 
+### Round 59 — 2026-11-09: verified on the box, and a limitation found by the sync
+
+Rounds 57 and 58 touched `ahk-box` and had not been run there. They are now:
+**the box builds, 28 suites pass, and the surface is the same 690/143** as the
+workstation.
+
+**The sync found a real limitation in the wiring, and it is written down here
+rather than discovered by a user later.** `gui_open` finds the helper with
+`env!("CARGO_MANIFEST_DIR")`, which is **the path of the source tree at the
+moment of the build**, baked into the binary. That is right for this use -- the
+runner is built where the sources are, and the box builds its own -- and it is
+**wrong for a binary that is copied somewhere else**, where the helper is not
+under the directory the crate was compiled in.
+
+The three ways out, when it matters:
+
+1. **ship the helper beside the binary** and look for it there first, then fall
+   back to the manifest directory -- which is what `raven.rs` does with its own
+   helper, and is the convention of the tree;
+2. take the path from the environment, with the manifest directory as the
+   default;
+3. embed the helper as a string with `include_str!` and write it to a temporary
+   file the first time it is needed -- no external file at all, at the cost of the
+   helper being unreadable where it runs.
+
+**None of them is needed for the runner as it is used today**, and none is done:
+it is recorded because a build path in a binary is the kind of thing that works
+for a year and then does not, and because the choice is the caller's.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
