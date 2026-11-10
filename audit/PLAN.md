@@ -3850,6 +3850,37 @@ windows and would carry for this -- three edits plus the two handlers and two ro
 written down instead, with the measurement, so that it is a decision rather than a
 question.
 
+### Round 204 — 2026-11-09: the box was red, and it was a stale copy
+
+The verification of round 203 said:
+
+```
+windows:  all green
+box:      failures: 3, suites ok: 1
+```
+
+**The two platforms disagreed**, which is the whole reason the second one exists. The
+failure was `the_names_of_com_fail_with_the_reason` -- the test that round 203 moved
+from `ObjFromPtr` to `ComObjActive`.
+
+**The box had the OLD test.** The order of the last two calls of round 203 was: edit
+the test, run it **locally** (green), commit -- **and never sync again**. The box kept
+the version that still named `ObjFromPtr`.
+
+**That is AGENTS.md section 12 in its exact words**: *"copy the sources to the Linux
+box and build there, or the build compiles the sources the box still has, and the
+result is a stale binary with no error."* This time it was a stale **test**, and the
+result was a red box with no code change behind it.
+
+**Re-synced and re-run: `failures: 0, suites ok: 28`, and the surface is 722 / 111 on
+both.**
+
+**The rule, and it is the twelfth**: **sync after the LAST edit, not after the
+build.** A green run on the workstation says nothing about the box, and a red run on
+the box says nothing about the code until the copy is known to be current. **Check
+that the copy moved before reading the result** -- a timestamp, a hash, or the count of
+a thing that changed.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
