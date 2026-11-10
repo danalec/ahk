@@ -4190,6 +4190,33 @@ fn the_pop_up_and_the_status_bar_answer() {
 }
 
 #[test]
+fn status_bar_wait_matches_a_case_sensitive_substring() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: "status" matches
+    // "the status", a different case does not, and part 2 is refused.
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "a := StatusBarWait(\"status\", 0.2, 1, \"the window\")\nb := StatusBarWait(\"THE STATUS\", 0.2, 1, \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 1);
+    assert_eq!(int_of(&report, "b"), 0);
+}
+
+#[test]
+fn status_bar_wait_of_a_part_that_is_not_one_is_refused() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "StatusBarWait(\"the status\", 0.2, 2, \"the window\")",
+        &mut desktop,
+    );
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #3 of StatusBarWait is invalid."
+    );
+}
+
+#[test]
 fn win_get_class_answers_the_class_of_the_window() {
     let report = run("x := WinGetClass(\"second\")");
     assert!(report.ok, "{:?}", report.error);

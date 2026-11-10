@@ -2249,9 +2249,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: status_bar_wait,
     },
     Builtin {
         name: "StrGet",
@@ -10982,6 +10982,69 @@ pub(crate) fn status_bar_get_text(
         .gui_status_text()
         .map(Value::Text)
         .map_err(|e| desktop_failure(e, line))
+}
+
+/// `StatusBarWait(Text, Seconds, Part, WinTitle)`: wait for the status bar to
+/// hold a text.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the match is a
+/// case-sensitive SUBSTRING of part 1 ("status" matches "the status"), the
+/// answer is 1 on a match and 0 when the seconds run out, and a part other
+/// than 1 is refused with "Parameter #3 of StatusBarWait is invalid.".
+/// The status text of this runtime cannot change while a script runs, so the
+/// answer is known at once -- but the wait is honoured in shape, polling until
+/// the timeout like `ClipWait` does.
+pub(crate) fn status_bar_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = text_of(values, 0);
+    let seconds = number_of(values, 1);
+    let part = number_of(values, 2);
+    let title = text_of(values, 3);
+    if part != 1.0 && values.len() > 2 {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(3, "StatusBarWait"),
+            line,
+        });
+    }
+    the_window_of_the_script(rt, &title, line)?;
+    let limit = if values.len() > 1 && seconds > 0.0 {
+        Some(seconds * 1000.0)
+    } else if values.len() > 1 {
+        Some(0.0)
+    } else {
+        None
+    };
+    let started = rt.now_ms();
+    loop {
+        let text = rt
+            .desktop()
+            .gui_status_text()
+            .map_err(|e| desktop_failure(e, line))?;
+        if text.contains(&wanted) {
+            return Ok(Value::Int(1));
+        }
+        let waited = rt.now_ms().saturating_sub(started) as f64;
+        let left = match limit {
+            Some(limit) => {
+                if waited >= limit {
+                    return Ok(Value::Int(0));
+                }
+                limit - waited
+            }
+            None => {
+                let left = rt.remaining_ms();
+                if left == 0 {
+                    return Ok(Value::Int(0));
+                }
+                left as f64
+            }
+        };
+        rt.sleep_ms((left as u64).clamp(1, CLIP_POLL_MS));
+    }
 }
 
 pub(crate) fn sleep(

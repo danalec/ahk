@@ -3988,12 +3988,13 @@ index and the chosen text), and `ControlGetItems`, `ControlAddItem`,
 `ControlGetIndex`, `ControlDeleteItem` and `ControlFindItem`. **Verified on the
 box against every measured contract.**
 
-**What remains**: `ListViewGetContent` and `StatusBarWait` need a real list-view
-and a wait loop; the style names are Win32 bitmasks this platform has no
-equivalent for (`ControlGetStyle` answers 1342242944 on the reference); and
-`ControlMove` was measured to have **no size-only form**, so its refusal is
-true. The registry, COM objects, image lists, HWND table, drive letters and
-the three unmeasurable file names are answers with reasons of their own.
+**What remains**: `ListViewGetContent` needs a real list-view (a
+`Gtk.TreeView` with columns and rows); the style names are Win32 bitmasks this
+platform has no equivalent for (`ControlGetStyle` answers 1342242944 on the
+reference); and `ControlMove` was measured to have **no size-only form**, so its
+refusal is true. `StatusBarWait` was answered in round 265. The registry, COM
+objects, image lists, HWND table, drive letters and the three unmeasurable file
+names are answers with reasons of their own.
 
 **What has actually been finished**, so the list above is not read as aspirational:
 **all 140 rows of the AHK_X11 feature matrix**, **all four mechanisms**, **zero
@@ -4279,7 +4280,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **753 answer, 80 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **754 answer, 79 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -4736,6 +4737,22 @@ and the array-row form does not populate cells in v2 either, so a `Gtk.TreeView`
 implementation needs its own careful measurement pass rather than a guess.
 
 **Both platforms**: 753 / 80, sum 833, suites green, clippy clean.
+
+### Round 265 — 2026-11-10: StatusBarWait, a bounded poll with a measured match
+
+**Measured on the binary of v2.0.19 on 2026-11-10**:
+`StatusBarWait("the status", 0.2, 1, title)` answers 1, `"status"` matches too
+(a case-sensitive SUBSTRING), `"THE STATUS"` answers 0, and part 2 is refused
+with "Parameter #3 of StatusBarWait is invalid.". The answer on a timeout is 0.
+
+The handler polls `gui_status_text` until the seconds run out, reusing the
+`ClipWait` loop and its 50 ms poll. The status text of this runtime cannot
+change while one script runs, so the answer is knowable at once -- but the wait
+is honoured in shape rather than short-circuited. **Verified on the box**:
+`exact=[1]|sub=[1]|case=[0]` and the part-2 refusal, matching the reference
+word for word. **Two new language cases** protect it.
+
+**Surface 753/80 -> 754/79**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
