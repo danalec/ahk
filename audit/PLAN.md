@@ -16,15 +16,24 @@
 149 refusals** from the 643/190 the audit started at.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
-incremental. A script of this tree can make a window, add controls, read and write
-their `Value`, `Enabled` and `Visible`, set the `Title`, `Show` and `Destroy` --
-each verified on the box against a measurement of the reference. What is left is
-more of the same members (`c.Text`, `c.Move`, `c.Opt`, the events of a control)
-and the ones the platform refuses with a reason already written down (`g.GetPos`,
-round 82).
+incremental. A script of this tree can make a window, add a control by either
+spelling (`Add` and every `Add*`), read and write its `Value`, `Text`, `Enabled`
+and `Visible`, set the `Title`, `Show` and `Destroy` -- each verified on the box
+against a measurement of the reference.
 
-**The template for the next member**, which has now worked twice without a
-surprise (`Value` in 76-77, `Enabled`/`Visible` in 80-81):
+**The one architectural piece left is the EVENTS**: `g.OnEvent("Close", fn)`,
+`c.OnEvent("Click", fn)`. It is the only member that needs the helper to talk
+**back** -- a click in the window has to reach a function of the script -- and
+that is a different kind of channel from every one so far, which are all
+question-and-answer. It should be started fresh, not at the end of a long
+context.
+
+**After that, the layout members** (`c.Move`, `c.Opt`, `g.Move`), and the ones the
+platform refuses with a reason already written down (`g.GetPos`, round 82: a
+Wayland client is not told where its window is).
+
+**The template for the next member**, which has now worked three times without a
+surprise (`Value` 76-77, `Enabled`/`Visible` 80-81, `Text` 84):
 
 1. **measure the reference** for the shape of the answer;
 2. **add the operation to the helper** and prove it on the box with a script
@@ -40,7 +49,12 @@ against a second path** -- that is what caught `GetPos` (round 82) and confirmed
 `SysGetIPAddresses` (round 55). When two independent answers disagree, the
 disagreement is the finding.
 
-**The other five rules**, and the cost of each lesson:
+**And the two that cost the most**, both plumbing rather than knowledge: never
+chain a commit with `;` after a build (round 85 committed a tree that did not
+compile), and after any edit whose anchor might match twice, build before doing
+anything else (three partial edits this session, one of them a broken commit).
+
+**The five rules that produced this state**, and the cost of each lesson:
 
 1. **Measure the binary before writing anything.** Rounds 21, 22 and 23 each
    found a defect claim in the audit that was simply wrong (#4, #6, #9) -- three
