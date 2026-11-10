@@ -1559,6 +1559,14 @@ pub struct Parser {
     /// comma that separates the items of a list ends the value that is being
     /// read: the `SubStr("abc", 1 +, 1)` is the operand that is not there.
     the_comma_ends_the_value: bool,
+    /// Whether the value that was read last came from a parenthesis.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `op-null-assign.ahk`) and on the notes of v2.1-alpha: the mark that
+    /// follows a parenthesis is the chain on a value -- `(holder?.Prop)?.Inner`
+    /// is an `UnsetError` -- and the one that follows a name or an access is the
+    /// name that may be absent: `holder.Prop?.Inner` has no value.
+    the_value_came_from_a_group: bool,
     /// The loops that the parser is inside.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-01: the `break` and the
@@ -1700,6 +1708,7 @@ impl Parser {
             derefs: 0,
             expected_bracket: None,
             the_comma_ends_the_value: false,
+            the_value_came_from_a_group: false,
             loops: 0,
             the_star_spreads_the_argument: false,
             lines: source.split('\n').map(|line| line.to_string()).collect(),
@@ -10674,6 +10683,9 @@ impl Parser {
                     self.next();
                     left = Node::Maybe {
                         value: Box::new(left),
+                        // The value of the name that may be absent is the name:
+                        // a parenthesis after it is what makes it a group.
+                        from_a_group: false,
                         line,
                     };
                     continue;
@@ -11905,6 +11917,9 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Result<Node, SyntaxError> {
+        // The value that is read here is not a group unless the parenthesis
+        // below makes it one.
+        self.the_value_came_from_a_group = false;
         // Measured on the binary of v2.0.19 on 2026-10-31: a line that
         // ends with an operator continues on the next one, and the empty
         // lines between the two are not a part of it.
@@ -12251,6 +12266,7 @@ impl Parser {
                 if maybe {
                     return Ok(Node::Maybe {
                         value: Box::new(name),
+                        from_a_group: false,
                         line: token.line,
                     });
                 }
@@ -12311,6 +12327,7 @@ impl Parser {
                 self.expected_bracket = outer_bracket;
                 self.expect_op(")")?;
                 if items.len() == 1 {
+                    self.the_value_came_from_a_group = true;
                     items.pop().expect("the item of the group")
                 } else {
                     Node::Group {
@@ -12912,11 +12929,16 @@ impl Parser {
                     self.next();
                     node = Node::Maybe {
                         value: Box::new(node),
+                        from_a_group: self.the_value_came_from_a_group,
                         line,
                     };
+                    self.the_value_came_from_a_group = false;
                     continue;
                 }
             }
+            // A suffix makes the value an access, and the parenthesis that
+            // held the value before it does not make it a group any more.
+            self.the_value_came_from_a_group = false;
             // Measured on the binary of v2.0.19 on 2026-11-10: the
             // parenthesis that is not spaced after a value is the list of the
             // arguments of the call of that value -- `(f)(2, 3)`, `(o)(7)` and
@@ -13033,6 +13055,7 @@ impl Parser {
                     node = if maybe {
                         Node::Maybe {
                             value: Box::new(built),
+                            from_a_group: false,
                             line,
                         }
                     } else {

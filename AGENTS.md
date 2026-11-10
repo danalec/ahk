@@ -11043,3 +11043,29 @@ group in the first, and the parser drops the parenthesis of a group of one item,
 so the tree cannot tell them apart yet. The parenthesis has to be remembered (a
 flag on the value that may be absent, or a node of the group), which is the next
 block and is not guessed here.
+## 293. The parenthesis of the mark, and the line of a call
+
+Measured on the test suite of KeySharp (the corpus script `op-null-assign.ahk`)
+and on the notes of v2.1-alpha: the mark of the chain is read by what it
+follows. `holder.Prop?.Inner` tolerates the absent value of the access it
+follows and has no value; `(holder?.Prop)?.Inner` is the chain on a *value* --
+the group has no value, and the access after the mark is not the one the mark
+tolerates, so the use of the value is an `UnsetError`. The parser drops the
+parenthesis of a group of one item, so it carries a flag on the node of the
+value that may be absent now, and the runtime reads the value of that mark as a
+value: the absent value of the group stays the absent value, and the one of an
+access becomes the result of a skipped access.
+
+Measured on the same suite: the `A_LineNumber` of the arguments of a call is the
+line of the call, and not a line of the body that the call ran. The body sets
+`A_LineNumber` for its own statements, and the run of a block gave the line of
+the caller back -- `MsgBox "b=" F(1) " " A_LineNumber` on the fifth line answers
+"b=2 5" and not "b=2 2".
+
+`op-null-assign.ahk` runs to line 393: `holder?.Prop` as a statement must be an
+`UnsetError` -- the value of the property has no value, and a statement that
+discards it may not -- and `IsSet(holder?.Prop)` must throw as well, while
+`IsSet((OptNoValue()))` answers zero for the answer of a function. The two are
+told apart by what the absent value came from -- the read of a property against
+the answer of a call -- and the notes of the v2.1 do not settle that difference
+yet; it is not guessed here.

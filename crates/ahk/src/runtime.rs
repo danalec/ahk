@@ -2671,7 +2671,27 @@ impl<'a> Runtime<'a> {
         scope.iter().any(|label| label.eq_ignore_ascii_case(name))
     }
 
+    /// Run a block of statements, and give the line of the caller back.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
+    /// `A_LineNumber` of the arguments of a call is the line of the call, and
+    /// the body that the call runs has a line of its own -- the getter of a
+    /// property that the arguments read may leave its line behind, and the
+    /// argument after it has to see the line of the statement of the caller.
     fn run_block(&mut self, statements: &[Node]) -> Result<(), RuntimeFailure> {
+        let caller_line = self.lookup("A_LineNumber");
+        let answer = self.run_the_statements_of_a_block(statements);
+        if let Some(line) = caller_line {
+            self.set_global("A_LineNumber", line);
+        }
+        answer
+    }
+
+    fn run_the_statements_of_a_block(
+        &mut self,
+        statements: &[Node],
+    ) -> Result<(), RuntimeFailure> {
         let mut index = 0;
         while index < statements.len() {
             let statement = &statements[index];
@@ -12048,7 +12068,10 @@ impl<'a> Runtime<'a> {
             // the language, and the question of `IsSet` is the one of its
             // answer.
             _ => match self.evaluate(expression) {
-                Ok(Value::Unset) => Ok(false),
+                // The absent value of the script and the result of an access
+                // that the mark passed over have no value, and the question
+                // answers zero for both of them.
+                Ok(Value::Unset) | Ok(Value::Skipped) => Ok(false),
                 Ok(_) => Ok(true),
                 Err(failure) if the_failure_is_an_unset_variable(&failure) => Ok(false),
                 Err(failure) => Err(failure),
@@ -13297,7 +13320,7 @@ impl<'a> Runtime<'a> {
                     &values, self, *line,
                 ))
             }
-            Node::Maybe { value, .. } => {
+            Node::Maybe { value, from_a_group, .. } => {
                 // Measured on the binary of v2.0.19 on 2026-11-10: the value
                 // of the name that has none is the absent value, and every
                 // other failure is the failure.
@@ -13312,7 +13335,7 @@ impl<'a> Runtime<'a> {
                 // target read the ordinary way, so the failure of the target is
                 // the failure, and the failure of the access itself is the
                 // absent value.
-                if self.dialect.the_chain_may_be_skipped() {
+                if !from_a_group && self.dialect.the_chain_may_be_skipped() {
                     match &**value {
                         Node::Property {
                             target,
@@ -13396,11 +13419,16 @@ impl<'a> Runtime<'a> {
                     }
                 }
                 match self.evaluate(value) {
+                    // The value of a group keeps the absent value it has: the
+                    // parenthesis is not the access that the mark tolerates, so
+                    // a use of it after the mark is the failure of the value
+                    // the script holds.
+                    Ok(Value::Unset) if *from_a_group => Ok(Value::Unset),
                     Ok(Value::Unset) => Ok(Value::Skipped),
                     Ok(value) => Ok(value),
                     Err(failure) => {
                         if the_failure_is_an_unset_variable(&failure)
-                            || the_member_is_not_there(&failure)
+                            || (!from_a_group && the_member_is_not_there(&failure))
                         {
                             Ok(Value::Skipped)
                         } else {
@@ -14408,7 +14436,9 @@ impl<'a> Runtime<'a> {
         // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the write
         // through the chain that has no value is skipped with the parameters of
         // the property and the value that is written.
-        if self.dialect.the_chain_may_be_skipped() && matches!(object_value, Value::Unset) {
+        if self.dialect.the_chain_may_be_skipped()
+            && matches!(object_value, Value::Unset | Value::Skipped)
+        {
             return Ok(self.the_absent_answer_of(&object_value));
         }
         let name = self.the_name_of_the_member(name, *property_line)?;

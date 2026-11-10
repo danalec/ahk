@@ -8911,3 +8911,48 @@ fn the_two_kinds_of_absence_are_told_apart() {
         vec!["a0", "bUnsetError", "c0", "d12", "eUnsetError"]
     );
 }
+#[test]
+fn the_parenthesis_is_what_makes_the_mark_a_chain_on_a_value() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the mark that
+    // follows an access tolerates the absent value of that access --
+    // `h.Prop?.Inner` has no value -- and the mark that follows a parenthesis is
+    // the chain on a value: `(h?.Prop)?.Inner` is an `UnsetError`, because the
+    // value of the group has no value and the access after it is not the one
+    // the mark tolerates.
+    let (report, _desktop) = run_in(
+        concat!(
+            "h := { Prop: unset }\n",
+            "v := h.Prop?.Inner\n",
+            "MsgBox \"a\" IsSet(v)\n",
+            "try {\n",
+            "    v := (h?.Prop)?.Inner\n",
+            "    MsgBox \"no throw\"\n",
+            "} catch as e {\n",
+            "    MsgBox \"b\" Type(e)\n",
+            "}\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a0", "bUnsetError"]);
+}
+
+#[test]
+fn the_line_of_the_arguments_of_a_call_is_the_line_of_the_call() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the `A_LineNumber`
+    // of the arguments of a call is the line of the call, and not a line of the
+    // body that the call ran -- the body leaves its own line behind, and the
+    // argument after it has to see the line of the caller.
+    let (report, _desktop) = run(concat!(
+        "F(a) {\n",
+        "    b := a + 1\n",
+        "    return b\n",
+        "}\n",
+        "MsgBox \"b=\" F(1) \" \" A_LineNumber\n",
+        "MsgBox \"c=\" A_LineNumber\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["b=2 5", "c=6"]);
+}

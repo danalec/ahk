@@ -833,7 +833,19 @@ pub enum Node {
     /// Measured on the binary of v2.0.19 on 2026-11-10: `x := (v?)` leaves
     /// `x` without a value when `v` has none, and `{a: (v?)}` is an object
     /// with no property when `v` has none.
-    Maybe { value: Box<Node>, line: u32 },
+    Maybe {
+        value: Box<Node>,
+        /// Whether the value came from a parenthesis: `(x)?` keeps the absent
+        /// value of the group, and `x?` turns the absent value of the name into
+        /// the result of a skipped access.
+        ///
+        /// Measured on the test suite of KeySharp (the corpus script
+        /// `op-null-assign.ahk`) and on the notes of v2.1-alpha:
+        /// `holder.Prop?.Inner` has no value and does not fail, and
+        /// `(holder?.Prop)?.Inner` is an `UnsetError`.
+        from_a_group: bool,
+        line: u32,
+    },
     /// `expr*`: the argument of a call that is every item of the value.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: the star spreads
