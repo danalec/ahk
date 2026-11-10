@@ -595,6 +595,14 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// Take a window of the script off the screen.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `Hide` answers the empty
+    /// text and takes no parameters.
+    fn gui_hide(&mut self) -> Result<(), String> {
+        Err("this desktop cannot hide the window of the script".to_string())
+    }
+
     /// Put the focus on a control of a window of the script.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `Focus` answers the empty

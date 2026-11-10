@@ -266,6 +266,13 @@ def the_focus(number):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_hide():
+    """Take the window off the screen. `Hide` of v2, which answers nothing."""
+    if state["window"] is not None:
+        state["window"].hide()
+    answer({"ok": True})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -275,6 +282,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "hide":
+        run_on_loop(the_hide)
     elif op == "focus":
         run_on_loop(lambda: the_focus(command.get("id", 0)))
     elif op == "size":

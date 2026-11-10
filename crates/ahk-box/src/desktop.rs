@@ -1122,6 +1122,15 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
     }
 
+    fn gui_hide(&mut self) -> Result<(), String> {
+        let answer = self.the_gui_says("{\"op\": \"hide\"}")?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the window of the script was not hidden: {answer}"))
+        }
+    }
+
     fn gui_focus(&mut self, number: u64) -> Result<(), String> {
         let command = format!("{{\"op\": \"focus\", \"id\": {}}}", number);
         let answer = self.the_gui_says(&command)?;
