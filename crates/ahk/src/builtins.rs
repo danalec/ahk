@@ -2375,9 +2375,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_controls_hwnd,
     },
     Builtin {
         name: "WinGetCount",
@@ -10167,6 +10167,39 @@ pub(crate) fn win_get_controls(
             .collect()
     };
     // The answer of v2 is an array, and this is how `StrSplit` makes one.
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
+}
+
+/// `WinGetControlsHwnd(WinTitle)`: the handle of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers as many Integers as the
+/// window has controls. No channel of its own is needed: the names come from
+/// `WinGetControls` and the number of a name from the lookup of round 164.
+pub(crate) fn win_get_controls_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let joined = rt
+        .desktop()
+        .gui_controls()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let mut answers: Vec<Value> = Vec::new();
+    if !joined.is_empty() {
+        for name in joined.split('\n') {
+            let number = rt
+                .desktop()
+                .gui_number_named(name)
+                .map_err(|reason| desktop_failure(reason, line))?;
+            answers.push(Value::Int(number));
+        }
+    }
     match crate::classes::construct("array", &answers, rt, line) {
         Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
         None => Ok(Value::List(answers)),

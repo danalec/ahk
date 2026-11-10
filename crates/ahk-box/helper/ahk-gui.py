@@ -386,8 +386,8 @@ def the_number_named(classnn):
     gives it and the one an event about it carries.
     """
     wanted = classnn.strip().lower()
-    for number, kind, _control in state["controls"]:
-        if ("%s%d" % (the_class_of(kind), number)).lower() == wanted:
+    for number, _kind, _control in state["controls"]:
+        if (the_classnn_of(number) or "").lower() == wanted:
             answer({"ok": True, "value": number})
             return
     answer({"ok": False, "error": "there is no control named %s" % classnn})
@@ -403,13 +403,14 @@ def the_state_of(classnn, what, on):
     """
     wanted = classnn.strip().lower()
     for number, kind, control in state["controls"]:
-        if ("%s%d" % (the_class_of(kind), number)).lower() == wanted:
-            if what == "enabled":
-                control.set_sensitive(on)
-            else:
-                control.set_visible(on)
-            answer({"ok": True})
-            return
+        if (the_classnn_of(number) or "").lower() != wanted:
+            continue
+        if what == "enabled":
+            control.set_sensitive(on)
+        else:
+            control.set_visible(on)
+        answer({"ok": True})
+        return
     answer({"ok": False, "error": "there is no control named %s" % classnn})
 
 
@@ -509,6 +510,22 @@ def the_class_of(kind):
     if kind == "Text":
         return "Static"
     return kind
+
+
+def the_classnn_of(number):
+    """The class and number that names a control.
+
+    The class is v2's (`Static` for a label) and the number is counted **within that
+    class**, which is what v2 does: a label, an edit and a button are `Static1`, `Edit1`
+    and `Button1` and not `Static1`, `Edit2` and `Button3`.
+    """
+    seen = {}
+    for held, kind, _control in state["controls"]:
+        held_class = the_class_of(kind)
+        seen[held_class] = seen.get(held_class, 0) + 1
+        if held == number:
+            return "%s%d" % (held_class, seen[held_class])
+    return None
 
 
 def the_controls():
