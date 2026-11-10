@@ -8329,7 +8329,16 @@ pub(crate) fn is_set(
         // script wrote a variable: a reference of its own -- `&x` -- is a
         // value, and v2 refuses it.
         Some(Value::Reference(reference)) if reference.alias => {
-            let set = rt.read_reference(reference).is_some();
+            // Measured on the test suite of KeySharp (the corpus script
+            // `op-null-assign.ahk`) and on the notes of v2.1-alpha: a variable
+            // that holds the absent value, or the result of an access that the
+            // mark of the v2.1 passed over, does not have a value, and `IsSet`
+            // is zero for both of them.
+            let set = match rt.read_reference(reference) {
+                Some(Value::Unset) | Some(Value::Skipped) => false,
+                Some(_) => true,
+                None => false,
+            };
             Ok(Value::Int(if set { 1 } else { 0 }))
         }
         _ => Err(RuntimeError {

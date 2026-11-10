@@ -11009,3 +11009,37 @@ which is not -- so the tree needs two kinds of absence: the value the script may
 hold (`unset`), and the result of a skipped access, which every access after it
 passes over. The tree has one of them today, and it uses it as the silent one.
 That split is the next block, and it is not guessed here.
+## 292. Two kinds of absence
+
+Measured on the test suite of KeySharp (the corpus script `op-null-assign.ahk`)
+and on the notes of v2.1-alpha, the absence of the v2.1 is two things, and the
+tree tells them apart now:
+
+- `Value::Unset` is the absent value the script may hold: `x := unset`,
+  `{a: unset}`, the answer of a getter that returns `unset`. A *use* of it --
+  a member (`h.Prop.Inner`), an item, a call, a write -- is an `UnsetError`
+  ("This value has not been assigned a value."), and the questions about it
+  are answered instead: `IsSet` is zero, `?? ` takes the right side, `is unset`
+  is one, and an assignment of it leaves the variable without a value.
+- `Value::Skipped` is the result of an access that the mark of the chain passed
+  over: `h.Prop?.Inner` when `Prop` has no value. Every access after it passes
+  over it too (`h.Prop?.Inner.Deep`), `IsSet` is zero, `??` takes the right
+  side, `is unset` is one, and the script cannot write it: an assignment of it
+  leaves the variable without a value.
+
+The mark turns the absent value of the access it follows into the skipped one,
+so the chain continues; and the access before the mark is read the ordinary way,
+so its failure is the failure. The two kinds answer the same to every question
+that asks whether a value is there, and they differ in what a *use* does: the
+skipped one is passed over, and the held one is a failure.
+
+The object literal of the v2.0.19 drops a property of either kind, and the one of
+the v2.1 keeps it with the absent value as measured before.
+
+`op-null-assign.ahk` runs to line 391: `(holder?.Prop)?.Inner` must be an
+`UnsetError` and `holder.Prop?.Inner` the absent value, and the two are told
+apart by the parenthesis alone -- the mark follows an access in the second and a
+group in the first, and the parser drops the parenthesis of a group of one item,
+so the tree cannot tell them apart yet. The parenthesis has to be remembered (a
+flag on the value that may be absent, or a node of the group), which is the next
+block and is not guessed here.

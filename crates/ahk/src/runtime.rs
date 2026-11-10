@@ -768,6 +768,17 @@ pub enum Value {
     /// The operator is carried by the arguments of a call, and the
     /// value of a reference is the value of the variable it points at.
     Reference(Reference),
+    /// The value of an access that the mark of the v2.1 passed over.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `op-null-assign.ahk`) and on the notes of v2.1-alpha, two kinds of
+    /// absence are told apart: the value the script may hold (`unset`, which
+    /// is `Value::Unset`) and the result of a skipped access, which every
+    /// access after it passes over -- `holder.Prop?.Inner` has no value and
+    /// does not fail, and `(holder?.Prop)?.Inner` is the failure of the value
+    /// the script holds. The script cannot write this one: it is made by the
+    /// mark and by the access that follows it.
+    Skipped,
     /// The absent value of the keyword `unset`.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-10: a parameter that
@@ -900,7 +911,7 @@ impl Value {
             // The absent value is refused before a condition reads it -- the
             // dialect has no operator that takes it -- and it counts as false
             // here.
-            Value::Unset => false,
+            Value::Unset | Value::Skipped => false,
             // An object is always true.
             Value::Object(_) => true,
             // A reference points at something, and that is true.
@@ -917,7 +928,7 @@ impl Value {
             Value::List(_) | Value::Object(_) => TypeName::Object,
             // The kind of the absent value is never named: the dialect
             // refuses it before a message names it.
-            Value::Unset => TypeName::String,
+            Value::Unset | Value::Skipped => TypeName::String,
             Value::Reference(_) => TypeName::VarRef,
         }
     }
@@ -934,7 +945,7 @@ impl Value {
             Value::Text(text) => text.clone(),
             // The text of the absent value is never asked: the dialect
             // refuses it before.
-            Value::Unset => String::new(),
+            Value::Unset | Value::Skipped => String::new(),
             Value::List(items) => items
                 .iter()
                 .map(|item| item.to_text())
@@ -973,7 +984,7 @@ impl Value {
             Value::List(_) => "Array".to_string(),
             Value::Reference(_) => "VarRef".to_string(),
             // The absent value is never named: the dialect refuses it before.
-            Value::Unset => String::new(),
+            Value::Unset | Value::Skipped => String::new(),
             Value::Object(object) => {
                 let borrowed = object.borrow();
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
@@ -1011,7 +1022,7 @@ impl Value {
             Value::Float(number) => Some(*number),
             Value::Text(text) => text.trim().parse::<f64>().ok(),
             Value::List(_) | Value::Object(_) | Value::Reference(_) => None,
-            Value::Unset => None,
+            Value::Unset | Value::Skipped => None,
         }
     }
 
@@ -1036,7 +1047,7 @@ impl Value {
             }
             Value::List(_) | Value::Object(_) => Err(TypeName::Object),
             Value::Reference(_) => Err(TypeName::VarRef),
-            Value::Unset => Err(TypeName::String),
+            Value::Unset | Value::Skipped => Err(TypeName::String),
         }
     }
 
@@ -3160,7 +3171,7 @@ impl<'a> Runtime<'a> {
                     // Measured on the binary of v2.0.19 on 2026-11-10: the
                     // value that is absent takes the value of the variable
                     // away, the way the `unset` keyword does.
-                    if *op == AssignOp::Set && matches!(value, Value::Unset) {
+                    if *op == AssignOp::Set && matches!(value, Value::Unset | Value::Skipped) {
                         self.unset_variable(name);
                         detail = format!("{name} = ");
                     } else {
@@ -3293,7 +3304,7 @@ impl<'a> Runtime<'a> {
                 // Bump2()` does not call `Bump2()`.
                 if matches!(&**target, Node::Maybe { .. })
                     && self.dialect.the_chain_may_be_skipped()
-                    && matches!(self.evaluate(target)?, Value::Unset)
+                    && matches!(self.evaluate(target)?, Value::Unset | Value::Skipped)
                 {
                     detail = String::new();
                 } else {
@@ -6040,8 +6051,16 @@ impl<'a> Runtime<'a> {
         // the method of the absent value is the absent value in the dialect that
         // carries the chain of the v2.1 -- `o?.m()` does not ask for the method
         // when `o` has no value.
-        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
-            return Ok(Value::Unset);
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the result of an
+        // access that the mark passed over is passed over by the method too, and
+        // the absent value that the script holds is the failure of the use.
+        if self.dialect.the_chain_may_be_skipped() {
+            match target {
+                Value::Skipped => return Ok(Value::Skipped),
+                Value::Unset => return Err(self.the_failure_of_an_absent_value(line)),
+                _ => {}
+            }
         }
         if let Some((defining, method)) = self.find_method_on(target, name) {
             return self.call_method(&defining, &method, target, arguments, line);
@@ -7911,7 +7930,7 @@ impl<'a> Runtime<'a> {
             Value::List(_) => "Array".to_string(),
             Value::Reference(_) => "VarRef".to_string(),
             // The absent value is never named: the dialect refuses it before.
-            Value::Unset => String::new(),
+            Value::Unset | Value::Skipped => String::new(),
             Value::Object(_) => self.the_type_of(value),
         }
     }
@@ -8524,8 +8543,12 @@ impl<'a> Runtime<'a> {
         // does not fail. The chain `a?.b.c` short-circuits through every step
         // this way: each one answers the absent value, and the next one reads
         // the absent value of the one before it.
-        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
-            return Ok((Value::Unset, false));
+        if self.dialect.the_chain_may_be_skipped() {
+            match target {
+                Value::Skipped => return Ok((Value::Skipped, false)),
+                Value::Unset => return Err(self.the_failure_of_an_absent_value(line)),
+                _ => {}
+            }
         }
         // The name is written as the script wrote it, and the lookup is in
         // lower case: the tree does not know the case of a property.
@@ -8772,8 +8795,12 @@ impl<'a> Runtime<'a> {
         // member of the absent value is not written at all in the dialect that
         // carries the chain of the v2.1 -- `o?.w := 7` writes nothing when `o`
         // has no value, and it does not fail.
-        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
-            return Ok(());
+        if self.dialect.the_chain_may_be_skipped() {
+            match target {
+                Value::Skipped => return Ok(()),
+                Value::Unset => return Err(self.the_failure_of_an_absent_value(line)),
+                _ => {}
+            }
         }
         let written = name.to_string();
         let name = name.to_lowercase();
@@ -9972,8 +9999,12 @@ impl<'a> Runtime<'a> {
         // v2.1-alpha: the item of the absent value is the absent value in the
         // dialect that carries the chain of the v2.1 -- `x?[1]` asks whether
         // `x` has a value, and answers the absent value when it has none.
-        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
-            return Ok(Value::Unset);
+        if self.dialect.the_chain_may_be_skipped() {
+            match target {
+                Value::Skipped => return Ok(Value::Skipped),
+                Value::Unset => return Err(self.the_failure_of_an_absent_value(line)),
+                _ => {}
+            }
         }
         if let Value::Object(_) = target {
             return self.read_item(target, keys, line);
@@ -10679,8 +10710,12 @@ impl<'a> Runtime<'a> {
         // v2.1-alpha: the call of the absent value is the absent value in the
         // dialect that carries the chain of the v2.1 -- `f?()` asks whether
         // the name has a value, and answers the absent value when it has none.
-        if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
-            return Ok(Value::Unset);
+        if self.dialect.the_chain_may_be_skipped() {
+            match &value {
+                Value::Skipped => return Ok(Value::Skipped),
+                Value::Unset => return Err(self.the_failure_of_an_absent_value(line)),
+                _ => {}
+            }
         }
         if let Value::Object(object) = &value {
             // A class is a value, and the call of it makes an object of that
@@ -10969,7 +11004,7 @@ impl<'a> Runtime<'a> {
         // a parameter that the call leaves out has none.
         let unset: Vec<bool> = values
             .iter()
-            .map(|value| matches!(value, Value::Unset))
+            .map(|value| matches!(value, Value::Unset | Value::Skipped))
             .collect();
         let the_parameter_is_missing = |index: usize| {
             missing.get(index).copied().unwrap_or(false)
@@ -12021,6 +12056,39 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The failure of a use of the absent value that the script holds.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `op-null-assign.ahk`) and on the notes of v2.1-alpha: the value the
+    /// script holds may be the absent value, and a use of it -- a member, an
+    /// item, a call, a write -- is a failure: `(holder?.Prop)?.Inner` is an
+    /// `UnsetError`, and the result of an access that the mark passed over is
+    /// not.
+    fn the_failure_of_an_absent_value(&self, line: u32) -> RuntimeFailure {
+        RuntimeFailure::Detailed(
+            RuntimeError {
+                message: "This value has not been assigned a value.".to_string(),
+                line,
+            },
+            Detail {
+                what: String::new(),
+                extra: String::new(),
+            },
+        )
+    }
+
+    /// The absent value that an operation answers.
+    ///
+    /// The result of an access that the mark passed over stays that result, so
+    /// that the access after it passes over it too; the absent value that the
+    /// script holds is the absent value of the answer.
+    fn the_absent_answer_of(&self, from: &Value) -> Value {
+        match from {
+            Value::Skipped => Value::Skipped,
+            _ => Value::Unset,
+        }
+    }
+
     /// Whether the expression has no value, without reading it as a value.
     ///
     /// Measured on the test suite of KeySharp (the corpus script
@@ -12032,7 +12100,12 @@ impl<'a> Runtime<'a> {
             return Ok(self.lookup(name).is_none());
         }
         match self.evaluate(node) {
-            Ok(Value::Unset) => Ok(true),
+            // Measured on the test suite of KeySharp (the corpus script
+            // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the result of
+            // an access that the mark of the chain passed over has no value, and
+            // `is unset` is one for it, the way it is one for the absent value
+            // that the script holds.
+            Ok(Value::Unset) | Ok(Value::Skipped) => Ok(true),
             Ok(_) => Ok(false),
             Err(failure) if the_failure_is_an_unset_variable(&failure) => Ok(true),
             Err(failure) => Err(failure),
@@ -13052,7 +13125,7 @@ impl<'a> Runtime<'a> {
             } => {
                 if matches!(&**target, Node::Maybe { .. })
                     && self.dialect.the_chain_may_be_skipped()
-                    && matches!(self.evaluate(target)?, Value::Unset)
+                    && matches!(self.evaluate(target)?, Value::Unset | Value::Skipped)
                 {
                     return Ok(Value::Unset);
                 }
@@ -13140,7 +13213,7 @@ impl<'a> Runtime<'a> {
                                 // v2.1 keeps it, and the read of it is the absent
                                 // value -- `{prop: unset}` is read by
                                 // `optObj?.prop?.inner` as the absent value.
-                                if matches!(value, Value::Unset)
+                                if matches!(value, Value::Unset | Value::Skipped)
                                     && !self.dialect.the_chain_may_be_skipped()
                                 {
                                     continue;
@@ -13249,9 +13322,14 @@ impl<'a> Runtime<'a> {
                             let target_value = self.evaluate(target)?;
                             let name = self.the_name_of_the_member(name, *line)?;
                             return match self.read_property(&target_value, &name, *line) {
+                                // The answer of the access the mark follows may
+                                // be the absent value, and the mark turns it
+                                // into the result of a skipped access, which
+                                // the access after it passes over.
+                                Ok(Value::Unset) => Ok(Value::Skipped),
                                 Ok(value) => Ok(value),
                                 Err(failure) if the_member_is_not_there(&failure) => {
-                                    Ok(Value::Unset)
+                                    Ok(Value::Skipped)
                                 }
                                 Err(failure) => Err(failure),
                             };
@@ -13282,20 +13360,31 @@ impl<'a> Runtime<'a> {
                                     &keys,
                                     *property_line,
                                 )?;
+                                // The answer of the access the mark follows is the
+                                // absent value, and the item of the absent value is the
+                                // result of a skipped access.
+                                if matches!(held, Value::Unset | Value::Skipped) {
+                                    return Ok(Value::Skipped);
+                                }
                                 if by_meta {
                                     return Ok(held);
                                 }
                                 return match self.index_a_value(&held, &keys, *line) {
+                                    Ok(Value::Unset) => Ok(Value::Skipped),
                                     Ok(value) => Ok(value),
                                     Err(failure) if the_member_is_not_there(&failure) => {
-                                        Ok(Value::Unset)
+                                        Ok(Value::Skipped)
                                     }
                                     Err(failure) => Err(failure),
                                 };
                             }
                             let target_value = self.evaluate(target)?;
+                            if matches!(target_value, Value::Unset | Value::Skipped) {
+                                return Ok(Value::Skipped);
+                            }
                             let keys = self.the_keys_of_an_index(index, also)?;
                             return match self.index_a_value(&target_value, &keys, *line) {
+                                Ok(Value::Unset) => Ok(Value::Skipped),
                                 Ok(value) => Ok(value),
                                 Err(failure) if the_member_is_not_there(&failure) => {
                                     Ok(Value::Unset)
@@ -13307,10 +13396,13 @@ impl<'a> Runtime<'a> {
                     }
                 }
                 match self.evaluate(value) {
+                    Ok(Value::Unset) => Ok(Value::Skipped),
                     Ok(value) => Ok(value),
                     Err(failure) => {
-                        if the_failure_is_an_unset_variable(&failure) {
-                            Ok(Value::Unset)
+                        if the_failure_is_an_unset_variable(&failure)
+                            || the_member_is_not_there(&failure)
+                        {
+                            Ok(Value::Skipped)
                         } else {
                             Err(failure)
                         }
@@ -13474,8 +13566,8 @@ impl<'a> Runtime<'a> {
                     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
                     // operation of the absent value is the absent value, and it
                     // does not fail.
-                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
-                        return Ok(Value::Unset);
+                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset | Value::Skipped) {
+                        return Ok(self.the_absent_answer_of(&value));
                     }
                     // Measured on the binary of v1.1.37.02 on 2026-11-02:
                     // the value of the v1 is a number when it can be one --
@@ -13502,8 +13594,8 @@ impl<'a> Runtime<'a> {
                     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
                     // operation of the absent value is the absent value, and it
                     // does not fail.
-                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
-                        return Ok(Value::Unset);
+                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset | Value::Skipped) {
+                        return Ok(self.the_absent_answer_of(&value));
                     }
                     // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                     // plus of the v1 changes nothing: the `+x` of the
@@ -13522,8 +13614,8 @@ impl<'a> Runtime<'a> {
                     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
                     // operation of the absent value is the absent value, and it
                     // does not fail.
-                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
-                        return Ok(Value::Unset);
+                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset | Value::Skipped) {
+                        return Ok(self.the_absent_answer_of(&value));
                     }
                     // v2 says that the bitwise not wants a number here, and
                     // not a whole one: the message is the one of the number.
@@ -13597,7 +13689,12 @@ impl<'a> Runtime<'a> {
                         }));
                     }
                     return match self.evaluate(left) {
-                        Ok(Value::Unset) => self.evaluate(right),
+                        // Measured on the test suite of KeySharp (the corpus
+                        // script `op-null-assign.ahk`) and on the notes of
+                        // v2.1-alpha: the right side of the `??` is the answer
+                        // for the absent value of the script and for the result
+                        // of an access that the mark of the chain passed over.
+                        Ok(Value::Unset) | Ok(Value::Skipped) => self.evaluate(right),
                         Ok(value) => Ok(value),
                         Err(failure) if the_failure_is_an_unset_variable(&failure) => {
                             self.evaluate(right)
@@ -13652,7 +13749,12 @@ impl<'a> Runtime<'a> {
                     let answer = match left.as_ref() {
                         Node::Var { name, .. } => self.lookup(name).is_none(),
                         _ => match self.evaluate(left) {
-                            Ok(Value::Unset) => true,
+                            // Measured on the test suite of KeySharp (the corpus
+                            // script `op-null-assign.ahk`) and on the notes of
+                            // v2.1-alpha: the result of an access that the mark
+                            // of the chain passed over has no value, and
+                            // `x?.a is unset` is one for it.
+                            Ok(Value::Unset) | Ok(Value::Skipped) => true,
                             Ok(_) => false,
                             Err(failure) if the_failure_is_an_unset_variable(&failure) => true,
                             Err(failure) => return Err(failure),
@@ -13669,8 +13771,8 @@ impl<'a> Runtime<'a> {
                 // operators that ask about the absent value are the ones that
                 // were answered above: the coalesce, the `is` of it and the
                 // comparison with the keyword.
-                if self.dialect.the_chain_may_be_skipped() && matches!(left_value, Value::Unset) {
-                    return Ok(Value::Unset);
+                if self.dialect.the_chain_may_be_skipped() && matches!(left_value, Value::Unset | Value::Skipped) {
+                    return Ok(self.the_absent_answer_of(&left_value));
                 }
                 match op {
                     // `and` and `or` answer the operand and not a truth:
@@ -13713,8 +13815,8 @@ impl<'a> Runtime<'a> {
                 // `op-null-assign.ahk`) and on the notes of v2.1-alpha: an
                 // operand that has no value makes the operation the absent
                 // value.
-                if self.dialect.the_chain_may_be_skipped() && matches!(right_value, Value::Unset) {
-                    return Ok(Value::Unset);
+                if self.dialect.the_chain_may_be_skipped() && matches!(right_value, Value::Unset | Value::Skipped) {
+                    return Ok(self.the_absent_answer_of(&right_value));
                 }
                 // The arithmetic of the v1 is not the one of the v2: the text
                 // that is written between quotes is a string, and the value
@@ -14095,8 +14197,8 @@ impl<'a> Runtime<'a> {
                     && self.dialect.the_chain_may_be_skipped()
                 {
                     let value = self.evaluate(target)?;
-                    if matches!(value, Value::Unset) {
-                        return Ok(Value::Unset);
+                    if matches!(value, Value::Unset | Value::Skipped) {
+                        return Ok(self.the_absent_answer_of(&value));
                     }
                     let keys = self.the_keys_of_an_index(index, also)?;
                     return self.index_a_value(&value, &keys, *line);
@@ -14143,8 +14245,8 @@ impl<'a> Runtime<'a> {
                 // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
                 // question that has no value is the absent value, and neither
                 // branch of it is read.
-                if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
-                    return Ok(Value::Unset);
+                if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset | Value::Skipped) {
+                    return Ok(self.the_absent_answer_of(&value));
                 }
                 if self.the_value_is_true(&value) {
                     self.evaluate(then)
@@ -14307,7 +14409,7 @@ impl<'a> Runtime<'a> {
         // through the chain that has no value is skipped with the parameters of
         // the property and the value that is written.
         if self.dialect.the_chain_may_be_skipped() && matches!(object_value, Value::Unset) {
-            return Ok(Value::Unset);
+            return Ok(self.the_absent_answer_of(&object_value));
         }
         let name = self.the_name_of_the_member(name, *property_line)?;
         // The property that declares no parameters holds the value whose item
@@ -14361,8 +14463,12 @@ impl<'a> Runtime<'a> {
         // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the item of the
         // absent value is written to nothing, and the value of the write is the
         // value that was written.
-        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
-            return Ok(value);
+        if self.dialect.the_chain_may_be_skipped() {
+            match target {
+                Value::Skipped => return Ok(value),
+                Value::Unset => return Err(self.the_failure_of_an_absent_value(line)),
+                _ => {}
+            }
         }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
         // write of the item of a value that is not an object is dropped by
@@ -14452,8 +14558,12 @@ impl<'a> Runtime<'a> {
         // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
         // v2.1-alpha: the item of the absent value is the absent value in the
         // dialect that carries the chain of the v2.1.
-        if self.dialect.the_chain_may_be_skipped() && matches!(target, Value::Unset) {
-            return Ok(Value::Unset);
+        if self.dialect.the_chain_may_be_skipped() {
+            match target {
+                Value::Skipped => return Ok(Value::Skipped),
+                Value::Unset => return Err(self.the_failure_of_an_absent_value(line)),
+                _ => {}
+            }
         }
         let Value::Object(object) = target else {
             if self.dialect.a_member_that_is_not_there_is_answered() {
@@ -15085,7 +15195,7 @@ pub(crate) fn the_extra_of_the_value(value: &Value) -> String {
         Value::List(_) | Value::Object(_) | Value::Reference(_) => String::new(),
         // The absent value has no text of its own, and the dialect refuses it
         // before an Extra carries it.
-        Value::Unset => String::new(),
+        Value::Unset | Value::Skipped => String::new(),
     }
 }
 

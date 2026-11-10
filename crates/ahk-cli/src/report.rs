@@ -113,7 +113,7 @@ fn the_value(out: &mut String, value: &Value) {
         // report writes it as the empty text: a variable that has no value is
         // not a variable of the report at all, and a value that arrives here
         // is the absence that a call gave a parameter.
-        Value::Unset => crate::json::write_text(out, ""),
+        Value::Unset | Value::Skipped => crate::json::write_text(out, ""),
         Value::List(values) => {
             out.push('[');
             for (index, value) in values.iter().enumerate() {

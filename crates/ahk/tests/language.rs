@@ -8867,3 +8867,47 @@ fn a_suspend_exempt_that_is_not_a_boolean_is_refused() {
     let (report, _desktop) = run("#SuspendExempt Bogus\n");
     assert_eq!(report.error.as_deref(), Some("Parameter #1 invalid."));
 }
+#[test]
+fn the_two_kinds_of_absence_are_told_apart() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the result of an
+    // access that the mark of the chain passed over is passed over by every
+    // access after it -- `holder.Prop?.Inner` has no value and does not fail --
+    // and the absent value that the script holds is a failure when it is used:
+    // `holder.Prop.Inner` is an `UnsetError`, and so is `x.Inner` of a variable
+    // that holds the absent value. The mark turns the absent value of the
+    // access it follows into the one that is passed over, so
+    // `(holder.Prop?)?.Inner` has no value either.
+    let (report, _desktop) = run_in(
+        concat!(
+            "class Holder {\n",
+            "    Prop => unset\n",
+            "}\n",
+            "h := Holder()\n",
+            "v := h.Prop?.Inner\n",
+            "MsgBox \"a\" IsSet(v)\n",
+            "try {\n",
+            "    v := h.Prop.Inner\n",
+            "    MsgBox \"no throw 1\"\n",
+            "} catch as e {\n",
+            "    MsgBox \"b\" Type(e)\n",
+            "}\n",
+            "v := (h.Prop?)?.Inner\n",
+            "MsgBox \"c\" IsSet(v)\n",
+            "MsgBox \"d\" (h.Prop?.Inner ?? 12)\n",
+            "x := unset\n",
+            "try {\n",
+            "    v := x.Inner\n",
+            "    MsgBox \"no throw 2\"\n",
+            "} catch as e {\n",
+            "    MsgBox \"e\" Type(e)\n",
+            "}\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["a0", "bUnsetError", "c0", "d12", "eUnsetError"]
+    );
+}
