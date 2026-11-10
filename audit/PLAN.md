@@ -1866,6 +1866,32 @@ written down.
 `WinGetPID` that opened the chain). Item 4 is a scoped job for a round with room
 for the box build loop, not a tail-end win.
 
+### Round 54 — 2026-11-09: the next quick win, measured
+
+Looking for a rung after the ioctl job, and `SysGetIPAddresses` is one. Measured
+on the binary of v2.0.19 on 2026-11-09:
+
+```
+type=Array len=4
+  [172.29.16.1]  [172.26.48.1]  [192.168.0.45]  [169.254.83.107]
+```
+
+**The shape is clean and it is the shape this tree can build**: an array of the
+IPv4 addresses of the machine's interfaces, in the order v2 lists them. That is a
+name with no Windows in it and nothing to infer.
+
+It did not ship, and the reason is only the size of the change against the
+budget of the round: it needs a `Network` capability method (which carries a
+default, so no fake desktop moves), a shell-out of the box to `ip -o -4 addr
+show` and its parse, the handler that builds the array, the row, and the case.
+Six pieces across three files, and a half-applied set of them is worse than none.
+
+**The next attempt, in order**: `Network::ip_addresses` answering the list or the
+reason; the box reading `ip -o -4 addr show` and taking the `inet` fields; the
+handler building the array the way `WinGetList` does; the case; then the box run
+against the interfaces the machine actually has, which the measurement above
+gives for the workstation and the box will give for itself.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
