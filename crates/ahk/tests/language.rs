@@ -6143,6 +6143,11 @@ fn the_hotstring_of_the_v2_is_a_line_of_raw_text() {
         "::btw::by the way\n",
         "::1:::2\n",
         "::5`:::6\n",
+        ":*:st::starred\n",
+        ":?:qm::question\n",
+        ":*?:both::both of them\n",
+        ":*:i\"q::I \"quote\"\n",
+        ":?:; btu::; but\n",
         "MsgBox \"after\"\n",
     ));
     assert!(report.ok, "{:?}", report.error);
@@ -6151,6 +6156,26 @@ fn the_hotstring_of_the_v2_is_a_line_of_raw_text() {
     assert_eq!(
         error.message,
         "Invalid hotkey.\n     Specifically: ::btw"
+    );
+    // Measured on the binary of v2.0.19 on 2026-11-10: the line without the
+    // second pair of colons and the one with an empty trigger are
+    // "Invalid hotkey." with the line, and a replacement that is empty and has
+    // no continuation section is "Hotkey or hotstring is missing its opening
+    // brace.".
+    let error = parse(":btw::x\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Invalid hotkey.\n     Specifically: :btw::x"
+    );
+    let error = parse(":*::x\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Invalid hotkey.\n     Specifically: :*::x"
+    );
+    let error = parse("::btw::\n").expect_err("does not parse");
+    assert_eq!(
+        error.message,
+        "Hotkey or hotstring is missing its opening brace."
     );
 }
 
@@ -7878,4 +7903,32 @@ fn the_mode_of_the_title_may_be_the_word_of_the_patterns() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("m"), Some(&Value::Text("RegEx".into())));
+}
+#[test]
+fn a_hotkey_of_a_suspend_exempt_section_is_exempt() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `#SuspendExempt` covers
+    // the hotkeys that come after it, and `#SuspendExempt False` stops
+    // covering them; `Suspend 1` turns the state on and `Suspend 0` turns it
+    // off. The runner has no keyboard, so the state is what is observable.
+    let (report, _desktop) = run(concat!(
+        "#SuspendExempt\n",
+        "F1::return\n",
+        "#SuspendExempt False\n",
+        "F2::return\n",
+        "Suspend 1\n",
+        "a := A_IsSuspended\n",
+        "Suspend 0\n",
+        "b := A_IsSuspended\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("b"), Some(&Value::Int(0)));
+}
+
+#[test]
+fn a_suspend_exempt_that_is_not_a_boolean_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a value that is not a
+    // boolean is the load failure "Parameter #1 invalid.".
+    let (report, _desktop) = run("#SuspendExempt Bogus\n");
+    assert_eq!(report.error.as_deref(), Some("Parameter #1 invalid."));
 }

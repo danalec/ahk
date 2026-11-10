@@ -477,6 +477,25 @@ pub fn wants_a_reference(index: usize, name: &str, wants: &str, value: &Value) -
     )
 }
 
+/// The boolean of a directive that takes one: `#SuspendExempt [OnOff]`.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `#SuspendExempt`,
+/// `#SuspendExempt True` and `#SuspendExempt 1` all turn it on,
+/// `#SuspendExempt False` and `#SuspendExempt 0` turn it off, and a word that
+/// is none of them is the load failure "Parameter #1 invalid." with the whole
+/// line in the `Specifically:`.
+fn the_boolean_of_a_directive(argument: &str) -> Option<bool> {
+    let argument = argument.trim();
+    if argument.is_empty() {
+        return Some(true);
+    }
+    match argument.to_ascii_lowercase().as_str() {
+        "true" | "on" | "1" => Some(true),
+        "false" | "off" | "0" => Some(false),
+        _ => None,
+    }
+}
+
 /// The reason the runtime refuses the directive of this name, when it does.
 ///
 /// The directive is answered at the run, and the reason is the one of the
@@ -508,7 +527,7 @@ pub fn refusal_of_directive(name: &str) -> Option<&'static str> {
         | "maxthreadsbuffer" => Some("the hotkeys are not carried by this runtime."),
         "clipboardtimeout" => Some("the clipboard is not carried by this runtime."),
         "inputlevel" => Some("the input level is not carried by this runtime."),
-        "suspendexempt" => Some("the suspend is not carried by this runtime."),
+
         "winactivateforce" => Some("the window activation is not carried by this runtime."),
         "warn" => Some("the warnings are not carried by this runtime."),
         "include" | "includeagain" => {
@@ -1442,6 +1461,29 @@ pub struct Runtime<'a> {
     /// Whether the desktop said it cannot watch the keyboard: the hotkeys of
     /// the v2 are then a note of the run, and the script goes on.
     hotkeys_are_not_watched: bool,
+    /// Whether the hotkeys of the script are suspended.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `Suspend 1` makes
+    /// `A_IsSuspended` answer 1 and stops every hotkey of the script from
+    /// firing, except the ones that `#SuspendExempt` covered.
+    suspended: bool,
+    /// Whether the script is paused, the way `Pause` sets it.
+    ///
+    /// The runner has no keyboard and no hotkey thread: the state is kept
+    /// so that `A_IsPaused` and the hotkey table say what the command asked
+    /// for. The binary's `A_IsPaused` is the pause of the *previous* thread
+    /// (`g[-1].IsPaused`), which is 0 in the auto-execute section -- see the
+    /// value in `variables.rs` for the difference.
+    paused: bool,
+    /// Whether the hotkeys that are defined now are exempt from `Suspend`.
+    ///
+    /// `#SuspendExempt` sets it, and `#SuspendExempt False` clears it, for the
+    /// definitions that follow the directive in the source.
+    suspend_exempt: bool,
+    /// The exemption of each hotkey of the table, in the order of the table.
+    hotkey_is_exempt: Vec<bool>,
+    /// The enabled flag of each hotkey before `Suspend` turned it off.
+    hotkey_was_enabled: Vec<bool>,
     /// The code the script asked to stop with.
     exit_requested: Option<i32>,
     /// The functions to call when the script ends.
@@ -1543,6 +1585,11 @@ impl<'a> Runtime<'a> {
             timers: Vec::new(),
             hotkeys: Vec::new(),
             hotkeys_are_not_watched: false,
+            suspended: false,
+            paused: false,
+            suspend_exempt: false,
+            hotkey_is_exempt: Vec::new(),
+            hotkey_was_enabled: Vec::new(),
             exit_requested: None,
             exit_callbacks: Vec::new(),
             error_callbacks: Vec::new(),
@@ -1610,6 +1657,11 @@ impl<'a> Runtime<'a> {
             timers: Vec::new(),
             hotkeys: Vec::new(),
             hotkeys_are_not_watched: false,
+            suspended: false,
+            paused: false,
+            suspend_exempt: false,
+            hotkey_is_exempt: Vec::new(),
+            hotkey_was_enabled: Vec::new(),
             exit_requested: None,
             exit_callbacks: Vec::new(),
             error_callbacks: Vec::new(),
@@ -1836,6 +1888,8 @@ impl<'a> Runtime<'a> {
                             line: *line,
                         },
                     })?;
+                self.hotkey_is_exempt.push(false);
+                self.hotkey_was_enabled.push(true);
                 self.register_the_hotkeys_of_the_v1(body)?;
             }
         }
@@ -1871,7 +1925,25 @@ impl<'a> Runtime<'a> {
                             line: *line,
                         },
                     })?;
+                // The exemption of `#SuspendExempt` is the one of the
+                // directive that came before the definition in the source,
+                // which is why the directives are walked here as well: the
+                // table is built at the load, and the directive is applied by
+                // that walk and by the run both.
+                self.hotkey_is_exempt.push(self.suspend_exempt);
+                self.hotkey_was_enabled.push(true);
                 self.register_the_hotkeys_of_the_v2(body)?;
+                continue;
+            }
+            if let Node::Directive {
+                name, argument, ..
+            } = statement
+            {
+                if name.eq_ignore_ascii_case("suspendexempt") {
+                    if let Some(exempt) = the_boolean_of_a_directive(argument) {
+                        self.suspend_exempt = exempt;
+                    }
+                }
             }
         }
         Ok(())
@@ -8790,6 +8862,27 @@ impl<'a> Runtime<'a> {
             // There is no tray icon to hide, and the runner is one
             // process: both are already what the directive asks for.
             "notrayicon" => Ok("there is no tray icon to hide".into()),
+            // `#SuspendExempt` is read by the load, which marks the hotkeys
+            // that follow it, and by the run, which keeps the flag for the
+            // script: measured on the binary of v2.0.19 on 2026-11-09, the
+            // directive with no argument, with `True`, with `False` and with
+            // `0` are all accepted.
+            "suspendexempt" => match the_boolean_of_a_directive(argument) {
+                Some(exempt) => {
+                    self.suspend_exempt = exempt;
+                    Ok(if exempt {
+                        "the hotkeys that follow are exempt from Suspend".into()
+                    } else {
+                        "the hotkeys that follow are not exempt from Suspend".into()
+                    })
+                }
+                // Measured on the binary of v2.0.19 on 2026-11-09: a value
+                // that is not a boolean is "Parameter #1 invalid.".
+                None => Err(RuntimeFailure::Error(RuntimeError {
+                    message: "Parameter #1 invalid.".into(),
+                    line,
+                })),
+            },
             // Measured on the binary of v1.1.37.02 on 2026-11-01: the
             // directive `#NoEnv` turns the lookup of the environment off,
             // and the substitution of a parameter of the v1 is the variable
@@ -11764,6 +11857,60 @@ impl<'a> Runtime<'a> {
     /// The hotkeys of the script.
     pub(crate) fn hotkeys(&mut self) -> &mut Vec<crate::hotkeys::Hotkey> {
         &mut self.hotkeys
+    }
+
+    /// The hotkeys of the script, for reading.
+    ///
+    /// The runner has no keyboard of its own, so the table is what a test can
+    /// read after `Suspend`: the command is observable through this, through
+    /// `A_IsSuspended`, and not through a firing.
+    pub fn the_hotkeys(&self) -> &[crate::hotkeys::Hotkey] {
+        &self.hotkeys
+    }
+
+    /// Whether the hotkeys of the script are suspended.
+    pub fn is_suspended(&self) -> bool {
+        self.suspended
+    }
+
+    /// Whether the script is paused.
+    pub fn is_paused(&self) -> bool {
+        self.paused
+    }
+
+    /// Suspend the hotkeys of the script, or resume them.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `Suspend 1` stops a
+    /// hotkey that is not exempt from firing, and a hotkey of a
+    /// `#SuspendExempt` section keeps firing; `Suspend 0` gives every hotkey
+    /// back the state it had before the suspend, which is the state the
+    /// `Hotkey` function may have set to Off.
+    ///
+    /// The runner has no keyboard, so nothing fires here: the table and
+    /// `A_IsSuspended` are what says the command did what it asked for.
+    pub fn set_suspended(&mut self, suspended: bool) {
+        if suspended == self.suspended {
+            return;
+        }
+        self.suspended = suspended;
+        for (at, hotkey) in self.hotkeys.iter_mut().enumerate() {
+            let exempt = self.hotkey_is_exempt.get(at).copied().unwrap_or(false);
+            if suspended {
+                if let Some(was) = self.hotkey_was_enabled.get_mut(at) {
+                    *was = hotkey.enabled;
+                }
+                if !exempt {
+                    hotkey.enabled = false;
+                }
+            } else if let Some(was) = self.hotkey_was_enabled.get(at) {
+                hotkey.enabled = *was;
+            }
+        }
+    }
+
+    /// Pause the script, or unpause it.
+    pub fn set_paused(&mut self, paused: bool) {
+        self.paused = paused;
     }
 
     /// The function the script asks to run when it ends.

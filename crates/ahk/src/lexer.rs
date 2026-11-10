@@ -1830,20 +1830,15 @@ fn tokenize_the_source(
         // hotstring it is, and the rest of the line is one text.
         if dialect.the_hotstrings_are_of_the_v2()
             && current == ':'
-            && chars.get(index + 1) == Some(&':')
+            && the_line_from_has_the_two_colons(&chars, index)
             && tokens.len() == the_start_of_the_current_line_tokens
         {
+            // The line of a hotstring is one line of raw text: the two colons,
+            // the options between the two of them (`:*:`, `:?:`), the trigger
+            // and the replacement, with the quoting of the trigger and the
+            // `{` of the replacement as they were written. It is one token and
+            // no character of it is a token of the dialect.
             let start_column = column;
-            tokens.push(Token {
-                kind: TokenKind::Op,
-                value: "::".to_string(),
-                line,
-                column: start_column,
-                spaced: before,
-                quote: None,
-            });
-            index += 2;
-            column += 2;
             let start = index;
             while index < chars.len() && chars[index] != '\n' {
                 index += 1;
@@ -1854,8 +1849,8 @@ fn tokenize_the_source(
                 kind: TokenKind::String,
                 value: text,
                 line,
-                column: start_column + 2,
-                spaced: false,
+                column: start_column,
+                spaced: before,
                 quote: None,
             });
             continue;

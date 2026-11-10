@@ -3211,9 +3211,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 110,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: pause,
     },
     Builtin {
         name: "Persistent",
@@ -3328,9 +3328,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 113,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: suspend,
     },
     Builtin {
         name: "Thread",
@@ -4904,6 +4904,82 @@ fn device_of(values: &[Value], index: usize) -> String {
         Some(value) => value.to_text(),
         None => String::new(),
     }
+}
+
+// -- the suspend and the pause ----------------------------------------------------
+
+/// The number of `Suspend` and of `Pause`: on, off, or the toggle of the
+/// omitted one.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the parameter is a Number,
+/// and a text is the TypeError "Parameter #1 of Suspend requires a Number, but
+/// received a String." with the text in the `Extra` -- "On", "Off" and
+/// "Toggle" are not taken. The number one turns the state on, the zero turns
+/// it off, and the minus one toggles, the way the omitted parameter toggles.
+/// Any other number is "Parameter #1 of <name> is invalid." with the number in
+/// the `Extra`: `Suspend 2` answers it.
+fn the_on_or_off_of_a_command(
+    values: &[Value],
+    name: &str,
+    line: u32,
+) -> Result<Option<bool>, RuntimeError> {
+    let Some(value) = values.first() else {
+        return Ok(None);
+    };
+    match token_to_int64(value) {
+        1 => Ok(Some(true)),
+        0 => Ok(Some(false)),
+        -1 => Ok(None),
+        _ => Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, name),
+            line,
+        }),
+    }
+}
+
+/// `Suspend`: the hotkeys of the script off, or on.
+///
+/// The answer is the empty text, and the command is observable through
+/// `A_IsSuspended` and through the enabled flag of the hotkey table: the
+/// runner has no keyboard, so no hotkey fires here, and a test reads the
+/// table instead.
+pub(crate) fn suspend(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match the_on_or_off_of_a_command(values, "Suspend", line)? {
+        Some(suspended) => rt.set_suspended(suspended),
+        None => {
+            let now = rt.is_suspended();
+            rt.set_suspended(!now);
+        }
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `Pause`: the script paused, or not.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the shapes of the
+/// parameter are the ones of `Suspend`, and the answer is the empty text. A
+/// `Pause` with no parameter pauses the *current thread* of the binary, which
+/// waits for a key and hangs a script that has no keyboard -- the tree keeps a
+/// state instead, and says so in `A_IsPaused`.
+pub(crate) fn pause(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match the_on_or_off_of_a_command(values, "Pause", line)? {
+        Some(paused) => rt.set_paused(paused),
+        None => {
+            let now = rt.is_paused();
+            rt.set_paused(!now);
+        }
+    }
+    Ok(Value::Text(String::new()))
 }
 
 // -- the script ---------------------------------------------------------------------

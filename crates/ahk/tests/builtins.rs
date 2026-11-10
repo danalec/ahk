@@ -1387,6 +1387,74 @@ fn the_readings_of_a_drive_are_asked_of_the_desktop() {
 }
 
 #[test]
+fn the_suspend_and_the_pause_are_a_state_of_the_run() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `Suspend 1` and
+    // `Suspend 0` turn the state off and on, the omitted parameter and the
+    // number minus one toggle it, and the parameter is a Number: "On" is the
+    // TypeError of a String, and `Suspend 2` is "Parameter #1 ... is invalid."
+    // with the number in the `Extra`. The answer of both commands is the empty
+    // text. The runner has no keyboard, so the state is what is observable --
+    // there is no hotkey to fire here.
+    let report = run(concat!(
+        "s0 := A_IsSuspended\n",
+        "r := Suspend(1)\n",
+        "s1 := A_IsSuspended\n",
+        "Suspend(0)\n",
+        "s2 := A_IsSuspended\n",
+        "Suspend()\n",
+        "s3 := A_IsSuspended\n",
+        "Suspend()\n",
+        "s4 := A_IsSuspended\n",
+        "Suspend(-1)\n",
+        "s5 := A_IsSuspended\n",
+        "p0 := A_IsPaused\n",
+        "Pause(1)\n",
+        "p1 := A_IsPaused\n",
+        "Pause(0)\n",
+        "p2 := A_IsPaused\n",
+        "Pause()\n",
+        "p3 := A_IsPaused\n",
+        "Pause()\n",
+        "p4 := A_IsPaused\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    assert_eq!(int_of(&report, "s0"), 0);
+    assert_eq!(int_of(&report, "s1"), 1);
+    assert_eq!(int_of(&report, "s2"), 0);
+    assert_eq!(int_of(&report, "s3"), 1);
+    assert_eq!(int_of(&report, "s4"), 0);
+    assert_eq!(int_of(&report, "s5"), 1);
+    assert_eq!(int_of(&report, "p0"), 0);
+    assert_eq!(int_of(&report, "p1"), 1);
+    assert_eq!(int_of(&report, "p2"), 0);
+    assert_eq!(int_of(&report, "p3"), 1);
+    assert_eq!(int_of(&report, "p4"), 0);
+    // The parameter is a Number, and the words of the v1 are not taken.
+    assert_eq!(
+        failure_of(&run("Suspend(\"On\")")),
+        "Parameter #1 of Suspend requires a Number, but received a String."
+    );
+    assert_eq!(
+        failure_of(&run("Pause(\"Off\")")),
+        "Parameter #1 of Pause requires a Number, but received a String."
+    );
+    // A number that is not one, minus one or zero is invalid, and the number
+    // is in the `Extra`.
+    let report = run(concat!(
+        "try\n",
+        "    Suspend(2)\n",
+        "catch as e\n",
+        "    a := Type(e) \"|\" e.Message \"|\" e.Extra\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "a"),
+        Value::Text("ValueError|Parameter #1 of Suspend is invalid.|2".into())
+    );
+}
+
+#[test]
 fn the_windows_of_the_session_are_asked_of_the_desktop() {
     // Measured on the binary of v2.0.19 on 2026-11-09: `WinGetList` answers
     // an array of the ids as whole numbers, and the empty array when nothing
@@ -3975,11 +4043,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "this runtime runs one script in one thread, and it cannot start another.",
         ),
         (
-            "Pause",
-            "Pause",
-            "this runtime cannot wait for a key to continue: the script ends when it ends.",
-        ),
-        (
             "Persistent",
             "Persistent",
             "this runtime is a script that ends when it ends, and it cannot be kept alive.",
@@ -3988,11 +4051,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "Reload",
             "Reload",
             "this runtime runs one script once, and it cannot run itself again.",
-        ),
-        (
-            "Suspend",
-            "Suspend",
-            "this runtime cannot stop itself: it would never end.",
         ),
         (
             "ListLines",

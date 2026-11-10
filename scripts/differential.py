@@ -151,6 +151,8 @@ FAMILIES = {
     "er": "errors",
     "di": "directives",
     "hk": "hotkeys",
+    "hs": "hotstrings",
+    "su": "suspend",
 }
 
 FAMILY_COVERAGE = {
@@ -167,6 +169,8 @@ FAMILY_COVERAGE = {
     "errors": "divide by zero, bad index, missing Map key, unset variable, Chr(-1), type errors, wrong arity, unknown function, StrGet",
     "directives": "the directives a script may carry",
     "hotkeys": "hotkey and hotstring definitions: one-line and block bodies, return, modifier chords, the doubled colon of a hotstring, the literal empty brace the binary refuses",
+    "hotstrings": "the options of a hotstring (`*`, `?`), a quoted character and a semicolon in the trigger and the replacement, and the multi-line continuation replacement",
+    "suspend": "Suspend/Resume and A_IsSuspended, and #SuspendExempt with a hotkey",
 }
 
 WARNING_BLOCK = re.compile(

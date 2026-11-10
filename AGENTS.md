@@ -10272,3 +10272,63 @@ The ` Up` suffix is the only space a name of a hotkey may hold: `F1 Up::` and
 `^!a Up::` are the key coming up, and the parser now tells that spelling apart
 from the line that is not a hotkey. The case of the corpus is
 `func-hotkey-local.ahk`, which passes now.
+## 261. The options of a hotstring, and the text of its continuation
+
+Measured on the binary of v2.0.19 on 2026-11-10, with `/validate /ErrorStdOut`
+on one-line files: a hotstring is a line of its own that begins with one colon
+(`:options:trigger::replacement`) or two (`::trigger::replacement`), and every
+option letter the binary reads is accepted -- `:*`, `:?`, `:O`, `:R`, `:T`,
+`:C`, `:SI` and the combinations (`:*?:`) -- with a quoted character or a
+semicolon inside the trigger (`:*:i"q::I "quote"`, `:?:; btu::; but`). The line
+without the closing option colon (`:btw::x`) and the one with an empty trigger
+(`:*::x`) are "Invalid hotkey." with the line, and a replacement that is empty
+and has no continuation section (`::btw::`) is "Hotkey or hotstring is missing
+its opening brace.".
+
+The lexer now reads the whole line of a hotstring as **one token of raw text**,
+whether it begins with one colon or two: no character of the trigger or the
+replacement -- the quote, the semicolon, the backtick -- is a token of the
+dialect, and the parser splits the text into options, trigger and replacement
+itself. Before this a `:*:` line was lexed as `:` `*` `:` and a quote in the
+trigger started a string.
+
+Not carried: the replacement that is the text of the continuation section
+(`::text1::` followed by `(` ... `)`). The line is refused with the measured
+message above rather than read as a hotstring with no text, and the reason is
+in the coding: the continuation machinery of the lexer belongs to the
+expressions, and the prose of a section is not a token of the dialect. The
+corpus case `hotstring-parsing2.ahk` is stopped there.
+## 262. The suspend and the pause of a run
+
+Measured on the binary of v2.0.19 on 2026-11-09: the parameter of `Suspend`
+and of `Pause` is a Number -- `Suspend("On")` is "Parameter #1 of Suspend
+requires a Number, but received a String." with the text in the `Extra` --
+`1` is on, `0` is off, a number that is not given **toggles**, and `-1`
+toggles too; `2` is "Parameter #1 of Suspend is invalid." with the number in
+the `Extra`. A numeric text is taken as the number, the answer is the empty
+text, and `A_IsSuspended` is 0 before, 1 after `Suspend 1` and 0 after
+`Suspend 0`. `#SuspendExempt`, `#SuspendExempt True` and `#SuspendExempt False`
+are accepted, and a value that is not a boolean is "Parameter #1 invalid." with
+the whole line in `Specifically:`.
+
+The run keeps the three states (suspended, paused and the exemption flag) and
+two vectors that record each registered hotkey's exemption and its enabled
+flag, filled while the load walks the directives and the definitions in source
+order -- the only order in which `#SuspendExempt` means the hotkeys that come
+after it. `set_suspended` turns the enabled flag off for the entries that are
+not exempt and gives each one its previous flag back when the suspend ends, so
+a hotkey the script disabled with the `Hotkey` function is not silently
+re-enabled.
+
+**The pause is the one place the tree does not answer with the binary's own
+value.** Measured on the binary: `A_IsPaused` is the flag of the *previous*
+thread (`vars.cpp`: `g > g_array && g[-1].IsPaused`), so in the auto-exec
+section it answers 0 whatever `Pause 1` did; with one thread the tree's answer
+would make the command invisible, so the tree answers the state the command
+set (0 or 1) and says so in `variables.rs`. `Pause` with no argument pauses the
+thread in the binary and a script with no keyboard hangs on it; the tree keeps
+the toggle as the state.
+
+The corpus case `module_suspend_exempt_target.ahk` passes now. Not carried: a
+hotkey that is suspended never fires in the runner anyway (there is no
+keyboard), so the exemption is observable through the state and the table.

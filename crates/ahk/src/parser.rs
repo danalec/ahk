@@ -3328,64 +3328,79 @@ impl Parser {
         })
     }
 
-    /// The hotstring of the v2: a line of its own that begins with the two
-    /// colons.
+    /// Whether the line is the line of a hotstring of the v2.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-11-09: `::btw::by the way`
-    /// is a hotstring, the text of it may hold the two colons again
-    /// (`::1:::2`), and the line without the second pair of colons is
-    /// "Invalid hotkey." with the line itself. The runtime has no dispatcher
-    /// of a hotstring yet: the line is carried as the definition of a hotkey
-    /// whose name is the whole line, so that a script that writes one runs,
-    /// and the hotstring is not typed by this runner.
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a hotstring is a line
+    /// of its own that begins with one colon (`:options:trigger::replacement`)
+    /// or two (`::trigger::replacement`), and the lexer reads the whole line
+    /// as one token of raw text.
+    fn the_line_carries_a_hotstring_of_the_v2(&self) -> bool {
+        let token = self.peek();
+        token.kind == TokenKind::String
+            && token.quote.is_none()
+            && token.value.starts_with(':')
+            && token.value.contains("::")
+    }
+
+    /// The hotstring of the v2: a line of its own, with its options and its
+    /// trigger and replacement as the script wrote them.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `:*:btw::by the way`,
+    /// `:?:btw::`, `:O:`, `:R:`, `:T:`, `:C:`, `:SI:`, `:*?:`, a quoted
+    /// character in the trigger (`:*:i"q::I "quote"`) and a semicolon in it
+    /// (`:?:; btu::; but`) are all hotstrings; the line without the second
+    /// pair of colons (`:btw::x`) and the one with an empty trigger (`:*::x`)
+    /// are "Invalid hotkey." with the line. The runtime has no dispatcher of a
+    /// hotstring yet: the line is carried as a definition whose body is empty,
+    /// so a script that writes one runs.
     fn parse_the_hotstring_of_the_v2(&mut self) -> Result<Node, SyntaxError> {
         let token = self.next();
-        // The line of the hotstring is the raw text of it: the lexer reads the
-        // rest of the line as one token, and the text of that token is not
-        // quoted.
-        let text = self.the_raw_text_of_the_line(token.line);
-        let second = text
-            .strip_prefix("::")
-            .map(|rest| rest.contains("::"))
-            .unwrap_or(false);
-        if !second {
-            return Err(self.error(format!("Invalid hotkey.\n     Specifically: {text}")));
+        let text = token.value.clone();
+        let line = token.line;
+        // The options are empty for the plain `::trigger::replacement`, and
+        // they are the text between the first two colons of the other form.
+        let after = match text.strip_prefix("::") {
+            Some(rest) => rest,
+            None => {
+                let rest = &text[1..];
+                let Some(colon) = rest.find(':') else {
+                    return Err(
+                        self.error(format!("Invalid hotkey.\n     Specifically: {text}"))
+                    );
+                };
+                &rest[colon + 1..]
+            }
+        };
+        let Some(at) = after.find("::") else {
+            return Err(self.error(format!(
+                "Invalid hotkey.\n     Specifically: {text}"
+            )));
+        };
+        // The trigger is the text between the options and the two colons, and
+        // a trigger that is empty is not a hotstring.
+        if after[..at].is_empty() {
+            return Err(self.error(format!(
+                "Invalid hotkey.\n     Specifically: {text}"
+            )));
         }
-        // The whole line is the hotstring, and the parser goes to the end of
-        // it.
-        while self.peek().kind != TokenKind::Newline && self.peek().kind != TokenKind::Eof {
-            self.next();
+        // Measured on the binary of v2.0.19 on 2026-11-10: a replacement that
+        // is empty has to be the text of the continuation section that follows
+        // it, and the line without one is "Hotkey or hotstring is missing its
+        // opening brace.". The text of that section is not carried yet, so the
+        // line is refused rather than read as a hotstring with no text.
+        if after[at + 2..].is_empty() {
+            return Err(self.error(
+                "Hotkey or hotstring is missing its opening brace.".to_string(),
+            ));
         }
         self.end_of_statement()?;
         Ok(Node::HotkeyDefinition {
             name: text,
             body: Vec::new(),
             on_the_line: true,
-            line: token.line,
+            line,
         })
     }
-
-    /// The raw text of the line of a token: the values of the tokens of the
-    /// line, with no quote added to them.
-    ///
-    /// The line of a hotstring is one line of raw text, and the lexer reads
-    /// the rest of it as one token; the text of the line is the two colons and
-    /// that token, which is what the binary names in "Invalid hotkey.".
-    fn the_raw_text_of_the_line(&self, line: u32) -> String {
-        let mut text = String::new();
-        for token in self.tokens.iter().filter(|token| token.line == line) {
-            // The newline that ends the line is not a part of its text.
-            if token.kind == TokenKind::Newline || token.kind == TokenKind::Eof {
-                continue;
-            }
-            if token.spaced && !text.is_empty() {
-                text.push(' ');
-            }
-            text.push_str(&token.value);
-        }
-        text.trim_end().to_string()
-    }
-
     /// The hotkey of the v1: the line that defines it, and its action.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1
@@ -3583,7 +3598,9 @@ impl Parser {
         // it is the statement of the line or the block that comes after it.
         // The line that begins with the two colons is a hotstring.
         if self.dialect.the_hotkeys_are_of_the_v2() && !self.in_the_action_of_a_hotkey {
-            if self.at_op(&["::"]) && self.dialect.the_hotstrings_are_of_the_v2() {
+            if self.dialect.the_hotstrings_are_of_the_v2()
+                && self.the_line_carries_a_hotstring_of_the_v2()
+            {
                 return Ok(vec![self.parse_the_hotstring_of_the_v2()?]);
             }
             if self.the_line_carries_a_hotkey_of_the_v2() {

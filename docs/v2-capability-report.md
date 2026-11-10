@@ -2,7 +2,7 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **833 entries** : **679 answer with a value** , **154 are refused** and **none is pending**.
+The surface of the v2.0.19 has **833 entries** : **681 answer with a value** , **152 are refused** and **none is pending**.
 
 The table has **833 entries and 785 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them and the `InputHook` has twelve --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
@@ -10,7 +10,7 @@ The table has **833 entries and 785 distinct names** : a property with a setter 
 
 | Area | Names | Answer | Refused |
 |---|---|---|---|
-| Parser and script execution | 56 | 49 | 7 |
+| Parser and script execution | 56 | 51 | 5 |
 | File and directory operations | 97 | 87 | 10 |
 | Hotkeys, hotstrings, and input | 138 | 134 | 4 |
 | GUI windows and window automation | 288 | 182 | 106 |
@@ -24,7 +24,7 @@ The table has **833 entries and 785 distinct names** : a property with a setter 
 | The machine, the processes and the environment | 35 | 31 | 4 |
 | The clipboard | 5 | 4 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **833** | **679** | **154** |
+| **The whole of it** | **833** | **681** | **152** |
 
 ## What the numbers do not say
 
@@ -73,18 +73,16 @@ names that the tree answers.
 
 ## 1. Parser and script execution
 
-**56 names: 49 answer with a value, 7 are refused.**
+**56 names: 51 answer with a value, 5 are refused.**
 
-**The ones that answer** (49): `AllowMainWindow`, `CoordMode`, `EndChar`, `EnvGet`, `EnvSet`, `Error`, `Error.Extra`, `Error.File`, `Error.Line`, `Error.Message`, `Error.Stack`, `Error.What`, `Exit`, `ExitApp`, `Index`, `IndexError`, `InitialWorkingDir`, `Is64bitOS`, `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended`, `LineFile`, `LineNumber`, `MemberError`, `MemoryError`, `MethodError`, `OSError`, `OnError`, `OnExit`, `PropertyError`, `ScriptDir`, `ScriptFullPath`, `ScriptName`, `SetTimer`, `SetWorkingDir`, `Sleep`, `Space`, `Tab`, `TargetError`, `ThisFunc`, `TimeoutError`, `TypeError`, `UnsetError`, `UnsetItemError`, `ValueError`, `WorkingDir`, `ZeroDivisionError`
+**The ones that answer** (51): `AllowMainWindow`, `CoordMode`, `EndChar`, `EnvGet`, `EnvSet`, `Error`, `Error.Extra`, `Error.File`, `Error.Line`, `Error.Message`, `Error.Stack`, `Error.What`, `Exit`, `ExitApp`, `Index`, `IndexError`, `InitialWorkingDir`, `Is64bitOS`, `IsAdmin`, `IsCompiled`, `IsCritical`, `IsPaused`, `IsSuspended`, `LineFile`, `LineNumber`, `MemberError`, `MemoryError`, `MethodError`, `OSError`, `OnError`, `OnExit`, `Pause`, `PropertyError`, `ScriptDir`, `ScriptFullPath`, `ScriptName`, `SetTimer`, `SetWorkingDir`, `Sleep`, `Space`, `Suspend`, `Tab`, `TargetError`, `ThisFunc`, `TimeoutError`, `TypeError`, `UnsetError`, `UnsetItemError`, `ValueError`, `WorkingDir`, `ZeroDivisionError`
 
-**The ones that are refused** (7), by the reason:
+**The ones that are refused** (5), by the reason:
 
 - *this runtime runs one script in one thread, and it cannot make it critical.* (1): `Critical`
 - *this is a name of Windows, and this desktop is not Windows.* (1): `OnMessage`
-- *this runtime cannot wait for a key to continue: the script ends when it ends.* (1): `Pause`
 - *this runtime is a script that ends when it ends, and it cannot be kept alive.* (1): `Persistent`
 - *this runtime runs one script once, and it cannot run itself again.* (1): `Reload`
-- *this runtime cannot stop itself: it would never end.* (1): `Suspend`
 - *this runtime runs one script in one thread, and it cannot start another.* (1): `Thread`
 
 ## 2. File and directory operations

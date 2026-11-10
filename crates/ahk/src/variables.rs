@@ -644,7 +644,15 @@ fn known_value(name: &str, rt: &Runtime) -> Value {
         "ptrsize" => Value::Int(core::mem::size_of::<usize>() as i64),
         // The runner runs a script: it is not a compiled program. And the
         // runtime is never critical, never paused and never suspended.
-        "iscompiled" | "iscritical" | "ispaused" | "issuspended" => Value::Int(0),
+        "iscompiled" | "iscritical" => Value::Int(0),
+        // Measured on the binary of v2.0.19 on 2026-11-09: `A_IsSuspended` is
+        // the state that `Suspend` set, one after `Suspend 1` and zero after
+        // `Suspend 0`. `A_IsPaused` is the pause of the *previous* thread in
+        // the binary (`g[-1].IsPaused`), which is zero in the auto-execute
+        // section; the tree has one thread and answers the pause that the
+        // script set, so that the command is observable at all.
+        "issuspended" => Value::Int(rt.is_suspended() as i64),
+        "ispaused" => Value::Int(rt.is_paused() as i64),
         // The clock of the runtime: the milliseconds since an arbitrary
         // origin, and never backwards.
         "tickcount" => Value::Int(rt.now_ms() as i64),
