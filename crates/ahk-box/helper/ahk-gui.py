@@ -36,7 +36,14 @@ def answer(what):
 
 
 def the_window(title):
-    """Make the window, or replace the one that is there. On the main thread."""
+    """Make the window, or replace the one that is there. On the main thread.
+
+    **It is not shown.** Measured on the binary of v2.0.19 on 2026-11-09: `Gui()`
+    makes the window and does not show it -- a script may add to it, set its
+    title and read it back before anything is on the screen -- and `Show()` is
+    what puts it there. A helper that showed on creation would make `Gui()` and
+    `Show()` the same command.
+    """
     if state["window"] is not None:
         state["window"].destroy()
     window = Gtk.Window(title=title)
@@ -47,7 +54,15 @@ def the_window(title):
     state["box"] = box
     state["controls"] = []
     state["next_id"] = 1
-    window.show_all()
+    answer({"ok": True})
+
+
+def the_show():
+    """Put the window on the screen. `Show()` of v2 answers the empty text."""
+    if state["window"] is None:
+        answer({"ok": False, "error": "there is no window to show"})
+        return
+    state["window"].show_all()
     answer({"ok": True})
 
 
@@ -78,7 +93,9 @@ def the_control(kind, text):
     state["next_id"] += 1
     state["controls"].append((number, kind, control))
     state["box"].pack_start(control, False, False, 0)
-    control.show_all()
+    # The control is not shown on its own: `show_all` on the window shows the
+    # window and everything in it, the way `Show()` does.
+    control.show()
     # The class and number of v2: `Edit1` is the first edit, `Button1` the first
     # button, whatever the order of the Add calls.
     same_kind = sum(1 for _n, k, _c in state["controls"] if k == kind)
@@ -119,6 +136,8 @@ def handle(command):
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))
         )
+    elif op == "show":
+        run_on_loop(the_show)
     elif op == "destroy":
         run_on_loop(the_destroy)
     elif op == "title":
