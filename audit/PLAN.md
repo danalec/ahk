@@ -35,14 +35,44 @@ to the compositor. `GetPos` is refused outright: a Wayland client is not told
 where its window is. **A refusal that names the reason is the answer; a plausible
 value that is not true is not.**
 
-**What is left of the objective** is not in this family: the `Com*` and `Reg*`
-clusters, most of `Drive*`, and some of the message-loop names -- all refused
-today with reasons that are Windows-shaped, which is to say they are about a
-system this tree does not run on.
+**What is next**: the `Gui` family is **complete**, the transport under it is
+**bounded**, and the audit of the refusals has been **re-framed**.
 
-**The template for the next member**, which has now worked seven times without a
-revert (`Value` 76-77, `Enabled`/`Visible` 80-81, `Text` 84, `Move` 121-122,
-`Focus` 124, `Hide` 126, `Opt` 126-132):
+**The refusals are the work now, and the plan's own accounting was wrong about
+them.** The surface says 690 answer and 143 refuse, and round 139 censused the 143
+from the surface output itself: **125 of them share ONE blanket reason** -- *"this is
+a name of Windows, and this desktop is not Windows"* -- and every family checked
+against the tree so far has mostly WORKED:
+
+| family | what was found |
+|---|---|
+| `Drive*` | already implemented, verified against `df` (rounds 136) |
+| `WinGetCount`/`Title`/`Class`/`List` | work (round 138) |
+| `EditGetLineCount` | **answered** (round 144) — row + handler + channel |
+| `EditGetLine` | **answered** (round 146) — row + handler only |
+| `EditPaste` | **refused with a measured reason**: the helper stops answering (round 152) |
+
+**The procedure that moves a name out of the blanket**, proven three times:
+
+1. **find the row** by its name in `crates/ahk/src/builtins.rs` (it says
+   `handler: not_carried`);
+2. **measure the contract** on the binary of v2.0.19 -- and beware the `Edit*`
+   family's **argument order**: `EditGetLine(N, Hwnd)`, the number first, and the
+   wrong order answers *"Target window not found."* which reads as a handle problem;
+3. **reuse an existing channel before adding one** -- `EditGetLine` is a slice of
+   `Value` and needed no helper operation at all;
+4. **point the row at a handler of its own** and write it;
+5. **verify on the box**, in both directions where the name reads and writes.
+
+**And the hazard to keep in mind**: every `Gui` operation goes through
+`the_gui_says`, whose wait is now **bounded** by a five-second `recv_timeout`
+(rounds 149 to 152). A helper that stops answering is a failure with a reason, not
+a hang -- **but do not reintroduce an unbounded wait**, and remember that
+`insert_at_cursor` on an `Entry` **does** stop the helper answering (round 152).
+
+**The template for a member of the `Gui` family**, which worked seven times
+without a revert (`Value` 76-77, `Enabled`/`Visible` 80-81, `Text` 84, `Move`
+121-122, `Focus` 124, `Hide` 126, `Opt` 126-132):
 
 1. **measure the reference** for the shape of the answer;
 2. **add the operation to the helper** and prove it on the box with a script
