@@ -11158,3 +11158,33 @@ tells the two apart -- `x.` at the end of a line reaches into the value and
 is refused the same way the binary refuses it -- and the rule is the one the
 parser already knew for the dot that begins the line that continues the one
 above.
+
+## 298. The two branches of the tree, and what a merge of them costs
+
+Measured with `git` on 2026-11-10, and written out in full in
+[`../docs/two-lines.md`](../docs/two-lines.md).
+
+The branch `audit-ahk-x11-parity` (the worktree
+`.agents/worktrees/audit-ahk-x11-parity`) holds 238 commits of GUI and
+control work that `master` does not have: the 86 names of the control
+family that `master` refuses, the `Menu` class type, the accessibility
+bus, and the GTK helper that draws the window. `master` holds 41 unpushed
+commits and the differential harness that the branch does not have.
+
+The branch merged `master` with the `ours` strategy (`d45276e`), so its
+*history* contains `master` and its *tree* does not. A merge of the branch
+into `master` is therefore a replacement and not a merge: it deletes the 125
+files that only `master` has -- `scripts/differential.py`, the 111 cases of
+it, `crates/ahk/src/float_text.rs` and the four `ahk-box` modules -- and the
+result does not compile, because the two trees have a different `V2` and a
+different `Dialect` trait.
+
+The session that owned the branch stopped at 22:02 UTC while it was
+resolving a content merge, and left four files uncommitted: the callback
+of a menu item, called with `(ItemName, ItemPos, MyMenu)`. Those are
+committed on the branch as `91c23c2`, so that they are not lost.
+
+**A branch that another session is working in is not merged, not rebased
+and not reset.** The work of the other session is committed on its own
+branch, and the two lines are brought together by porting one name family
+at a time, each with its own cases.
