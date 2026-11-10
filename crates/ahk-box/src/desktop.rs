@@ -1122,6 +1122,11 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
     }
 
+    fn gui_focused(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"focused\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
     fn gui_selection(&mut self, number: u64) -> Result<String, String> {
         let command = format!("{{\"op\": \"selection\", \"id\": {}}}", number);
         let answer = self.the_gui_says(&command)?;

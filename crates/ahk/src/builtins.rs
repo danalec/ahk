@@ -1206,7 +1206,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_focus,
     },
     Builtin {
         name: "ControlGetHwnd",
@@ -9358,6 +9358,29 @@ pub(crate) fn edit_get_selected_text(
     let number = number_of(values, 0) as u64;
     rt.desktop()
         .gui_selection(number)
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `ControlGetFocus(Title?)`: the `ClassNN` of the control that has the focus.
+///
+/// Answered for a window of the script's own, which the helper made and therefore
+/// knows the focus of; the focus of another program's window is not read, and says
+/// so rather than answering a control that is not the one the script meant.
+pub(crate) fn control_get_focus(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "the focus of a window of another program is not read by this runtime, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    rt.desktop()
+        .gui_focused()
         .map(Value::Text)
         .map_err(|reason| desktop_failure(reason, line))
 }

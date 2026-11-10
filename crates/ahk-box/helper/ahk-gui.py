@@ -340,6 +340,24 @@ def the_selection(number):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_focused():
+    """Which control of the window has the focus, as its class and number.
+
+    `ControlGetFocus` of v2, for a window of the script's own -- the one the helper
+    made and therefore knows the focus of.
+    """
+    window = state["window"]
+    if window is None:
+        answer({"ok": False, "error": "there is no window"})
+        return
+    held = window.get_focus()
+    for number, kind, control in state["controls"]:
+        if control is held:
+            answer({"ok": True, "value": "%s%d" % (kind, number)})
+            return
+    answer({"ok": True, "value": ""})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -349,6 +367,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "focused":
+        run_on_loop(the_focused)
     elif op == "selection":
         run_on_loop(lambda: the_selection(command.get("id", 0)))
     elif op == "cursor":
