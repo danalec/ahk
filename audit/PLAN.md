@@ -3041,6 +3041,40 @@ wrong refusal, and the two clusters already checked were mostly wrong this way.
 answer a question. The surface's reason is the safe reading for those; the tree is
 the reading for the rest.
 
+### Round 140 — 2026-11-09: the 125 measured by eye, and most of them are not Windows
+
+The names behind the blanket reason, read out of the surface, fall into families
+that can be judged at a glance -- and **most of them are not Windows-shaped at
+all**:
+
+| family | the names | is the reason true? |
+|---|---|---|
+| **`Edit*`** (7) | `EditGetLine`, `EditGetLineCount`, `EditGetCurrentCol`, `EditGetSelectedText`, `EditPaste`, … | **NO for a control of the script's own**: the text is in the `Gtk.Entry` the helper holds, and `Text.GetText` over the accessibility tree already reads a foreign one |
+| **`Control*`** (about 28) | `ControlGetItems`, `ControlChooseIndex`, `ControlAddItem`, `ControlHide`, `ControlMove`, `ControlGetStyle`, `ControlGetHwnd`, … | **NO for the script's own window**: the helper owns those controls and can do all of it. For a foreign window it is the measured AT-SPI limits of rounds 30 to 35 |
+| **`Drive*`** (6) | `DriveGetLabel`, `DriveGetList`, `DriveGetSerial`, `DriveGetStatusCD`, `DriveEject`, `DriveLock`, … | **partly**: `Label` is `blkid` (round 134); `List`/`Serial` are refused for the **shape** of their answer, not for Windows |
+| **`File*`** (5) | `FileRecycle`, `FileRecycleEmpty`, `FileGetVersion`, `FileCreateShortcut`, `FileGetShortcut` | **NO for `FileRecycle`** -- Linux has a trash. `FileGetShortcut` was measured to **hang the reference binary** |
+| **`Group*`** (4) | `GroupAdd`, `GroupActivate`, `GroupClose`, `GroupDeactivate` | **NO**: they are sets of windows, and the compositor's toplevel list is exactly a set of windows |
+| **`Callback*`** (2) | `CallbackCreate`, `CallbackFree` | **no** -- a pointer to a function of the script is not a Windows idea |
+| **`IL_*`** (3) | `IL_Create`, `IL_Add`, `IL_Destroy` | **YES** -- image lists are GDI, and the concept does not exist here |
+| **`GuiCtrlFromHwnd`, `GuiFromHwnd`, `MenuFromHandle`** | | **YES by shape** -- they turn a handle into an object, and there is no handle |
+| **`BlockInput`** | | **no** -- grabbing the input is a real thing on this box |
+| **`FileGetShortcut`** | | unmeasurable: the reference hangs |
+
+**So the blanket reason is false for the majority of the 125.** `Edit*` and the
+`Control*` family are the largest and the clearest: **a control of the script's own
+window is the helper's own object**, and every one of those questions is one the
+helper can answer about a control it made -- the same realisation that turned the
+`Control*` cluster into `Gui` members in the first place.
+
+**What this means for the count**: "690 carry a value, 143 refuse" is true and the
+refusals are *stated*, but **the statement is not a measurement for most of them**.
+The honest figure is somewhere between 690 and 833, and the way to know is the
+batch audit of round 139.
+
+**The next round should start with `Edit*`**: seven names, all about a control the
+helper owns, all readable through `Text.GetText` or the entry's own `get_text` --
+the cheapest real answer of the lot.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
