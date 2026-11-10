@@ -10544,3 +10544,26 @@ makes an object, an object's `Call` is called, a function is called through
 the parser answered "Missing space or operator before this." at the parenthesis,
 which is why the `.DefineProp` line of `flow-for-in.ahk` -- a method of an object
 literal handed over and called -- did not load.
+## 273. The reference of a variable is a class of the dialect
+
+Measured on the binary of v2.0.19 on 2026-11-10: `VarRef` is a class value --
+`Type(VarRef)` is "Class" and `IsObject(VarRef)` is one -- and the value of a
+reference is one of it: `x := 5`, `r := &x`, `r is VarRef` is one while
+`x is VarRef` is zero, and every value is of the class `Any`. A by-reference
+parameter is not the value of a reference: `F(&p)` reads through the alias, so
+`p is VarRef` is zero there and `Type(p)` is the type of what it aliases.
+
+The list of the class types of the runtime (`classes::TYPES`) did not carry
+`varref`, so the name `VarRef` was read as a variable of the script and the
+`is` operator failed with "This global variable has not been assigned a value."
+The name is a class type now (`NOT_A_PROTOTYPE` already carried it: the class
+has no prototype of its own).
+
+The corpus case `flow-for-in.ahk` passes the `Assert(r is VarRef)` line that
+stopped it and stops at the `for c in "abc"` that follows: the script puts an
+`__Enum` into `String.Prototype`, and a primitive of the tree does not ask the
+prototype of its class for the enumerator. That is the next block.
+The surface table of v2 does not carry `VarRef`, the way it does not carry the
+nine classes of the note in this file: the extraction read the class tables at
+the wrong place. `tests/surface.rs` carries the exemption, with the measurement
+behind it, and the tree carries the class.

@@ -6161,6 +6161,23 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_reference_of_a_variable_is_a_class_of_the_dialect() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `VarRef` is a class of
+    // the dialect -- `Type(VarRef)` is Class and `IsObject(VarRef)` is one --
+    // and a value that is a reference is one of it: `r := &x` then
+    // `r is VarRef` is one, while a value that is not a reference is zero and
+    // every value is of the class `Any`.
+    let (report, _desktop) = run(concat!(
+        "MsgBox Type(VarRef) \" \" IsObject(VarRef)\n",
+        "x := 5\n",
+        "r := &x\n",
+        "MsgBox (r is VarRef) \" \" (x is VarRef) \" \" (x is Any)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Class 1", "1 0 1"]);
+}
+
+#[test]
 fn the_value_of_an_expression_is_called_by_the_parenthesis_after_it() {
     // Measured on the binary of v2.0.19 on 2026-11-10: a parenthesis that is
     // not spaced after a value is the list of the arguments of the call of the

@@ -293,9 +293,17 @@ fn the_kind_and_the_arity_of_a_name_are_the_ones_of_the_binary() {
 #[test]
 fn every_class_type_of_the_tree_is_a_class_of_v2() {
     let surface = surface_names();
+    // The classes that the extraction of the surface table missed, measured on
+    // the binary of v2.0.19 on 2026-11-10: `VarRef` is a class -- `Type(VarRef)`
+    // is "Class" and `IsObject(VarRef)` is one -- and the table does not carry
+    // it, the way it does not carry the nine classes of the note in
+    // AGENTS.md. The tree carries it, and the exemption is the record of the
+    // table being read at the wrong place, not of a class that v2 lacks.
+    const THE_CLASSES_THE_EXTRACTION_MISSED: [&str; 1] = ["varref"];
     let invented: Vec<String> = classes::the_class_types()
         .into_iter()
         .filter(|name| !surface.contains(name.as_str()))
+        .filter(|name| { !THE_CLASSES_THE_EXTRACTION_MISSED.iter().any(|missed| name.eq_ignore_ascii_case(missed)) })
         .collect();
     assert!(
         invented.is_empty(),

@@ -1088,7 +1088,10 @@ fn the_arity_failure_of_a_constructor(
 /// they. The hotkey is the one that is not a name of its own: the name
 /// `Hotkey` is a function of the dialect, and the class of a hotkey is
 /// the class of the object that the function makes.
-pub(crate) const TYPES: [&str; 25] = [
+pub(crate) const TYPES: [&str; 26] = [
+    // The reference of a variable is a class of v2 too: measured on the
+    // binary of v2.0.19 on 2026-11-10, Type(VarRef) is Class and
+    //  := &x then  is VarRef is one.
     "any",
     "array",
     "boundfunc",
@@ -1114,6 +1117,7 @@ pub(crate) const TYPES: [&str; 25] = [
     "primitive",
     "regexmatchinfo",
     "string",
+    "varref",
 ];
 
 /// Whether the name is a class type of the runtime.
