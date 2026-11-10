@@ -3453,6 +3453,37 @@ time a "bug" read out of the code was dissolved by a measurement --
 **Five out of five.** Every one of those would have been "fixed" into a wrong tree
 had it not been measured, and two of them (rounds 157 and 158) nearly were.
 
+### Round 165 — 2026-11-09: a bulk edit over the built-in table damaged it, and it is reverted
+
+`ControlHide` and `ControlShow` were begun: the helper operation, the desktop method
+and the trait were written, and then **two rows of the built-in table were changed in
+a loop** -- and the build said:
+
+```
+error[E0063]: missing fields `kind`, `max`, `min` and 3 other fields
+                in initializer of `builtins::Builtin`  (twice)
+```
+
+**The loop's replacement had eaten the body of two rows.** The file was reverted to
+its committed state and everything with it, and the tree builds clean again.
+
+**Why this happened, and it is the session's oldest trap in a new dress**: a
+`-replace` with a lazy `(?s)` pattern, run twice over the same text, is a **bulk edit
+over a four-thousand-line table** -- and a bulk edit has no idea where a row ends.
+The rows that worked in rounds 144, 146, 155, 156, 157, 163 and 164 were changed
+**one at a time, with the marker found first and the replacement done on the tail
+after it**. The loop that broke this did the same thing twice in one pass and the
+second pass's `$1` reached past the row it meant.
+
+**The rule, now written where it will be read**: **one row per command, and check the
+build after each one.** Two rows in one pass is a bulk edit, and this file is not a
+place for one.
+
+**And it is reverted rather than repaired**: the channel was written and unused, the
+table was damaged, and the honest state is `HEAD` with nothing of it. The two names
+stay in the blanket, and they are a round of their own with the one-row-at-a-time
+rule.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
