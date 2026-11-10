@@ -627,6 +627,43 @@ pub trait Windows {
         Err("this desktop cannot add a control to a window of the script".to_string())
     }
 
+    /// The items of a list-shaped control of the script's window, one per line.
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `ControlGetItems`
+    /// answers an array of them.
+    fn gui_combo_items(&mut self, _number: u64) -> Result<String, String> {
+        Err("this desktop cannot read the items of a list-shaped control".to_string())
+    }
+
+    /// Append an item to a list-shaped control. Measured on the same day:
+    /// `ControlAddItem("gamma", ...)` makes the array one longer.
+    fn gui_combo_add(&mut self, _number: u64, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot add an item to a list-shaped control".to_string())
+    }
+
+    /// Choose an item by its 1-based index or by its text. Returns the index.
+    /// Measured on the same day: `ControlChooseIndex(2, ...)` leaves the
+    /// control's `Value` at 2.
+    fn gui_combo_select(&mut self, _number: u64, _wanted: &str, _by_text: bool) -> Result<i64, String> {
+        Err("this desktop cannot choose an item of a list-shaped control".to_string())
+    }
+
+    /// The chosen item as (index, text). Measured on the same day: nothing
+    /// chosen is (0, ""), and `ControlGetChoice` reads the text alone.
+    fn gui_combo_choice(&mut self, _number: u64) -> Result<(i64, String), String> {
+        Err("this desktop cannot read the choice of a list-shaped control".to_string())
+    }
+
+    /// Remove an item by its 1-based index. Measured on the binary of v2.0.19
+    /// on 2026-11-10: `ControlDeleteItem(1, ...)` leaves the array one shorter.
+    fn gui_combo_delete(&mut self, _number: u64, _index: &str) -> Result<(), String> {
+        Err("this desktop cannot remove an item of a list-shaped control".to_string())
+    }
+
+    /// The 1-based index of the first item that is this text, or zero.
+    fn gui_combo_find(&mut self, _number: u64, _text: &str) -> Result<i64, String> {
+        Err("this desktop cannot find an item of a list-shaped control".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())

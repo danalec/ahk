@@ -96,6 +96,17 @@ def the_control(kind, text):
         control = Gtk.Label(label=text)
     elif kind == "CheckBox":
         control = Gtk.CheckButton(label=text)
+    elif kind in ("DropDownList", "ComboBox", "ListBox"):
+        # A ComboBox of v2: the third argument of Add is an array of items,
+        # joined into lines by the language before it reaches the helper.
+        # Measured on the binary of v2.0.19 on 2026-11-10: `Value` is a
+        # 1-based index (0 = nothing chosen) and `Text` is the chosen item.
+        control = Gtk.ComboBoxText()
+        for item in text.split("\n"):
+            if item:
+                control.append_text(item)
+        if kind == "ListBox":
+            control.set_wrap_width(1)
     else:
         answer({"ok": False, "error": "%s is not a kind of control" % kind})
         return
@@ -137,24 +148,40 @@ def the_title(setting):
     answer({"ok": True, "title": state["window"].get_title()})
 
 
+def the_text_of_a_control(kind, control):
+    """The text a control shows, whatever its kind.
+
+    A ComboBox has no `get_text`: its text is the item that is chosen, or the
+    empty text when nothing is. `WinGetText` and `Value` of a control ask this
+    of every control of the window.
+    """
+    if kind in ("Button", "CheckBox"):
+        return control.get_label()
+    if kind in ("DropDownList", "ComboBox", "ListBox"):
+        index = control.get_active()
+        if index < 0:
+            return ""
+        return control.get_model()[index][0]
+    return control.get_text()
+
+
 def the_value(number, text):
     """Read the text of a control, or write it. `Value` of v2 is both."""
     for held, kind, control in state["controls"]:
         if held != number:
             continue
         if text is None:
-            if kind == "Button":
-                answer({"ok": True, "value": control.get_label()})
-            elif kind == "CheckBox":
-                # The TEXT of a check box is its label; its tick is the `Value` and
-                # comes through the `checked` operation of its own.
-                answer({"ok": True, "value": control.get_label()})
-            elif kind == "Text":
-                answer({"ok": True, "value": control.get_text()})
-            else:
-                answer({"ok": True, "value": control.get_text()})
+            answer({"ok": True, "value": the_text_of_a_control(kind, control)})
         else:
-            if kind == "Button":
+            if kind in ("DropDownList", "ComboBox", "ListBox"):
+                # Setting `Value` of a ComboBox chooses an item by its index.
+                model = control.get_model()
+                try:
+                    index = int(text)
+                except ValueError:
+                    index = 0
+                control.set_active(index - 1 if 0 < index <= len(model) else -1)
+            elif kind == "Button":
                 control.set_label(text)
             elif kind == "CheckBox":
                 control.set_label(text)
@@ -490,12 +517,7 @@ def the_text_of_all():
         return
     parts = []
     for _number, kind, control in state["controls"]:
-        if kind in ("Button", "CheckBox"):
-            parts.append(control.get_label())
-        elif kind == "Text":
-            parts.append(control.get_text())
-        else:
-            parts.append(control.get_text())
+        parts.append(the_text_of_a_control(kind, control))
         parts.append("\n")
     answer({"ok": True, "value": "".join(parts)})
 
@@ -509,6 +531,11 @@ def the_class_of(kind):
     """
     if kind == "Text":
         return "Static"
+    # Measured on the binary of v2.0.19 on 2026-11-10: the `ClassNN` of a
+    # DropDownList is `ComboBox1`, not `DropDownList1`. ComboBox and ListBox
+    # are the same family to v2.
+    if kind in ("DropDownList", "ComboBox", "ListBox"):
+        return "ComboBox"
     return kind
 
 
@@ -588,6 +615,126 @@ def the_window_move(x, y, width, height):
     answer({"ok": True})
 
 
+def the_combo(number):
+    """The control of this number, if it is a ComboBox of the script."""
+    for held, kind, control in state["controls"]:
+        if held == number and kind in ("DropDownList", "ComboBox", "ListBox"):
+            return control
+    return None
+
+
+def the_combo_items(number):
+    """The items of a ComboBox, in order. `ControlGetItems` of v2."""
+    control = the_combo(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list-shaped control" % number})
+        return
+    items = []
+    model = control.get_model()
+    for row in model:
+        items.append(row[0])
+    answer({"ok": True, "value": "\n".join(items)})
+
+
+def the_combo_add(number, text):
+    """Append an item to a ComboBox. `ControlAddItem` of v2."""
+    control = the_combo(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list-shaped control" % number})
+        return
+    control.append_text(text)
+    answer({"ok": True})
+
+
+def the_combo_select(number, wanted, by_text):
+    """Choose an item, by its 1-based index or by its text.
+
+    `ControlChooseIndex`, `ControlChooseString` and the `Value`/`Text` setters
+    of a ComboBox. Measured on the binary of v2.0.19 on 2026-11-10: index 2
+    chooses the second item, and setting `Text` to an item's text chooses it.
+    """
+    control = the_combo(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list-shaped control" % number})
+        return
+    model = control.get_model()
+    if by_text:
+        for index, row in enumerate(model):
+            if row[0] == wanted:
+                control.set_active(index)
+                answer({"ok": True, "value": index + 1})
+                return
+        answer({"ok": False, "error": "there is no item named %s" % wanted})
+        return
+    try:
+        index = int(wanted)
+    except ValueError:
+        index = 0
+    # v2's index is 1-based; GTK's is 0-based, and -1 is nothing chosen.
+    if index <= 0:
+        control.set_active(-1)
+        answer({"ok": True, "value": 0})
+        return
+    if index > len(model):
+        answer({"ok": False, "error": "there is no item at %d" % index})
+        return
+    control.set_active(index - 1)
+    answer({"ok": True, "value": index})
+
+
+def the_combo_choice(number):
+    """The chosen item of a ComboBox, as its text and its 1-based index.
+
+    `ControlGetChoice` reads the text, and `Value`/`Text` of the control read
+    these two. Measured on the binary of v2.0.19 on 2026-11-10: with nothing
+    chosen the index is 0 and the text is empty.
+    """
+    control = the_combo(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list-shaped control" % number})
+        return
+    index = control.get_active()
+    if index < 0:
+        answer({"ok": True, "index": 0, "text": ""})
+        return
+    model = control.get_model()
+    answer({"ok": True, "index": index + 1, "text": model[index][0]})
+
+
+def the_combo_delete(number, wanted):
+    """Remove an item by its 1-based index. `ControlDeleteItem` of v2."""
+    control = the_combo(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list-shaped control" % number})
+        return
+    try:
+        index = int(wanted)
+    except ValueError:
+        index = 0
+    if index < 1 or index > len(control.get_model()):
+        answer({"ok": False, "error": "there is no item at %s" % wanted})
+        return
+    control.remove(index - 1)
+    answer({"ok": True})
+
+
+def the_combo_find(number, text):
+    """The 1-based index of the first item that is this text.
+
+    `ControlFindItem` of v2. Measured on the binary of v2.0.19 on 2026-11-10:
+    the answer is an index, and zero when the item is not there.
+    """
+    control = the_combo(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list-shaped control" % number})
+        return
+    for index, row in enumerate(control.get_model()):
+        if row[0] == text:
+            answer({"ok": True, "value": index + 1})
+            return
+    answer({"ok": True, "value": 0})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -665,6 +812,30 @@ def handle(command):
                 command.get("w", 0),
                 command.get("h", 0),
             )
+        )
+    elif op == "combo-items":
+        run_on_loop(lambda: the_combo_items(command.get("id", 0)))
+    elif op == "combo-add":
+        run_on_loop(
+            lambda: the_combo_add(command.get("id", 0), command.get("text", ""))
+        )
+    elif op == "combo-select":
+        run_on_loop(
+            lambda: the_combo_select(
+                command.get("id", 0),
+                command.get("wanted", ""),
+                command.get("by_text", False),
+            )
+        )
+    elif op == "combo-choice":
+        run_on_loop(lambda: the_combo_choice(command.get("id", 0)))
+    elif op == "combo-delete":
+        run_on_loop(
+            lambda: the_combo_delete(command.get("id", 0), command.get("wanted", ""))
+        )
+    elif op == "combo-find":
+        run_on_loop(
+            lambda: the_combo_find(command.get("id", 0), command.get("text", ""))
         )
     elif op == "add":
         run_on_loop(

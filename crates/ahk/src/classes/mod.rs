@@ -1494,10 +1494,33 @@ pub(crate) fn call(
             .first()
             .map(|value| value.to_text())
             .unwrap_or_default();
-        let text = arguments
-            .get(2)
-            .map(|value| value.to_text())
-            .unwrap_or_default();
+        // The third argument of `Add` is the text of the control, and for a
+        // list-shaped control it is an ARRAY of the items. Measured on the
+        // binary of v2.0.19 on 2026-11-10: `Add("DropDownList", "", ["one",
+        // "two"])` makes a ComboBox with those two. The helper reads them as
+        // lines of the text, so the array is joined here and the other kinds
+        // keep the plain text they had.
+        let text = match arguments.get(2) {
+            Some(Value::List(items)) => items
+                .iter()
+                .map(|item| item.to_text())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            Some(value @ Value::Object(_)) => {
+                let items = crate::classes::array::the_items(value);
+                if items.is_empty() {
+                    value.to_text()
+                } else {
+                    items
+                        .iter()
+                        .map(|item| item.to_text())
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                }
+            }
+            Some(value) => value.to_text(),
+            None => String::new(),
+        };
         return Some(match the_control_of_the_gui(&kind, &text, rt, line) {
             Ok(made) => {
                 remember_the_control(this, &made);
@@ -1868,6 +1891,20 @@ fn the_control_of_the_gui(
     }
 }
 
+/// Whether the class of a control is one of the list-shaped kinds.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the `ClassNN` of a
+/// DropDownList is `ComboBox1`, and ComboBox and ListBox are the same family.
+fn the_control_is_a_combo(class: &str) -> bool {
+    let tail = match class.rsplit_once('.') {
+        Some((_, tail)) => tail,
+        None => class,
+    };
+    tail.eq_ignore_ascii_case("dropdownlist")
+        || tail.eq_ignore_ascii_case("combobox")
+        || tail.eq_ignore_ascii_case("listbox")
+}
+
 /// The flag of a control that a name of a property asks about.
 fn the_flag_of(name: &str) -> Option<&'static str> {
     if name.eq_ignore_ascii_case("enabled") {
@@ -1965,6 +2002,23 @@ pub(crate) fn property(
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
+    // A list-shaped control has two different properties where the others
+    // have one. Measured on the binary of v2.0.19 on 2026-11-10: `Value` is
+    // the 1-based index of the chosen item (0 when none) and `Text` is the
+    // text of it; setting `Text` to an item's text chooses that item.
+    if the_control_is_a_combo(class)
+        && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
+    {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_combo_choice(number) {
+            Ok((index, text)) => Ok(if name.eq_ignore_ascii_case("value") {
+                Value::Int(index)
+            } else {
+                Value::Text(text)
+            }),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     if class.to_lowercase().starts_with("gui.")
         && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
     {
@@ -2029,6 +2083,24 @@ pub(crate) fn set_property(
         return Some(match rt.desktop().gui_checked(number, Some(on)) {
             Ok(_) => Ok(()),
             Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // Setting `Value` of a list-shaped control chooses by the 1-based index,
+    // and setting `Text` chooses by the item's text. Measured on the binary of
+    // v2.0.19 on 2026-11-10: `ddl.Value := 2` leaves the second item chosen
+    // and `ddl.Text := "gamma"` chooses the item with that text.
+    if the_control_is_a_combo(class)
+        && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
+    {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let wanted = value.to_text();
+        let by_text = name.eq_ignore_ascii_case("text");
+        return Some(match rt
+            .desktop()
+            .gui_combo_select(number, &wanted, by_text)
+        {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(the_failure_with(&failure, "", line)),
         });
     }
     if class.to_lowercase().starts_with("gui.")

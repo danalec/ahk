@@ -1096,27 +1096,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_add_item,
     },
     Builtin {
         name: "ControlChooseIndex",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_choose_index,
     },
     Builtin {
         name: "ControlChooseString",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_choose_string,
     },
     Builtin {
         name: "ControlClick",
@@ -1132,18 +1132,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_delete_item,
     },
     Builtin {
         name: "ControlFindItem",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_find_item,
     },
     Builtin {
         name: "ControlFocus",
@@ -1168,9 +1168,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_choice,
     },
     Builtin {
         name: "ControlGetClassNN",
@@ -1222,18 +1222,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_index,
     },
     Builtin {
         name: "ControlGetItems",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_items,
     },
     Builtin {
         name: "ControlGetPos",
@@ -10763,6 +10763,168 @@ pub(crate) fn from_hwnd(
         message: "this runtime has no HWND table: the windows are identified by the text the compositor gives, so there is no number to look an object up by".to_string(),
         line,
     })
+}
+
+/// The number of a list-shaped control of the script's own window, from its
+/// `ClassNN`. The `Control*` family names a control by its class and number;
+/// the helper knows each one by the number it gave it when it was added.
+fn the_number_of_a_combo(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    control_index: usize,
+    line: u32,
+) -> Result<u64, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, control_index);
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(number as u64)
+}
+
+/// `ControlGetItems(Control, WinTitle)`: the items of a list-shaped control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers an Array of the
+/// texts, in order, and `ControlAddItem` makes it one longer.
+pub(crate) fn control_get_items(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let joined = rt
+        .desktop()
+        .gui_combo_items(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    let answers: Vec<Value> = if joined.is_empty() {
+        Vec::new()
+    } else {
+        joined
+            .split('\n')
+            .map(|item| Value::Text(item.to_string()))
+            .collect()
+    };
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
+}
+
+/// `ControlAddItem(Text, Control, WinTitle)`: append an item. Measured on the
+/// same day: the answer is nothing the script reads (the empty text).
+pub(crate) fn control_add_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_add(number, &text)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlChooseIndex(N, Control, WinTitle)`: choose by a 1-based index.
+/// Measured on the same day: the control's `Value` becomes that index.
+pub(crate) fn control_choose_index(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let index = number_of(values, 0) as i64;
+    rt.desktop()
+        .gui_combo_select(number, &index.to_string(), false)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlChooseString(Text, Control, WinTitle)`: choose by the item's text.
+pub(crate) fn control_choose_string(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_select(number, &text, true)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlGetChoice(Control, WinTitle)`: the text of the chosen item, or the
+/// empty text when nothing is chosen.
+pub(crate) fn control_get_choice(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let (_index, text) = rt
+        .desktop()
+        .gui_combo_choice(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(text))
+}
+
+/// `ControlGetIndex(Control, WinTitle)`: the 1-based index of the chosen item.
+pub(crate) fn control_get_index(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let (index, _text) = rt
+        .desktop()
+        .gui_combo_choice(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(index))
+}
+
+/// `ControlDeleteItem(N, Control, WinTitle)`: remove an item by its 1-based
+/// index. Measured on the same day: the array becomes one shorter.
+pub(crate) fn control_delete_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let index = number_of(values, 0) as i64;
+    rt.desktop()
+        .gui_combo_delete(number, &index.to_string())
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlFindItem(Text, Control, WinTitle)`: the 1-based index of the first
+/// item that is this text, or zero. Measured on the same day.
+pub(crate) fn control_find_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_find(number, &text)
+        .map(Value::Int)
+        .map_err(|e| desktop_failure(e, line))
 }
 
 pub(crate) fn sleep(

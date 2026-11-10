@@ -1182,6 +1182,72 @@ impl ahk::desktop::Windows for LabDesktop {
         Ok((id as u64, classnn))
     }
 
+    fn gui_combo_items(&mut self, number: u64) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-items\", \"id\": {}}}",
+            number
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    fn gui_combo_add(&mut self, number: u64, text: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-add\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the item was not added: {said}"))
+        }
+    }
+
+    fn gui_combo_select(&mut self, number: u64, wanted: &str, by_text: bool) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-select\", \"id\": {}, \"wanted\": {}, \"by_text\": {}}}",
+            number,
+            quoted(wanted),
+            by_text
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| {
+            format!("the item was not chosen: {said}")
+        })
+    }
+
+    fn gui_combo_choice(&mut self, number: u64) -> Result<(i64, String), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-choice\", \"id\": {}}}",
+            number
+        ))?;
+        let index = the_number_in(&said, "\"index\": ").unwrap_or(0);
+        let text = the_text_in(&said, "\"text\": ").unwrap_or_default();
+        Ok((index, text))
+    }
+
+    fn gui_combo_delete(&mut self, number: u64, index: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-delete\", \"id\": {}, \"wanted\": {}}}",
+            number,
+            quoted(index)
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the item was not removed: {said}"))
+        }
+    }
+
+    fn gui_combo_find(&mut self, number: u64, text: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-find\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the item was not found: {said}"))
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }

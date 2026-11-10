@@ -3966,46 +3966,41 @@ size it, focus it, close it -- and **answer an event in it with the control in h
 `Move`, `Focus`, `Show`, `Hide`, `Destroy`, `OnEvent`, and the `Win*` family that acts
 on the script's own window.
 
-**Where to go next** -- rewritten in round 260. **All 140 rows of the gap
+**Where to go next** -- rewritten in round 262. **All 140 rows of the gap
 matrix are covered, and every refusal answers with a reason of its own** --
 there are no blanket refusals left in the built-in table.
 
-**Only one mechanism remains**, and a measurement of round 260 changed what it
-is: the **list-shaped controls**. The earlier notes said the reference hangs on
-`Add("DropDownList")` and that the whole family was unmeasurable. **Measured
-again on the binary of v2.0.19 on 2026-11-10**: `Add("DropDownList", "", ["one",
-"two"])` did NOT hang -- it made the control (`exit=0`), the `ClassNN` of it is
-**`ComboBox1`** (not `DropDownList1`), and `ControlGetItems(hwnd, "title")`
-answers an array whose `Length` is 2. `ddl.Value` is `0` and `ddl.Text` is the
-empty text before a choice is made.
+**All four mechanisms are DONE**: **window groups** (round 259, four names, a
+set on the runtime that outlives the statement), the **last-found window**
+(round 259, `WinGetIDLast` set by `WinGetID`), the **clipboard watcher**
+(round 260, `OnClipboardChange` calls the registered function with 1 when the
+script writes `A_Clipboard`), and the **list-shaped controls** (round 262, a
+`Gtk.ComboBoxText` in the helper with eight `Control*` names answering).
 
-**So the family is measurable after all** -- the old "hang" was a different
-variant of the call, and the reason the earlier probe could not find the control
-was the `ClassNN`, which the helper already computes for its own controls. What
-is left is to add a `ComboBox` kind to the GTK helper and implement the thirteen
-`Control*` names that act on it. That is several rounds of its own, not a
-one-line change, and it is the single biggest piece of work still open.
-2. **the three unmeasurable** -- `FileGetShortcut`, `FileRecycle`, `FileGetVersion` --
-   are **answers and not gaps**: the reference will not say what it does, so there
-   is nothing to match;
-3. and **the refusals that are true**: the registry, the COM objects, the image
-   lists, the styles, and the HWND table. **They are answers too.** Round 258
-   gave each group a reason that names what it actually is, and round 259 gave
-   the four handle names one more.
+The list controls were the last one, and a measurement of round 261 changed
+what they were: an earlier note said the reference hangs on
+`Add("DropDownList")` and that the family was unmeasurable. **It does not
+hang** -- `Add("DropDownList", "", ["one", "two"])` makes a ComboBox whose
+`ClassNN` is **`ComboBox1`**, and `ControlGetItems` answers an array of two.
+Round 262 built the `ComboBox` kind, the `Value`/`Text` properties (a 1-based
+index and the chosen text), and `ControlGetItems`, `ControlAddItem`,
+`ControlChooseIndex`, `ControlChooseString`, `ControlGetChoice`,
+`ControlGetIndex`, `ControlDeleteItem` and `ControlFindItem`. **Verified on the
+box against every measured contract.**
 
-**Three of the four mechanisms are DONE**: **window groups** (round 259, four
-names, a set on the runtime that outlives the statement), the **last-found
-window** (round 259, `WinGetIDLast` set by `WinGetID`), and the **clipboard
-watcher** (round 260, `OnClipboardChange` calls the registered function with 1
-when the script writes `A_Clipboard`). All three have language-level cases in
-`crates/ahk/tests/builtins.rs` and were verified on the box.
+**What remains**: the nine names of the same family that act on a control this
+tree still does not make (the drop-down show/hide, the styles, `ListViewGetContent`
+and the status bar), and the three unmeasurable file names. Those are answers
+with reasons of their own, not gaps. The registry, COM objects, image lists,
+styles and HWND table are true refusals, also with reasons.
 
 **What has actually been finished**, so the list above is not read as aspirational:
-**all 140 rows of the AHK_X11 feature matrix**, **zero blanket refusals** (all 91
-say what they are about), **three of the four mechanisms**, all seven `Edit*` names,
-fourteen `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
-capability entire, and `DriveGet*`, `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`,
-`FileCreateShortcut`, `FileRecycleEmpty`, `Group*`, `WinGetIDLast` and `Persistent`.
+**all 140 rows of the AHK_X11 feature matrix**, **all four mechanisms**, **zero
+blanket refusals** (all 83 say what they are about), all seven `Edit*` names,
+twenty-two `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
+capability entire with a `ComboBox` control, and `DriveGet*`, `MonitorGet*`,
+`SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`, `FileRecycleEmpty`,
+`Group*`, `WinGetIDLast`, `OnClipboardChange` and `Persistent`.
 
 **The four questions that produced all of this**, and that a successor should keep
 asking:
@@ -4282,7 +4277,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **742 answer, 91 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **750 answer, 83 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -4651,6 +4646,44 @@ hang on one variant of a call is not a hang on the family.
 is several rounds of its own. It is recorded as the single biggest piece still
 open, with the measurements that make it tractable. Both platforms remain green
 at **742 / 91**, sum 833.
+
+### Round 262 — 2026-11-10: a ComboBox, and the last of the four mechanisms
+
+The fourth mechanism is built. **Every contract was measured on the binary of
+v2.0.19 before a line was written**:
+
+```
+Add("DropDownList", "", ["alpha","beta","gamma"]) -> ComboBox1
+ddl.Value = 0 (Integer), ddl.Text = "" before a choice
+ddl.Value := 2   -> Value=2, Text="beta"
+ddl.Text := "gamma" -> Value=3, Text="gamma"
+ControlGetItems  -> Array of the texts
+ControlAddItem("gamma", ...) -> the array is one longer
+ControlChooseIndex(2, ...) / ControlChooseString("gamma", ...)
+ControlGetChoice -> "beta"   ControlGetIndex -> 3
+ControlFindItem("beta", ...) -> 2   ControlDeleteItem(1, ...) -> one fewer
+```
+
+**Built**: a `Gtk.ComboBoxText` in the helper for the `DropDownList`,
+`ComboBox` and `ListBox` kinds, with the `ClassNN` mapped to `ComboBox`; five
+new helper ops (items, add, select, choice, delete, find); six trait methods and
+their box implementations; eight `Control*` handlers; and a special arm in the
+class dispatcher so `Value` returns the 1-based index (an Integer) and `Text`
+returns the chosen text, while setting either one chooses the item.
+
+**Verified on the box**, end to end, against every line of the measurement:
+`classnn=ComboBox1 | value=[0] text=[] | items=3 one=alpha | afterAdd=4
+four=delta | afterIndex value=[2] text=[beta] choice=[beta] | afterString
+value=[3] getIndex=[3] | find=[2] | setValue value=[4] text=[delta] |
+setText value=[1] text=[alpha] | afterDelete=3 one=beta`.
+
+**The surface moved 742/91 -> 750/83.** The nine names of the family that act
+on a control this tree still does not make (drop-down show/hide, styles,
+`ListViewGetContent`, the status bar) keep their specific reason, which now
+says a ComboBox IS made and those calls are about a different control.
+
+**All four mechanisms are done.** Both platforms: 750/83, sum 833, suites green,
+clippy clean, the box's 28 suites green, source hashes matching.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
