@@ -9,6 +9,43 @@
 
 ---
 
+## 0. Resume here
+
+**State at the end of round 42**: the working tree is clean, both suites are green
+(28 on the box), `clippy` is clean, and `ahk --surface` answers **684 values,
+149 refusals** from the 643/190 the audit started at.
+
+**What is next, and it is written down in order**: wire `Gui()`, `Add`, `Show`
+and `Destroy` to the helper of `crates/ahk-box/helper/ahk-gui.py` -- the first
+round in that area where a name of the surface moves. Then `Title`, `Value` and
+`GetPos`. Round 39's shape table is the contract; round 41's answers are the
+protocol.
+
+**The five rules that produced this state**, and the cost of each lesson:
+
+1. **Measure the binary before writing anything.** Rounds 21, 22 and 23 each
+   found a defect claim in the audit that was simply wrong (#4, #6, #9) -- three
+   of ten -- and every one of them would have caused a wrong "fix". The defect
+   table now carries the binary's answer beside each row, the way the code does.
+2. **A refusal is a result.** Three rounds in a row (35, 36) ended in one:
+   `ControlGetPos`, the checked pair and `WinGetText` each looked like a
+   straightforward call and each failed on a fact only the measurement could
+   give. The alternative was a command that answers `Minimize Maximize Close`
+   for the text of a window.
+3. **A toggle is not a set.** `ControlSetChecked` was measured against a desktop
+   that publishes no `CHECKED` state; a click would have worn the name of a set
+   and done something else.
+4. **Distrust a test that asserts the defect.** Three tests had to be moved
+   because the behaviour they described became true (`#Requires` sub-versions,
+   the `DateAdd` unit, `StrPut` as a "not carried" example).
+5. **The box is the only opinion that counts for a desktop behaviour**, and the
+   build there is two steps: copy the sources, *then* build. `audit/atspi-dump.sh`
+   and `audit/gtk3-probe.py` are the instruments, and the accessibility bridge is
+   **off by default** -- `org.a11y.Status.IsEnabled` must be set for a round and
+   put back afterwards.
+
+---
+
 ## 1. What "surpass" is measured by
 
 AHK_X11 implements **142 names** of AutoHotkey v1.0.24: 127 that it marks
