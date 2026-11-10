@@ -1671,6 +1671,9 @@ pub(crate) fn property(
     // v2.0.19 on 2026-11-09: it is read and written as text.
     if class.to_lowercase().starts_with("gui.")
         && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
+    if class.eq_ignore_ascii_case("gui.button") && name.eq_ignore_ascii_case("value") {
+        return Some(Ok(Value::Text(String::new())));
+    }
     {
         let number = the_number_of_a_control(this).unwrap_or(0);
         return Some(match rt.desktop().gui_value(number, None) {
@@ -1722,6 +1725,9 @@ pub(crate) fn set_property(
             Ok(_) => Ok(()),
             Err(failure) => Err(failure),
         });
+    }
+    if class.eq_ignore_ascii_case("gui.button") && name.eq_ignore_ascii_case("value") {
+        return Some(Err(the_failure_with("Invalid usage.", "", line)));
     }
     if class.to_lowercase().starts_with("gui.")
         && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
