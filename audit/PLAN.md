@@ -1989,6 +1989,41 @@ for `refused(` outside the module), then the handle the class object keeps in it
 reserved key, then the five members. The desktop side is done and verified; the
 contract is round 39's shape table; nothing else is open.
 
+### Round 63 — 2026-11-09: the seam is in the file after all
+
+Round 62 said the dispatch was private with a caller outside the module. **That
+was wrong**, and the correction matters because it makes the wiring smaller.
+
+`classes/gui.rs` calls `refused` **only from inside itself**, in three entry
+points:
+
+```rust
+pub(crate) fn call(class, method, _this: &Value, _arguments: &[Value],
+                   _rt: &mut Runtime, line) -> Option<Result<Value, RuntimeFailure>>
+pub(crate) fn property(class, name, _this: &Value, _rt, line)     -> Option<Result<Value, ...>>
+pub(crate) fn set_property(class, name, _this, _value, _rt, line) -> Option<Result<(), ...>>
+```
+
+**Each already has `rt` and `_this`.** So the desktop's five methods are
+reachable from exactly where they are needed -- no outside caller to find, no new
+plumbing.
+
+**What is actually missing is smaller than a caller**: the class has no **state**.
+A `Gui` object needs to carry the handle from `gui_open`, and this module has no
+helper for the reserved key of the object yet (the other class modules have one,
+per the note in `AGENTS.md`). So the wiring is:
+
+1. a state helper in this module -- the handle in the object's reserved key,
+   written when the object is constructed and read by `call`/`property`;
+2. `call("gui", "show"|"destroy", …)` and friends answering through
+   `rt.desktop().gui_show(…)` instead of the refusal;
+3. `property`/`set_property` for `Title`;
+4. the construction calling `gui_open`.
+
+**Four steps, all inside `classes/gui.rs` plus wherever the object is
+constructed.** The desktop side is done and verified; the contract is round 39's
+shape table.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
