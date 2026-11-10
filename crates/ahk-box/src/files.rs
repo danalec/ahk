@@ -38,6 +38,20 @@ const FAILED: &str = "Failed";
 const KNOWN: [char; 4] = ['R', 'A', 'N', 'D'];
 
 impl ahk::desktop::Files for LabDesktop {
+    fn empty_the_trash(&mut self) -> Result<(), String> {
+        // The freedesktop way, which the box has: `gio trash --empty`.
+        let output = std::process::Command::new("gio")
+            .arg("trash")
+            .arg("--empty")
+            .output()
+            .map_err(|error| error.to_string())?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err("the trash was not emptied".to_string())
+        }
+    }
+
     fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
         let mut options = std::fs::OpenOptions::new();
         match mode.to_lowercase().as_str() {

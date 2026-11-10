@@ -1636,9 +1636,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_recycle_empty,
     },
     Builtin {
         name: "GroupActivate",
@@ -10204,6 +10204,21 @@ pub(crate) fn win_get_controls_hwnd(
         Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
         None => Ok(Value::List(answers)),
     }
+}
+
+/// `FileRecycleEmpty`: empty the trash of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text.
+pub(crate) fn file_recycle_empty(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    rt.desktop()
+        .empty_the_trash()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
 }
 
 pub(crate) fn sleep(

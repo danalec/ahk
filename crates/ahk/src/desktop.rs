@@ -888,6 +888,14 @@ pub trait Processes {
 
 /// The files of the desktop.
 pub trait Files {
+    /// Empty the trash of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `FileRecycleEmpty` answers the
+    /// empty text.
+    fn empty_the_trash(&mut self) -> Result<(), String> {
+        Err("this desktop cannot empty the trash".to_string())
+    }
+
     /// The directory the script is in.
     ///
     /// The name of the directory is a subfolder of the working directory
