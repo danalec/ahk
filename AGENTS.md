@@ -10940,3 +10940,25 @@ is the absent value too (`optObj?.prop?.inner`).
 operator that has the absent value for an operand -- `missing?.value + Bump2()`
 must not call `Bump2()` and must be the absent value -- which is the next
 mechanism of the v2.1 that the corpus asks for.
+## 289. The absent value through an operation, and the IsSet of an expression
+
+Measured on the test suite of KeySharp (the corpus script `op-null-assign.ahk`)
+and on the notes of v2.1-alpha: an operator that has the absent value for an
+operand answers the absent value, and the other operand is not read --
+`missing?.value + Bump2()` is the absent value and does not call `Bump2()`. The
+unary operation of it is the same (`-(missing?)`), the question of the ternary
+that has no value is the same and neither branch runs, and the assignment
+through the chain that has no value is skipped with the value expression:
+`missing?.value := Bump2()` writes nothing and does not call `Bump2()`. The
+operators that ask about the absent value are the ones that are answered before
+the rule: the coalesce, the `is` of it and the comparison with the keyword.
+
+Measured on the same suite: `IsSet` of an expression asks whether the expression
+has a value -- `IsSet(f())` is zero when `f()` answers the absent value -- and a
+name is still asked for its variable, which is the reading of the v1 and of the
+v2.0.19. The v2.1 carries the two together.
+
+`op-null-assign.ahk` runs from line 263 to line 338; what is left there is the
+difference between `IsSet(holder.Present.Missing)` (zero) and
+`IsSet(holder.Missing.Inner)` (a `PropertyError`), which the notes of the v2.1
+do not settle and which is not guessed here.

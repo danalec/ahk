@@ -3286,10 +3286,22 @@ impl<'a> Runtime<'a> {
                 value,
                 line,
             } => {
-                let value = self.evaluate(value)?;
-                let name = self.the_name_of_the_member(name, *line)?;
-                let stored = self.write_a_property(target, &name, *op, value, *line)?;
-                detail = format!("{name} = {}", stored.to_text());
+                // Measured on the test suite of KeySharp (the corpus script
+                // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
+                // assignment through the chain that has no value is skipped
+                // entirely, the value expression included -- `missing?.value :=
+                // Bump2()` does not call `Bump2()`.
+                if matches!(&**target, Node::Maybe { .. })
+                    && self.dialect.the_chain_may_be_skipped()
+                    && matches!(self.evaluate(target)?, Value::Unset)
+                {
+                    detail = String::new();
+                } else {
+                    let value = self.evaluate(value)?;
+                    let name = self.the_name_of_the_member(name, *line)?;
+                    let stored = self.write_a_property(target, &name, *op, value, *line)?;
+                    detail = format!("{name} = {}", stored.to_text());
+                }
             }
             Node::AssignIndex {
                 target,
@@ -3311,11 +3323,21 @@ impl<'a> Runtime<'a> {
                     detail = stored.to_text();
                 } else {
                     let target_value = self.evaluate(target)?;
-                    let keys = self.the_keys_of_an_index(index, also)?;
-                    let value = self.evaluate(value)?;
-                    let stored = self.set_item(&target_value, &keys, *op, value, *line)?;
-                    let key = keys.first().map(Value::to_text).unwrap_or_default();
-                    detail = format!("{key} = {}", stored.to_text());
+                    // Measured on the test suite of KeySharp (the corpus script
+                    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
+                    // assignment through the chain that has no value is skipped,
+                    // the index and the value included.
+                    if self.dialect.the_chain_may_be_skipped()
+                        && matches!(target_value, Value::Unset)
+                    {
+                        detail = String::new();
+                    } else {
+                        let keys = self.the_keys_of_an_index(index, also)?;
+                        let value = self.evaluate(value)?;
+                        let stored = self.set_item(&target_value, &keys, *op, value, *line)?;
+                        let key = keys.first().map(Value::to_text).unwrap_or_default();
+                        detail = format!("{key} = {}", stored.to_text());
+                    }
                 }
             }            Node::Call {
                 name,
@@ -10734,6 +10756,26 @@ impl<'a> Runtime<'a> {
             return self.call_builtin(name, &values, line, Route::ThroughValue);
         }
         self.the_arity_of_a_builtin(builtin, arguments.len(), line, Route::Written)?;
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: `IsSet` of an
+        // expression asks whether the expression has a value -- `IsSet(f())`
+        // is one when `f()` answers a value and zero when it answers the
+        // absent value -- and a name is still asked for its variable.
+        if builtin.name.eq_ignore_ascii_case("IsSet")
+            && self.dialect.the_chain_may_be_skipped()
+        {
+            if let Some(argument) = arguments.first() {
+                if !matches!(argument, Node::Var { .. }) {
+                    let answer = match self.evaluate(argument) {
+                        Ok(Value::Unset) => false,
+                        Ok(_) => true,
+                        Err(failure) if the_failure_is_an_unset_variable(&failure) => false,
+                        Err(failure) => return Err(failure),
+                    };
+                    return Ok(Value::Int(answer as i64));
+                }
+            }
+        }
         let mut values = Vec::with_capacity(arguments.len());
         // The v1 has functions that ask for the name of a variable and not
         // for its value: `IsSet(x)` asks whether the variable `x` has a
@@ -12972,6 +13014,12 @@ impl<'a> Runtime<'a> {
                 value,
                 line,
             } => {
+                if matches!(&**target, Node::Maybe { .. })
+                    && self.dialect.the_chain_may_be_skipped()
+                    && matches!(self.evaluate(target)?, Value::Unset)
+                {
+                    return Ok(Value::Unset);
+                }
                 let value = self.evaluate(value)?;
                 let name = self.the_name_of_the_member(name, *line)?;
                 self.write_a_property(target, &name, *op, value, *line)
@@ -12990,6 +13038,11 @@ impl<'a> Runtime<'a> {
                     );
                 }
                 let target_value = self.evaluate(target)?;
+                if self.dialect.the_chain_may_be_skipped()
+                    && matches!(target_value, Value::Unset)
+                {
+                    return Ok(Value::Unset);
+                }
                 let keys = self.the_keys_of_an_index(index, also)?;
                 let value = self.evaluate(value)?;
                 self.set_item(&target_value, &keys, *op, value, *line)
@@ -13301,10 +13354,17 @@ impl<'a> Runtime<'a> {
                     let value = self.evaluate(operand)?;
                     Ok(self.the_answer_of_the_boolean(operand, &value))
                 }
+
                 // A whole number stays a whole number: `-3` is the
                 // integer -3, the way AutoHotkey v2 has it.
                 UnaryOp::Negate => {
-                    let value = self.evaluate(operand)?;
+                    let value = self.evaluate(operand)?;                    // Measured on the test suite of KeySharp (the corpus script
+                    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
+                    // operation of the absent value is the absent value, and it
+                    // does not fail.
+                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
+                        return Ok(Value::Unset);
+                    }
                     // Measured on the binary of v1.1.37.02 on 2026-11-02:
                     // the value of the v1 is a number when it can be one --
                     // the "5" is 5, and the "0x10" is 16 -- and the whole
@@ -13326,7 +13386,13 @@ impl<'a> Runtime<'a> {
                 }
                 // The unary plus turns a numeric string into a number.
                 UnaryOp::Plus => {
-                    let value = self.evaluate(operand)?;
+                    let value = self.evaluate(operand)?;                    // Measured on the test suite of KeySharp (the corpus script
+                    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
+                    // operation of the absent value is the absent value, and it
+                    // does not fail.
+                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
+                        return Ok(Value::Unset);
+                    }
                     // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                     // plus of the v1 changes nothing: the `+x` of the
                     // "0x10" is "0x10", and the `+x` of the "abc" is "abc".
@@ -13340,7 +13406,13 @@ impl<'a> Runtime<'a> {
                 }
                 // The bitwise not works on the bits of a whole number.
                 UnaryOp::BitwiseNot => {
-                    let value = self.evaluate(operand)?;
+                    let value = self.evaluate(operand)?;                    // Measured on the test suite of KeySharp (the corpus script
+                    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
+                    // operation of the absent value is the absent value, and it
+                    // does not fail.
+                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
+                        return Ok(Value::Unset);
+                    }
                     // v2 says that the bitwise not wants a number here, and
                     // not a whole one: the message is the one of the number.
                     Ok(Value::Int(!self.the_whole_number(
@@ -13477,6 +13549,17 @@ impl<'a> Runtime<'a> {
                     return Ok(Value::Int(answer as i64));
                 }
                 let left_value = self.evaluate(left)?;
+                // Measured on the test suite of KeySharp (the corpus script
+                // `op-null-assign.ahk`) and on the notes of v2.1-alpha: an
+                // operator that has the absent value for an operand answers the
+                // absent value, and the other operand is not read --
+                // `missing?.value + Bump2()` does not call `Bump2()`. The
+                // operators that ask about the absent value are the ones that
+                // were answered above: the coalesce, the `is` of it and the
+                // comparison with the keyword.
+                if self.dialect.the_chain_may_be_skipped() && matches!(left_value, Value::Unset) {
+                    return Ok(Value::Unset);
+                }
                 match op {
                     // `and` and `or` answer the operand and not a truth:
                     // v2 hands back the last one that was true, or the
@@ -13514,6 +13597,13 @@ impl<'a> Runtime<'a> {
                     _ => {}
                 }
                 let right_value = self.evaluate(right)?;
+                // Measured on the test suite of KeySharp (the corpus script
+                // `op-null-assign.ahk`) and on the notes of v2.1-alpha: an
+                // operand that has no value makes the operation the absent
+                // value.
+                if self.dialect.the_chain_may_be_skipped() && matches!(right_value, Value::Unset) {
+                    return Ok(Value::Unset);
+                }
                 // The arithmetic of the v1 is not the one of the v2: the text
                 // that is written between quotes is a string, and the value
                 // of a variable is a number when it can be one.
@@ -13937,6 +14027,13 @@ impl<'a> Runtime<'a> {
                 ..
             } => {
                 let value = self.evaluate(condition)?;
+                // Measured on the test suite of KeySharp (the corpus script
+                // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
+                // question that has no value is the absent value, and neither
+                // branch of it is read.
+                if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
+                    return Ok(Value::Unset);
+                }
                 if self.the_value_is_true(&value) {
                     self.evaluate(then)
                 } else {

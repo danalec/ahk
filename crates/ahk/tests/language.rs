@@ -5326,8 +5326,66 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn a_property_may_take_the_parameters_of_its_access() {
+fn the_absent_value_of_an_operand_is_the_absent_value_of_the_operation() {
     // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: an operator that
+    // has the absent value for an operand answers the absent value, and the
+    // other operand is not read -- `missing?.value + Bump2()` does not call
+    // `Bump2()`; the unary operation and the question of the ternary are the
+    // same. The assignment through the chain that has no value is skipped, the
+    // value expression included.
+    let (report, _desktop) = run_in(
+        concat!(
+            "sideEffects := 0\n",
+            "Bump2() {\n",
+            "    global sideEffects\n",
+            "    return ++sideEffects\n",
+            "}\n",
+            "missing := unset\n",
+            "optVal := missing?.value + Bump2()\n",
+            "MsgBox \"a\" IsSet(optVal) sideEffects\n",
+            "optVal := -(missing?) + Bump2()\n",
+            "MsgBox \"b\" IsSet(optVal) sideEffects\n",
+            "optVal := (missing?) ? Bump2() : Bump2()\n",
+            "MsgBox \"c\" IsSet(optVal) sideEffects\n",
+            "present := { value: 5 }\n",
+            "optVal := present?.value + Bump2()\n",
+            "MsgBox \"d\" optVal sideEffects\n",
+            "missing?.value := Bump2()\n",
+            "MsgBox \"e\" sideEffects\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a00", "b00", "c00", "d61", "e1"]);
+}
+
+#[test]
+fn the_absent_value_of_an_expression_is_asked_by_isset() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: `IsSet` of an
+    // expression asks whether the expression has a value, and the name is still
+    // asked for its variable.
+    let (report, _desktop) = run_in(
+        concat!(
+            "F(a?) {\n",
+            "    return a\n",
+            "}\n",
+            "MsgBox \"a\" IsSet(F())\n",
+            "MsgBox \"b\" IsSet(F(1))\n",
+            "x := 5\n",
+            "MsgBox \"c\" IsSet(x)\n",
+            "y := unset\n",
+            "MsgBox \"d\" IsSet(y)\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a0", "b1", "c1", "d0"]);
+}
+
+#[test]
+fn a_property_may_take_the_parameters_of_its_access() {    // Measured on the test suite of KeySharp (the corpus script
     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the property that
     // takes parameters -- `Items[Index] => unset`, `Pair[a, b] => ...` and the
     // accessor that has a setter -- is read and written with them, and the
