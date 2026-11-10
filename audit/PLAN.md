@@ -4713,6 +4713,30 @@ handlers. **Verified on the box**: `show=[]|hide=[]`, `classnn=msctls_statusbar3
 
 **Surface 750/83 -> 753/80**, sum 833, both platforms green, clippy clean.
 
+### Round 264 — 2026-11-10: the ComboBox and the status bar have language cases
+
+The last handover named one gap: the eleven new `Control*` handlers and the
+`Gui` properties were verified on the box **but not by `cargo test`**, because
+the `Fake` desktop of the language suite carried no gui methods. That is closed.
+
+The `Fake` now holds one list-shaped control with its items, its chosen index,
+its pop-up state, a status text and an open-window flag, and implements the
+seven `gui_combo_*` methods, `gui_number_named`, `gui_status_text`,
+`gui_is_open` and `gui_title`. **Five new language cases** cover
+`ControlGetItems` (an array of three), `ControlAddItem` (a fourth),
+`ControlChooseIndex`/`ChooseString` with `GetChoice`/`GetIndex`,
+`ControlFindItem`/`ControlDeleteItem`, and the pop-up and status-bar calls.
+They pass on both platforms without a GTK helper.
+
+**A `ListView` was measured again** and left for a later round: its `ClassNN` is
+`SysListView321`, `lv.Add("", ["a","b"])` answers 1-based row numbers,
+`lv.GetCount()` is 2 and `ListViewGetContent("", "SysListView321", title)`
+answers a tab-separated string. Some variants of the call **hang the reference**,
+and the array-row form does not populate cells in v2 either, so a `Gtk.TreeView`
+implementation needs its own careful measurement pass rather than a guess.
+
+**Both platforms**: 753 / 80, sum 833, suites green, clippy clean.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

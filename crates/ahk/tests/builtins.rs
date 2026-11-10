@@ -28,6 +28,15 @@ struct Fake {
     writes: Vec<f64>,
     /// The text on the clipboard of the fake.
     clipboard: String,
+    /// The items of the one list-shaped control the fake carries, and the
+    /// 1-based index of the item that is chosen (0 = nothing).
+    combo_items: Vec<String>,
+    combo_choice: i64,
+    combo_popup: bool,
+    /// The text of the one status bar the fake carries.
+    status_text: String,
+    /// Whether the fake has a window of the script at all.
+    gui_open: bool,
 }
 
 impl Desktop for Fake {}
@@ -345,6 +354,91 @@ impl Windows for Fake {
                 }
             }
         })
+    }
+
+    // The one list-shaped control of the fake. These are the methods the
+    // ComboBox handlers of round 262 and the pop-up and status bar of round
+    // 263 lean on, so their cases can run without a GTK helper.
+    fn gui_is_open(&mut self) -> bool {
+        self.gui_open
+    }
+    fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
+        self.calls.push(("resolve".into(), classnn.to_string()));
+        if classnn.eq_ignore_ascii_case("ComboBox1")
+            || classnn.eq_ignore_ascii_case("msctls_statusbar321")
+        {
+            Ok(1)
+        } else {
+            Err(format!("there is no control named {classnn}"))
+        }
+    }
+    fn gui_combo_items(&mut self, _number: u64) -> Result<String, String> {
+        Ok(self.combo_items.join("\n"))
+    }
+    fn gui_combo_add(&mut self, _number: u64, text: &str) -> Result<(), String> {
+        self.combo_items.push(text.to_string());
+        Ok(())
+    }
+    fn gui_combo_select(&mut self, _number: u64, wanted: &str, by_text: bool) -> Result<i64, String> {
+        if by_text {
+            let found = self
+                .combo_items
+                .iter()
+                .position(|item| item == wanted)
+                .map(|index| index as i64 + 1);
+            self.combo_choice = found.unwrap_or(0);
+            Ok(self.combo_choice)
+        } else {
+            let index: i64 = wanted.parse().unwrap_or(0);
+            self.combo_choice = if (1..=self.combo_items.len() as i64).contains(&index) {
+                index
+            } else {
+                0
+            };
+            Ok(self.combo_choice)
+        }
+    }
+    fn gui_combo_choice(&mut self, _number: u64) -> Result<(i64, String), String> {
+        let index = self.combo_choice;
+        let text = if index >= 1 {
+            self.combo_items
+                .get(index as usize - 1)
+                .cloned()
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        Ok((index, text))
+    }
+    fn gui_combo_delete(&mut self, _number: u64, index: &str) -> Result<(), String> {
+        let at: usize = index.parse().unwrap_or(0);
+        if at >= 1 && at <= self.combo_items.len() {
+            self.combo_items.remove(at - 1);
+            if self.combo_choice >= at as i64 {
+                self.combo_choice = 0;
+            }
+            Ok(())
+        } else {
+            Err(format!("there is no item at {index}"))
+        }
+    }
+    fn gui_combo_find(&mut self, _number: u64, text: &str) -> Result<i64, String> {
+        Ok(self
+            .combo_items
+            .iter()
+            .position(|item| item == text)
+            .map(|index| index as i64 + 1)
+            .unwrap_or(0))
+    }
+    fn gui_combo_dropdown(&mut self, _number: u64, show: bool) -> Result<(), String> {
+        self.combo_popup = show;
+        Ok(())
+    }
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        Ok(self.status_text.clone())
+    }
+    fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
+        Ok("the window".to_string())
     }
 }
 impl Files for Fake {
@@ -4014,6 +4108,85 @@ fn a_clipboard_change_wants_a_function_not_a_text() {
         failure_of(&report),
         "Parameter #1 of OnClipboardChange requires an Object, but received a String."
     );
+}
+
+// -- the list-shaped control -------------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-10: a DropDownList is a
+// `ComboBox1`, `ControlGetItems` answers an array, `ControlAddItem` makes it
+// longer, `ControlChooseIndex` and `ControlChooseString` choose, `GetChoice`
+// and `GetIndex` read, `FindItem` finds an index and `DeleteItem` removes one.
+// The fake desktop carries the one list-shaped control, so these cases run
+// without a GTK helper.
+
+fn a_fake_with_a_combo() -> Fake {
+    Fake {
+        combo_items: vec!["alpha".into(), "beta".into(), "gamma".into()],
+        gui_open: true,
+        status_text: "the status".into(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn control_get_items_answers_an_array_of_the_items() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on("x := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\none := x[1]", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "n"), 3);
+    assert_eq!(value_of(&report, "one"), Value::Text("alpha".into()));
+}
+
+#[test]
+fn control_add_item_makes_the_array_one_longer() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "r := ControlAddItem(\"delta\", \"ComboBox1\", \"the window\")\nx := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\nfour := x[4]",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    assert_eq!(int_of(&report, "n"), 4);
+    assert_eq!(value_of(&report, "four"), Value::Text("delta".into()));
+}
+
+#[test]
+fn control_choose_index_and_string_set_the_choice() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "ControlChooseIndex(2, \"ComboBox1\", \"the window\")\na := ControlGetChoice(\"ComboBox1\", \"the window\")\nb := ControlGetIndex(\"ComboBox1\", \"the window\")\nControlChooseString(\"gamma\", \"ComboBox1\", \"the window\")\nc := ControlGetIndex(\"ComboBox1\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("beta".into()));
+    assert_eq!(int_of(&report, "b"), 2);
+    assert_eq!(int_of(&report, "c"), 3);
+}
+
+#[test]
+fn control_find_item_and_delete_item() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "a := ControlFindItem(\"beta\", \"ComboBox1\", \"the window\")\nControlDeleteItem(1, \"ComboBox1\", \"the window\")\nx := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\none := x[1]",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 2);
+    assert_eq!(int_of(&report, "n"), 2);
+    assert_eq!(value_of(&report, "one"), Value::Text("beta".into()));
+}
+
+#[test]
+fn the_pop_up_and_the_status_bar_answer() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "a := ControlShowDropDown(\"ComboBox1\", \"the window\")\nb := ControlHideDropDown(\"ComboBox1\", \"the window\")\nc := StatusBarGetText(1, \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "b"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "c"), Value::Text("the status".into()));
 }
 
 #[test]
