@@ -2503,7 +2503,7 @@ impl<'a> Runtime<'a> {
                         closure: self.scopes.clone(),
                     };
                     let closure = self.make_a_closure(function.clone());
-                    let value = closure_value(&closure, &function);
+                    let value = closure_value(&closure, &function, false);
                     self.assign_in_the_scope(name, value);
                 }
                 Node::Block { body, .. } => self.collect_the_nested_functions(body),
@@ -3355,6 +3355,12 @@ impl<'a> Runtime<'a> {
                 // gives it back when it ends.
                 let saved = self.the_index_is_saved();
                 loop {
+                    // Measured on the binary of v2.0.19 on 2026-11-10: the
+                    // condition of the second turn reads `A_Index` as two, so
+                    // the index of the turn is set before the condition is
+                    // read -- the first turn reads one and not zero -- and the
+                    // body reads the same number.
+                    self.set_global("A_Index", Value::Int(turn));
                     let value = self.the_value_of_the_condition(condition)?;
                     if !self.the_value_is_true(&value) {
                         break;
@@ -3369,17 +3375,15 @@ impl<'a> Runtime<'a> {
                             line: statement.line(),
                         }));
                     }
-                    self.set_global("A_Index", Value::Int(turn));
-                    turn += 1;
                     match the_flow_of_a_loop_body(self.run_block(body)) {
-                        TheFlowOfALoop::Next => {}
+                        TheFlowOfALoop::Next | TheFlowOfALoop::Continue => {}
                         TheFlowOfALoop::Break => break,
-                        TheFlowOfALoop::Continue => continue,
                         TheFlowOfALoop::Out(failure) => {
                             self.the_index_is_given_back(saved);
                             return Err(failure);
                         }
                     }
+                    turn += 1;
                 }
                 // Measured on the binary of v2.0.19 on 2026-11-09: the `else`
                 // of a loop runs when the loop took no turn at all.
@@ -7501,7 +7505,7 @@ impl<'a> Runtime<'a> {
                 //
                 // Measured on the binary of v2.0.19 on 2026-10-31: the own
                 // properties of a function are none.
-                let own = if object.borrow().class == "func" {
+                let own = if matches!(object.borrow().class.as_str(), "func" | "closure") {
                     false
                 } else if self.class_name_of(target).is_some() {
                     // The table of a class value is the tree's own, and the
@@ -10849,6 +10853,18 @@ impl<'a> Runtime<'a> {
     ///
     /// The name of a closure of v2 is empty, and the runtime keeps it under
     /// a name that a script cannot reach.
+    /// Whether a scope around the call has a variable of that name.
+    ///
+    /// It is the test of the capture of a closure: a name that a scope of a
+    /// function holds is a local of that function, and a name of the script is
+    /// not -- the variables of the script are not in a scope of a call.
+    fn the_scope_around_has(&self, name: &str) -> bool {
+        let name = the_key_of(name);
+        self.scopes
+            .iter()
+            .any(|scope| scope.borrow().contains_key(&name))
+    }
+
     fn make_a_closure(&mut self, function: Function) -> String {
         self.closures += 1;
         let name = format!("\u{1}closure {}", self.closures);
@@ -12818,8 +12834,15 @@ impl<'a> Runtime<'a> {
                     declarations: Declarations::default(),
                     closure: self.scopes.clone(),
                 };
+                // Measured on the binary of v2.0.19 on 2026-11-10: the arrow
+                // that reads a local variable of the function that has it is a
+                // `Closure`, and one that reads no such variable -- and the
+                // same arrow at the top of the script -- is a `Func`.
+                let captures = crate::warnings::the_names_that_a_node_reads(body)
+                    .iter()
+                    .any(|name| self.the_scope_around_has(name));
                 let name = self.make_a_closure(function.clone());
-                Ok(closure_value(&name, &function))
+                Ok(closure_value(&name, &function, captures))
             }
             Node::ArrayLiteral { items, line } => {
                 // The literal is the array the `Array` built-in makes:
@@ -14297,12 +14320,18 @@ fn func_value(name: &str, function: &Function) -> Value {
 ///
 /// The name of a closure of v2 is empty, and the name under which the
 /// runtime keeps it is in the object and not in the name.
-fn closure_value(name: &str, function: &Function) -> Value {
+fn closure_value(name: &str, function: &Function, captures: bool) -> Value {
     let value = func_value("", function);
     if let Value::Object(object) = &value {
-        object
-            .borrow_mut()
-            .put(CLOSURE, Value::Text(name.to_string()));
+        let mut object = object.borrow_mut();
+        // Measured on the binary of v2.0.19 on 2026-11-10: the class of a
+        // function that reads a local of the function that has it is
+        // "Closure", and it is a `Func` as well; the class of the other one is
+        // "Func".
+        if captures {
+            object.class = "closure".to_string();
+        }
+        object.put(CLOSURE, Value::Text(name.to_string()));
     }
     value
 }

@@ -10609,3 +10609,29 @@ two arrays are compared by their elements, which the binary fails as well (the
 tree stopped at the hex comparison before this). That script is one of the ones
 that the binary itself fails: the comparison of arrays by their elements is a
 Keysharp extension, not the dialect of v2.0.19.
+## 276. The index of a turn, and the class of a closure
+
+Measured on the binary of v2.0.19 on 2026-11-10: the condition of the first turn
+of a `while` reads `A_Index` as one -- `x := []`, `while (x.Push(A_Index),
+A_Index <= 3)` pushes 1, 2, 3 and 4, and not 0 to 4 -- and the body reads the
+same number. The index the loop had before it is given back when the loop ends,
+which the tree did already. The tree set the index after the condition, so the
+first turn read zero and the loop pushed one value too many; it is set before
+the condition now, and the number of the turn moves after the body.
+
+Measured on the same day: an arrow function that reads a local variable of the
+function that has it is of the class `Closure` -- and it is a `Func` and an
+`Object` as well -- while an arrow that reads no such variable, and an arrow at
+the top of the script, is of the class `Func`. The tree made every function a
+`Func`. The class of the value is `closure` when one of the names that the body
+reads is a name that a scope around the call has, and `func` otherwise. The
+names of the reads come from the walker of `warnings`, which is the one the
+script is read with, so the two cannot drift; the class chain says that a
+`Closure` is a `Func`.
+
+A nested function that is written with a name, and reads a local, is still a
+`Func` in the tree: the capture test is on the arrow for now, and the corpus
+case that asked for it -- `op-is.ahk` -- passed the arrow.
+
+The corpus is 76 of 162 pure scripts (46.9 %): `flow-while.ahk` and
+`op-is.ahk` pass whole now.

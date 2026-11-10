@@ -6161,6 +6161,44 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn a_function_that_reads_a_local_is_a_closure() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the arrow that reads a
+    // local variable of the function that has it is a `Closure` -- and it is a
+    // `Func` and an `Object` as well -- while the arrow that reads no such
+    // variable, and the same arrow at the top of the script, is a `Func`.
+    let (report, _desktop) = run(concat!(
+        "f() => (x := 1, (*) => x)\n",
+        "g() => ((*) => 9)\n",
+        "h := (*) => 9\n",
+        "MsgBox Type(f()) \" \" (f() is Closure) \" \" (f() is Func) \" \" (f() is Object)\n",
+        "MsgBox Type(g()) \" \" (g() is Closure) \" \" (g() is Func)\n",
+        "MsgBox Type(h) \" \" (h is Closure) \" \" (h is Func)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Closure 1 1 1", "Func 0 1", "Func 0 1"]
+    );
+}
+
+#[test]
+fn the_index_of_a_turn_is_set_before_the_condition_of_the_while() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the condition of the
+    // first turn of a `while` reads `A_Index` as one, and the body reads the
+    // same number -- the index is set before the condition is read -- and the
+    // index the loop had before it is given back when it ends.
+    let (report, _desktop) = run(concat!(
+        "x := [], t := \"\"\n",
+        "while (x.Push(A_Index), t .= A_Index, A_Index <= 3)\n",
+        "    continue\n",
+        "MsgBox x.Length \" \" t\n",
+        "MsgBox A_Index\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["4 1234", "0"]);
+}
+
+#[test]
 fn the_equal_sign_compares_texts_as_texts_and_numbers_as_numbers() {
     // Measured on the binary of v2.0.19 on 2026-11-10: two texts are compared
     // as texts -- "10" and "10.0" are not the same text -- and a text is

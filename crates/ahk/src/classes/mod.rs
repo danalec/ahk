@@ -1317,6 +1317,12 @@ pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
     if class.eq_ignore_ascii_case("enumerator") {
         return Some("func");
     }
+    // Measured on the binary of v2.0.19 on 2026-11-10: a `Closure` is a
+    // `Func` as well -- `f() is Closure` and `f() is Func` are both one when
+    // the function of `f` reads a local of the function that has it.
+    if class.eq_ignore_ascii_case("closure") {
+        return Some("func");
+    }
     error::the_base_of(class)
 }
 
@@ -1643,7 +1649,7 @@ fn call_once(
         "enumerator" => enumerator::call(method, this, arguments, rt, line),
         "error" => error::call(method, this, arguments, rt, line),
         "file" => file::call(method, this, arguments, rt, line),
-        "func" | "boundfunc" => func::call(method, this, arguments, rt, line),
+        "func" | "closure" | "boundfunc" => func::call(method, this, arguments, rt, line),
         "hotkey" => hotkey::call(method, this, arguments, rt, line),
         "map" => map::call(method, this, arguments, rt, line),
         "regexmatchinfo" => regexmatchinfo::call(method, this, arguments, rt, line),
@@ -1669,7 +1675,7 @@ pub(crate) fn call_the_value(
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match class.to_lowercase().as_str() {
-        "func" | "boundfunc" => func::call_the_value(this, arguments, rt, line),
+        "func" | "closure" | "boundfunc" => func::call_the_value(this, arguments, rt, line),
         // The enumerator is a function of its own kind, and the call of
         // its value is the turn of the enumeration.
         "enumerator" => enumerator::call_the_value(this, arguments, rt, line),
@@ -1694,7 +1700,7 @@ pub(crate) fn property(
         "enumerator" => enumerator::property(name, this, rt, line),
         "error" => error::property(name, this, rt, line),
         "file" => file::property(name, this, rt, line),
-        "func" => func::property(name, this, rt, line),
+        "func" | "closure" => func::property(name, this, rt, line),
         "hotkey" => hotkey::property(name, this, rt, line),
         "map" => map::property(name, this, rt, line),
         "regexmatchinfo" => regexmatchinfo::property(name, this, rt, line),
@@ -1743,7 +1749,7 @@ pub(crate) fn set_property(
         "buffer" => buffer::set_property(name, this, value, rt, line),
         "error" => error::set_property(name, this, value, rt, line),
         "file" => file::set_property(name, this, value, rt, line),
-        "func" => func::set_property(name, this, value, rt, line),
+        "func" | "closure" => func::set_property(name, this, value, rt, line),
         "hotkey" => hotkey::set_property(name, this, value, rt, line),
         "map" => map::set_property(name, this, value, rt, line),
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
@@ -1816,7 +1822,7 @@ pub fn names(class: &str) -> Vec<&'static str> {
         "enumerator" => enumerator::names(),
         "error" => error::names(),
         "file" => file::names(),
-        "func" => func::names(),
+        "func" | "closure" => func::names(),
         "hotkey" => hotkey::names(),
         "map" => map::names(),
         "gui" => gui::names("gui"),

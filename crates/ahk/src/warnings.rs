@@ -654,6 +654,17 @@ fn the_reads_of_a_level(statements: &[Node], reads: &mut Vec<(String, u32)>) {
 ///
 /// The match has an arm for every node of the tree of the script, so that a
 /// node that is added later is not forgotten here.
+/// The names that a node reads, for the test of a capture.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: a function that reads a
+/// local variable of the function that has it is a `Closure`, and one that
+/// reads no such variable is a `Func`.
+pub(crate) fn the_names_that_a_node_reads(node: &Node) -> Vec<String> {
+    let mut reads = Vec::new();
+    the_reads_of_a_node(node, &mut reads);
+    reads.into_iter().map(|(name, _)| name).collect()
+}
+
 fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
     match node {
         Node::Literal { .. } => {}
