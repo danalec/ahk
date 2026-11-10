@@ -11,9 +11,21 @@
 
 ## 0. Resume here
 
-**State at the end of round 42**: the working tree is clean, both suites are green
-(28 on the box), `clippy` is clean, and `ahk --surface` answers **684 values,
-149 refusals** from the 643/190 the audit started at.
+**Merged with master on 2026-11-10** (commit `d45276e`, strategy `ours`): the two
+histories diverged far enough that a content merge mixed incompatible APIs
+(the AST parameter shape, the runtime state, the desktop traits), so the merge
+records master as an ancestor and keeps the audited tree. The one name master
+carried that this branch did not was `IsSet`, ported in `0147eb7` (the row, the
+handler, the v2 dialect arm that hands the variable over as a reference, and
+the `DIALECT` entry in the surface test). Everything else in master is present
+here in another shape or is an internal refactor. The `Keysharp` checkout at
+`C:\Users\danalec\Documents\src\Keysharp` is clean on master: solution builds,
+1070 of 1073 tests pass; the failures are environment ones (a local HTTP
+timeout and three screen/GUI probes), not from the recent Wayland commits.
+
+**State at the end of round 17**: the working tree is clean, both suites are green
+(28 on Windows, 28 on the box), `clippy` is clean, `ahk --surface` answers
+**759 values, 74 refusals** of 833, and the gap matrix is **140/140 covered**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
