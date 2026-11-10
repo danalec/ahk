@@ -2152,6 +2152,14 @@ fn the_token_ends_a_value(token: &Token) -> bool {
 /// point of `1.5.2` is the member operator of the float.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-30.
+/// Whether the digits of an exponent follow, after the sign that it may carry.
+fn the_digits_of_an_exponent_follow(chars: &[char], from: usize) -> bool {
+    let mut at = from;
+    if matches!(chars.get(at), Some(&'+') | Some(&'-')) {
+        at += 1;
+    }
+    chars.get(at).is_some_and(|digit| digit.is_ascii_digit())
+}
 fn the_end_of_the_number(
     chars: &[char],
     start: usize,
@@ -2185,11 +2193,20 @@ fn the_end_of_the_number(
         // `n.1.="D"` is the property "1" of `n` written by `.=`, and the
         // binary reads the number 1 and the operator. Measured on the binary
         // of v2.0.19 on 2026-11-10.
-        if !chars
-            .get(index + 1)
-            .is_some_and(|character| the_character_is_a_letter(*character, marks))
-            && chars.get(index + 1) != Some(&'=')
-        {
+        // The point of a number that carries an exponent is the point of the
+        // number even when a letter follows it: `1.e3` is 1000.0 and `1.e-3`
+        // is 0.001. Measured on the binary of v2.0.19 on 2026-11-10.
+        let the_point_is_in_the_number = match chars.get(index + 1) {
+            Some('=') => false,
+            Some(letter) if (*letter == 'e' || *letter == 'E')
+                && the_digits_of_an_exponent_follow(chars, index + 2) =>
+            {
+                true
+            }
+            Some(character) if the_character_is_a_letter(*character, marks) => false,
+            _ => true,
+        };
+        if the_point_is_in_the_number {
             the_number_has_a_point = true;
             index += 1;
             while index < chars.len() && chars[index].is_ascii_digit() {

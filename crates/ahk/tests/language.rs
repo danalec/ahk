@@ -6161,6 +6161,43 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_break_names_a_label_of_a_loop() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the break and the
+    // continue may name a label that is written before a loop, and the level
+    // is the number of the loops between the two. A label that no loop
+    // follows is "Parameter #1 invalid.", and a label that is not there is
+    // "Label not found in current scope." with the name in it.
+    let (report, _desktop) = run(concat!(
+        "outer:\n",
+        "Loop 2\n",
+        "{\n",
+        "    Loop 3\n",
+        "    {\n",
+        "        if (A_Index == 2)\n",
+        "            break outer\n",
+        "    }\n",
+        "    MsgBox \"the body of the outer loop is not run twice\"\n",
+        "}\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["after"]);
+    let failure = parse("Loop 3\n{\n    break nosuch\n}\n").expect_err("refused");
+    assert_eq!(
+        failure.message,
+        "Label not found in current scope.\n     Specifically: nosuch"
+    );
+    let failure = parse("notloop:\nMsgBox \"x\"\nLoop 3\n{\n    break notloop\n}\n")
+        .expect_err("refused");
+    assert_eq!(failure.message, "Parameter #1 invalid.");
+    let failure = parse("l:\nLoop 2\n{\n    MsgBox \"x\"\n}\nbreak l\n").expect_err("refused");
+    assert_eq!(
+        failure.message,
+        "Break/Continue must be enclosed by a Loop."
+    );
+}
+
+#[test]
 fn the_item_of_a_class_takes_more_than_one_parameter() {
     // Measured on the binary of v2.0.19 on 2026-11-10: `obj[a, b]` is the
     // item of `obj` with two parameters, and a class of the script sees both

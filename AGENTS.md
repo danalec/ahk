@@ -10450,3 +10450,30 @@ hands the values to the class of the script, to the class type or to the
 item). The item of `super` takes the list too, and the value of each parameter
 goes to the base as the literal of the value it is. A value that is not an
 object takes one parameter, the position of the item, and the rest is refused.
+## 269. The point of a float before its exponent, and the label of a break
+
+Measured on the binary of v2.0.19 on 2026-11-10: `1.e3` is 1000.0 and
+`1.e-3` is 0.001 -- the point of the mantissa is the point of the number even
+though a letter follows it, because the letter begins the exponent. The lexer
+now takes the point when the letter after it is the `e` of an exponent and the
+digits of an exponent follow (an optional sign and a digit), and it still
+leaves the point out of the number for `1.ToString` (a member) and for the `.=`
+of `n.1.="D"`.
+
+**The break and the continue name a label.** Measured on the binary of v2.0.19
+on 2026-11-10: a label that is written directly before a loop names it, and a
+run of labels one above the loop names it too (`stackedOuter:` and
+`stackedInner:` above the same `Loop` are both names of it); `break label`
+breaks the loop that the label names, counting the loops between the two, and
+`continue label` continues it. A label that no loop follows is "Parameter #1
+invalid.", a label that is not there is "Label not found in current scope." with
+the name in it, and a break outside of every loop is "Break/Continue must be
+enclosed by a Loop." -- the three measured wordings. The parser keeps the
+labels of the scope with the depth of the loops where each is written
+(`label_loops`), and the level of a `break label` is the depth of the break
+minus the depth of the label.
+
+The corpus case `assign-float.ahk` passes now. `flow-loop-switch-break-goto.ahk`
+passes the label break and stops at a **computed goto** -- `goto(name)` inside a
+function, which resolves the label when it runs among the labels of the blocks
+that enclose it -- and that is the next block.

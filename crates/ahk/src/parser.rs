@@ -1559,7 +1559,10 @@ pub struct Parser {
     /// loops is also the level that a `break N` or a `continue N` may name,
     /// and a level above it is refused at the load.
     loops: usize,
-    /// Whether the `*` that follows an argument spreads the value of it.
+    /// The labels that are written before a loop, with the depth of the
+    /// loops where each of them is written: `break label` counts the loops
+    /// between its own and the one that the label names.
+    label_loops: Vec<(String, usize, bool)>,    /// Whether the `*` that follows an argument spreads the value of it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: the last argument
     /// of a call may carry a star -- `f(arr*)` calls `f` with every item of
@@ -1673,6 +1676,7 @@ impl Parser {
             untils_without_a_loop: Vec::new(),
             labels: Vec::new(),
             label_names: BTreeSet::new(),
+            label_loops: Vec::new(),
             hotkeys: Vec::new(),
             hotkeys_of_the_v2: Vec::new(),
             in_the_action_of_a_hotkey: false,
@@ -3714,7 +3718,7 @@ impl Parser {
                 "for" => return Ok(vec![self.parse_for()?]),
                 "break" => {
                     self.next();
-                    let level = self.the_level_of_the_break_or_the_continue();
+                    let level = self.the_level_of_the_break_or_the_continue()?;
                     // Measured on the binary of v2.0.19 on 2026-11-01: the v2
                     // takes the parenthesis of a break and of a continue, and
                     // it ignores what is inside it.
@@ -3728,7 +3732,7 @@ impl Parser {
                 }
                 "continue" => {
                     self.next();
-                    let level = self.the_level_of_the_break_or_the_continue();
+                    let level = self.the_level_of_the_break_or_the_continue()?;
                     self.the_parenthesis_that_is_ignored();
                     self.end_of_statement()?;
                     self.the_loop_of_the_break_or_the_continue(token.line, token.column, level)?;
@@ -8021,7 +8025,14 @@ impl Parser {
                 // label that a command names may be written anywhere in the
                 // script, and the name of a label does not know its case.
                 self.label_names.insert(name.to_lowercase());
-                Ok(Some(Node::Label {
+                // The label may name a loop, and the break that names it
+                // counts the loops between the two. Only a label that is
+                // followed by a loop names one: measured on the binary of
+                // v2.0.19 on 2026-11-10, a label before anything else is
+                // "Parameter #1 invalid." when a break names it.
+                let names_a_loop = self.a_loop_follows_the_label();
+                self.label_loops
+                    .push((name.to_lowercase(), self.loops, names_a_loop));                Ok(Some(Node::Label {
                     name,
                     line: token.line,
                 }))
@@ -8271,26 +8282,102 @@ impl Parser {
     /// token is only taken when it is one: a name, a parenthesis or an
     /// expression is not a level, and the rest of the statement is read the
     /// way it was.
-    fn the_level_of_the_break_or_the_continue(&mut self) -> u32 {
+    /// Whether the line after the label names a loop.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a label names the
+    /// loop that follows it, and a label before anything else is not a loop
+    /// at all.
+    fn a_loop_follows_the_label(&self) -> bool {
+        let mut at = self.position;
+        loop {
+            while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline {
+                at += 1;
+            }
+            let Some(token) = self.tokens.get(at) else {
+                return false;
+            };
+            // Every label of a run of labels names the loop that follows the
+            // run: measured on the binary of v2.0.19 on 2026-11-10, two
+            // labels one above the loop are both names of it.
+            if (token.kind == TokenKind::Name || token.kind == TokenKind::Number)
+                && self.tokens.get(at + 1).is_some_and(|colon| {
+                    colon.kind == TokenKind::Op && colon.value == ":" && !colon.spaced
+                })
+            {
+                at += 2;
+                continue;
+            }
+            return token.kind == TokenKind::Keyword
+                && matches!(token.value.to_lowercase().as_str(), "loop" | "while" | "for");
+        }
+    }
+
+    fn the_level_of_the_break_or_the_continue(&mut self) -> Result<u32, SyntaxError> {
         // The v1 has no level: its `break` names a label, and that is not
         // carried here. The number stays a statement of its own in the v1,
         // and the parser refuses it the way it did.
         if self.dialect.legacy_commands() {
-            return 1;
+            return Ok(1);
         }
-        let token = self.peek();
-        if token.kind != TokenKind::Number {
-            return 1;
+        let (the_kind, the_value, the_line, the_column) = {
+            let token = self.peek();
+            (token.kind, token.value.clone(), token.line, token.column)
+        };
+        if the_kind == TokenKind::Name {
+            // Measured on the binary of v2.0.19 on 2026-11-10: the break may
+            // name a label that is written before a loop, and the level of the
+            // break is the number of the loops between its own and the one
+            // that the label names.
+            let written = the_value;
+            self.next();
+            let name = written.to_lowercase();
+            let found = self
+                .label_loops
+                .iter()
+                .rev()
+                .find(|(label, _, _)| *label == name)
+                .map(|(_, depth, names_a_loop)| (*depth, *names_a_loop));
+            let Some((depth, names_a_loop)) = found else {
+                return Err(SyntaxError {
+                    message: format!(
+                        "Label not found in current scope.\n     Specifically: {written}"
+                    ),
+                    line: the_line,
+                    column: the_column,
+                });
+            };
+            if !names_a_loop {
+                return Err(SyntaxError {
+                    message: "Parameter #1 invalid.".to_string(),
+                    line: the_line,
+                    column: the_column,
+                });
+            }
+            if self.loops == 0 {
+                // The break is outside of every loop, and that failure is the
+                // one of the break rather than the one of the label.
+                return Ok(1);
+            }
+            if self.loops <= depth {
+                return Err(SyntaxError {
+                    message: "Parameter #1 invalid.".to_string(),
+                    line: the_line,
+                    column: the_column,
+                });
+            }
+            return Ok((self.loops - depth) as u32);
         }
-        match token.value.parse::<u32>() {
+        if the_kind != TokenKind::Number {
+            return Ok(1);
+        }
+        match the_value.parse::<u32>() {
             Ok(level) => {
                 self.next();
-                level
+                Ok(level)
             }
-            Err(_) => 1,
+            Err(_) => Ok(1),
         }
     }
-
     /// The body of a block that is not the body of a loop.
     ///
     /// The body of a function is a scope of its own: the `break` and the
@@ -8301,14 +8388,15 @@ impl Parser {
         line: u32,
     ) -> Result<(Vec<Node>, u32), SyntaxError> {
         let loops = self.loops;
-        self.loops = 0;
-        // The line of the brace that opens the body. Measured on the binary of
+        let label_loops = self.label_loops.len();
+        self.loops = 0;        // The line of the brace that opens the body. Measured on the binary of
         // AutoHotkey v1.1.37.02 on 2026-11-05: the v1 names this line when it
         // warns about a local that has the name of a global one, and the
         // brace may be on a line of its own.
         let body_line = self.the_line_of_the_brace_that_opens_the_body();
         let body = self.parse_block(kind, line);
         self.loops = loops;
+        self.label_loops.truncate(label_loops);
         Ok((body?, body_line))
     }
 
