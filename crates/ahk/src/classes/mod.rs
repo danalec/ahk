@@ -1478,6 +1478,52 @@ pub(crate) fn call(
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
+    // `Add` of a `Gui`: the control of the window, answered as an object whose
+    // class is the one v2 reports -- `Gui.Edit` for an `Edit` -- and whose
+    // `ClassNN` and `Hwnd` are properties of it. The object is written directly
+    // rather than made by the class table, because a control of a script's own
+    // window is not a class type of the runtime.
+    if class == "gui" && method.eq_ignore_ascii_case("add") {
+        if !rt.desktop().gui_is_open() {
+            if let Err(reason) = rt.desktop().gui_open("") {
+                return Some(Err(the_failure_with(&reason, "", line)));
+            }
+        }
+        let kind = arguments
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        let text = arguments
+            .get(2)
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        return Some(match rt.desktop().gui_add(0, &kind, &text) {
+            Ok((number, classnn)) => {
+                let mut properties = std::collections::BTreeMap::new();
+                properties.insert(
+                    "classnn".to_string(),
+                    crate::runtime::Property {
+                        name: "ClassNN".to_string(),
+                        value: Value::Text(classnn),
+                    },
+                );
+                properties.insert(
+                    "hwnd".to_string(),
+                    crate::runtime::Property {
+                        name: "Hwnd".to_string(),
+                        value: Value::Int(number as i64),
+                    },
+                );
+                Ok(Value::Object(std::rc::Rc::new(std::cell::RefCell::new(
+                    crate::runtime::Object {
+                        class: format!("Gui.{}", kind),
+                        properties,
+                    },
+                ))))
+            }
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
     if method.eq_ignore_ascii_case("__item") {
