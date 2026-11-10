@@ -1561,6 +1561,28 @@ pub(crate) fn call_the_value(
 ///
 /// `None` means the name is not a property of this class: the runtime then
 /// looks in the property table of the object.
+/// The title of the window of a `Gui`: read it, or write it.
+///
+/// The window is opened on the first question about it, because the construction
+/// of a `Gui` is generic and cannot make one. Measured on the binary of v2.0.19
+/// on 2026-11-09: `g.Title` answers the title and `g.Title := "x"` writes it,
+/// both as text.
+fn the_title_of_the_gui(
+    rt: &mut Runtime,
+    setting: Option<&str>,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
+    if !rt.desktop().gui_is_open() {
+        if let Err(reason) = rt.desktop().gui_open("") {
+            return Err(the_failure_with(&reason, "", line));
+        }
+    }
+    match rt.desktop().gui_title(0, setting) {
+        Ok(title) => Ok(Value::Text(title)),
+        Err(reason) => Err(the_failure_with(&reason, "", line)),
+    }
+}
+
 pub(crate) fn property(
     class: &str,
     name: &str,
@@ -1568,6 +1590,11 @@ pub(crate) fn property(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `g.Title` reads the title
+    // of the window, and `g.Title := "x"` writes it.
+    if class.eq_ignore_ascii_case("gui") && name.eq_ignore_ascii_case("title") {
+        return Some(the_title_of_the_gui(rt, None, line));
+    }
     match class.to_lowercase().as_str() {
         "array" => array::property(name, this, rt, line),
         "buffer" => buffer::property(name, this, rt, line),
@@ -1596,6 +1623,13 @@ pub(crate) fn set_property(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
+    if class.eq_ignore_ascii_case("gui") && name.eq_ignore_ascii_case("title") {
+        let text = value.to_text();
+        return Some(match the_title_of_the_gui(rt, Some(&text), line) {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(failure),
+        });
+    }
     let written = match class.to_lowercase().as_str() {
         "array" => array::set_property(name, this, value, rt, line),
         "buffer" => buffer::set_property(name, this, value, rt, line),

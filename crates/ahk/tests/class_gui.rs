@@ -144,27 +144,23 @@ fn a_menu_that_adds_an_item_says_why_it_cannot() {
 }
 
 #[test]
-fn a_property_of_a_gui_says_why_it_cannot() {
-    let report = run("window := Gui()\ntitle := window.Title");
-    assert!(!report.ok);
-    let error = error_of(&report);
-    assert!(
-        error.contains("Gui cannot read or set the title of the window"),
-        "{error}"
-    );
-    assert_eq!(report.error_line, Some(2));
-}
-
-#[test]
-fn a_property_of_a_gui_that_is_written_says_why_it_cannot() {
-    let report = run("window := Gui()\nwindow.Title := \"the window\"");
-    assert!(!report.ok);
-    let error = error_of(&report);
-    assert!(
-        error.contains("Gui cannot read or set the title of the window"),
-        "{error}"
-    );
-    assert_eq!(report.error_line, Some(2));
+fn the_title_of_a_gui_asks_the_desktop_for_the_window() {
+    // The title is a question about a window, and the window is the desktop's:
+    // the fake of this suite has none to make, so reading and writing the title
+    // both reach it and fail with its reason. On the box the same two calls
+    // answer and set the title of a GTK3 window.
+    for script in [
+        "window := Gui()\ntitle := window.Title",
+        "window := Gui()\nwindow.Title := \"the window\"",
+    ] {
+        let report = run(script);
+        assert!(!report.ok);
+        assert_eq!(
+            error_of(&report),
+            "this desktop cannot make a window of the script"
+        );
+        assert_eq!(report.error_line, Some(2));
+    }
 }
 
 #[test]
