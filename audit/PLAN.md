@@ -2256,6 +2256,37 @@ the tree carries 690 of the 833 names of v2 with a reason for the rest, and
 **it can do the thing AHK_X11 alone could do** -- make a window, put controls in
 it, read and write them -- which the count cannot express.
 
+### Round 79 — 2026-11-09: the next two properties, measured
+
+Banked before writing, the way round 54 banked `SysGetIPAddresses` before round
+55 shipped it. Measured on the binary of v2.0.19 on 2026-11-09 against a window it
+makes itself:
+
+| the property | the binary |
+|---|---|
+| `c.Enabled` on a fresh `Edit` | **`1`**, an Integer |
+| `c.Visible` | **`1`**, an Integer |
+| `c.Enabled := 0`, then read | **`0`** |
+| `c.Visible := 0`, then read | **`0`** |
+| both set back to 1, then read | **`1`** each |
+
+**So the two are integers of nought and one, and both are written as well as
+read** -- which is a different shape from `Value` and `Title`, where the value is
+text.
+
+**The road is already cut** and it is the one that worked for `Value` in round 77:
+
+1. the helper gains two operations, `set_sensitive` and `set_visible` on the
+   control it holds -- the GTK calls of its own window, not the accessibility
+   layer, so the round-35 finding that a check box reports no `CHECKED` state does
+   not apply here: the tree would be asking its **own** window, which it made;
+2. two desktop methods over the transport, as `gui_value` was;
+3. two arms in the two property dispatchers, taking the number from the `Hwnd` of
+   the control object, as `Value` does.
+
+**Nothing about it is unknown**, which is why it is banked rather than written
+under a spent budget: the three steps are the same three that have worked twice.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
