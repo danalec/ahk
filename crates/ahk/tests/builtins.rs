@@ -5426,3 +5426,21 @@ fn the_absent_value_is_no_argument_to_the_builtin() {
         vec!["a.b.c.d.e.f 5", "a.b.c.d,e,f 3"]
     );
 }
+#[test]
+fn a_text_is_counted_and_cut_in_the_code_units_of_utf16() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a surrogate code unit
+    // comes back as it is -- `StrLen(Chr(0xD83D))` is one and `Ord` of it is
+    // 0xD83D -- a character above the plane of BMP is two units and its code
+    // point is the code of it, and the second unit of the pair is a text of its
+    // own: `Ord(SubStr(Chr(0x1F600), 2))` is 0xDE00.
+    let report = run(concat!(
+        "MsgBox StrLen(Chr(0xD83D)) \" \" StrLen(Chr(0x1F600))\n",
+        "MsgBox Ord(Chr(0xD83D)) \" \" Ord(Chr(0x1F600)) \" \" Ord(SubStr(Chr(0x1F600), 2))\n",
+        "MsgBox StrLen(\"hello\") \" \" Ord(\"\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["1 2", "55357 128512 56832", "5 0"]
+    );
+}

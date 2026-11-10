@@ -123,6 +123,7 @@ pub mod regex;
 pub mod runtime;
 pub mod settings;
 pub mod surface;
+pub mod text16;
 pub mod v1;
 pub mod variables;
 pub mod warnings;

@@ -6972,13 +6972,30 @@ pub(crate) fn chr(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let code = number_argument(values, 0, line, "Chr")? as i64;
-    let Some(character) = char::from_u32(code as u32) else {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a surrogate code unit
+    // is a text of its own -- `StrLen(Chr(0xD83D))` is one -- and a value
+    // outside Unicode is an invalid parameter.
+    if !(0..=0x10FFFF).contains(&code) {
         return Err(RuntimeError {
             message: crate::runtime::invalid_parameter(1, "Chr"),
             line,
         });
+    }
+    // A surrogate is one code unit of its own, and every other code is the
+    // character of it -- the pair of units of a character above the plane of
+    // BMP is written by the text of it.
+    let text = if (0xD800..=0xDFFF).contains(&code) {
+        crate::text16::the_text_of(&[code as u16])
+    } else {
+        let Some(character) = char::from_u32(code as u32) else {
+            return Err(RuntimeError {
+                message: crate::runtime::invalid_parameter(1, "Chr"),
+                line,
+            });
+        };
+        character.to_string()
     };
-    Ok(Value::Text(character.to_string()))
+    Ok(Value::Text(text))
 }
 
 /// `Format`: a pattern with the values in it.
@@ -7177,11 +7194,17 @@ pub(crate) fn ord(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let text = text_of(values, 0);
-    let code = text
-        .chars()
-        .next()
-        .map(|character| character as i64)
-        .unwrap_or(0);
+    // Measured on the binary of v2.0.19 on 2026-11-10: the code of the first
+    // character -- `Ord(Chr(0x1F600))` is 0x1F600 -- and the code unit of a
+    // lone surrogate -- `Ord(SubStr(Chr(0x1F600), 2))` is 0xDE00. A text of no
+    // character has the code zero.
+    let code = match text.chars().next() {
+        None => 0,
+        Some(character) => match crate::text16::the_surrogate_of_a_character(character) {
+            Some(unit) => unit as i64,
+            None => character as u32 as i64,
+        },
+    };
     Ok(Value::Int(code))
 }
 
@@ -7631,7 +7654,11 @@ pub(crate) fn str_len(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Ok(Value::Int(text_of(values, 0).chars().count() as i64))
+    // Measured on the binary of v2.0.19 on 2026-11-10: the length is counted in
+    // the code units of UTF-16, so `StrLen(Chr(0x1F600))` is two.
+    Ok(Value::Int(
+        crate::text16::the_number_of_the_code_units(&text_of(values, 0)) as i64,
+    ))
 }
 
 /// `StrLower` and `StrUpper`: the text in the other case.
@@ -8123,25 +8150,28 @@ pub(crate) fn sub_str(
     _line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text: Vec<char> = text_of(values, 0).chars().collect();
+    // Measured on the binary of v2.0.19 on 2026-11-10: the text is cut in the
+    // code units of UTF-16, so the second unit of a surrogate pair is a text of
+    // its own -- `Ord(SubStr(Chr(0x1F600), 2))` is 0xDE00.
+    let text = crate::text16::the_code_units_of(&text_of(values, 0));
     let start = number_of(values, 1) as i64;
     let from = start_index(start, text.len()).min(text.len());
-    let sliced: String = match values.get(2).and_then(|value| value.to_number()) {
+    let sliced: Vec<u16> = match values.get(2).and_then(|value| value.to_number()) {
         Some(length) => {
             let length = length as i64;
             if length < 0 {
-                // A negative length leaves that many characters out at the
-                // end of the text.
+                // A negative length leaves that many units out at the end of
+                // the text.
                 let to = text.len().saturating_sub((-length) as usize).max(from);
-                text[from..to].iter().collect()
+                text[from..to].to_vec()
             } else {
                 let to = (from + length as usize).min(text.len());
-                text[from..to].iter().collect()
+                text[from..to].to_vec()
             }
         }
-        None => text[from..].iter().collect(),
+        None => text[from..].to_vec(),
     };
-    Ok(Value::Text(sliced))
+    Ok(Value::Text(crate::text16::the_text_of(&sliced)))
 }
 
 /// The place a position points at, counting from one.

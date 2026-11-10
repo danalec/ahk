@@ -10764,3 +10764,27 @@ is a "Syntax error." at the load, so the parser refuses the `is` whose right sid
 is the keyword. The coalesce was measured again as well: `f() ?? 1` is a syntax
 error of the dialect, and only a variable may be on the left of the `??`, which
 is what the tree carries.
+## 282. The code units of a text
+
+Measured on the binary of v2.0.19 on 2026-11-10: the strings of the dialect are
+counted and cut in the code units of UTF-16. `StrLen(Chr(0xD83D))` is one and
+`Ord` of it is 0xD83D -- a lone surrogate is a unit of its own -- while
+`StrLen(Chr(0x1F600))` is two and `Ord` of the character is its code point,
+0x1F600; `Ord(SubStr(Chr(0x1F600), 2))` is 0xDE00, the second unit of the pair
+cut out as a text of its own. `Chr` takes a code unit (a surrogate included) and
+every code point of Unicode, and a value outside it -- or below zero -- is an
+invalid parameter of the class `ValueError`.
+
+The tree held its strings as a `String` of UTF-8, where one `char` is one
+character, and a lone surrogate cannot be a `char` at all. `text16` is the one
+place that converts now: it reads a `String` as a run of code units and a run of
+code units back to a `String`, a character above the plane of BMP taking two
+units. The tree writes a lone surrogate of the dialect as one character of the
+private-use area, U+E000 to U+E7FF standing for the 2048 surrogates -- a value
+of that block that a script writes itself is read as a surrogate here, and the
+compromise is recorded -- and `StrLen`, `SubStr`, `Ord` and `Chr` go through the
+module.
+
+The corpus is 86 of 162 pure scripts (53.1 %): `string-chr.ahk` and
+`string-ord.ahk` pass whole now, and they were the last of the six scripts that
+the sweep of the binary left open.
