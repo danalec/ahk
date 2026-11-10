@@ -757,6 +757,20 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         Ok(path.to_string_lossy().to_string())
     }
+    fn gui_paste(&mut self, number: u64, text: &str) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"paste\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the text was not put into the control: {answer}"))
+        }
+    }
+
     fn gui_checked(&mut self, number: u64, setting: Option<bool>) -> Result<i64, String> {
         let command = match setting {
             Some(on) => format!(

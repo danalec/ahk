@@ -136,6 +136,14 @@ pub trait Screen {
     ///
     /// The width comes first and the height second, the way the two
     /// variables of v2 ask for them.
+    /// Put a text into a control of the script at its cursor.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `EditPaste` takes the text
+    /// **first** and the handle second, as the whole family does.
+    fn gui_paste(&mut self, _number: u64, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot put a text into a control of the script".to_string())
+    }
+
     /// Whether a check box of the script is ticked, and ticking it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: the `Value` of a check box

@@ -1591,9 +1591,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_paste,
     },
     Builtin {
         name: "FileCreateShortcut",
@@ -9558,6 +9558,24 @@ pub(crate) fn control_set_checked(
 ) -> Result<Value, RuntimeError> {
     let on = number_of(values, 0) != 0.0;
     the_tick_of_a_control(rt, values, line, 1, Some(on))
+}
+
+/// `EditPaste(Text, Hwnd)`: put a text into a control of the script at its cursor.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the **text comes first** and
+/// the handle second, as the whole family does.
+pub(crate) fn edit_paste(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = text_of(values, 0);
+    let number = number_of(values, 1) as u64;
+    rt.desktop()
+        .gui_paste(number, &text)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
 }
 
 pub(crate) fn sleep(

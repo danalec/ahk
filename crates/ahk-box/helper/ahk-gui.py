@@ -429,6 +429,29 @@ def the_checked(number, setting):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_paste(number, text):
+    """Put a text into a control at its cursor. `EditPaste` of v2.
+
+    **Not `insert_at_cursor`**: measured in round 147, that call stops the helper
+    answering, and the runner's bound turns it into a failure. The buffer is written
+    instead and the cursor set after it, which is the same result without asking the
+    toolkit to do the placing.
+    """
+    for held, kind, control in state["controls"]:
+        if held != number:
+            continue
+        if kind != "Edit":
+            answer({"ok": False, "error": "%s%d is not an edit" % (kind, number)})
+            return
+        whole = control.get_text()
+        at = max(0, min(len(whole), control.get_position()))
+        control.set_text(whole[:at] + text + whole[at:])
+        control.set_position(at + len(text))
+        answer({"ok": True, "value": control.get_text()})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -444,6 +467,8 @@ def handle(command):
                 command.get("classnn", ""), "visible", command.get("on", True)
             )
         )
+    elif op == "paste":
+        run_on_loop(lambda: the_paste(command.get("id", 0), command.get("text", "")))
     elif op == "checked":
         run_on_loop(lambda: the_checked(command.get("id", 0), command.get("on")))
     elif op == "scale":
