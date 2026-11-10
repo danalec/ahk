@@ -664,6 +664,13 @@ pub trait Windows {
         Err("this desktop cannot find an item of a list-shaped control".to_string())
     }
 
+    /// Open or close the pop-up of a list-shaped control. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: `ControlShowDropDown` and
+    /// `ControlHideDropDown` both answer the empty text.
+    fn gui_combo_dropdown(&mut self, _number: u64, _show: bool) -> Result<(), String> {
+        Err("this desktop cannot open the pop-up of a list-shaped control".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())

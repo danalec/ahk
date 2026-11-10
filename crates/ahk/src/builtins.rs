@@ -1285,9 +1285,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_hide_drop_down,
     },
     Builtin {
         name: "ControlMove",
@@ -1375,9 +1375,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_show_drop_down,
     },
     Builtin {
         name: "DetectHiddenText",
@@ -10925,6 +10925,43 @@ pub(crate) fn control_find_item(
         .gui_combo_find(number, &text)
         .map(Value::Int)
         .map_err(|e| desktop_failure(e, line))
+}
+
+/// `ControlShowDropDown` and `ControlHideDropDown`: open or close the pop-up of
+/// a list-shaped control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: both answer the empty text.
+/// They have one handler each because the variant field of a row is the count's
+/// answer/refusal flag and cannot carry which one this is.
+fn the_drop_down_of_a_combo(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    show: bool,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    rt.desktop()
+        .gui_combo_dropdown(number, show)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn control_show_drop_down(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_drop_down_of_a_combo(rt, values, line, true)
+}
+
+pub(crate) fn control_hide_drop_down(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_drop_down_of_a_combo(rt, values, line, false)
 }
 
 pub(crate) fn sleep(

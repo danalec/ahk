@@ -1248,6 +1248,18 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the item was not found: {said}"))
     }
 
+    fn gui_combo_dropdown(&mut self, number: u64, show: bool) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-dropdown\", \"id\": {}, \"show\": {}}}",
+            number, show
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the pop-up was not changed: {said}"))
+        }
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }

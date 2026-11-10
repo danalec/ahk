@@ -735,6 +735,25 @@ def the_combo_find(number, text):
     answer({"ok": True, "value": 0})
 
 
+def the_combo_dropdown(number, show):
+    """Open or close the pop-up of a ComboBox.
+
+    `ControlShowDropDown` and `ControlHideDropDown` of v2. Measured on the
+    binary of v2.0.19 on 2026-11-10: both answer the empty text. GTK has the
+    two calls of its own for a ComboBoxText, and a Wayland compositor shows the
+    pop-up where it will.
+    """
+    control = the_combo(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list-shaped control" % number})
+        return
+    if show:
+        control.popup()
+    else:
+        control.popdown()
+    answer({"ok": True})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -836,6 +855,12 @@ def handle(command):
     elif op == "combo-find":
         run_on_loop(
             lambda: the_combo_find(command.get("id", 0), command.get("text", ""))
+        )
+    elif op == "combo-dropdown":
+        run_on_loop(
+            lambda: the_combo_dropdown(
+                command.get("id", 0), command.get("show", True)
+            )
         )
     elif op == "add":
         run_on_loop(
