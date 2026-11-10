@@ -3418,6 +3418,41 @@ both trees answer the whole text and the member is right.
 "bug" that a measurement dissolved** -- after the drives, the window names, the
 `Edit` holding lines, and the one-parameter function.
 
+### Round 160 — 2026-11-09: the convergence, and the divergence that never existed
+
+The probe of round 159 was run against the binary of v2.0.19: a control added with
+a text, the window shown, and `EditGetSelectedText` asked **without touching
+anything**.
+
+```
+v2.0.19:    sel=[some text]
+this tree:  sel=[some text]
+```
+
+**Identical.** So there is **no divergence**: a v2 control selects its whole text
+when the window is shown and the control takes the focus, exactly as a `Gtk.Entry`
+does. The member of round 157 is **right**, round 157's note calling it a divergence
+is **wrong**, and round 158's three "failed fixes" were **never needed** -- they were
+fixes for a bug that did not exist.
+
+**What that leaves, and it is worth doing anyway**: `set_position(-1)` after the
+text is set, because it puts the cursor at the end, which is where round 155
+measured v2's to be. That is a *fidelity* choice and not a fix.
+
+**And the accounting, which is the session's real result**: this is the **fifth**
+time a "bug" read out of the code was dissolved by a measurement --
+
+| the claim | the measurement |
+|---|---|
+| the drives are work to do | already implemented |
+| the window names are refusals | most of them worked |
+| the `Edit` cannot hold lines | it does |
+| a one-parameter function is not a `Func` | it is |
+| the selection is a divergence | it converges with v2 |
+
+**Five out of five.** Every one of those would have been "fixed" into a wrong tree
+had it not been measured, and two of them (rounds 157 and 158) nearly were.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
