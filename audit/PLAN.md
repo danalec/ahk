@@ -3970,9 +3970,21 @@ on the script's own window.
 matrix are covered, and every refusal answers with a reason of its own** --
 there are no blanket refusals left in the built-in table.
 
-1. **one mechanism still open**: the **list-shaped controls**. They are
-   unmeasurable -- the reference hangs on `Add("DropDownList")` -- so the
-   thirteen names that act on them answer with that reason rather than a value;
+**Only one mechanism remains**, and a measurement of round 260 changed what it
+is: the **list-shaped controls**. The earlier notes said the reference hangs on
+`Add("DropDownList")` and that the whole family was unmeasurable. **Measured
+again on the binary of v2.0.19 on 2026-11-10**: `Add("DropDownList", "", ["one",
+"two"])` did NOT hang -- it made the control (`exit=0`), the `ClassNN` of it is
+**`ComboBox1`** (not `DropDownList1`), and `ControlGetItems(hwnd, "title")`
+answers an array whose `Length` is 2. `ddl.Value` is `0` and `ddl.Text` is the
+empty text before a choice is made.
+
+**So the family is measurable after all** -- the old "hang" was a different
+variant of the call, and the reason the earlier probe could not find the control
+was the `ClassNN`, which the helper already computes for its own controls. What
+is left is to add a `ComboBox` kind to the GTK helper and implement the thirteen
+`Control*` names that act on it. That is several rounds of its own, not a
+one-line change, and it is the single biggest piece of work still open.
 2. **the three unmeasurable** -- `FileGetShortcut`, `FileRecycle`, `FileGetVersion` --
    are **answers and not gaps**: the reference will not say what it does, so there
    is nothing to match;
@@ -4605,6 +4617,40 @@ removal. **Three new language-level cases** protect it.
 **Only one mechanism remains**: the list-shaped controls, which are unmeasurable
 because the reference hangs on them. Both platforms: **742 answer / 91 refuse**,
 sum 833, suites green, clippy clean.
+
+### Round 261 — 2026-11-10: the list controls are measurable after all
+
+The last of the four mechanisms was filed as **unmeasurable** because an earlier
+session recorded that the reference hangs on `Add("DropDownList")`. That claim
+was tested rather than believed, and it is **false for this call**:
+
+```
+Add("DropDownList", "", ["one", "two"])   -> exit=0, "made|"
+WinGetControls(...)                        -> [ComboBox1]
+ControlGetItems(ddl.Hwnd, "lc3-probe")    -> an array whose Length is 2
+ddl.Value                                  -> 0
+ddl.Text                                   -> the empty text
+```
+
+**The `ClassNN` is `ComboBox1`, not `DropDownList1`** -- which is why an earlier
+probe reported "Target control not found" for the family. The helper already
+computes the class and number for every control it makes, so the foundation for
+a `ComboBox` kind is in place.
+
+**The group reason was corrected**: index 27 of `refusal_message` used to say
+"the reference cannot be asked about them either", which this measurement
+disproves. It now says the reference CAN be asked about the list ones and a
+ComboBox is the next piece of work. Section zero was rewritten to say the same.
+
+**This is the seventh time in this session that a "defect" or an "impossible"
+read from an earlier note dissolved under measurement** -- and the second time
+the thing dissolved was a claim that the REFERENCE could not be measured. A
+hang on one variant of a call is not a hang on the family.
+
+**Not built**: a GTK ComboBox plus the thirteen `Control*` names that act on it
+is several rounds of its own. It is recorded as the single biggest piece still
+open, with the measurements that make it tractable. Both platforms remain green
+at **742 / 91**, sum 833.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in

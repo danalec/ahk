@@ -3851,7 +3851,7 @@ fn refusal_message(variant: u8) -> &'static str {
             "these are messages of a Win32 window procedure, and this runtime has no such loop."
         }
         27 => {
-            "these names act on a list-shaped control or a status bar, and this runtime makes no such control; the reference cannot be asked about them either."
+            "these names act on a list-shaped control or a status bar, and this runtime makes no such control; the reference can be asked about the list ones, so a ComboBox is the next piece of work."
         }
         28 => {
             "the label, the serial, the list and the locking of a drive are the drive tools of the machine, and this runtime does not carry those tools."
