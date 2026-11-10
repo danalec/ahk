@@ -3142,6 +3142,42 @@ and written differently from an `Entry` (`get_buffer` against `get_text`), so th
 `Value` arm of round 77 would have to know which it has. That is a round of its own
 and it is the right next one.
 
+### Round 143 — 2026-11-09: round 142 was too strong, and the Entry holds the lines
+
+Round 142 read the widget and concluded that a `Gtk.Entry` "does not hold lines".
+That was an **assertion from the type**, not a measurement, and it is wrong:
+
+```
+g.Add("Edit", "", "line one`nline two`nline three").Value
+  -> "line one\nline two\nline three"
+  -> StrLen = 28        (8 + 1 + 8 + 1 + 10, exactly the three lines)
+```
+
+**The entry holds the newlines.** GTK accepts them in the text programmatically --
+they do not *display* as a break in a single-line entry, but the value carries them,
+and `Value` reads back exactly what went in.
+
+**So the line count and `EditGetLine` are answerable on what the tree already
+makes**, by counting the newlines of the text the helper can read. There is no
+widget gap, and the `Multi` option is about how the **user** edits, not about
+whether the text can hold lines.
+
+**And the lesson is the one this session keeps paying for, now three times in the
+audit of the refusals**:
+
+| round | asserted from reading | measured |
+|---|---|---|
+| 134-135 | the drives are work to do | they already worked |
+| 138 | the window names are refusals | most of them worked |
+| 142 | the `Edit` cannot hold lines | it does |
+
+**A reading of the code is a hypothesis about the behaviour, and this session has
+had four hypotheses in this area and four were wrong.** The rule that has held all
+along: run it.
+
+**What is left is unchanged and small**: the `Edit*` family is answerable from the
+helper's text, and `EditGetLine(N, Hwnd)` takes the number first (round 141).
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
