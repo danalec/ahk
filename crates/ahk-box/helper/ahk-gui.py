@@ -253,6 +253,15 @@ def the_control(kind, text):
         # A Hotkey holds the hotkey string in `Value`; `Text` is always empty.
         control = Gtk.Entry()
         control.set_text(text)
+    elif kind == "Pic":
+        # A Pic is a Static that shows an image. Measured on the binary of
+        # v2.0.19 on 2026-11-10: its `ClassNN` shares the Static counter with
+        # Text, `Value` and `Text` answer the file path, and WRITING `Value`
+        # is ignored -- the image v2 shows does not change.
+        control = Gtk.Image()
+        if text:
+            control.set_from_file(text)
+        state.setdefault("pic_paths", {})[state["next_id"]] = text
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -305,7 +314,7 @@ def the_title(setting):
     answer({"ok": True, "title": state["window"].get_title()})
 
 
-def the_text_of_a_control(kind, control):
+def the_text_of_a_control(number, kind, control):
     """The text a control shows, whatever its kind.
 
     A ComboBox has no `get_text`: its text is the item that is chosen, or the
@@ -326,6 +335,10 @@ def the_text_of_a_control(kind, control):
     if kind == "TreeView":
         model = control.get_model()
         return "\n".join(row[0] for row in model)
+    if kind == "Pic":
+        # The text of a Pic is the file it shows. Measured on the binary of
+        # v2.0.19 on 2026-11-10: `WinGetText` answers the path.
+        return state.get("pic_paths", {}).get(number, "")
     return control.get_text()
 
 
@@ -401,8 +414,14 @@ def the_value(number, text):
                 answer({"ok": True, "value": str(value)})
             return
         if text is None:
-            answer({"ok": True, "value": the_text_of_a_control(kind, control)})
+            answer({"ok": True, "value": the_text_of_a_control(number, kind, control)})
         else:
+            if kind == "Pic":
+                # Measured on the binary of v2.0.19 on 2026-11-10: writing
+                # `Value` of a Pic answers ok and changes NOTHING -- the image
+                # v2 shows does not change either.
+                answer({"ok": True, "value": the_text_of_a_control(number, kind, control)})
+                return
             if kind in ("DropDownList", "ComboBox", "ListBox"):
                 # Setting `Value` of a ComboBox chooses an item by its index.
                 model = control.get_model()
@@ -746,7 +765,7 @@ def the_text_of_all():
         answer({"ok": False, "error": "there is no window"})
         return
     parts = []
-    for _number, kind, control in state["controls"]:
+    for number, kind, control in state["controls"]:
         # An UpDown, Slider, Progress or MonthCal has no text of its own in
         # `WinGetText`; v2 leaves it out entirely, not even an empty line. A
         # DateTime is different: its M/D/YYYY display IS its text, which the
@@ -754,7 +773,7 @@ def the_text_of_all():
         # on 2026-11-10.
         if kind in ("UpDown", "Slider", "Progress", "MonthCal", "Hotkey"):
             continue
-        parts.append(the_text_of_a_control(kind, control))
+        parts.append(the_text_of_a_control(number, kind, control))
         parts.append("\n")
     answer({"ok": True, "value": "".join(parts)})
 
@@ -803,6 +822,10 @@ def the_class_of(kind):
         return "msctls_hotkey32"
     if kind == "Link":
         return "SysLink"
+    # Measured on the binary of v2.0.19 on 2026-11-10: a Pic is a `Static1`
+    # -- it shares the counter with Text -- and shows the file it was given.
+    if kind == "Pic":
+        return "Static"
     return kind
 
 

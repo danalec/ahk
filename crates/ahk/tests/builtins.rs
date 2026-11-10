@@ -52,6 +52,8 @@ struct Fake {
     date_control: bool,
     date_value: String,
     date_month_only: bool,
+    /// The file path of the one Pic the fake carries, if it made one.
+    pic_path: Option<String>,
     /// The primary and second text of the one Link or Hotkey the fake carries.
     text_control: bool,
     text_value: String,
@@ -396,11 +398,17 @@ impl Windows for Fake {
             "monthcal" => "SysMonthCal321",
             "link" => "SysLink1",
             "hotkey" => "msctls_hotkey321",
+            "pic" => "Static1",
             _ => "ComboBox1",
         };
         if matches!(kind.to_lowercase().as_str(), "link" | "hotkey") {
             self.text_control = true;
             self.text_value = text.to_string();
+        }
+        if kind.eq_ignore_ascii_case("pic") {
+            // Measured on the binary of v2.0.19 on 2026-11-10: the Value of a
+            // Pic is the file it shows, and a write changes nothing.
+            self.pic_path = Some(text.to_string());
         }
         if matches!(
             kind.to_lowercase().as_str(),
@@ -468,6 +476,12 @@ impl Windows for Fake {
                 self.date_value = held;
             }
             return Ok(self.date_value.clone());
+        }
+        if let Some(path) = &self.pic_path {
+            // Writing the Value of a Pic changes nothing. Measured on the
+            // binary of v2.0.19 on 2026-11-10.
+            let _ = setting;
+            return Ok(path.clone());
         }
         if let Some(text) = setting {
             self.updown_value = text.parse().unwrap_or(0);
@@ -4635,6 +4649,27 @@ fn a_link_has_a_read_only_empty_value_and_a_writable_text() {
     };
     let report = run_on("g := Gui()\nlk := g.Add(\"Link\", \"\", \"x\")\nlk.Value := \"y\"", &mut desktop);
     assert_eq!(failure_of(&report), "Invalid usage.");
+}
+
+#[test]
+fn a_pic_is_a_static_whose_value_is_the_file_and_writes_are_ignored() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a Pic shares the
+    // Static counter with Text, `Value` and `Text` answer the file it shows,
+    // and writing `Value` answers ok and changes NOTHING.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\np := g.Add(\"Pic\", \"w100 h50\", \"the-image.png\")\ncls := p.ClassNN\na := p.Value\nb := p.Text\np.Value := \"other.png\"\nc := p.Value\nd := p.Text",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "cls"), Value::Text("Static1".into()));
+    assert_eq!(value_of(&report, "a"), Value::Text("the-image.png".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("the-image.png".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("the-image.png".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("the-image.png".into()));
 }
 
 #[test]

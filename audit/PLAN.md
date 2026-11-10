@@ -5027,6 +5027,34 @@ the link file itself), refusing a value where a variable is wanted.
 
 **Surface 758/75 -> 759/74**, sum 833, both platforms green, clippy clean.
 
+### Round 275 — 2026-11-10: a Pic, and a crash the bounded transport named
+
+**Measured on the binary of v2.0.19 on 2026-11-10**: `Add("Pic", "w100 h50",
+"path")` is a **`Static1`** -- it shares the counter with Text -- whose
+`Value` and `Text` both answer the file it shows (a String), whose text is
+what `WinGetText` gives, and whose `Value` WRITE answers ok and changes
+NOTHING: the image v2 shows does not change either.
+
+**Built**: a `Gtk.Image` in the helper with its path kept in `pic_paths`, the
+path answered through `the_text_of_a_control`, and a Pic branch in `the_value`
+that answers ok on a write without changing anything. **One language case**
+covers the class name, both reads and the ignored write.
+
+**And the box caught a crash of mine**: `the_text_of_a_control` needed the
+control's number for the Pic path, so its signature gained one, but my bulk
+replace updated a caller whose loop variable is `_number` -- the helper died
+with a NameError the moment `WinGetText` asked for the text of a Pic, and the
+bounded transport said so in exactly its designed words: **"the window helper
+stopped answering"**. Fixed, re-run, everything matches the reference.
+
+**That is the transport doing its job**: a crash is a reason with a name, not
+a hang. And it is the session's pattern again -- the bug was in a caller I
+changed with a bulk replace, the same tool that corrupted two rows in round
+227. **A bulk replace edits what matches, not what is meant.**
+
+The surface count does not move (Pic is a control kind, not a builtin row):
+**759 / 74**, sum 833, both platforms green, clippy clean.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
