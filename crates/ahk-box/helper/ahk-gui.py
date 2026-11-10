@@ -1420,9 +1420,10 @@ def the_menu_bar(items):
     """Show a menu bar at the top of the window. `Gui.Menu :=` of v2.
 
     Measured on the binary of v2.0.19 on 2026-11-10: a MenuBar attached with
-    `Gui.Menu :=` shows at the top of the window. Each entry is a name and the
-    name of the function to call when it is chosen; choosing it is an event
-    the runtime reads from the same channel as a click on a control.
+    `Gui.Menu :=` shows at the top of the window. Each entry is
+    `[name, checked, enabled, callback?]`: the check mark and the sensitivity
+    come from `Check`/`Enable` of the runtime, and choosing an item is an
+    event the runtime reads from the same channel as a click on a control.
     """
     if state["box"] is None:
         answer({"ok": False, "error": "there is no window to put a menu bar on"})
@@ -1439,8 +1440,16 @@ def the_menu_bar(items):
             bar.remove(child)
     for entry in items:
         name = entry[0]
+        checked = bool(entry[1]) if len(entry) > 1 else False
+        enabled = bool(entry[2]) if len(entry) > 2 else True
         item = Gtk.MenuItem(label=name)
-        if len(entry) > 1:
+        item.set_sensitive(enabled)
+        if checked:
+            # A GTK menu item has no check mark of its own in a MenuBar; the
+            # state is kept in the entry and the label carries the mark the
+            # way Windows draws it, so the check is visible.
+            item.set_label("✓ " + name)
+        if len(entry) > 3:
             held = name
             item.connect(
                 "activate",

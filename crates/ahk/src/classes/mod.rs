@@ -2303,6 +2303,7 @@ pub(crate) fn set_property(
         "gui" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.statusbar" => {
             gui::set_property(class, name, this, value, rt, line)
         }
+        "menu" | "menubar" => menu::set_property(name, this, &value, rt, line),
         _ => None,
     };
     let what = the_name_of(

@@ -41,6 +41,27 @@ fn error_of(report: &Report) -> String {
     report.error.clone().unwrap_or_default()
 }
 
+/// The text a variable holds.
+fn text_of(report: &Report, name: &str) -> String {
+    report
+        .variables
+        .get(name)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
+}
+
+/// The whole number a variable holds.
+fn int_of(report: &Report, name: &str) -> i64 {
+    report
+        .variables
+        .get(name)
+        .and_then(|value| match value {
+            Value::Int(number) => Some(*number),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
 impl Desktop for Fake {}
 impl Pictures for Fake {}
 impl Network for Fake {}
@@ -139,6 +160,46 @@ fn a_menu_that_adds_an_item_without_a_callback_answers_the_empty_text() {
     let report = run("bar := Menu()\nbar.Add(\"File\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.error_line, None);
+}
+
+#[test]
+fn the_state_methods_of_a_menu_answer_the_empty_text_and_change_the_item() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: Check, Uncheck,
+    // ToggleCheck, Enable, Disable, ToggleEnable, Rename, Delete, SetColor,
+    // SetIcon and Show all answer the empty text; Default and ClickCount are
+    // properties, read and written (`mb.Default := "&Edit"` reads back
+    // "&Edit", `mb.ClickCount := 2` reads back 2).
+    let report = run(concat!(
+        "Clicked(a, b, c)\n{\n}",
+        "\nbar := MenuBar()",
+        "\nbar.Add(\"&File\", Clicked)",
+        "\nbar.Add(\"&Edit\", Clicked)",
+        "\na := bar.Check(\"&File\")",
+        "\nb := bar.ToggleCheck(\"&File\")",
+        "\nc := bar.Disable(\"&Edit\")",
+        "\nd := bar.ToggleEnable(\"&Edit\")",
+        "\ne := bar.Rename(\"&File\", \"&Filer\")",
+        "\nf := bar.Delete(\"&Filer\")",
+        "\nbar.Default := \"&Edit\"",
+        "\ng := bar.Default",
+        "\nbar.ClickCount := 2",
+        "\nh := bar.ClickCount",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    for name in ["a", "b", "c", "d", "e", "f"] {
+        assert_eq!(text_of(&report, name), "");
+    }
+    assert_eq!(text_of(&report, "g"), "&Edit");
+    assert_eq!(int_of(&report, "h"), 2);
+}
+
+#[test]
+fn a_state_method_of_a_menu_on_an_item_that_is_not_there_fails() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the state methods are
+    // for an item that is there; this tree names the method and the item.
+    let report = run("bar := Menu()\nbar.Check(\"no-such\")");
+    assert!(!report.ok);
+    assert!(error_of(&report).contains("Check"), "{}", error_of(&report));
 }
 
 #[test]
