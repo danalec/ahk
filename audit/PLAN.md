@@ -2533,6 +2533,44 @@ the number in the line, so a registry of the controls a `Gui` made is what the
 **None of this was attempted**: reading it took the round, and the three pieces
 above are a fresh session's work with the biggest unknown now gone.
 
+### Round 106 — 2026-11-09: the registry that the dispatch needs and does not have
+
+Round 105 made the dispatch look like two small pieces. Sizing them turned up a
+**third that the plan did not have**, and it is the one that decides the design.
+
+**The handlers live on the `Gui` object** -- round 98 stored them in its property
+table, under `on:close` and the like. And the place that would dispatch is `Sleep`
+(round 105's choice), which is a **built-in**: it has the runtime, and it has no
+reference to any `Gui` object.
+
+So the dispatch cannot reach the handler it is meant to call. Something has to
+bridge that, and there are three ways, in order of how much they change:
+
+1. **a list of the open windows on the runtime.** The `Gui` object is registered
+   there when its window opens, and `Sleep` walks the list looking for a handler
+   for the event it drained. Small, and it keeps round 98's storage where it is;
+2. **the handlers on the runtime instead of the object.** They move from the
+   property table to a table of the runtime keyed by the window, and the object
+   stops holding them. Undoes round 98's placement and is tidier;
+3. **dispatch at the `Gui` members instead of at `Sleep`.** No registry at all --
+   but it only fires when the script happens to touch the window, which is not
+   what an event is for, and it is the shape that looks right and is wrong.
+
+**The first is the one to take**: it keeps what is built, it adds one list, and
+`Sleep` already has the runtime the list would live on.
+
+**So the last link is four pieces, not two**, and this is the honest count:
+
+1. `gui_events` on the desktop, reading a file whose path is derived from the
+   process (no new field: `/tmp/ahk-gui-events-<pid>`, sent as the `watch` path
+   when the window opens);
+2. **a list of the open windows on the runtime**, filled when a `Gui` opens one;
+3. the drain and the walk in `Sleep`;
+4. the call, by the `name` of the stored function (round 105).
+
+**Nothing was written**: the third piece decides the shape of the first and
+second, and choosing it needs a round that can also carry the writing.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
