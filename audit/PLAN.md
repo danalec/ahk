@@ -4209,6 +4209,46 @@ and verified. **The matrix has 19 rows that are probably covered now and 15 of t
 the family this session finished.** That is the next round's work, and it is the work
 that would let the objective be judged instead of assumed.
 
+### Round 227 — 2026-11-09: the row edit that hit the next row, and the rule it breaks
+
+Reading the accessibility rows of the matrix turned up something else:
+
+```
+WinGetText       -> the surface says REFUSED, and the handler answers
+WinGetTransColor -> the surface says VALUE,   and the handler refuses
+```
+
+**`WinGetText` was implemented and verified in round 216, and the catalogue has said
+refused ever since.** The cause is the technique this session has used for twenty rows:
+
+```powershell
+$after = $after -replace '(?s)^(.*?)variant: 100,', '${1}variant: 0,'
+```
+
+**The pattern finds the NEXT `variant: 100` after the row's name -- and if the row's own
+variant is not 100, that is the row AFTER it.** `WinGetText`'s variant was `121`, so the
+change landed on `WinGetTransColor`, which became a value while still refusing.
+
+**So two names were wrong, and their errors cancelled in the total**: 727 was right by
+accident, with one name counted twice wrong.
+
+**The rule this breaks is the one round 165 wrote**: *a bulk edit has no idea where a row
+ends*. The single-row loop was assumed safe because it operates on the tail after a
+marker -- **and it is only safe while the target row's variant happens to be the number
+being searched for.**
+
+**The correct technique**, for the next row that needs it: **replace the whole row**, not
+one field of it. Read the row's own `variant` and `handler` first, then write the row with
+both in one replacement, so there is no "next occurrence" to land on.
+
+**Both are fixed now**, `WinGetText` a value and `WinGetTransColor` a refusal, and an audit
+of every row found **no other victim**: no refuse-handler counted as a value, and no
+`not_carried` counted as one.
+
+**And the count did not move** -- 727 before and after -- because the two errors had
+cancelled. **That is the worst kind of bug: invisible in the total, and found only by
+asking about one name's state specifically.**
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
