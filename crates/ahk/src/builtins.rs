@@ -1215,7 +1215,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_hwnd,
     },
     Builtin {
         name: "ControlGetIndex",
@@ -9382,6 +9382,29 @@ pub(crate) fn control_get_focus(
     rt.desktop()
         .gui_focused()
         .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `ControlGetHwnd(Control)`: the handle of a control of the script's window.
+///
+/// The control is named by its `ClassNN`, and the answer is the number that names
+/// it -- the same number an event about it carries.
+pub(crate) fn control_get_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_number_named(&classnn)
+        .map(Value::Int)
         .map_err(|reason| desktop_failure(reason, line))
 }
 

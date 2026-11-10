@@ -595,6 +595,11 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// The number that names a control of the script's window, from its `ClassNN`.
+    fn gui_number_named(&mut self, _classnn: &str) -> Result<i64, String> {
+        Err("this desktop cannot find a control of the script by its name".to_string())
+    }
+
     /// Which control of the script's window has the focus, as its `ClassNN`.
     fn gui_focused(&mut self) -> Result<String, String> {
         Err("this desktop cannot read the focus of a control of the script".to_string())

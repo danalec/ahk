@@ -358,6 +358,20 @@ def the_focused():
     answer({"ok": True, "value": ""})
 
 
+def the_number_named(classnn):
+    """The number that names a control of the window, from its class and number.
+
+    `ControlGetHwnd` of v2: the handle of a control, which is the number this helper
+    gives it and the one an event about it carries.
+    """
+    wanted = classnn.strip().lower()
+    for number, kind, _control in state["controls"]:
+        if ("%s%d" % (kind, number)).lower() == wanted:
+            answer({"ok": True, "value": number})
+            return
+    answer({"ok": False, "error": "there is no control named %s" % classnn})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -367,6 +381,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "resolve":
+        run_on_loop(lambda: the_number_named(command.get("classnn", "")))
     elif op == "focused":
         run_on_loop(the_focused)
     elif op == "selection":
