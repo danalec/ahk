@@ -1093,6 +1093,16 @@ pub trait Files {
         Err("this desktop cannot put a file in the trash".to_string())
     }
 
+    /// Read a shortcut back: (target, dir, args, description, icon).
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `FileGetShortcut` of a
+    /// shortcut answers all eight of its fields. The icon NUMBER and the run
+    /// state have no counterpart in a `.desktop` file, so those two answers
+    /// are the empty text here.
+    fn read_shortcut(&mut self, _shortcut: &str) -> Result<(String, String, String, String, String), String> {
+        Err("this desktop cannot read a shortcut".to_string())
+    }
+
     /// The directory the script is in.
     ///
     /// The name of the directory is a subfolder of the working directory

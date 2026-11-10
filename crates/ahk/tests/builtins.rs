@@ -44,6 +44,8 @@ struct Fake {
     tree_selected: i64,
     /// Paths the fake has put in the trash.
     recycled: Vec<String>,
+    /// The shortcut the fake read back: target, dir, args, desc, icon.
+    shortcut: Option<(String, String, String, String, String)>,
     /// The number of the one UpDown the fake carries, shared with its buddy.
     updown_value: i64,
     /// Whether the fake's control is a date control, and its timestamp string.
@@ -679,6 +681,16 @@ impl Files for Fake {
         self.calls.push(("recycle".into(), path.to_string()));
         self.recycled.push(path.to_string());
         Ok(())
+    }
+    fn read_shortcut(
+        &mut self,
+        shortcut: &str,
+    ) -> Result<(String, String, String, String, String), String> {
+        self.calls.push(("read-shortcut".into(), shortcut.to_string()));
+        let (target, dir, args, desc, icon) = self.shortcut.clone().ok_or_else(|| {
+            format!("the shortcut {shortcut} could not be read")
+        })?;
+        Ok((target, dir, args, desc, icon))
     }
     fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
         self.calls.push(("working-dir".into(), directory.into()));
@@ -4540,6 +4552,37 @@ fn file_recycle_answers_the_empty_text_and_remembers_the_path() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
     assert_eq!(desktop.recycled, vec!["the-file.txt".to_string()]);
+}
+
+#[test]
+fn file_get_shortcut_answers_the_fields_of_the_shortcut() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: all eight fields of a
+    // shortcut FileCreateShortcut made come back. This tree reads the
+    // .desktop file it wrote; the icon number and the run state have no
+    // counterpart there, so those two answers are the empty text.
+    let mut desktop = Fake {
+        gui_open: true,
+        shortcut: Some((
+            "/usr/bin/zenity".into(),
+            "/tmp".into(),
+            "--info".into(),
+            "a desc".into(),
+            String::new(),
+        )),
+        ..Default::default()
+    };
+    let report = run_on(
+        "FileGetShortcut \"the.desktop\", &t, &d, &a, &s\nFileGetShortcut \"the.desktop\", &t2, &d2, &a2, &s2, &i2, &n2, &r2",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "t"), Value::Text("/usr/bin/zenity".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text("/tmp".into()));
+    assert_eq!(value_of(&report, "a"), Value::Text("--info".into()));
+    assert_eq!(value_of(&report, "s"), Value::Text("a desc".into()));
+    assert_eq!(value_of(&report, "i2"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "n2"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "r2"), Value::Text(String::new()));
 }
 
 #[test]

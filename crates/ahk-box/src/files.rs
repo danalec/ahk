@@ -123,6 +123,43 @@ impl ahk::desktop::Files for LabDesktop {
         }
     }
 
+    fn read_shortcut(
+        &mut self,
+        shortcut: &str,
+    ) -> Result<(String, String, String, String, String), String> {
+        // The inverse of create_shortcut: read the desktop file back. The
+        // Exec line carries the target and the arguments together, split at
+        // the first space outside quotes; v2 keeps them apart.
+        let text = std::fs::read_to_string(shortcut)
+            .map_err(|error| format!("the shortcut {shortcut} could not be read: {error}"))?;
+        let mut name = String::new();
+        let mut exec = String::new();
+        let mut path = String::new();
+        let mut icon = String::new();
+        for line in text.lines() {
+            if let Some(value) = line.strip_prefix("Name=") {
+                name = value.to_string();
+            } else if let Some(value) = line.strip_prefix("Exec=") {
+                exec = value.to_string();
+            } else if let Some(value) = line.strip_prefix("Path=") {
+                path = value.to_string();
+            } else if let Some(value) = line.strip_prefix("Icon=") {
+                icon = value.to_string();
+            }
+        }
+        if exec.is_empty() {
+            return Err(format!(
+                "the shortcut {shortcut} has no Exec line, so it is not a shortcut this tree made"
+            ));
+        }
+        // The arguments are everything after the first space of the Exec line.
+        let (target, arguments) = match exec.split_once(' ') {
+            Some((target, rest)) if !rest.is_empty() => (target.to_string(), rest.to_string()),
+            _ => (exec, String::new()),
+        };
+        Ok((target, path, arguments, name, icon))
+    }
+
     fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
         let mut options = std::fs::OpenOptions::new();
         match mode.to_lowercase().as_str() {

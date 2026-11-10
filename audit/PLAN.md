@@ -4283,7 +4283,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **758 answer, 75 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **759 answer, 74 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -5004,6 +5004,28 @@ trip with an encoding, and the refusal for an address no buffer answered.
 putu8=4 getu8=[abc] | noaddr=ERR` -- the address error naming the number.
 
 **Surface 757/76 -> 758/75**, sum 833, both platforms green, clippy clean.
+
+### Round 274 — 2026-11-10: FileGetShortcut reads what FileCreateShortcut wrote
+
+The inverse of round 258's write. **Measured on the binary of v2.0.19 on
+2026-11-10**: `FileCreateShortcut(target, lnk, dir, args, desc, icon, "^!t",
+30, 1)` then `FileGetShortcut lnk, &OutTarget, &OutDir, ...` answers all eight
+fields back -- target, dir, args, desc, icon, iconnum=30, run=1.
+
+**Built**: `read_shortcut` on the `Files` trait, parsing the `.desktop` file
+the tree wrote -- `Name` is the description, `Exec` splits at the first space
+into target and arguments, `Path` is the working directory, `Icon` is the icon.
+**The icon NUMBER and the run state have no counterpart in a `.desktop` file**,
+so those two answers are the empty text rather than numbers invented for the
+shape of v2's answer. The handler takes seven VarRefs (v2's eight outputs less
+the link file itself), refusing a value where a variable is wanted.
+
+**Verified on the box**, create then read back: `target=[/usr/bin/zenity]
+| dir=[/tmp] | args=[--info] | desc=[a desc] | icon=[] num=[] run=[]`.
+**One language case** covers the fields and the two empty ones, via a Fake
+`read_shortcut`.
+
+**Surface 758/75 -> 759/74**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
