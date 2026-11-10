@@ -6161,6 +6161,35 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_item_of_a_class_takes_more_than_one_parameter() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `obj[a, b]` is the
+    // item of `obj` with two parameters, and a class of the script sees both
+    // in its `__Item` -- the getter and the setter, the setter with the value
+    // after them. A map and an array take one and answer "Too many parameters
+    // passed to function." with the accessor in the `Extra`.
+    let (report, _desktop) = run(concat!(
+        "class Box {\n",
+        "    __Item[a, b] {\n",
+        "        get => a \"|\" b\n",
+        "        set => MsgBox(\"set \" a \"|\" b \"=\" value)\n",
+        "    }\n",
+        "}\n",
+        "obj := Box()\n",
+        "MsgBox obj[1, 2]\n",
+        "obj[3, 4] := 5\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1|2", "set 3|4=5"]);
+    // A class type takes one parameter, and the failure is of v2.
+    let (report, _desktop) = run("m := Map()\nm[\"a\", \"b\"] := 1\n");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Too many parameters passed to function.")
+    );
+}
+
+#[test]
 fn the_number_before_the_point_of_the_concat_assign_is_a_number() {
     // Measured on the binary of v2.0.19 on 2026-11-10: `n.1.="D"` is the
     // property "1" of `n` written by `.=`, and the point of the operator is

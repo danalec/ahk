@@ -3109,17 +3109,18 @@ impl<'a> Runtime<'a> {
             Node::AssignIndex {
                 target,
                 index,
+                also,
                 op,
                 value,
                 line,
             } => {
                 let target_value = self.evaluate(target)?;
-                let key = self.evaluate(index)?;
+                let keys = self.the_keys_of_an_index(index, also)?;
                 let value = self.evaluate(value)?;
-                let stored = self.set_item(&target_value, &key, *op, value, *line)?;
-                detail = format!("{} = {}", key.to_text(), stored.to_text());
-            }
-            Node::Call {
+                let stored = self.set_item(&target_value, &keys, *op, value, *line)?;
+                let key = keys.first().map(Value::to_text).unwrap_or_default();
+                detail = format!("{key} = {}", stored.to_text());
+            }            Node::Call {
                 name,
                 arguments,
                 line,
@@ -5658,21 +5659,20 @@ impl<'a> Runtime<'a> {
     /// `super["value"]` is this one.
     fn read_the_item_of_the_base(
         &mut self,
-        key: &Value,
+        keys: &[Value],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         let base = self.the_base_of_the_running_method();
         let this = self.the_this();
         if let Some(base) = base {
             if let Some((defining, method)) = self.find_method_in(&base, "__item") {
-                let arguments = [Node::Literal {
-                    value: LiteralValue::Text(key.to_text()),
-                    line,
-                }];
+                let arguments: Vec<Node> = keys
+                    .iter()
+                    .map(|key| Self::the_node_of_a_value(key, line))
+                    .collect();
                 return self.call_method(&defining, &method, &this, &arguments, line);
             }
-        }
-        Err(RuntimeFailure::Error(RuntimeError {
+        }        Err(RuntimeFailure::Error(RuntimeError {
             message: format!(
                 "This value of type \"{}\" has no property named \"__Item\".",
                 self.the_class_of_this()
@@ -9475,22 +9475,84 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    /// The item of a value, at a position.
+    /// The values of an index: the one that is written, and the ones after it.
     ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `obj[a, b]` is the
+    /// item of `obj` with two parameters, and a class of the script sees both
+    /// in its `__Item`; a map and an array take one and refuse the rest with
+    /// "Too many parameters passed to function." with the accessor in the
+    /// `Extra`.
+    fn the_keys_of_an_index(
+        &mut self,
+        index: &Node,
+        also: &[Node],
+    ) -> Result<Vec<Value>, RuntimeFailure> {
+        let mut keys = Vec::with_capacity(1 + also.len());
+        keys.push(self.evaluate(index)?);
+        for item in also {
+            keys.push(self.evaluate(item)?);
+        }
+        Ok(keys)
+    }
+
+    /// The literal node of a value, for a call that takes the values of an
+    /// index as its parameters.
+    fn the_node_of_a_value(value: &Value, line: u32) -> Node {
+        match value {
+            Value::Int(number) => Node::Literal {
+                value: LiteralValue::Integer(*number),
+                line,
+            },
+            Value::Float(number) => Node::Literal {
+                value: LiteralValue::Float(*number),
+                line,
+            },
+            _ => Node::Literal {
+                value: LiteralValue::Text(value.to_text()),
+                line,
+            },
+        }
+    }
+
+    /// The failure of an item with more parameters than the accessor takes.
+    fn too_many_parameters_of_an_item(
+        &self,
+        class: &str,
+        set: bool,
+        line: u32,
+    ) -> RuntimeFailure {
+        let accessor = if set { "__Item.Set" } else { "__Item.Get" };
+        RuntimeFailure::Detailed(
+            RuntimeError {
+                message: "Too many parameters passed to function.".into(),
+                line,
+            },
+            Detail {
+                what: String::new(),
+                extra: crate::classes::the_name_of(class, accessor),
+            },
+        )
+    }
+
+    /// The item of a value, at a position.    ///
     /// An object is asked for its item: the class of the script first,
     /// and then the class types of the runtime. The other values have no
     /// item, and v2 refuses the index of one.
     fn index_a_value(
         &mut self,
         target: &Value,
-        key: &Value,
+        keys: &[Value],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         if let Value::Object(_) = target {
-            return self.read_item(target, key, line);
+            return self.read_item(target, keys, line);
         }
-        let position = key.to_number().unwrap_or(0.0) as i64;
-        // The positions count from one, the way AutoHotkey counts them.
+        // The value that is not an object takes one parameter, and the one
+        // that is written is the position of the item.
+        let Some(key) = keys.first() else {
+            return Err(self.no_item(target, line));
+        };
+        let position = key.to_number().unwrap_or(0.0) as i64;        // The positions count from one, the way AutoHotkey counts them.
         let position = position.max(1) as usize;
         match target {
             Value::List(items) => items.get(position - 1).cloned().ok_or_else(|| {
@@ -10021,20 +10083,20 @@ impl<'a> Runtime<'a> {
             Node::Index {
                 target,
                 index,
+                also,
                 line: item_line,
             } => {
                 let target_value = self.evaluate(target)?;
-                let key = self.evaluate(index)?;
-                let current = self.index_a_value(&target_value, &key, *item_line)?;
+                let keys = self.the_keys_of_an_index(index, also)?;
+                let current = self.index_a_value(&target_value, &keys, *item_line)?;
                 let stored = self.the_number_after(&current, step, *item_line)?;
                 self.set_item(
                     &target_value,
-                    &key,
+                    &keys,
                     AssignOp::Set,
                     stored.clone(),
                     *item_line,
-                )?;
-                Ok(match op {
+                )?;                Ok(match op {
                     UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
                     _ => current,
                 })
@@ -12385,16 +12447,16 @@ impl<'a> Runtime<'a> {
             Node::AssignIndex {
                 target,
                 index,
+                also,
                 op,
                 value,
                 line,
             } => {
                 let target_value = self.evaluate(target)?;
-                let key = self.evaluate(index)?;
+                let keys = self.the_keys_of_an_index(index, also)?;
                 let value = self.evaluate(value)?;
-                self.set_item(&target_value, &key, *op, value, *line)
-            }
-            Node::Literal { value, line } => Ok(match value {
+                self.set_item(&target_value, &keys, *op, value, *line)
+            }            Node::Literal { value, line } => Ok(match value {
                 // The shape of the literal is the shape of the value: the
                 // whole number of v2 is a whole number, and a number with
                 // a point or with an exponent is a float.
@@ -13165,15 +13227,14 @@ impl<'a> Runtime<'a> {
             Node::Index {
                 target,
                 index,
+                also,
                 line,
             } => {
+                let keys = self.the_keys_of_an_index(index, also)?;
                 // `super["value"]`: the item of the base.
                 if let Node::Super { .. } = &**target {
-                    let key = self.evaluate(index)?;
-                    return self.read_the_item_of_the_base(&key, *line);
-                }
-                let key = self.evaluate(index)?;
-                // `x.y[z]`: the `__Get` of `x.y` is asked with the
+                    return self.read_the_item_of_the_base(&keys, *line);
+                }                // `x.y[z]`: the `__Get` of `x.y` is asked with the
                 // parameters of the access, and the value it answers is
                 // the one that is indexed.
                 if let Node::Property {
@@ -13187,7 +13248,7 @@ impl<'a> Runtime<'a> {
                     let (value, by_meta) = self.read_property_fully(
                         &object_value,
                         &name,
-                        core::slice::from_ref(&key),
+                        &keys,
                         *property_line,
                     )?;
                     // The meta-function of a class handles the whole
@@ -13196,11 +13257,10 @@ impl<'a> Runtime<'a> {
                     if by_meta {
                         return Ok(value);
                     }
-                    return self.index_a_value(&value, &key, *line);
+                    return self.index_a_value(&value, &keys, *line);
                 }
                 let target = self.evaluate(target)?;
-                self.index_a_value(&target, &key, *line)
-            }
+                self.index_a_value(&target, &keys, *line)            }
             Node::Ternary {
                 condition,
                 then,
@@ -13343,7 +13403,7 @@ impl<'a> Runtime<'a> {
     fn set_item(
         &mut self,
         target: &Value,
-        key: &Value,
+        keys: &[Value],
         op: AssignOp,
         value: Value,
         line: u32,
@@ -13366,11 +13426,7 @@ impl<'a> Runtime<'a> {
         let value = match op {
             AssignOp::Set => value,
             other => {
-                let current = self.read_item(target, key, line)?;
-                // Measured on the binary of AutoHotkey v1.1.37.02 on
-                // 2026-11-04: the v1 does not write the item when the value
-                // that is there is not a number: the `a[5] += 2` of an array
-                // of two leaves the place as it was.
+                let current = self.read_item(target, keys, line)?;
                 if self
                     .dialect
                     .the_compound_write_of_a_thing_that_is_not_a_number_is_dropped()
@@ -13382,6 +13438,24 @@ impl<'a> Runtime<'a> {
                 self.apply_assign(other, "the item", Some(current), value, line)?
             }
         };
+        // Measured on the binary of v2.0.19 on 2026-11-10: an item with more
+        // than one parameter is the `__Item` of a class of the script with all
+        // of them, and the class types take one: a map and an array answer
+        // "Too many parameters passed to function." with the accessor in the
+        // `Extra`.
+        if keys.len() > 1 && !self.dialect.the_item_of_an_object_is_its_property() {
+            if let Some(access) = self.the_accessor_of(target, "__Item") {
+                let Some(setter) = &access.setter else {
+                    return Err(self.no_item(target, line));
+                };
+                self.call_the_body_of_an_accessor(target, &access, setter, line, keys, Some(&value))?;
+                return Ok(value);
+            }
+            if crate::classes::is_type(&class) {
+                return Err(self.too_many_parameters_of_an_item(&class, true, line));
+            }
+        }
+        let key = keys.first().expect("an item has a parameter");
         if let Some(result) =
             crate::classes::set_item(&class, key, target, value.clone(), self, line)
         {
@@ -13389,8 +13463,7 @@ impl<'a> Runtime<'a> {
             return Ok(value);
         }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
-        // item of an object of the v1 is the property of that name: the
-        // `a["b"] := 5` writes the property "b".
+        // item of an object of the v1 is the property of that name.
         if self.dialect.the_item_of_an_object_is_its_property() {
             let name = key.to_text();
             let current = match op {
@@ -13402,120 +13475,86 @@ impl<'a> Runtime<'a> {
             return Ok(stored);
         }
         // The item of an object of a class of the script is the property
-        // `__Item` of it, and the setter of it takes the index and the value.
-        //
-        // Measured on the binary of v2.0.19 on 2026-11-09: `s[1] := "one"`
-        // runs the setter of the `__Item` with the index and the value, and a
-        // class whose `__Item` has a getter but no setter does not write it.
+        // `__Item` of it, and the setter takes the parameters and the value.
         if let Some(access) = self.the_accessor_of(target, "__Item") {
             let Some(setter) = &access.setter else {
                 return Err(self.no_item(target, line));
             };
-            self.call_the_body_of_an_accessor(
-                target,
-                &access,
-                setter,
-                line,
-                core::slice::from_ref(key),
-                Some(&value),
-            )?;
+            self.call_the_body_of_an_accessor(target, &access, setter, line, keys, Some(&value))?;
             return Ok(value);
         }
         Err(self.no_item(target, line))
     }
-
     /// The value of an item of an object: `obj[key]`.
     fn read_item(
         &mut self,
         target: &Value,
-        key: &Value,
+        keys: &[Value],
         line: u32,
     ) -> Result<Value, RuntimeFailure> {
         let Value::Object(object) = target else {
-            // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
-            // the v1 does not refuse the item of a value that is not an
-            // object, and the answer is a blank text.
             if self.dialect.a_member_that_is_not_there_is_answered() {
                 return Ok(Value::Text(String::new()));
             }
             return Err(self.no_item(target, line));
         };
         let class = object.borrow().class.clone();
-        // The class of the script first, and then the class types of the
-        // runtime.
-        //
         // Measured on the binary of v2.0.19 on 2026-10-31: the item of an
-        // object of a class of the script is the property `__Item` of it,
-        // and the getter of it takes the index.
+        // object of a class of the script is the property `__Item` of it, and
+        // the getter of it takes the parameters of the index.
         if let Some(access) = self.the_accessor_of(target, "__Item") {
             let Some(getter) = &access.getter else {
                 return Err(self.no_item(target, line));
             };
             if access.parameters.is_empty() {
-                // The index goes to the `__Item` of the value that the
-                // getter answers.
-                //
-                // Measured on the binary of v2.0.19 on 2026-10-31:
-                // `obj["a"]` is refused with 'This value of type "Integer"
-                // has no property named "__Item".' when the getter answers
-                // a number.
+                if keys.len() > 1 {
+                    return Err(self.too_many_parameters_of_an_item(&class, false, line));
+                }
                 let value =
                     self.call_the_body_of_an_accessor(target, &access, getter, line, &[], None)?;
-                return self.read_item(&value, key, line);
+                return self.read_item(&value, keys, line);
             }
-            // The parameters of the property are the ones of the index.
-            let value = self.call_the_body_of_an_accessor(
-                target,
-                &access,
-                getter,
-                line,
-                core::slice::from_ref(key),
-                None,
-            )?;
+            if keys.len() > access.parameters.len() {
+                return Err(self.too_many_parameters_of_an_item(&class, false, line));
+            }
+            let value =
+                self.call_the_body_of_an_accessor(target, &access, getter, line, keys, None)?;
             return Ok(value);
         }
-        // A method of that name is not the item of the object: the item is
-        // the method itself.
-        //
         // Measured on the binary of v2.0.19 on 2026-10-31: `obj[3]` is a
-        // function whose name is "C.Prototype.__Item" when the class
-        // declares a method of that name.
+        // function whose name is "C.Prototype.__Item" when the class declares
+        // a method of that name.
         if let Some((defining, method)) = self.find_method_in(&class, "__item") {
             return Ok(self.method_reference(&defining, &method));
         }
+        // The class types of the runtime take the item with one parameter,
+        // and the one that has more is the measured failure.
+        if keys.len() > 1 && !self.dialect.the_item_of_an_object_is_its_property() {
+            if crate::classes::is_type(&class) {
+                return Err(self.too_many_parameters_of_an_item(&class, false, line));
+            }
+        }
+        let key = keys.first().expect("an item has a parameter");
         if let Some(result) = crate::classes::item(&class, key, target, self, line) {
             return result;
         }
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04: the
-        // item of an object of the v1 is the property of that name: the
-        // `a["b"]` reads the property "b", and the `a["B"]` reads it too.
-        // The v2 asks the `__Item` of the object, and a plain object of it
-        // has no such thing.
+        // item of an object of the v1 is the property of that name.
         if self.dialect.the_item_of_an_object_is_its_property() {
             let name = key.to_text();
             return self.read_property(target, &name, line);
         }
         // The `__Item` of the class is the method behind the index syntax,
-        // and a class that has one answers it.
-        if let Some(result) = crate::classes::call(
-            &class,
-            "__item",
-            target,
-            core::slice::from_ref(key),
-            self,
-            line,
-        ) {
+        // and a class that has one answers it with the parameters of the
+        // index.
+        if let Some(result) = crate::classes::call(&class, "__item", target, keys, self, line) {
             return result;
         }
-        // Measured on the binary of v1.1.37.02 on 2026-11-02: the v1 does
-        // not refuse the item that an object does not have, and the answer is
-        // a blank text.
         if self.dialect.a_member_that_is_not_there_is_answered() {
             return Ok(Value::Text(String::new()));
         }
         Err(self.no_item(target, line))
     }
-
     /// The value of a reference: a name, or a path of names.
     ///
     /// `p.x` is the property `x` of the object `p`, and the path may go

@@ -542,6 +542,10 @@ pub enum Node {
     Index {
         target: Box<Node>,
         index: Box<Node>,
+        /// The parameters of the item after the first one: `obj[a, b]` is
+        /// the item of `obj` with two, and the class of the script sees both
+        /// in its `__Item`. Measured on the binary of v2.0.19 on 2026-11-10.
+        also: Vec<Node>,
         line: u32,
     },
     /// A call: `PixelGetColor(10, 20)`.
@@ -765,6 +769,9 @@ pub enum Node {
     AssignIndex {
         target: Box<Node>,
         index: Box<Node>,
+        /// The parameters of the item after the first one, the way the
+        /// read of `obj[a, b]` carries them.
+        also: Vec<Node>,
         op: AssignOp,
         value: Box<Node>,
         line: u32,

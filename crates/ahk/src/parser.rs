@@ -4580,9 +4580,15 @@ impl Parser {
                         value: Box::new(value),
                         line: name_token.line,
                     },
-                    Node::Index { target, index, .. } => Node::AssignIndex {
+                    Node::Index {
                         target,
                         index,
+                        also,
+                        ..
+                    } => Node::AssignIndex {
+                        target,
+                        index,
+                        also,
                         op,
                         value: Box::new(value),
                         line: name_token.line,
@@ -12605,12 +12611,28 @@ impl Parser {
                 let line = node.line();
                 self.position += 1;
                 let index = self.parse_expression()?;
+                // Measured on the binary of v2.0.19 on 2026-11-10: the item
+                // may carry more than one parameter -- `obj[a, b]` -- and the
+                // commas separate them. The first one is the `index`, and the
+                // rest are the `also` of the node.
+                let mut also = Vec::new();
+                loop {
+                    self.skip_newlines();
+                    if !self.at_op(&[","]) {
+                        break;
+                    }
+                    self.position += 1;
+                    self.skip_newlines();
+                    let item = self.parse_expression()?;
+                    also.push(item);
+                }
                 // The index may be written in more than one line.
                 self.skip_newlines();
                 self.expect_op("]")?;
                 node = Node::Index {
                     target: Box::new(node),
                     index: Box::new(index),
+                    also,
                     line,
                 };
                 continue;
@@ -12969,9 +12991,15 @@ impl Parser {
                 value: Box::new(value),
                 line,
             },
-            Node::Index { target, index, .. } => Node::AssignIndex {
+            Node::Index {
                 target,
                 index,
+                also,
+                ..
+            } => Node::AssignIndex {
+                target,
+                index,
+                also,
                 op,
                 value: Box::new(value),
                 line,

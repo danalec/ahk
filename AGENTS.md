@@ -10432,3 +10432,21 @@ out and walks the letters. The hole is a comma that follows a comma, and the
 parser of the loop pushes the empty parameter and lets the separator comma be
 read by the next turn of the list. Before this the loop parser asked for an
 expression at the comma and answered "Missing operand.".
+## 268. The item with more than one parameter
+
+Measured on the binary of v2.0.19 on 2026-11-10: `obj[a, b]` is the item of
+`obj` with two parameters. A class of the script sees both in its `__Item` --
+the getter answers the two (`1|2`), and the setter takes the two and the value
+(`obj[3, 4] := 5` runs `set` with 3, 4 and 5). A map and an array take one
+parameter and refuse the rest with "Too many parameters passed to function.",
+and the `Extra` of the failure names the accessor: "Map.Prototype.__Item.Set"
+for the write and "Array.Prototype.__Item.Get" for the read.
+
+The parser reads the list between the brackets as one expression and the ones
+that follow it -- `Node::Index` and `Node::AssignIndex` carry the rest in
+`also` -- and the runtime evaluates the list in `the_keys_of_an_index` and
+hands the values to the class of the script, to the class type or to the
+`__Get` of `x.y[a, b]` (its parameters are the list, and its answer is the
+item). The item of `super` takes the list too, and the value of each parameter
+goes to the base as the literal of the value it is. A value that is not an
+object takes one parameter, the position of the item, and the rest is refused.
