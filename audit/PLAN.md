@@ -2896,6 +2896,48 @@ and the free space from one `statvfs` -- or, in the style the box already uses f
 `None`, and both want the `DriveSpace` fields and the runner-of-a-command of the
 box in hand. That is the next round, and it is now a small one.
 
+### Round 136 — 2026-11-09: the drives were already done, and rounds 134 and 135 were wrong
+
+Rounds 134 and 135 treated the `Drive*` cluster as work to do. **It is done, and
+has been.** Measured on the box:
+
+```ahk
+DriveGetCapacity("/")     -> 30070     (megabytes)
+DriveGetSpaceFree("/")    -> 8832
+DriveGetFileSystem("/")   -> "zfs"
+DriveGetType("/")         -> "Fixed"
+DriveGetStatus("/")       -> "Ready"
+```
+
+**And cross-checked against a second path**, which is the rule that has caught the
+most in this session:
+
+```
+df -Pk /   ->  blocks_MB=30070   avail_MB=8832
+this tree  ->  cap=[30070]       free=[8832]
+```
+
+**Identical.** The box's `drive_space` (`ahk-box/src/desktop.rs:1705`) has been
+there since before this session: it runs `df -Pk`, divides to megabytes, and takes
+the filesystem and the kind from helpers that were written with it.
+
+**How two rounds went wrong**, and it is the session's most repeated error in its
+purest form:
+
+- round 134 measured the binary and concluded *"the drives are real work"* --
+  which was right about the **contract** and wrong about the **tree**;
+- round 135 read `the_drive_of` and concluded *"the language side is built, the box
+  is missing the method"* -- and did not check whether the box had it;
+- round 136 ran it, and it worked.
+
+**The lesson is sharper than "measure before assuming"**: the measurement of the
+*reference* is not a measurement of *this tree*. A refusal that the plan has
+carried for a hundred rounds is still a claim, and the only way to know is to ask
+the tree. `for name in Drive*: run it` cost one call and settled nine names.
+
+**What is actually left of the objective** must now be re-derived the same way: by
+running the names the surface says are refused, not by reading their names.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
