@@ -2821,6 +2821,48 @@ shape. **Nothing is left to decide** -- the next round is the writing.
 "honour" is a no-op, and the honest way to carry it is a note that says the
 compositor does the scaling, not code that silently discards a request.
 
+### Round 134 — 2026-11-09: the drives are not Windows-shaped, and one of them is
+
+The `Gui` family is closed, so the next worth is the nine `Drive*` names -- and
+unlike `Reg*` and `Com*`, which are about a system this tree does not have, the
+drives are about a filesystem, and this box has one. Measured on the binary of
+v2.0.19 on 2026-11-09:
+
+| the call | the binary |
+|---|---|
+| `DriveGetList()` | **`"BCDEFX"`** -- letters, no separators |
+| `DriveGetType("C:\")` | `"Fixed"` |
+| `DriveGetCapacity("C:\")` | `3905969` -- **megabytes** |
+| `DriveGetSpaceFree("C:\")` | `829941` |
+| `DriveGetStatus("C:\")` | `"Ready"` |
+| `DriveGetFileSystem("C:\")` | `"NTFS"` |
+| `DriveGetLabel("C:\")` | `"core"` |
+| `DriveGetSerial("C:\")` | `3427460058` |
+| `DriveGetType("Q:\")` -- a drive that is not there | **`""`**, and **not a failure** |
+
+**Six of the eight take a path and ask the filesystem a question it can answer
+here**: capacity and free space are `statvfs`, the file system name and the type
+are `/proc/mounts` and `/sys`, the status is whether the path is there. The v2
+argument is written as a drive letter, and a path is a path -- `DriveGetCapacity("/")`
+is the same question about the same filesystem.
+
+**Two are Windows-shaped after all**, and they are the two to refuse:
+
+- **`DriveGetSerial`** is the volume serial number, which is a Windows volume
+  concept; a Linux filesystem has a UUID, and a UUID is not a 32-bit number.
+- **`DriveGetList`** answers **letters**. A Linux box has mount points, not
+  letters, and no honest mapping from `/home` to a letter exists. It could answer
+  the mount points, and that would be an answer of the wrong **shape** for a name
+  that is measured to answer letters.
+
+**And one is a question to settle before writing**: `DriveGetLabel` is a volume
+label, which `blkid` can report for a device and not for a path -- so it is
+answerable when the path is a mount point of a device, and not otherwise.
+
+**So the drives are 14 names of real work with a measured contract, and not
+another refusal.** That is the first cluster since the controls where the reason
+to refuse was weaker than the reason to build.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
