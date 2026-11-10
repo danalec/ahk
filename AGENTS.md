@@ -10586,3 +10586,26 @@ calling it with the value as `this`.
 
 The corpus case `flow-for-in.ahk` passes whole now, and the corpus is 74 of 162
 pure scripts (45.7 %).
+## 275. The equal sign reads texts as texts and numbers as numbers
+
+Measured on the binary of v2.0.19 on 2026-11-10: the `=` and the `!=` of v2
+compare two texts as texts -- "10" and "10.0" are not the same text, and
+neither are "010" and "10" -- and a text is compared with a number as a number
+when the text holds one, the hex of the `0x` prefix included: `513 = "0x201"`
+is one, `"0x10" = 16` is one, and `"0x10" = "16"` is zero. A text that holds no
+number is compared with the text of the number, so `"" = 0` and `"abc" = 0` are
+zero. The `==` follows the same rule with the case kept. Two arrays are the
+same array and nothing else: `x := [1, 2]`, `y := [1, 2]` then `x = y` is zero
+while `x = x` is one and `[1, "a"] = [1, "A"]` is zero.
+
+The tree read both sides as numbers whenever both parsed as one, so `"10"` was
+the same as `"10.0"`, and it read a text only as a decimal, so `513 = "0x201"`
+was zero. `the_number_of_a_text` is the one reading of a number now -- it is
+also what the truth of a text uses, so the two cannot drift -- and the `=`
+takes the kind of the two sides into account.
+
+The corpus case `op-equality.ahk` stops later than it did: at the assertion that
+two arrays are compared by their elements, which the binary fails as well (the
+tree stopped at the hex comparison before this). That script is one of the ones
+that the binary itself fails: the comparison of arrays by their elements is a
+Keysharp extension, not the dialect of v2.0.19.

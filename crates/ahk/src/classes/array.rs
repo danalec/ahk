@@ -708,6 +708,7 @@ pub(crate) fn the_number_of_the_items(array: &Value) -> usize {
 ///
 /// The places that are not there are places: the array of two with the
 /// fifth one written has five places.
+
 pub(crate) fn the_number_of_the_places(array: &Value) -> usize {
     let Some(state) = state(array) else { return 0 };
     let state = state.borrow();

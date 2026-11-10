@@ -6161,6 +6161,27 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_equal_sign_compares_texts_as_texts_and_numbers_as_numbers() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: two texts are compared
+    // as texts -- "10" and "10.0" are not the same text -- and a text is
+    // compared with a number as a number when it holds one, the hex of the
+    // `0x` prefix included: `513 = "0x201"` and `"0x10" = 16` are one, and
+    // `"0x10" = "16"` is zero. The `==` is the same rule with the case kept,
+    // and two arrays are the same array and nothing else.
+    let (report, _desktop) = run(concat!(
+        "MsgBox (513 = \"0x201\") \" \" (\"0x10\" = 16) \" \" (\"10\" = \"10.0\") \" \" (\"010\" = \"10\") \" \" (\"0x10\" = \"16\") \" \" (\"abc\" = 0) \" \" (\"\" = 0)\n",
+        "MsgBox (1 == \"1\") \" \" (1.0 == \"1\") \" \" (\"a\" == \"A\") \" \" (\"0x10\" == 16)\n",
+        "x := [1, 2], y := [1, 2]\n",
+        "MsgBox (x = y) \" \" (x = x) \" \" ([1, \"a\"] = [1, \"A\"])\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["1 1 0 0 0 0 0", "1 1 0 1", "0 1 0"]
+    );
+}
+
+#[test]
 fn the_prototype_of_a_primitive_supplies_the_enumerator() {
     // Measured on the binary of v2.0.19 on 2026-11-10: a script puts an
     // `__Enum` into the prototype of a class with

@@ -841,13 +841,13 @@ pub struct Class {
     pub nested: Vec<String>,
 }
 
-/// Whether the text is a number and that number is zero.
+/// The number that a text holds, the way v2 reads one.
 ///
-/// Measured on the binary of v2.0.19 on 2026-11-10: the truth of a text is the
-/// truth of the number it holds, and a text that is not a number is true when
-/// it is not empty. The number may be written the way the dialect writes one:
-/// `0`, `00`, `0x0`, `0.0`, `0e0`, `-0` and ` 0` are all zero.
-fn the_zero_of_a_text(text: &str) -> Option<bool> {
+/// Measured on the binary of v2.0.19 on 2026-11-10: a text holds a number when
+/// it is written the way the dialect writes one -- the hex of the `0x` prefix,
+/// and the decimal or the exponent of the rest -- with the spaces around it
+/// dropped, and it holds no number otherwise.
+fn the_number_of_a_text(text: &str) -> Option<f64> {
     let text = text.trim();
     if text.is_empty() {
         return None;
@@ -855,11 +855,23 @@ fn the_zero_of_a_text(text: &str) -> Option<bool> {
     if let Some(hex) = text
         .strip_prefix("0x")
         .or_else(|| text.strip_prefix("0X"))
-        .filter(|hex| !hex.is_empty() && hex.chars().all(|digit| digit.is_ascii_hexdigit()))
     {
-        return Some(u128::from_str_radix(hex, 16).map(|number| number == 0).unwrap_or(false));
+        if hex.is_empty() || !hex.chars().all(|digit| digit.is_ascii_hexdigit()) {
+            return None;
+        }
+        return u128::from_str_radix(hex, 16).ok().map(|number| number as f64);
     }
-    text.parse::<f64>().ok().map(|number| number == 0.0)
+    text.parse::<f64>().ok()
+}
+
+/// Whether the text is a number and that number is zero.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the truth of a text is the
+/// truth of the number it holds, and a text that is not a number is true when
+/// it is not empty. The number may be written the way the dialect writes one:
+/// `0`, `00`, `0x0`, `0.0`, `0e0`, `-0` and ` 0` are all zero.
+fn the_zero_of_a_text(text: &str) -> Option<bool> {
+    the_number_of_a_text(text).map(|number| number == 0.0)
 }
 impl Value {
     /// Whether the value counts as true.
@@ -14844,6 +14856,7 @@ fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
 /// The numbers are the same number, and the texts are the same text with
 /// the method that the caller asks for.
 fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
+
     // An object is the same object and nothing else.
     //
     // Measured on the binary of v2.0.19 on 2026-10-31: two maps that hold
@@ -14859,8 +14872,31 @@ fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
     if matches!(left, Value::Object(_)) || matches!(right, Value::Object(_)) {
         return false;
     }
-    // The comparison is a number when both sides are numbers, and a
-    // text otherwise: that is the rule v2 follows.
+
+    // Measured on the binary of v2.0.19 on 2026-11-10: two texts are compared
+    // as texts -- the "10" and the "10.0" are not the same text -- and a text
+    // is compared with a number as a number when the text holds one, the hex
+    // of the `0x` prefix included: `513 = "0x201"` and `"0x10" = 16` are one.
+    // A text that holds no number is compared with the text of the number:
+    // `"" = 0` and `"abc" = 0` are zero.
+    match (left, right) {
+        (Value::Text(one), Value::Text(other)) => {
+            return the_same_text(one, other, method);
+        }
+        (Value::Text(text), Value::Int(number)) | (Value::Int(number), Value::Text(text)) => {
+            return match the_number_of_a_text(text) {
+                Some(number_of_the_text) => number_of_the_text == *number as f64,
+                None => the_same_text(text, &number.to_string(), method),
+            };
+        }
+        (Value::Text(text), Value::Float(number)) | (Value::Float(number), Value::Text(text)) => {
+            return match the_number_of_a_text(text) {
+                Some(number_of_the_text) => number_of_the_text == *number,
+                None => the_same_text(text, &Value::Float(*number).to_text(), method),
+            };
+        }
+        _ => {}
+    }
     if let (Some(a), Some(b)) = (left.to_number(), right.to_number()) {
         return a == b;
     }
