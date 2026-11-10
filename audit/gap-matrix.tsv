@@ -33,7 +33,7 @@ control-flow	#Persistent	Persistent	yes	refusal	lifecycle	refusal: ...cannot be 
 keyboard	Send	Send	yes	value	covered	v2 surface: Send command value
 keyboard	SendRaw	SendText	yes	value	covered	v2 surface: SendText command value
 keyboard	ControlSend	ControlSend	yes	refusal	GAP-controls	refusal: name of Windows
-keyboard	ControlSendRaw	ControlSendText	yes	refusal	GAP-controls	refusal: name of Windows
+keyboard	ControlSendRaw	ControlSendText	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
 keyboard	GetKeyState	GetKeyState	yes	value	covered	v2 surface: GetKeyState command value
 keyboard	KeyWait	KeyWait	yes	value	covered	v2 surface: KeyWait command value
 keyboard	SetKeyDelay	SetKeyDelay	yes	value	covered	v2 surface: SetKeyDelay command value
@@ -44,7 +44,7 @@ mouse	MouseClickDrag	MouseClickDrag	yes	value	covered	v2 surface: MouseClickDrag
 mouse	MouseGetPos	MouseGetPos	yes	value	covered	v2 surface: MouseGetPos command value
 mouse	MouseMove	MouseMove	yes	value	covered	v2 surface: MouseMove command value
 mouse	SetMouseDelay	SetMouseDelay	yes	value	covered	v2 surface: SetMouseDelay command value
-mouse	ControlClick	ControlClick	yes	refusal	GAP-controls	refusal: name of Windows
+mouse	ControlClick	ControlClick	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
 windows	WinGetTitle	WinGetTitle	yes	value	covered	measured on the box (Wayland toplevel listing)
 windows	IfWinExist / IfWinNotExist	WinExist	yes	value	covered	measured on the box
 windows	IfWinActive / IfWinNotActive	WinActive	yes	value	covered	measured on the box
@@ -79,9 +79,9 @@ gui	MsgBox	MsgBox	yes	value	covered	answer goes to the report output
 gui	InputBox	InputBox	yes	value	covered	zenity present on the box
 gui	FileSelectFile	FileSelect	yes	value	covered	zenity present on the box
 gui	FileSelectFolder	DirSelect	yes	value	covered	zenity present on the box
-gui	Gui	Gui (class)	yes	refusal-at-use	GAP-gui-toolkit	Gui() constructs; Show has no toolkit
-gui	GuiControl	Gui methods	yes	refusal-at-use	GAP-gui-toolkit	no toolkit
-gui	Menu	Menu (class)	yes	refusal-at-use	GAP-gui-toolkit	no tray in a Wayland session
+gui	Gui	Gui (class)	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
+gui	GuiControl	Gui methods	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
+gui	Menu	Menu (class)	yes	value	covered	the gui capability of rounds 70 to 132, or the control family of rounds 30 to 34
 gui	ToolTip	ToolTip	yes	refusal	GAP-gui-toolkit	refusal: name of Windows (needs an overlay layer)
 gui	TrayTip	TrayTip	yes	value	covered	DONE round 2 (2026-11-09): the Dialogs capability gained notify(); notify-send on the box, verified
 files	FileAppend	FileAppend	yes	value	covered	v2 surface value
@@ -139,4 +139,3 @@ events	-	CallbackCreate	yes	refusal	GAP-native	refusal: name of Windows (needed 
 env	EnvSet	EnvSet	yes	value	covered	v2 surface value
 env	EnvGet	EnvGet	yes	value	covered	v2 surface value
 env	EnvAdd/EnvSub/EnvMult/EnvDiv	(operators)	yes	value	covered	v2 uses += -= *= /=
-
