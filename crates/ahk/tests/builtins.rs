@@ -2399,11 +2399,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "ListLines",
             "the lines are listed in a window of v2, and this runtime has no window to show them in.",
         ),
-        (
-            "ListVars",
-            "ListVars",
-            "the variables are listed in a window of v2, and this runtime has no window to show them in.",
-        ),
     ] {
         let report = run(source);
         assert_eq!(failure_of(&report), reason, "{name}");

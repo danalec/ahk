@@ -3141,9 +3141,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 115,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_vars,
     },
     Builtin {
         name: "LoadPicture",
@@ -8509,6 +8509,29 @@ pub(crate) fn persistent(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     Ok(Value::Int(0))
+}
+
+/// `ListVars`: show the variables of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the **empty
+/// text**, and it does not block. A window of v2 shows the variables; this
+/// runtime has one channel for what a script shows -- the `output` of the
+/// report, which is where a `MsgBox` goes -- so a line for each variable goes
+/// there, and the answer is the empty text.
+///
+/// **The names are the keys the runtime keeps**, which are the names of the
+/// script without their case. A script that writes `MyVar` is listed as `myvar`,
+/// and that is a difference from v2 that is written down rather than hidden.
+pub(crate) fn list_vars(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    for (name, value) in rt.variable_names() {
+        rt.push_output(format!("{name}[{value}]"));
+    }
+    Ok(Value::Text(String::new()))
 }
 
 // -- the monitors ------------------------------------------------------------------
