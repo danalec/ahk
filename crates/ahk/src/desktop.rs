@@ -534,6 +534,16 @@ pub trait Windows {
         Err("this desktop cannot say the process of a window".to_string())
     }
 
+    /// Whether a window of the script is open.
+    ///
+    /// It is what makes the lazy open composable: `gui_open` refuses a second
+    /// window, so a member that needs one has to ask first whether there is one
+    /// already. Without it, the second `Show` of a script would be refused by
+    /// its own desktop.
+    fn gui_is_open(&mut self) -> bool {
+        false
+    }
+
     /// Open a window of the script's own, and answer the handle of it.
     ///
     /// This is the `Gui` of v2. The window is **not shown**: measured on the

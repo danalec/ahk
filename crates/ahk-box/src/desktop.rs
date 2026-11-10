@@ -1016,6 +1016,10 @@ impl ahk::desktop::Windows for LabDesktop {
         crate::atspi::app_pid(&address, title)
     }
 
+    fn gui_is_open(&mut self) -> bool {
+        self.gui.is_some()
+    }
+
     fn gui_open(&mut self, title: &str) -> Result<u64, String> {
         box_tools_are_near()?;
         // One window at a time. The helper replaces the window it holds when it
