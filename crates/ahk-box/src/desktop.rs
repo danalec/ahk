@@ -999,6 +999,11 @@ impl ahk::desktop::Windows for LabDesktop {
         ahk::desktop::Keyboard::type_text(self, text)?;
         Ok(ahk::desktop::ControlEdit::Done)
     }
+    fn window_pid(&mut self, title: &str) -> Result<Option<i64>, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::app_pid(&address, title)
+    }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.

@@ -259,8 +259,8 @@ fn the_surface_flag_answers_with_json() {
     // it, through the notification of the session, then the four `WinGet*`
     // that read the listing of the windows, then the two that read where
     // a window is, and the one that reads whether it is maximized.
-    assert_eq!(report.number("values"), 684);
-    assert_eq!(report.number("refusals"), 149);
+    assert_eq!(report.number("values"), 685);
+    assert_eq!(report.number("refusals"), 148);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");

@@ -524,6 +524,15 @@ pub trait Windows {
     ) -> Result<ControlEdit, String> {
         Err("this desktop cannot type into the controls of a window".to_string())
     }
+
+    /// The process of the window with this title.
+    ///
+    /// `None` is a window that is not there. Measured on the binary of v2.0.19 on
+    /// 2026-11-09: `WinGetPID` answers the number of the process, and a title that
+    /// no window has is "Target window not found.".
+    fn window_pid(&mut self, _title: &str) -> Result<Option<i64>, String> {
+        Err("this desktop cannot say the process of a window".to_string())
+    }
 }
 
 /// The processes of the desktop.

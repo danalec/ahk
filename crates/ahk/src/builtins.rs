@@ -2438,9 +2438,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_pid,
     },
     Builtin {
         name: "WinGetPos",
@@ -8396,6 +8396,46 @@ pub(crate) fn str_put(
         }
     };
     Ok(Value::Int(bytes as i64))
+}
+
+/// `WinGetPID`: the process of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the **Integer** of
+/// the process, and a title that no window has is "Target window not found.".
+///
+/// The chain on this desktop is the accessibility bus: the registry names the
+/// applications, a window is a child of one and its `Name` is its title, and the
+/// bus answers the `PID` of a name -- measured on the box on 2026-11-09.
+pub(crate) fn win_get_pid(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .window_pid(&title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(pid) => Ok(Value::Int(pid)),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+    }
 }
 
 // -- the monitors ------------------------------------------------------------------

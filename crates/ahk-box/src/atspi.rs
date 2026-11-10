@@ -436,6 +436,42 @@ fn find_control(address: &str, title: &str, control: &str) -> Result<Found, Stri
     }
 }
 
+/// The process of the application that owns the window with this title.
+///
+/// The chain is measured on the box on 2026-11-09: the registry lists the
+/// applications of the session by bus name, a window is a child of one and its
+/// `Name` is its title, and **`busctl status <name>` answers `PID=2007`** -- so
+/// the process is a question the bus can answer.
+pub fn app_pid(address: &str, title: &str) -> Result<Option<i64>, String> {
+    let root = Node {
+        bus: "org.a11y.atspi.Registry".to_string(),
+        path: "/org/a11y/atspi/accessible/root".to_string(),
+    };
+    for application in children(address, &root)? {
+        for window in children(address, &application).unwrap_or_default() {
+            if name(address, &window).contains(title) {
+                return Ok(the_pid_of(address, &application.bus));
+            }
+        }
+    }
+    Ok(None)
+}
+
+/// The process of a bus name, from the status of the bus.
+fn the_pid_of(address: &str, bus: &str) -> Option<i64> {
+    let output = Command::new("busctl")
+        .args([&format!("--address={address}"), "status", bus])
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&output.stdout);
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix("PID=") {
+            return rest.trim().parse().ok();
+        }
+    }
+    None
+}
+
 /// A method of a node.
 fn call(address: &str, bus: &str, path: &str, method: &str, args: &[&str]) -> Result<String, String> {
     let mut command = Command::new("busctl");
