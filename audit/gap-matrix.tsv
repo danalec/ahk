@@ -134,7 +134,7 @@ machine	-	SysGet	yes	refusal	GAP-machine-metrics	refusal: name of Windows; A_Scr
 machine	-	MonitorGet/MonitorGetCount/...	yes	value	covered	the drives of round 136, the monitors of round 55, and Persistent from the quick wins
 machine	-	Edit	yes	refusal	GAP-desktop-integration	refusal: name of Windows ($EDITOR is the Linux route)
 events	-	OnMessage	yes	refusal	windows-only	Win32 message loop; correct refusal
-events	-	OutputDebug	yes	refusal	GAP-events	refusal: name of Windows (stderr/DebugView substitute)
+events	-	OutputDebug	yes	value	covered	OutputDebug answers, through the debug output of the machine
 events	-	CallbackCreate	yes	refusal	GAP-native	refusal: name of Windows (needed for DllCall callbacks)
 env	EnvSet	EnvSet	yes	value	covered	v2 surface value
 env	EnvGet	EnvGet	yes	value	covered	v2 surface value
