@@ -757,6 +757,20 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         Ok(path.to_string_lossy().to_string())
     }
+    fn gui_checked(&mut self, number: u64, setting: Option<bool>) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!(
+                "{{\"op\": \"checked\", \"id\": {}, \"on\": {}}}",
+                number,
+                if on { "true" } else { "false" }
+            ),
+            None => format!("{{\"op\": \"checked\", \"id\": {}}}", number),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the check box of the script gave no tick: {answer}"))
+    }
+
     fn screen_scale(&mut self) -> Result<i64, String> {
         // The scale is a question for the toolkit, which is the helper's, and it
         // needs no window: the session's scale is the monitor's.

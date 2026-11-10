@@ -1955,6 +1955,16 @@ pub(crate) fn property(
     if class.eq_ignore_ascii_case("gui.button") && name.eq_ignore_ascii_case("value") {
         return Some(Ok(Value::Text(String::new())));
     }
+    // `Value` of a check box is whether it is TICKED, and it is a number and not a
+    // text -- measured on the binary of v2.0.19. Its `Text` is the label, and the
+    // shared arm below answers that, so this comes first.
+    if class.eq_ignore_ascii_case("gui.checkbox") && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_checked(number, None) {
+            Ok(checked) => Ok(Value::Int(checked)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     if class.to_lowercase().starts_with("gui.")
         && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
     {
@@ -2011,6 +2021,15 @@ pub(crate) fn set_property(
     }
     if class.eq_ignore_ascii_case("gui.button") && name.eq_ignore_ascii_case("value") {
         return Some(Err(the_failure_with("Invalid usage.", "", line)));
+    }
+    if class.eq_ignore_ascii_case("gui.checkbox") && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let text = value.to_text();
+        let on = !(text.is_empty() || text == "0" || text.eq_ignore_ascii_case("false"));
+        return Some(match rt.desktop().gui_checked(number, Some(on)) {
+            Ok(_) => Ok(()),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
     }
     if class.to_lowercase().starts_with("gui.")
         && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))

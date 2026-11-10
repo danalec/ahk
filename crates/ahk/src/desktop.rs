@@ -136,6 +136,14 @@ pub trait Screen {
     ///
     /// The width comes first and the height second, the way the two
     /// variables of v2 ask for them.
+    /// Whether a check box of the script is ticked, and ticking it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the `Value` of a check box
+    /// is a **number**, nought or one, and its `Text` is its label.
+    fn gui_checked(&mut self, _number: u64, _setting: Option<bool>) -> Result<i64, String> {
+        Err("this desktop cannot read the tick of a check box of the script".to_string())
+    }
+
     /// The scale factor of the output, as the session reports it.
     ///
     /// `A_ScreenDPI` is 96 times this, the number v2 gives with the scale of the

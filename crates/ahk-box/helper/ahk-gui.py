@@ -94,6 +94,8 @@ def the_control(kind, text):
         control = Gtk.Button(label=text)
     elif kind == "Text":
         control = Gtk.Label(label=text)
+    elif kind == "CheckBox":
+        control = Gtk.CheckButton(label=text)
     else:
         answer({"ok": False, "error": "%s is not a kind of control" % kind})
         return
@@ -143,12 +145,18 @@ def the_value(number, text):
         if text is None:
             if kind == "Button":
                 answer({"ok": True, "value": control.get_label()})
+            elif kind == "CheckBox":
+                # The TEXT of a check box is its label; its tick is the `Value` and
+                # comes through the `checked` operation of its own.
+                answer({"ok": True, "value": control.get_label()})
             elif kind == "Text":
                 answer({"ok": True, "value": control.get_text()})
             else:
                 answer({"ok": True, "value": control.get_text()})
         else:
             if kind == "Button":
+                control.set_label(text)
+            elif kind == "CheckBox":
                 control.set_label(text)
             elif kind == "Text":
                 control.set_text(text)
@@ -401,6 +409,26 @@ def the_scale():
         answer({"ok": True, "value": 1})
 
 
+def the_checked(number, setting):
+    """Whether a check box is ticked, or tick it.
+
+    `Value` of a check box in v2 is a NUMBER -- nought or one -- and its `Text` is
+    the label. They are two different things on one control, which is why they come
+    through two different operations.
+    """
+    for held, kind, control in state["controls"]:
+        if held != number:
+            continue
+        if kind != "CheckBox":
+            answer({"ok": False, "error": "%s%d is not a check box" % (kind, number)})
+            return
+        if setting is not None:
+            control.set_active(setting)
+        answer({"ok": True, "value": 1 if control.get_active() else 0})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -416,6 +444,8 @@ def handle(command):
                 command.get("classnn", ""), "visible", command.get("on", True)
             )
         )
+    elif op == "checked":
+        run_on_loop(lambda: the_checked(command.get("id", 0), command.get("on")))
     elif op == "scale":
         run_on_loop(the_scale)
     elif op == "state":
