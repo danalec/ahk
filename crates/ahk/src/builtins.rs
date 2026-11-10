@@ -2636,9 +2636,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_always_on_top,
     },
     Builtin {
         name: "WinSetEnabled",
@@ -9635,6 +9635,45 @@ pub(crate) fn win_set_title(
     }
     rt.desktop()
         .gui_title(0, Some(&new_title))
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinSetAlwaysOnTop(Value, WinTitle)`: keep a window of the script above the rest.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, the
+/// first parameter must be a **Number**, and a window that is not there answers
+/// *"Target window not found."*
+///
+/// The script's own window again: what a compositor does with another program's
+/// window is not a program's to set, and its own is the `Opt("+AlwaysOnTop")` this
+/// tree already answers (round 132).
+pub(crate) fn win_set_always_on_top(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    let target = text_of(values, 1);
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    let current = rt
+        .desktop()
+        .gui_title(0, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    if !target.is_empty() && !current.contains(&target) {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    rt.desktop()
+        .gui_option("alwaysontop", on)
         .map_err(|reason| desktop_failure(reason, line))?;
     Ok(Value::Text(String::new()))
 }
