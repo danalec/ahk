@@ -2187,6 +2187,44 @@ wire `Add` to `construct("gui.edit", …)`, run it on the box, and let the answe
 say whether the class table is in the way. It is one edit and one run, and it
 settles in minutes what reasoning has not.
 
+### Round 74 — 2026-11-09: the control object is directly constructible
+
+Round 73's box run settled that a control cannot be a **class type** -- the table
+does not make `gui.edit`. This round found the other road, and it is short:
+
+```rust
+pub struct Object {
+    pub class: String,                       // the name of the class
+    pub properties: BTreeMap<String, Property>,
+}
+```
+
+**Both fields are public**, and `Value::Object(Rc<RefCell<Object>>)` is a value
+like any other. So a control of a script's own window is made by writing the
+struct: the class is the `Gui.Edit` that v2 reports, and `ClassNN`, `Hwnd` and
+`Value` are three entries of the property table. **No table has to change, no
+class has to stop refusing, and nothing in the class machinery is involved** --
+which is what round 73's failure was pointing at.
+
+**That is the whole road for `Add`**, written down so the next round does not
+look for it:
+
+1. `gui_add` already answers the number and the `ClassNN` (round 41, verified);
+2. make an `Object` whose class is `Gui.` and the kind (`Edit` gives `Gui.Edit`,
+   measured on the binary);
+3. put `ClassNN`, `Hwnd` and `Value` in its property table -- `Value` is the text
+   the control was given, and the reading and writing of it is the same
+   question as `Title` (round 71) and answers through `gui_add`/the control's
+   own node;
+4. answer the `Value::Object`.
+
+**What is not decided and should be before the writing**: whether `Value` is read
+and written through the object's property table (a plain stored text) or through
+the control in the window (so `c.Value := "x"` reaches the `Gtk.Entry`). v2's is
+the second, and the desktop already has the seam for it -- `control_set_text` and
+`control_get_text` of round 30 to 32 -- so the second is the answer, with the
+property table holding only `ClassNN` and `Hwnd`.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
