@@ -1555,6 +1555,64 @@ pub(crate) fn call(
         }
         return Some(Ok(Value::Text(String::new())));
     }
+    // `OnEvent` of a control of a window. Measured on the binary of v2.0.19 on
+    // 2026-11-09: the events are **per kind of control** -- a `Button` has
+    // `Click` and an `Edit` has `Change`, and neither has the other's, nor
+    // `Close` which is a window's. And **the callback's arity is checked**: a
+    // function that takes no parameters answers "Invalid callback function.",
+    // because v2 passes the control to a control's handler.
+    if class.to_lowercase().starts_with("gui.") && method.eq_ignore_ascii_case("onevent") {
+        let event = arguments
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        let known = the_events_of_a_control(class)
+            .iter()
+            .any(|held| held.eq_ignore_ascii_case(&event));
+        if !known {
+            return Some(Err(the_failure_with(
+                "Parameter #1 of Gui.Control.Prototype.OnEvent is invalid.",
+                "",
+                line,
+            )));
+        }
+        let handler = match arguments.get(1) {
+            Some(Value::Object(object)) if object.borrow().class.eq_ignore_ascii_case("func") => {
+                arguments[1].clone()
+            }
+            _ => {
+                return Some(Err(the_failure_with(
+                    "Parameter #2 of Gui.Control.Prototype.OnEvent is invalid.",
+                    "",
+                    line,
+                )))
+            }
+        };
+        let takes_one = match &handler {
+            Value::Object(object) => {
+                let object = object.borrow();
+                object
+                    .properties
+                    .get("maxparams")
+                    .map(|held| held.value.to_text() != "0")
+                    .unwrap_or(false)
+            }
+            _ => false,
+        };
+        if !takes_one {
+            return Some(Err(the_failure_with("Invalid callback function.", "", line)));
+        }
+        if let Value::Object(object) = this {
+            object.borrow_mut().properties.insert(
+                format!("on:{}", event.to_lowercase()),
+                crate::runtime::Property {
+                    name: format!("On{event}"),
+                    value: handler,
+                },
+            );
+        }
+        return Some(Ok(Value::Text(String::new())));
+    }
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
     if method.eq_ignore_ascii_case("__item") {
@@ -1638,6 +1696,18 @@ pub(crate) fn call_the_value(
 ///
 /// `None` means the name is not a property of this class: the runtime then
 /// looks in the property table of the object.
+/// The events a control of this kind has.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a `Button` has `Click` and
+/// an `Edit` has `Change`, and each refuses the other's. A `Text` has none.
+fn the_events_of_a_control(class: &str) -> &'static [&'static str] {
+    match class.to_lowercase().as_str() {
+        "gui.button" | "gui.checkbox" => &["Click"],
+        "gui.edit" => &["Change"],
+        _ => &[],
+    }
+}
+
 /// A control of a window of the script, as the object v2 reports.
 ///
 /// The window is opened on the first control, since the construction of a `Gui`

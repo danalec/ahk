@@ -1,40 +1,40 @@
 out := ""
-F() {
+None0() {
   return 1
 }
-G(the) {
+One1(the) {
   return 2
 }
 g := Gui()
 b := g.Add("Button", "", "b")
 e := g.Add("Edit", "", "e")
 try {
-  out .= "click0=[" b.OnEvent("Click", F) "]`n"
+  out .= "click_none=[" b.OnEvent("Click", None0) "]`n"
 } catch as err {
-  out .= "click0=ERR|" err.Message "`n"
+  out .= "click_none=ERR|" err.Message "`n"
 }
 try {
-  out .= "click1=[" b.OnEvent("Click", G) "]`n"
+  out .= "click_one=[" b.OnEvent("Click", One1) "]`n"
 } catch as err {
-  out .= "click1=ERR|" err.Message "`n"
+  out .= "click_one=ERR|" err.Message "`n"
 }
 try {
-  out .= "bogus=[" b.OnEvent("Bogus", G) "]`n"
+  out .= "bogus=[" b.OnEvent("Bogus", One1) "]`n"
 } catch as err {
   out .= "bogus=ERR|" err.Message "`n"
 }
 try {
-  out .= "close=[" b.OnEvent("Close", G) "]`n"
+  out .= "close=[" b.OnEvent("Close", One1) "]`n"
 } catch as err {
   out .= "close=ERR|" err.Message "`n"
 }
 try {
-  out .= "edtchange=[" e.OnEvent("Change", G) "]`n"
+  out .= "change=[" e.OnEvent("Change", One1) "]`n"
 } catch as err {
-  out .= "edtchange=ERR|" err.Message "`n"
+  out .= "change=ERR|" err.Message "`n"
 }
 try {
-  out .= "edtclick=[" e.OnEvent("Click", G) "]`n"
+  out .= "edtclick=[" e.OnEvent("Click", One1) "]`n"
 } catch as err {
   out .= "edtclick=ERR|" err.Message "`n"
 }
