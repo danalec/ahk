@@ -10366,24 +10366,65 @@ pub(crate) fn win_move(
 /// script's own window.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-10: `ControlSend "abc", "Edit1"`
-/// leaves `abc` in the edit, which is what `ControlSendText` of this tree does.
-/// The two differ only in that `ControlSend` reads key tokens such as `{Enter}`;
-/// this tree carries the text path and refuses the tokens with a reason, rather
-/// than sending the braces as letters.
+/// leaves `abc` in the edit, and `ControlSend "a{Enter}b"` leaves `ab` in a
+/// single-line edit and `a` + a line break + `b` in a multi-line one. The tree
+/// carries the text path and expands the keys that have a text effect -- Enter,
+/// Tab and Backspace -- into that text. Keys that move a caret, press a modifier
+/// or act on the window are refused with a reason rather than faked.
 pub(crate) fn control_send(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let text = rt.interpolate(&text_of(values, 0), line)?;
-    if text.contains('{') || text.contains('}') {
-        return Err(RuntimeError {
-            message: "the key tokens of ControlSend are not carried, only the plain text; use ControlSendText for the braces themselves".to_string(),
-            line,
-        });
+    let raw = rt.interpolate(&text_of(values, 0), line)?;
+    if !raw.contains('{') && !raw.contains('}') {
+        return control_send_text(rt, values, line, 0);
     }
-    control_send_text(rt, values, line, 0)
+    let mut text = String::new();
+    for part in split_send(&raw) {
+        match part {
+            SendPart::Text(t) => text.push_str(&t),
+            SendPart::Key { name, modifiers } => {
+                if !modifiers.is_empty() {
+                    return Err(RuntimeError {
+                        message: format!(
+                            "the {name} key with a modifier has no text to put into a control"
+                        ),
+                        line,
+                    });
+                }
+                match name.to_ascii_lowercase().as_str() {
+                    "enter" => text.push('\n'),
+                    "tab" => text.push('\t'),
+                    "backspace" | "bs" => {
+                        text.pop();
+                    }
+                    other => {
+                        return Err(RuntimeError {
+                            message: format!(
+                                "the {other} key has no text effect on a control, and this tree will not claim it did"
+                            ),
+                            line,
+                        })
+                    }
+                }
+            }
+            SendPart::Down(name) | SendPart::Up(name) => {
+                return Err(RuntimeError {
+                    message: format!("holding the {name} key down has no text effect on a control"),
+                    line,
+                })
+            }
+        }
+    }
+    let mut sent = values.to_vec();
+    if sent.is_empty() {
+        sent.push(Value::Text(text));
+    } else {
+        sent[0] = Value::Text(text);
+    }
+    control_send_text(rt, &sent, line, 0)
 }
 
 /// `RunAs(User, Password, Domain)`: set the user a later `Run` would use.
