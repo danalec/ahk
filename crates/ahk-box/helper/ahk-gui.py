@@ -123,6 +123,30 @@ def the_title(setting):
     answer({"ok": True, "title": state["window"].get_title()})
 
 
+def the_value(number, text):
+    """Read the text of a control, or write it. `Value` of v2 is both."""
+    for held, kind, control in state["controls"]:
+        if held != number:
+            continue
+        if text is None:
+            if kind == "Button":
+                answer({"ok": True, "value": control.get_label()})
+            elif kind == "Text":
+                answer({"ok": True, "value": control.get_text()})
+            else:
+                answer({"ok": True, "value": control.get_text()})
+        else:
+            if kind == "Button":
+                control.set_label(text)
+            elif kind == "Text":
+                control.set_text(text)
+            else:
+                control.set_text(text)
+            answer({"ok": True, "value": text})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -136,6 +160,8 @@ def handle(command):
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))
         )
+    elif op == "value":
+        run_on_loop(lambda: the_value(command.get("id", 0), command.get("text")))
     elif op == "show":
         run_on_loop(the_show)
     elif op == "destroy":
