@@ -1146,6 +1146,14 @@ pub struct Runtime<'a> {
     batch_lines: alloc::string::String,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
+    /// The windows of the script, as the objects a `Gui` made.
+    ///
+    /// A `Gui` keeps its event handlers in its own property table, and the place
+    /// that answers an event is a built-in -- `Sleep` -- which has the runtime
+    /// and no reference to any object. This is the list that bridges the two:
+    /// the object is put here when it is asked for something, and the drain walks
+    /// it looking for a handler for the event that arrived.
+    guis: Vec<Value>,
     /// The directory where the run started.
     ///
     /// The runtime asks the desktop for it when it is made, and it keeps
@@ -1335,6 +1343,7 @@ impl<'a> Runtime<'a> {
             batch_lines: "10ms".to_string(),
             timeout,
             variables: BTreeMap::new(),
+            guis: Vec::new(),
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -1399,6 +1408,7 @@ impl<'a> Runtime<'a> {
             batch_lines: "10ms".to_string(),
             timeout,
             variables: BTreeMap::new(),
+            guis: Vec::new(),
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -1971,7 +1981,69 @@ impl<'a> Runtime<'a> {
         self.notes.push(note.into());
     }
 
-    /// The names of the variables of the script, with their values as text.
+    /// Remember a window of the script, so that an event can find the handler.
+    ///
+    /// The same object is asked for many things, and it is remembered once.
+    pub fn remember_a_gui(&mut self, object: &Value) {
+        let already = self.guis.iter().any(|held| match (held, object) {
+            (Value::Object(first), Value::Object(second)) => std::rc::Rc::ptr_eq(first, second),
+            _ => false,
+        });
+        if !already {
+            self.guis.push(object.clone());
+        }
+    }
+
+    /// Answer the events of the windows of the script that have happened.
+    ///
+    /// The helper speaks first, and what it said is read here -- one name each:
+    /// `close`, `escape`, or a click on a control. The handler is the function
+    /// the `Gui` kept for that name, and it is called by its **name**, which is
+    /// the one the function value carries. An event with no handler is dropped
+    /// and not queued, because an event that happened before the handler existed
+    /// is not a thing a later handler expects to receive.
+    pub fn the_events_are_answered(&mut self, line: u32) -> Result<(), RuntimeError> {
+        let Ok(events) = self.desktop().gui_events() else {
+            return Ok(());
+        };
+        let mut pending: Vec<String> = Vec::new();
+        for event in events {
+            let name = event.split(':').next().unwrap_or("").to_lowercase();
+            if name.is_empty() {
+                continue;
+            }
+            let key = format!("on:{name}");
+            let found = self.the_guis().iter().find_map(|gui| {
+                let Value::Object(object) = gui else {
+                    return None;
+                };
+                let object = object.borrow();
+                let handler = object.properties.get(&key)?;
+                let Value::Object(function) = &handler.value else {
+                    return None;
+                };
+                let function = function.borrow();
+                function.properties.get("name").map(|held| held.value.to_text())
+            });
+            if let Some(function) = found {
+                if !function.is_empty() {
+                    pending.push(function);
+                }
+            }
+        }
+        for function in pending {
+            self.call_function_by_name(&function, line)
+                .map_err(|failure| crate::runtime::as_error(failure, line))?;
+        }
+        Ok(())
+    }
+
+    /// The windows of the script that have been remembered.
+    pub fn the_guis(&self) -> &[Value] {
+        &self.guis
+    }
+
+    /// The name of the variables of the script, with their values as text.
     ///
     /// For `ListVars`: a window of v2 shows them, and this runtime shows what a
     /// window would show in the `output` of the report, which is where a

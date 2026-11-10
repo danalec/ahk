@@ -1458,6 +1458,12 @@ pub(crate) fn call(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // A window of the script is remembered when it is asked for anything, which
+    // is where the runtime and the object are both in hand. The drain of the
+    // events needs the list, because a built-in has no reference to an object.
+    if class.eq_ignore_ascii_case("gui") {
+        rt.remember_a_gui(this);
+    }
     // The two members of a `Gui` that only need a window to be there. Measured
     // on the binary of v2.0.19 on 2026-11-09: `Show` and `Destroy` answer the
     // **empty text**, and the window is opened on the first of them, because the
