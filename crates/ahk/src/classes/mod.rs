@@ -1669,11 +1669,11 @@ pub(crate) fn property(
     }
     // `Value` of a control of a window of the script. Measured on the binary of
     // v2.0.19 on 2026-11-09: it is read and written as text.
-    if class.to_lowercase().starts_with("gui.")
-        && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
     if class.eq_ignore_ascii_case("gui.button") && name.eq_ignore_ascii_case("value") {
         return Some(Ok(Value::Text(String::new())));
     }
+    if class.to_lowercase().starts_with("gui.")
+        && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
     {
         let number = the_number_of_a_control(this).unwrap_or(0);
         return Some(match rt.desktop().gui_value(number, None) {
