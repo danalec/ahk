@@ -2225,6 +2225,29 @@ pub(crate) fn set_property(
         else {
             return Some(Ok(()));
         };
+        // The bar is kept on the window under a reserved key, so that a
+        // `menu:<name>` event from the helper can find the item and its
+        // callback. Measured on the docs of v2.0.19 on 2026-11-10: the
+        // callback of an item is called with (ItemName, ItemPos, MyMenu).
+        //
+        // The window is remembered here as well: the drain of the events
+        // looks for the window that holds the bar, and a script that only
+        // writes the bar never calls a method of the window.
+        rt.remember_a_gui(this);
+        if let Value::Object(window) = this {
+            crate::runtime::put(
+                &mut window.borrow_mut().properties,
+                "on:menu",
+                value.clone(),
+            );
+        }
+        // The bar is drawn on the window, so the window has to be there --
+        // the same rule the title and the controls follow.
+        if !rt.desktop().gui_is_open() {
+            if let Err(reason) = rt.desktop().gui_open("") {
+                return Some(Err(the_failure_with(&reason, "", line)));
+            }
+        }
         return Some(match rt.desktop().gui_menu_bar(&json) {
             Ok(()) => Ok(()),
             Err(reason) => Err(the_failure_with(&reason, "", line)),

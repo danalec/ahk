@@ -63,6 +63,8 @@ struct Fake {
     second_text: String,
     /// Whether the fake has a window of the script at all.
     gui_open: bool,
+    /// The events the fake hands out when the runtime asks for them.
+    events: Vec<String>,
 }
 
 impl Desktop for Fake {}
@@ -609,6 +611,13 @@ impl Windows for Fake {
     fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
         Ok("the window".to_string())
     }
+    fn gui_menu_bar(&mut self, json: &str) -> Result<(), String> {
+        self.calls.push(("gui-menu-bar".into(), json.to_string()));
+        Ok(())
+    }
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        Ok(self.events.clone())
+    }
     fn gui_list_add(&mut self, _number: u64, cells: &[String]) -> Result<i64, String> {
         self.list_rows.push(cells.to_vec());
         Ok(self.list_rows.len() as i64)
@@ -1086,6 +1095,35 @@ fn value_of(report: &Report, name: &str) -> Value {
         .get(name)
         .cloned()
         .unwrap_or_else(|| panic!("{name} has no value"))
+}
+
+#[test]
+fn choosing_a_menu_item_calls_its_callback_with_the_name_the_position_and_the_menu() {
+    // Documented on v2.0.19 on 2026-11-10: the callback of a menu item is
+    // called with (ItemName, ItemPos, MyMenu) -- the name of the item, its
+    // 1-based position, and the menu object the item was added to.
+    let mut desktop = Fake {
+        gui_open: true,
+        events: vec!["menu:&File".to_string()],
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "Chosen(ItemName, ItemPos, MyMenu)\n{\n    global seen\n    seen := ItemName \"|\" ItemPos \"|\" Type(MyMenu)\n}",
+            "\nmb := MenuBar()",
+            "\nmb.Add(\"&File\", Chosen)",
+            "\nmb.Add(\"&Edit\", Chosen)",
+            "\ng := Gui()",
+            "\ng.Menu := mb",
+            "\nSleep 10",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("&File|1|MenuBar".into())
+    );
 }
 
 /// The value of a variable, as a whole number.

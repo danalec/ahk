@@ -256,6 +256,19 @@ pub(crate) fn is_a_menu(value: &Value) -> bool {
         ))
 }
 
+/// The callback of an item and its 1-based position, for the `menu:<name>`
+/// event the helper sends when the item is chosen.
+///
+/// Documented on v2.0.19 on 2026-11-10: the callback of a menu item is
+/// called with (ItemName, ItemPos, MyMenu) -- the name of the item, its
+/// 1-based position, and the menu object it was added to.
+pub(crate) fn the_callback_of(this: &Value, item: &str, line: u32) -> Option<(String, i64)> {
+    let menu = state(this, line).ok()?;
+    let index = menu.items.iter().position(|held| held.name == item)?;
+    let callback = menu.items[index].callback.clone()?;
+    Some((callback, index as i64 + 1))
+}
+
 /// Find an item by name; `None` when there is none, so the caller can turn
 /// it into the failure. Measured on the binary of v2.0.19 on 2026-11-10: the
 /// state methods are called for an item that is there.

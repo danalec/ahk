@@ -2087,12 +2087,39 @@ impl<'a> Runtime<'a> {
         let Ok(events) = self.desktop().gui_events() else {
             return Ok(());
         };
-        let mut pending: Vec<(String, Option<Value>)> = Vec::new();
+        let mut pending: Vec<(String, Vec<Value>)> = Vec::new();
         for event in events {
             let mut pieces = event.splitn(2, ':');
             let name = pieces.next().unwrap_or("").to_lowercase();
             let number = pieces.next().map(str::to_string);
             if name.is_empty() {
+                continue;
+            }
+            // A menu event carries the name of the item that was chosen:
+            // the bar is kept on the window under `on:menu`, and the item's
+            // callback is called with (ItemName, ItemPos, MyMenu), the shape
+            // documented on v2.0.19 on 2026-11-10.
+            if name == "menu" {
+                let Some(item) = &number else { continue };
+                let found = self.the_guis().iter().find_map(|gui| {
+                    let Value::Object(window) = gui else {
+                        return None;
+                    };
+                    let menu = window.borrow().properties.get("on:menu")?.value.clone();
+                    let (function, position) =
+                        crate::classes::menu::the_callback_of(&menu, item, line)?;
+                    Some((
+                        function,
+                        vec![
+                            Value::Text(item.clone()),
+                            Value::Int(position),
+                            menu,
+                        ],
+                    ))
+                });
+                if let Some(found) = found {
+                    pending.push(found);
+                }
                 continue;
             }
             let key = format!("on:{name}");
@@ -2128,12 +2155,11 @@ impl<'a> Runtime<'a> {
                 }
                 Some((name, about))
             });
-            if let Some(found) = found {
-                pending.push(found);
+            if let Some((function, about)) = found {
+                pending.push((function, about.into_iter().collect()));
             }
         }
-        for (function, about) in pending {
-            let arguments: Vec<Value> = about.into_iter().collect();
+        for (function, arguments) in pending {
             self.call_function_by_name_with(&function, &arguments, line)
                 .map_err(|failure| crate::runtime::as_error(failure, line))?;
         }
