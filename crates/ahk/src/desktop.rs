@@ -595,6 +595,16 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// Read the events of the windows of the script that have happened.
+    ///
+    /// The answer is the events **since the last time it was asked**, one name
+    /// each, and an empty answer is the common case and must cost almost
+    /// nothing. Measured on the binary of v2.0.19 on 2026-11-09: the events a
+    /// window of a script has are `close`, `escape`, and a click on a control.
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        Ok(Vec::new())
+    }
+
     /// Read the title of a window of the script, or write it.
     fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
         Err("this desktop cannot say the title of a window of the script".to_string())

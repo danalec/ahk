@@ -1045,6 +1045,16 @@ impl ahk::desktop::Windows for LabDesktop {
         if !answer.contains("\"ok\": true") {
             return Err(format!("the window of the script was not made: {answer}"));
         }
+        // The events of that window go where `gui_events` will look for them.
+        let watch = format!(
+            "{{\"op\": \"watch\", \"path\": {}}}",
+            quoted(&the_events_of_the_window().to_string_lossy())
+        );
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("the helper of the window did not start")?;
+        let _ = window.send(&watch);
         Ok(1)
     }
 
@@ -1110,6 +1120,25 @@ impl ahk::desktop::Windows for LabDesktop {
         let answer = self.the_gui_says(&command)?;
         the_number_in(&answer, "\"value\": ")
             .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
+    }
+
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        // The file the helper was told to write to. Its name is derived from the
+        // process, so that two runners on one machine do not read each other's
+        // events, and nothing has to be kept: both ends compute it.
+        let path = the_events_of_the_window();
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            // No file is no events, and that is the common case.
+            Err(_) => return Ok(Vec::new()),
+        };
+        // Taken and cleared: what was read is not read again.
+        let _ = std::fs::write(&path, "");
+        Ok(text
+            .lines()
+            .map(str::to_string)
+            .filter(|line| !line.is_empty())
+            .collect())
     }
 
     fn gui_title(&mut self, _handle: u64, setting: Option<&str>) -> Result<String, String> {
@@ -1958,6 +1987,15 @@ fn the_text_in(answer: &str, name: &str) -> Option<String> {
 
 /// of letting the shell answer "not found": a failure that names a missing
 /// program of another platform tells the script nothing it can act on.
+/// Where the events of the windows of the script are written.
+///
+/// Derived from the process, so two runners on one machine do not read each
+/// other's events, and nothing has to be kept: the helper and the reader both
+/// compute the same name.
+fn the_events_of_the_window() -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("ahk-gui-events-{}", std::process::id()))
+}
+
 /// Where the program that draws the windows of the script is.
 ///
 /// Two places, in the order that works for a binary that has been moved and for
