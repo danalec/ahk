@@ -1123,9 +1123,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_act,
     },
     Builtin {
         name: "ControlDeleteItem",
@@ -1150,9 +1150,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_act,
     },
     Builtin {
         name: "ControlGetChecked",
@@ -8252,6 +8252,53 @@ pub(crate) fn control_set_text(
         .control_set_text(&control, &title, &text)
         .map_err(|e| desktop_failure(e, line))?
     {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `ControlClick` and `ControlFocus`: an act on a named control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the **empty
+/// text**, and the two failures are the two of `ControlGetText`. The variant is
+/// the name -- this one is `ControlClick` and the other is `ControlFocus`.
+pub(crate) fn control_act(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the button, the
+    // count, the options, the text of the window and the two exclusions, and
+    // they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the parameters after the control and the window are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    let answer = if variant == 0 {
+        rt.desktop().control_click(&control, &title)
+    } else {
+        rt.desktop().control_focus(&control, &title)
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
         crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
         crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
             message: TARGET_WINDOW.into(),

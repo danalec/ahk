@@ -501,6 +501,16 @@ pub trait Windows {
     ) -> Result<ControlEdit, String> {
         Err("this desktop cannot write to the controls of a window".to_string())
     }
+
+    /// Click a named control of the window with this title.
+    fn control_click(&mut self, _control: &str, _title: &str) -> Result<ControlEdit, String> {
+        Err("this desktop cannot click the controls of a window".to_string())
+    }
+
+    /// Put the focus on a named control of the window with this title.
+    fn control_focus(&mut self, _control: &str, _title: &str) -> Result<ControlEdit, String> {
+        Err("this desktop cannot focus the controls of a window".to_string())
+    }
 }
 
 /// The processes of the desktop.

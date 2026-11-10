@@ -164,6 +164,18 @@ impl Dialogs for Fake {
 }
 
 impl Fake {
+    /// The answer about a write to a control: the one control takes it, and
+    /// every other question is one of the two failures.
+    fn the_edit(&self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        Ok(if control == "the label" && title == "the window" {
+            ControlEdit::Done
+        } else if title == "the window" {
+            ControlEdit::NoSuchControl
+        } else {
+            ControlEdit::NoSuchWindow
+        })
+    }
+
     /// The answer about a flag of a control: the one control is visible and
     /// enabled, and every other question is one of the two failures.
     fn the_flag(&self, control: &str, title: &str) -> Result<ControlFlag, String> {
@@ -218,6 +230,18 @@ impl Windows for Fake {
         } else {
             ControlEdit::NoSuchWindow
         })
+    }
+
+    fn control_click(&mut self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-click".into(), format!("{control}|{title}")));
+        self.the_edit(control, title)
+    }
+
+    fn control_focus(&mut self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-focus".into(), format!("{control}|{title}")));
+        self.the_edit(control, title)
     }
 
     fn matching_windows(

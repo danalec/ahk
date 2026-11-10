@@ -1384,6 +1384,46 @@ control, it does not offer a client a way to change its sensitivity or its
 visibility. Answering the empty text without doing the thing would be the silent
 wrong answer this plan keeps refusing.
 
+### Round 33 — 2026-11-09: the actions, and a click proven by what it did
+
+`ControlClick` and `ControlFocus`, on the walk of round 30.
+
+**Measured on the binary of v2.0.19**, against a window it makes itself: both
+answer the **empty text**, and the two failures are the ones already carried.
+
+**The actions were read off the tree** before anything was written. `Action.GetActions`
+answers a list of triples -- name, description, key binding -- and the dump now
+prints them:
+
+```
+/accessible/7  name=[Minimize] role=[button] acts=[[["Click","Clicks the button",""]]]
+/accessible/9  name=[Close]    role=[button] acts=[[["Click","Clicks the button",""]]]
+/accessible/13 name=[]         role=[text]   acts=[[["Activate","Activates the entry",""]]]
+```
+
+So a click is `Action.DoAction` at the index of the action named `Click`, and a
+focus is `Component.GrabFocus`. **The `ii` fix of round 32 shows here too**: the
+label and the entry both answer their **text** now (`text=[hello control]`,
+`text=[entry value]`), which they did not before it.
+
+**Verified end to end on the box**, and the click is proven by **what it did**
+rather than by what it returned:
+
+```
+focus=[]                              the empty text, as v2 answers
+click=[]                              the empty text, as v2 answers
+after=ERR|Target window not found.    the window is GONE
+```
+
+The last line is the evidence: the click was on `Close`, and the window was not
+there afterwards. A return value cannot be faked past that.
+
+The surface moved **680 → 682 values, 153 → 151 refusals**.
+
+The four commands of the family now share one walk: `find_control` answers the
+node or which of the two failures it was, and the text, the flags, the write, the
+click and the focus all ride it.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

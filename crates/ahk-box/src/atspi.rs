@@ -332,6 +332,110 @@ pub fn control_set_text(
     }
 }
 
+/// The names of the actions of an answer to `Action.GetActions`.
+///
+/// The answer is a list of triples -- the name, the description and the key
+/// binding -- so the name of the action at the index `i` is the string `3 * i`.
+fn the_actions_of(answer: &str) -> Vec<String> {
+    the_strings_of(answer)
+        .into_iter()
+        .step_by(3)
+        .collect()
+}
+
+/// Click a named control of a window.
+///
+/// The click is an **action** of the accessibility layer: measured on the box on
+/// 2026-11-09 with a GTK3 window, a `button` publishes the action `Click` at the
+/// index zero, and the entry publishes `Activate`. A control that offers no
+/// action is told apart from a control that is not there.
+pub fn control_click(address: &str, title: &str, control: &str) -> Result<ControlEdit, String> {
+    let node = match find_control(address, title, control)? {
+        Found::Node(node) => node,
+        Found::NoSuchWindow => return Ok(ControlEdit::NoSuchWindow),
+        Found::NoSuchControl => return Ok(ControlEdit::NoSuchControl),
+    };
+    let answer = call(
+        address,
+        &node.bus,
+        &node.path,
+        "org.a11y.atspi.Action.GetActions",
+        &[],
+    )
+    .map_err(|reason| format!("the control of this window offers no action: {reason}"))?;
+    let actions = the_actions_of(&answer);
+    let index = actions
+        .iter()
+        .position(|name| name.eq_ignore_ascii_case("click") || name.eq_ignore_ascii_case("activate"))
+        .unwrap_or(0);
+    if actions.is_empty() {
+        return Err("the control of this window offers no action to do.".to_string());
+    }
+    call(
+        address,
+        &node.bus,
+        &node.path,
+        "org.a11y.atspi.Action.DoAction",
+        &["i", &index.to_string()],
+    )
+    .map_err(|reason| format!("the control of this window refused the action: {reason}"))?;
+    Ok(ControlEdit::Done)
+}
+
+/// Put the focus on a named control of a window.
+pub fn control_focus(address: &str, title: &str, control: &str) -> Result<ControlEdit, String> {
+    let node = match find_control(address, title, control)? {
+        Found::Node(node) => node,
+        Found::NoSuchWindow => return Ok(ControlEdit::NoSuchWindow),
+        Found::NoSuchControl => return Ok(ControlEdit::NoSuchControl),
+    };
+    call(
+        address,
+        &node.bus,
+        &node.path,
+        "org.a11y.atspi.Component.GrabFocus",
+        &[],
+    )
+    .map_err(|reason| format!("the control of this window takes no focus: {reason}"))?;
+    Ok(ControlEdit::Done)
+}
+
+/// What the walk found.
+enum Found {
+    /// The control.
+    Node(Node),
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
+/// Walk from the registry to the window with this title and then to the control
+/// with this name.
+fn find_control(address: &str, title: &str, control: &str) -> Result<Found, String> {
+    let root = Node {
+        bus: "org.a11y.atspi.Registry".to_string(),
+        path: "/org/a11y/atspi/accessible/root".to_string(),
+    };
+    let mut the_window_is_there = false;
+    for application in children(address, &root)? {
+        for window in children(address, &application).unwrap_or_default() {
+            if !name(address, &window).contains(title) {
+                continue;
+            }
+            the_window_is_there = true;
+            if let Some((node, _)) = the_control(address, &window, control, 0) {
+                return Ok(Found::Node(node));
+            }
+        }
+    }
+    if the_window_is_there {
+        Ok(Found::NoSuchControl)
+    } else {
+        Ok(Found::NoSuchWindow)
+    }
+}
+
 /// A method of a node.
 fn call(address: &str, bus: &str, path: &str, method: &str, args: &[&str]) -> Result<String, String> {
     let mut command = Command::new("busctl");
