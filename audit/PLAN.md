@@ -3714,6 +3714,35 @@ should be.
 rounds of this session have tested a refusal with the wrong call and read the
 declaration's wording as the handler's.
 
+### Round 189 — 2026-11-09: FileRecycle measured, and the reference fails at it
+
+`FileRecycle` is a name whose reason to refuse looked weak -- Linux has a trash --
+so it was measured before it was planned. Measured on the binary of v2.0.19 on
+2026-11-09:
+
+| the call | the binary |
+|---|---|
+| `FileRecycle` of a file that **exists** | **fails: `Failed`** |
+| `FileRecycle` of a file that does not | fails: `Failed` |
+| `FileRecycleEmpty()` | **`""`** |
+
+**The reference fails to recycle a file that is really there.** That is the same
+`Failed` the audit recorded as its defect #4 -- the file errors of v2 are its own
+inconsistency, and the tree is faithful to it -- and it means **the success path of
+this name cannot be measured here**: there is no observation of what `FileRecycle`
+answers when it works, because it does not work in this environment.
+
+**So the name was not built, and the reason is a measurement and not a guess**:
+a helper that moved the file to a Linux trash would answer something, and there is
+nothing to compare it against. The honest answer today is the refusal, and the honest
+note is that **the answer of a successful recycle is unknown** rather than assumed to
+be the empty text.
+
+**What would settle it**: a volume the reference will recycle on -- or a measurement
+of the same call on a machine where it succeeds. Neither is in reach of this session,
+and inventing the answer would be the `"0"`-is-truthy trap of round 178 in a new
+place.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
