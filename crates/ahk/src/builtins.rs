@@ -2528,9 +2528,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_transparent,
     },
     Builtin {
         name: "WinHide",
@@ -2699,9 +2699,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_transparent,
     },
     Builtin {
         name: "WinShow",
@@ -9891,6 +9891,47 @@ pub(crate) fn win_kill(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     the_close_of_the_window(rt, values, line)
+}
+
+/// `WinSetTransparent(Value, WinTitle)` and `WinGetTransparent(WinTitle)`: the
+/// opacity of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the set answers the empty text,
+/// the get answers the number that was set, `"Off"` means opaque, and a window that is
+/// not there answers *"Target window not found."*
+pub(crate) fn win_set_transparent(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 1);
+    the_window_of_the_script(rt, &target, line)?;
+    let written = text_of(values, 0);
+    // "Off" is what v2 means by opaque.
+    let setting = if written.eq_ignore_ascii_case("off") {
+        255
+    } else {
+        number_of(values, 0) as i64
+    };
+    rt.desktop()
+        .gui_opacity(Some(setting))
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn win_get_transparent(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_opacity(None)
+        .map(Value::Int)
+        .map_err(|reason| desktop_failure(reason, line))
 }
 
 pub(crate) fn sleep(

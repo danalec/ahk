@@ -757,6 +757,16 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         Ok(path.to_string_lossy().to_string())
     }
+    fn gui_opacity(&mut self, setting: Option<i64>) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!("{{\"op\": \"opacity\", \"on\": {}}}", on),
+            None => "{\"op\": \"opacity\"}".to_string(),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the window of the script gave no opacity: {answer}"))
+    }
+
     fn gui_paste(&mut self, number: u64, text: &str) -> Result<(), String> {
         let command = format!(
             "{{\"op\": \"paste\", \"id\": {}, \"text\": {}}}",

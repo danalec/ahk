@@ -136,6 +136,14 @@ pub trait Screen {
     ///
     /// The width comes first and the height second, the way the two
     /// variables of v2 ask for them.
+    /// The opacity of the window of the script, or set it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinSetTransparent` counts
+    /// from nought to 255, and `WinGetTransparent` answers the number that was set.
+    fn gui_opacity(&mut self, _setting: Option<i64>) -> Result<i64, String> {
+        Err("this desktop cannot read the opacity of the window of the script".to_string())
+    }
+
     /// Put a text into a control of the script at its cursor.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `EditPaste` takes the text

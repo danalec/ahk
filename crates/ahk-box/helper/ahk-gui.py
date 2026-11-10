@@ -463,6 +463,18 @@ def the_paste(number, text):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_opacity(setting):
+    """The opacity of the window, or set it. `WinSetTransparent` of v2 counts 0-255
+    and the toolkit counts 0.0-1.0, so the answer is the scale v2 uses."""
+    window = state["window"]
+    if window is None:
+        answer({"ok": False, "error": "there is no window"})
+        return
+    if setting is not None:
+        window.set_opacity(max(0.0, min(1.0, setting / 255.0)))
+    answer({"ok": True, "value": int(round(window.get_opacity() * 255))})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -478,6 +490,8 @@ def handle(command):
                 command.get("classnn", ""), "visible", command.get("on", True)
             )
         )
+    elif op == "opacity":
+        run_on_loop(lambda: the_opacity(command.get("on")))
     elif op == "paste":
         run_on_loop(lambda: the_paste(command.get("id", 0), command.get("text", "")))
     elif op == "checked":
