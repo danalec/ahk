@@ -1296,7 +1296,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 9,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_move,
     },
     Builtin {
         name: "ControlSend",
@@ -9576,6 +9576,27 @@ pub(crate) fn edit_paste(
         .gui_paste(number, &text)
         .map_err(|reason| desktop_failure(reason, line))?;
     Ok(Value::Text(String::new()))
+}
+
+/// `ControlMove(X, Y, W, H, Control)`: moves a control of a window.
+///
+/// **Refused, and with a reason narrower than the blanket one.** Measured on the
+/// binary of v2.0.19 on 2026-11-09: every one of the four numbers is required -- a
+/// call that leaves one out is refused as *"Parameter #N of ControlMove requires a
+/// Number, but received an empty string"* -- so **there is no size-only form**, and
+/// every call asks for a place. The window of this tree lays its controls out in
+/// order, so a place cannot be set: unlike the `Move` of a control (round 122),
+/// which has an honourable half, this name has none.
+pub(crate) fn control_move(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the window of this tree lays its controls out in order, so the place of a control cannot be set, and this name has no form that asks for a size alone".to_string(),
+        line,
+    })
 }
 
 pub(crate) fn sleep(
