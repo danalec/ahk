@@ -2499,6 +2499,40 @@ before the handler existed is not a thing a later handler expects to receive.
 poll for, and polling before there is anything to dispatch. Each is small and each
 is testable on the box with the smoke-style script of round 91.
 
+### Round 105 — 2026-11-09: the last link is smaller than it looked
+
+The dispatch looked like it needed the runtime's deepest path -- "turn a stored
+`Value` into a call". Reading for it turned up two things that make it smaller:
+
+- **a function value carries its own name.** Round 98's probe showed the stored
+  handler as an object of class `func` whose properties include
+  `name = "F"`. So the handler does not have to be called *as a value*;
+- **the runtime already has `call_function_by_name`**
+  (`runtime.rs:11394`), beside `the_callback` and `call_named`. Calling a
+  function of the script **by its name** is a path that already exists.
+
+**So the dispatch is**: read the `name` property of the stored `func` object and
+call `call_function_by_name` with it. No new call machinery, no touching the
+function-call path -- which is the part that made the last link look deep.
+
+**What that leaves as the only real work**, and it is two small things:
+
+1. **the drain**: a `gui_events` on the desktop that reads the file the helper was
+   told to write to and answers the lines, with the path kept where `gui_open`
+   chose it;
+2. **the polling point**: where in the loop to drain and dispatch. `Sleep` is the
+   cheapest honest place to start -- it is the one statement that waits, an event
+   that arrives while a script sleeps is exactly what a script expects to be
+   handled, and it is **one builtin** rather than the statement loop.
+
+**The open detail from round 96** -- what a `click:<n>` is called with -- is now
+easier too: the control object is the one `Add` answered, and it is reachable by
+the number in the line, so a registry of the controls a `Gui` made is what the
+`Gui` object would need next to its handlers.
+
+**None of this was attempted**: reading it took the round, and the three pieces
+above are a fresh session's work with the biggest unknown now gone.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
