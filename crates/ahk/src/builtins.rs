@@ -2521,7 +2521,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_trans_color,
     },
     Builtin {
         name: "WinGetTransparent",
@@ -2692,7 +2692,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_trans_color,
     },
     Builtin {
         name: "WinSetTransparent",
@@ -10074,6 +10074,25 @@ pub(crate) fn sound_get_name(
 ) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
         message: "the name of an audio device belongs to the system that runs it, and this runtime answers the volume and the mute of the default device and not the names the system gives them".to_string(),
+        line,
+    })
+}
+
+/// `WinGetTransColor` and `WinSetTransColor`: **refused, with a reason of their own.**
+///
+/// A transparency COLOUR is a layered window of Windows: the colour is made invisible
+/// while the rest of the window stays opaque. What this tree answers is an **opacity**
+/// applied to the whole window, which is `WinSetTransparent` and `WinGetTransparent`
+/// and is a different thing. Answering the colour would be answering a different
+/// question than the one the script asked.
+pub(crate) fn win_trans_color(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "a transparency colour is a layered window of Windows, where one colour is made invisible; this tree sets an opacity for the whole window, which is WinSetTransparent and WinGetTransparent".to_string(),
         line,
     })
 }
