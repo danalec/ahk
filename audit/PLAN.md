@@ -26,6 +26,13 @@ timeout and three screen/GUI probes), not from the recent Wayland commits.
 **State at the end of round 17**: the working tree is clean, both suites are green
 (28 on Windows, 28 on the box), `clippy` is clean, `ahk --surface` answers
 **759 values, 74 refusals** of 833, and the gap matrix is **140/140 covered**.
+Master is merged as an ancestor (`d45276e`, ours strategy) and its one missing
+name, `IsSet`, is ported (`0147eb7`). The `Menu`/`MenuBar` class is built:
+`Add`/`Insert`/`Delete` plus the state methods (`Check` family, `Enable`
+family, `Rename`, `SetColor`, `SetIcon`, `Show`, `AddStandard`) and the
+`Default`/`ClickCount` properties (`1c13c92`), attached with `Gui.Menu :=`
+and drawn as a `Gtk.MenuBar` by the helper; choosing an item is an event on
+the same channel as a click.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
