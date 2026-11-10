@@ -2294,9 +2294,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sys_get_ip_addresses,
     },
     Builtin {
         name: "ToolTip",
@@ -8532,6 +8532,25 @@ pub(crate) fn list_vars(
         rt.push_output(format!("{name}[{value}]"));
     }
     Ok(Value::Text(String::new()))
+}
+
+/// `SysGetIPAddresses`: the IPv4 addresses of the interfaces of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers an **array** of
+/// the addresses as text, in the order the machine lists them.
+pub(crate) fn sys_get_ip_addresses(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let addresses = rt.desktop().ip_addresses().map_err(|e| desktop_failure(e, line))?;
+    let values: Vec<Value> = addresses.into_iter().map(Value::Text).collect();
+    // The answer of v2 is an array.
+    match crate::classes::construct("array", &values, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(values)),
+    }
 }
 
 // -- the monitors ------------------------------------------------------------------

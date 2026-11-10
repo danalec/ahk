@@ -1017,6 +1017,15 @@ pub trait Network {
                 .to_string(),
         )
     }
+
+    /// The IPv4 addresses of the interfaces of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `SysGetIPAddresses`
+    /// answers an **array** of the addresses as text, in the order the machine
+    /// lists them.
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        Err("this desktop cannot list the addresses of its interfaces.".to_string())
+    }
 }
 
 /// The options of a picture.

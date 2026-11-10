@@ -1589,6 +1589,36 @@ impl ahk::desktop::Network for LabDesktop {
     fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
         crate::network::download(url, file)
     }
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        box_tools_are_near()?;
+        // `ip -o -4 addr show` is one line per address, and the address is the
+        // field after `inet`, with its prefix length on it.
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg("ip -o -4 addr show")
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Err(format!(
+                "the interfaces of this machine did not answer: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        let mut addresses = Vec::new();
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            let mut fields = line.split_whitespace();
+            while let Some(field) = fields.next() {
+                if field == "inet" {
+                    if let Some(address) = fields.next() {
+                        let address = address.split('/').next().unwrap_or(address);
+                        addresses.push(address.to_string());
+                    }
+                    break;
+                }
+            }
+        }
+        Ok(addresses)
+    }
 }
 
 impl ahk::desktop::Dialogs for LabDesktop {
