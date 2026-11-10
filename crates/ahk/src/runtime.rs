@@ -2098,6 +2098,12 @@ impl<'a> Runtime<'a> {
         } else {
             self.register_the_hotkeys_of_the_v1(statements)
         };
+        // Measured on the binary of v2.0.19 on 2026-11-10: `A_LineFile` is the
+        // full path of the file that holds the statement that runs, and it is
+        // the full path of the script in the main script. The script of this
+        // runtime comes on the standard input, and the name of it is the
+        // asterisk -- the same name that `A_ScriptFullPath` answers.
+        self.set_global("A_LineFile", Value::Text("*".to_string()));
         // The labels of the script are the scope of the script.
         self.label_scopes.push(the_labels_of(statements));
         match registered {
@@ -8821,7 +8827,15 @@ impl<'a> Runtime<'a> {
         }
         // A property that is a descriptor has a setter of its own, and a
         // descriptor that carries a value is written straight away.
-        if let Some(current) = object.borrow().value_of(&name) {
+        //
+        // The value is taken out of the object before the setter runs: a
+        // `Ref` that the borrow of an `if let` keeps alive would be held while
+        // the setter of the descriptor writes to the same object, and the
+        // write would panic with "RefCell already borrowed" -- measured on the
+        // test suite of KeySharp, the corpus script `class-ownprops.ahk`, on
+        // 2026-11-10.
+        let current = object.borrow().value_of(&name);
+        if let Some(current) = current {
             if self.is_a_descriptor(&current) {
                 return self.the_write_of_the_descriptor(&current, target, value, &written, line);
             }

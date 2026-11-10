@@ -5326,8 +5326,27 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn the_mechanisms_of_the_v2_1_ask_about_the_absent_value() {
-    // Measured on the test suite of KeySharp (the corpus scripts
+fn the_setter_of_a_descriptor_writes_the_object_it_holds() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `class-ownprops.ahk`) on 2026-11-10: the write of a property that is a
+    // descriptor calls its setter, and the setter writes the same object. The
+    // write kept the `Ref` of the object alive and panicked with "RefCell
+    // already borrowed".
+    let (report, _desktop) = run(concat!(
+        "class C {\n",
+        "    a := 0\n",
+        "}\n",
+        "o := C()\n",
+        "o.DefineProp(\"a\", {get: (this) => 123, set: (this, v) => this.b := v})\n",
+        "o.a := 100\n",
+        "MsgBox o.a \" \" o.b\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["123 100"]);
+}
+
+#[test]
+fn the_mechanisms_of_the_v2_1_ask_about_the_absent_value() {    // Measured on the test suite of KeySharp (the corpus scripts
     // `flow-if.ahk`, `func-global-static.ahk`, `op-logical-not.ahk`,
     // `assign-unset.ahk` and `op-null-assign.ahk`) and on the notes of
     // v2.1-alpha: `x is unset` answers whether the left side has a value and

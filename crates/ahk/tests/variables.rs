@@ -181,6 +181,16 @@ fn run(script: &str) -> Report {
 /// `A_ThisFunc` is the name of the function that runs. The tree refused both
 /// with "This global variable has not been assigned a value.".
 #[test]
+fn the_file_of_the_line_is_the_script_of_the_run() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `A_LineFile` is the full
+    // path of the file that holds the statement that runs, and it is
+    // `A_ScriptFullPath` in the main script. The script of this runtime comes
+    // on the standard input, and both of them are the asterisk.
+    let report = run("MsgBox A_LineFile \"|\" A_ScriptFullPath");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["*|*"]);
+}
+#[test]
 fn the_line_of_the_statement_and_the_name_of_the_function_that_runs() {
     let report = run("x := 1\nFileAppend A_LineNumber, \"*\"");
     assert!(report.ok, "{:?}", report.error);

@@ -10844,3 +10844,26 @@ dialect is one line and not four.
 The corpus under `--dialect=v2.1` is 91 of the 162 pure scripts (56.2 %) against
 the 88 (54.3 %) of the round before: `flow-if.ahk`, `op-logical-not.ahk` and
 `func-global-static.ahk` pass whole now, with the two of the round before.
+## 285. A borrow of the object that outlived the setter, and the file of the line
+
+Measured on the test suite of KeySharp (the corpus script `class-ownprops.ahk`)
+on 2026-11-10: the write of a property that is a **descriptor** panicked with
+"RefCell already borrowed". The `if let Some(current) = object.borrow().value_of(..)`
+of the write keeps the `Ref` of the borrow alive for the whole block -- that is
+how a temporary of an `if let` lives -- and the setter of the descriptor writes to
+the same object, so the `borrow_mut` of the write inside it panicked. The value is
+taken out of the object before the setter runs now, and the script runs past the
+write; a `RefCell` panic is the worst outcome the runtime can have, and it is a
+case of the borrow being held across a call rather than of the language.
+
+Measured on the binary of v2.0.19 on 2026-11-10: `A_LineFile` is the full path of
+the file that holds the statement that runs, and the tree did not answer it at
+all -- the variable was reserved and never given a value, so `A_LineFile =
+A_ScriptFullPath` failed with "This global variable has not been assigned a
+value.". The script of this runtime comes on the standard input, so the file of
+every statement is the asterisk, the name that `A_ScriptFullPath` answers. The
+file of a statement that comes from an `#Include` is not carried yet: the `#Include`
+of the tree takes a path and does not keep the file of each line, and the corpus
+script `props-linefile.ahk` asks for exactly that.
+The two cases of the round are `the_setter_of_a_descriptor_writes_the_object_it_holds`
+and `the_file_of_the_line_is_the_script_of_the_run`.
