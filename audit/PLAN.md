@@ -15,13 +15,32 @@
 (28 on the box), `clippy` is clean, and `ahk --surface` answers **684 values,
 149 refusals** from the 643/190 the audit started at.
 
-**What is next, and it is written down in order**: wire `Gui()`, `Add`, `Show`
-and `Destroy` to the helper of `crates/ahk-box/helper/ahk-gui.py` -- the first
-round in that area where a name of the surface moves. Then `Title`, `Value` and
-`GetPos`. Round 39's shape table is the contract; round 41's answers are the
-protocol.
+**What is next**: the `Gui` frontier is **built**, and what remains in it is
+incremental. A script of this tree can make a window, add controls, read and write
+their `Value`, `Enabled` and `Visible`, set the `Title`, `Show` and `Destroy` --
+each verified on the box against a measurement of the reference. What is left is
+more of the same members (`c.Text`, `c.Move`, `c.Opt`, the events of a control)
+and the ones the platform refuses with a reason already written down (`g.GetPos`,
+round 82).
 
-**The five rules that produced this state**, and the cost of each lesson:
+**The template for the next member**, which has now worked twice without a
+surprise (`Value` in 76-77, `Enabled`/`Visible` in 80-81):
+
+1. **measure the reference** for the shape of the answer;
+2. **add the operation to the helper** and prove it on the box with a script
+   under `audit/`;
+3. **add the desktop method** over the transport;
+4. **add the arm** in the two property dispatchers of `classes/mod.rs`, taking the
+   control's number from the `Hwnd` of the object;
+5. **verify on the box**, both directions where the member reads and writes.
+
+**And the two rules that saved the most**: measure the binary before writing
+(three of ten audit defect claims were wrong), and **cross-check the answer
+against a second path** -- that is what caught `GetPos` (round 82) and confirmed
+`SysGetIPAddresses` (round 55). When two independent answers disagree, the
+disagreement is the finding.
+
+**The other five rules**, and the cost of each lesson:
 
 1. **Measure the binary before writing anything.** Rounds 21, 22 and 23 each
    found a defect claim in the audit that was simply wrong (#4, #6, #9) -- three
