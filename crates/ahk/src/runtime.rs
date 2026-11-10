@@ -3108,8 +3108,18 @@ impl<'a> Runtime<'a> {
                     detail = format!("{name} = {}", stored.to_text());
                 }
             }
-            Node::LegacyAssign { name, text, line } => {
-                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+            // The call of a value as a statement: the value is computed and
+            // the answer is not used.
+            Node::CallValue {
+                target,
+                arguments,
+                line,
+            } => {
+                let value = self.evaluate(target)?;
+                let answer = self.call_the_value_of(value, arguments, *line)?;
+                detail = answer.to_text();
+            }
+            Node::LegacyAssign { name, text, line } => {                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // legacy assignment of the v1 is a text and not an
                 // expression: `x = 5 + 3` leaves `x` at "5 + 3".
                 let value = self.the_value_of_a_legacy_assignment(text, *line)?;
@@ -10374,32 +10384,7 @@ impl<'a> Runtime<'a> {
                     line,
                 })
             })?;
-            if let Value::Object(object) = &value {
-                // A class is a value, and the call of it makes an object of
-                // that class. Measured on the binary of v2.0.19 on 2026-10-31:
-                // `c := Map; c()` makes a map, the way `Map()` does, and the
-                // `Any` is refused because it is not a class that can be
-                // made.
-                if let Some(class) = self.class_name_of(&value) {
-                    return self.construct(&class, arguments, line);
-                }
-                let class = object.borrow().class.clone();
-                if let Some((defining, method)) = self.find_method_in(&class, "call") {
-                    return self.call_method(&defining, &method, &value, arguments, line);
-                }
-                let values = self.evaluate_all(arguments)?;
-                if let Some(result) =
-                    crate::classes::call_the_value(&class, &value, &values, self, line)
-                {
-                    return result;
-                }
-                return Err(self.no_method(&value, "Call", line));
-            }
-            // Measured on the binary of v2.0.19 on 2026-10-31: a value that
-            // is not an object cannot be called either, and v2 names the
-            // kind of it: "This value of type "Integer" has no method named
-            // "Call".". The failure is of the class `MethodError`.
-            return Err(self.no_method(&value, "Call", line));
+            return self.call_the_value_of(value, arguments, line);
         }
         // The name is not a function of the script, not a class and not a
         // built-in: it is a variable of the script, and v2 reads it. A
@@ -10407,6 +10392,58 @@ impl<'a> Runtime<'a> {
         self.call_a_builtin_by_name(name, arguments, line)
     }
 
+    /// The call of a value: a function is called through itself, an object
+    /// through its `Call` method, and a value that is neither is refused.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `(f)(2, 3)` calls the
+    /// function that `f` holds, `(o)(7)` calls the `Call` method of the object,
+    /// and `(5)(1)` is "This value of type "Integer" has no method named
+    /// "Call"." of the class `MethodError`. A class is called to make an
+    /// object of it.
+    fn call_the_value_of(
+        &mut self,
+        value: Value,
+        arguments: &[Node],
+        line: u32,
+    ) -> Result<Value, RuntimeFailure> {
+        if let Value::Object(object) = &value {
+            // A class is a value, and the call of it makes an object of that
+            // class. Measured on the binary of v2.0.19 on 2026-10-31:
+            // `c := Map; c()` makes a map, the way `Map()` does, and the
+            // `Any` is refused because it is not a class that can be made.
+            if let Some(class) = self.class_name_of(&value) {
+                return self.construct(&class, arguments, line);
+            }
+            let class = object.borrow().class.clone();
+            if let Some((defining, method)) = self.find_method_in(&class, "call") {
+                return self.call_method(&defining, &method, &value, arguments, line);
+            }
+            // A property of the object that holds a function is the `Call`
+            // method of the object: measured on the binary of v2.0.19 on
+            // 2026-11-10, `o := {Call: (this, x) => "called " x}` and
+            // `(o)(7)` answers "called 7", with the object as the `this` of
+            // the function. A function is not asked for its own `Call`: the
+            // call of a value carries no name of a method in its failure.
+            if class != "func" {
+                if let Ok(function) = self.read_property(&value, "Call", line) {
+                    if matches!(&function, Value::Object(the) if the.borrow().class == "func") {
+                        let values = self.evaluate_all(arguments)?;
+                        return self.call_the_function(&function, &value, &values, line);
+                    }
+                }
+            }
+            let values = self.evaluate_all(arguments)?;
+            if let Some(result) =
+                crate::classes::call_the_value(&class, &value, &values, self, line)
+            {
+                return result;
+            }
+            return Err(self.no_method(&value, "Call", line));
+        }
+        // Measured on the binary of v2.0.19 on 2026-10-31: a value that is not
+        // an object cannot be called either, and v2 names the kind of it.
+        Err(self.no_method(&value, "Call", line))
+    }
     /// The call of a built-in: the arguments are read, and the built-in
     /// answers.
     ///
@@ -12557,7 +12594,19 @@ impl<'a> Runtime<'a> {
                 // not there is the empty text.
                 Ok(Value::Text(String::new()))
             }
-            Node::Assign {
+            // The call of the value that the expression answers.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-10: `(f)(2, 3)` is
+            // the call of the function that `f` holds, and an object is called
+            // through its `Call` method.
+            Node::CallValue {
+                target,
+                arguments,
+                line,
+            } => {
+                let value = self.evaluate(target)?;
+                self.call_the_value_of(value, arguments, *line)
+            }            Node::Assign {
                 name,
                 op,
                 value,
@@ -14990,6 +15039,7 @@ pub fn op_name_in<'a>(
         Node::FunctionDef { .. } => "FunctionDef",
         Node::ClassDef { .. } => "ClassDef",
         Node::MethodCall { .. } => "MethodCall",
+        Node::CallValue { .. } => "CallValue",
         Node::Property { .. } => "Property",
         Node::AssignProperty { .. } => "AssignProperty",
         Node::Literal { .. } => "Literal",

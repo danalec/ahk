@@ -746,6 +746,17 @@ pub enum Node {
         arguments: Vec<Node>,
         line: u32,
     },
+    /// `(expr)(a, b)`: the call of the value that the expression answers.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a parenthesis that is
+    /// not spaced after a value is the list of the arguments of the call of
+    /// that value -- `(f)(2, 3)` calls the function `f` holds, and an object
+    /// is called through its `Call` method.
+    CallValue {
+        target: Box<Node>,
+        arguments: Vec<Node>,
+        line: u32,
+    },
     /// `obj.Prop`: a property of a value.
     Property {
         target: Box<Node>,
@@ -1002,6 +1013,7 @@ impl Node {
             | Node::FunctionDef { line, .. }
             | Node::ClassDef { line, .. }
             | Node::MethodCall { line, .. }
+            | Node::CallValue { line, .. }
             | Node::Property { line, .. }
             | Node::AssignProperty { line, .. }
             | Node::ArrayLiteral { line, .. }

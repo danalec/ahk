@@ -6161,6 +6161,41 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_value_of_an_expression_is_called_by_the_parenthesis_after_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a parenthesis that is
+    // not spaced after a value is the list of the arguments of the call of the
+    // value. A function is called through itself, an object through its `Call`
+    // method (a property that holds a function counts), and a value that is
+    // neither is "This value of type "Integer" has no method named "Call"."
+    // of the class `MethodError`.
+    let (report, _desktop) = run(concat!(
+        "f := (a, b) => a + b\n",
+        "MsgBox (f)(2, 3)\n",
+        "o := {Call: (this, x) => \"called \" x}\n",
+        "MsgBox (o)(7)\n",
+        "MsgBox ([10, 20])[1]\n",
+        "m := Map(\"a\", (v) => v \"!\")\n",
+        "MsgBox (m[\"a\"])(\"hi\")\n",
+        "try {\n",
+        "    x := (5)(1)\n",
+        "} catch as e {\n",
+        "    MsgBox Type(e) \": \" e.Message\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "5",
+            "called 7",
+            "10",
+            "hi!",
+            "MethodError: This value of type \"Integer\" has no method named \"Call\".",
+        ]
+    );
+}
+
+#[test]
 fn the_truth_of_a_text_is_the_truth_of_the_number_it_holds() {
     // Measured on the binary of v2.0.19 on 2026-11-10: a text that is a number
     // is false when the number is zero -- "0", "00", "0x0", "0.0" and " 0" --

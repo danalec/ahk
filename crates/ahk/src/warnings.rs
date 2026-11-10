@@ -665,6 +665,14 @@ fn the_reads_of_a_node(node: &Node, reads: &mut Vec<(String, u32)>) {
         }
         Node::Unset { .. } => {}
         Node::GotoComputed { value, .. } => the_reads_of_a_node(value, reads),
+        Node::CallValue {
+            target, arguments, ..
+        } => {
+            the_reads_of_a_node(target, reads);
+            for argument in arguments {
+                the_reads_of_a_node(argument, reads);
+            }
+        }
         Node::Ternary {
             condition,
             then,

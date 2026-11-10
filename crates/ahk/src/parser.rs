@@ -12725,6 +12725,22 @@ impl Parser {
     ) -> Result<Node, SyntaxError> {
         let mut node = target;
         loop {
+            // Measured on the binary of v2.0.19 on 2026-11-10: the
+            // parenthesis that is not spaced after a value is the list of the
+            // arguments of the call of that value -- `(f)(2, 3)`, `(o)(7)` and
+            // `(m["a"])("hi")` are all calls of a value.
+            if self.at_op(&["("]) && !self.peek().spaced {
+                let line = node.line();
+                self.next();
+                let arguments = self.parse_arguments()?;
+                self.expect_op(")")?;
+                node = Node::CallValue {
+                    target: Box::new(node),
+                    arguments,
+                    line,
+                };
+                continue;
+            }
             if self.at_op(&["["]) {
                 let line = node.line();
                 self.position += 1;

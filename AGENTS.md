@@ -10523,3 +10523,24 @@ scripts (45.1 %).
 failure of the tree comes from its message, so the same message cannot carry two
 classes: `Mod` answers the `ValueError` that the message maps to, and the
 distinction waits for a class of its own on the failure.
+## 272. The call of a value, and the `Call` of an object
+
+Measured on the binary of v2.0.19 on 2026-11-10: a parenthesis that is not
+spaced after a value is the list of the arguments of the **call of that
+value**. `(f)(2, 3)` calls the function that `f` holds and answers 5;
+`(o)(7)` calls the object -- its `Call` method, and a property that holds a
+function counts as one, with the object as the `this` -- and answers "called 7";
+`([10, 20])[1]` is 10; `(m["a"])("hi")` is "hi!"; and `(5)(1)` is "This value
+of type "Integer" has no method named "Call"." of the class `MethodError`. The
+call of a value carries no name of a method in the failure of the number of the
+arguments, and a function is not asked for its own `Call`: the test
+`the_call_of_a_value_carries_no_name_of_a_method` pins that.
+
+The parser makes `Node::CallValue` in the suffixes of an expression, next to the
+item and the member, and the runtime evaluates the target and hands it to the
+one helper `call_the_value_of`, which the call of a name uses as well: a class
+makes an object, an object's `Call` is called, a function is called through
+`classes::call_the_value`, and anything else is the `MethodError`. Before this
+the parser answered "Missing space or operator before this." at the parenthesis,
+which is why the `.DefineProp` line of `flow-for-in.ahk` -- a method of an object
+literal handed over and called -- did not load.
