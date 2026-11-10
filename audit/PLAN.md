@@ -2938,6 +2938,45 @@ the tree. `for name in Drive*: run it` cost one call and settled nine names.
 **What is actually left of the objective** must now be re-derived the same way: by
 running the names the surface says are refused, not by reading their names.
 
+### Round 137 — 2026-11-09: the refusals are true, and that changes what "left" means
+
+Round 136 taught that a refusal in the plan is still a claim. This round put the
+same question to **the tree**, on the biggest clusters, and the answers are not
+placeholders -- they are true and they name the reason:
+
+```
+RegRead("HKCU\\Software", "x")  -> the registry is a thing of Windows, and this
+                                   runtime does not carry it.
+ComObject("Shell.Application") -> the COM objects are a thing of Windows, and this
+                                   runtime does not carry them.
+WinGetText("nonexistent")      -> this runtime reads no text of a window.
+WinMove(0,0,100,100,"x")       -> this is a name of Windows, and this desktop is
+                                   not Windows.
+```
+
+**Each of those is correct.** The registry and the COM objects are Windows
+subsystems; `WinGetText` was measured and refused in an earlier round for a
+measured reason (the title bar is in the tree and no rule separates the chrome
+from the client); and moving another window is not something a Wayland client can
+do.
+
+**So the arithmetic of the objective changes.** The surface is 833 names: **690
+answer and 143 refuse, and the refusal is the correct final state for most of the
+143 on a Linux box.** The gap is not "names not built"; it is "names whose answer
+is a Windows answer", and for those the honest answer *is* the refusal.
+
+**What that means for this plan from here**: the 143 must be treated one at a
+time and asked, not assumed. Round 136 found nine that worked and were assumed
+refused; rounds 134 and 135 were wrong about them for two rounds. The same
+question now has an answer for four of the clusters, and it is that they are
+genuinely Windows-shaped.
+
+**And one thing to be careful of**: a refusal that is *true* is not the same as a
+refusal that is *best*. `WinMove` on a window of the script's own could be
+honoured, and the name would then be answered rather than refused -- but that is a
+different member from the one the reason describes, and mixing them would be the
+`Move`-place lie in another place.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
