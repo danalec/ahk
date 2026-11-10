@@ -10962,3 +10962,28 @@ v2.0.19. The v2.1 carries the two together.
 difference between `IsSet(holder.Present.Missing)` (zero) and
 `IsSet(holder.Missing.Inner)` (a `PropertyError`), which the notes of the v2.1
 do not settle and which is not guessed here.
+## 290. The member that `IsSet` asks about, and the write that reads no getter
+
+Measured on the test suite of KeySharp (the corpus script `op-null-assign.ahk`)
+and on the notes of v2.1-alpha: `IsSet` of a member that is not there answers
+zero -- `holder.Present.Missing` has no value -- and the expression that holds
+the member is still read, so `holder.Missing.Inner` is a `PropertyError` and the
+question does not answer it. The tree asks the access of the `IsSet` argument on
+its own: the target of the member is evaluated (its failure is a failure), and
+the read of the member itself answers zero when the member is not there. A
+question about a value that is not a member -- a call, an item, an expression --
+is the evaluation of it, with the absent value answering zero.
+
+Measured on the same suite: the write of a property with parameters runs the
+setter and does not run the getter -- the getter of the property may have a side
+effect of its own, and a plain `:=` does not read it -- and the write through a
+chain that has no value is skipped with the parameters and the value.
+
+`op-null-assign.ahk` runs from line 338 to line 389. What stops it there is the
+refinement the script states as "only the access the maybe operator follows is
+lenient": `holder.Missing?.Inner` is the absent value, and
+`holder.Missing.Inner?.Value` is a `PropertyError`, and the two are told apart by
+which access the mark follows. The tree wraps the whole left side in the value
+that may be absent, so it cannot tell the two apart yet; the mark has to be
+carried on the access it follows, which is a change of the node of the member and
+not a rule of the runtime. It is the next block, and it is not guessed here.

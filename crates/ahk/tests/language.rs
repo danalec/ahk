@@ -5326,8 +5326,34 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn the_absent_value_of_an_operand_is_the_absent_value_of_the_operation() {
+fn a_member_that_is_not_there_is_asked_by_isset_but_its_holder_is_read() {
     // Measured on the test suite of KeySharp (the corpus script
+    // `op-null-assign.ahk`) and on the notes of v2.1-alpha: `IsSet` of a member
+    // that is not there answers zero -- `holder.Present.Missing` has no value --
+    // and the expression that holds the member is read: the failure of
+    // `holder.Missing` is the failure of the question.
+    let (report, _desktop) = run_in(
+        concat!(
+            "class Holder {\n",
+            "    Present => { Inner: 9 }\n",
+            "}\n",
+            "h := Holder()\n",
+            "MsgBox \"a\" IsSet(h.Present.Missing)\n",
+            "try {\n",
+            "    IsSet(h.Missing.Inner)\n",
+            "    MsgBox \"no throw\"\n",
+            "} catch as e {\n",
+            "    MsgBox \"b\" Type(e)\n",
+            "}\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a0", "bPropertyError"]);
+}
+
+#[test]
+fn the_absent_value_of_an_operand_is_the_absent_value_of_the_operation() {    // Measured on the test suite of KeySharp (the corpus script
     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: an operator that
     // has the absent value for an operand answers the absent value, and the
     // other operand is not read -- `missing?.value + Bump2()` does not call

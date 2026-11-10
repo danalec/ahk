@@ -10766,12 +10766,7 @@ impl<'a> Runtime<'a> {
         {
             if let Some(argument) = arguments.first() {
                 if !matches!(argument, Node::Var { .. }) {
-                    let answer = match self.evaluate(argument) {
-                        Ok(Value::Unset) => false,
-                        Ok(_) => true,
-                        Err(failure) if the_failure_is_an_unset_variable(&failure) => false,
-                        Err(failure) => return Err(failure),
-                    };
+                    let answer = self.the_value_of_the_expression_is_set(argument)?;
                     return Ok(Value::Int(answer as i64));
                 }
             }
@@ -11985,6 +11980,47 @@ impl<'a> Runtime<'a> {
     /// writes the variable "i" and the condition is true.
     ///
     /// The v2 has no such statement, and the loop has no condition.
+    /// Whether the value of an expression is set, the way `IsSet` asks it in the
+    /// dialect that carries the v2.1.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `op-null-assign.ahk`) and on the notes of v2.1-alpha: `IsSet` of a member
+    /// that is not there answers zero -- `holder.Present.Missing` has no value --
+    /// and the expression that holds it is still read: the failure of
+    /// `holder.Missing` is the failure of the question.
+    fn the_value_of_the_expression_is_set(
+        &mut self,
+        expression: &Node,
+    ) -> Result<bool, RuntimeFailure> {
+        match expression {
+            Node::Property {
+                target,
+                name,
+                line,
+            } => {
+                let target_value = self.evaluate(target)?;
+                let name = self.the_name_of_the_member(name, *line)?;
+                match self.read_property(&target_value, &name, *line) {
+                    Ok(Value::Unset) => Ok(false),
+                    Ok(_) => Ok(true),
+                    Err(failure) if the_member_is_not_there(&failure) => Ok(false),
+                    Err(failure) => Err(failure),
+                }
+            }
+            // The brackets of a name are the parameters of a property that
+            // takes them or the item of its value, and the item of the absent
+            // value is the absent value: the reading of the item is the one of
+            // the language, and the question of `IsSet` is the one of its
+            // answer.
+            _ => match self.evaluate(expression) {
+                Ok(Value::Unset) => Ok(false),
+                Ok(_) => Ok(true),
+                Err(failure) if the_failure_is_an_unset_variable(&failure) => Ok(false),
+                Err(failure) => Err(failure),
+            },
+        }
+    }
+
     /// Whether the expression has no value, without reading it as a value.
     ///
     /// Measured on the test suite of KeySharp (the corpus script
@@ -13191,12 +13227,18 @@ impl<'a> Runtime<'a> {
             Node::Maybe { value, .. } => {
                 // Measured on the binary of v2.0.19 on 2026-11-10: the value
                 // of the name that has none is the absent value, and every
-                // other failure is the failure.
+                // other failure is the failure. Measured on the test suite of
+                // KeySharp (the corpus script `op-null-assign.ahk`) and on the
+                // notes of v2.1-alpha: the member that is not there is the
+                // absent value too in the dialect that carries the chain of the
+                // v2.1 -- `holder.Missing?.Inner` is the absent value, and the
+                // `?.` after it is skipped.
                 match self.evaluate(value) {
                     Ok(value) => Ok(value),
                     Err(failure) => {
-                        if crate::classes::error::the_class_of(&the_message_of(&failure))
-                            == "UnsetError"
+                        if the_failure_is_an_unset_variable(&failure)
+                            || (self.dialect.the_chain_may_be_skipped()
+                                && the_member_is_not_there(&failure))
                         {
                             Ok(Value::Unset)
                         } else {
@@ -14190,6 +14232,13 @@ impl<'a> Runtime<'a> {
             }));
         };
         let object_value = self.evaluate(target)?;
+        // Measured on the test suite of KeySharp (the corpus script
+        // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the write
+        // through the chain that has no value is skipped with the parameters of
+        // the property and the value that is written.
+        if self.dialect.the_chain_may_be_skipped() && matches!(object_value, Value::Unset) {
+            return Ok(Value::Unset);
+        }
         let name = self.the_name_of_the_member(name, *property_line)?;
         // The property that declares no parameters holds the value whose item
         // the brackets name: `o.p[1] := v` writes the item of the value of `p`.
@@ -14206,17 +14255,19 @@ impl<'a> Runtime<'a> {
         }
         let keys = self.the_keys_of_an_index(index, also)?;
         let value = self.evaluate(value)?;
-        let current = match self.read_property_fully(&object_value, &name, &keys, *property_line) {
-            Ok((value, _)) => Some(value),
-            Err(failure) => {
-                if matches!(op, AssignOp::Set) {
-                    None
-                } else {
-                    return Err(failure);
-                }
+        // The write of the property is the setter with the value that is
+        // written; the getter is asked only by the operator that reads the
+        // value that is there -- `+=` and the others -- because the read of the
+        // getter may have a side effect of its own, and v2.1 does not take one
+        // that the write does not need.
+        let stored = match op {
+            AssignOp::Set => value,
+            _ => {
+                let (current, _) =
+                    self.read_property_fully(&object_value, &name, &keys, *property_line)?;
+                self.apply_assign(op, &name, Some(current), value, line)?
             }
         };
-        let stored = self.apply_assign(op, &name, current, value, line)?;
         self.write_property_with(&object_value, &name, &keys, stored.clone(), line)?;
         Ok(stored)
     }
@@ -15552,6 +15603,25 @@ fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
 }
 
 /// The message of a failure, the way the report carries it.
+
+/// Whether the failure is the one of a member that is not there.
+///
+/// Measured on the test suite of KeySharp (the corpus script
+/// `op-null-assign.ahk`) and on the notes of v2.1-alpha: `IsSet` of a member
+/// that is not there asks whether it has a value and answers zero -- the
+/// member of an object that does not have it, the member of the absent value,
+/// and the item that is not there are all of them a "no" -- while a failure of
+/// the expression that holds the member is the failure.
+fn the_member_is_not_there(failure: &RuntimeFailure) -> bool {
+    matches!(
+        failure,
+        RuntimeFailure::Error(error) | RuntimeFailure::Detailed(error, _)
+            if matches!(
+                crate::classes::error::the_class_of(&error.message),
+                "PropertyError" | "UnsetError" | "UnsetItemError" | "MemberError"
+            )
+    )
+}
 
 /// Whether the failure is the one of a name that has no value.
 ///
