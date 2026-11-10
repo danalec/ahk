@@ -4263,12 +4263,12 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **728 answer, 105 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **729 answer, 104 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
 **2. `audit/gap-matrix.tsv`** -- the 140 rows of AHK_X11's own feature set, each a v1
-name, its v2 name and what the tree does with it: **114 covered, 26 accounted for**:
+name, its v2 name and what the tree does with it: **115 covered, 25 accounted for**:
 
 | the 27 | rows | what they are |
 |---|---|---|
