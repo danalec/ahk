@@ -2624,6 +2624,41 @@ does).
 start it with what is left. The measurement above is the part that would have cost
 a round to rediscover.
 
+### Round 114 — 2026-11-09: the control events were attempted and reverted, and the bug is named
+
+Round 113 banked the contract; this round built the registration -- the table of
+the events of each kind, the arity check, and storing the handler on the control
+object -- and **reverted it**, because the box showed it wrong on two of the
+seven measured cases.
+
+| case | the reference | the attempt |
+|---|---|---|
+| `b.OnEvent("Click", F)` where `F` takes nothing | `Invalid callback function.` | ✅ same |
+| **`b.OnEvent("Click", G)` where `G` takes one** | **`""`** | ❌ **`Parameter #2 … is invalid.`** |
+| `b.OnEvent("Bogus", G)` | `Parameter #1 …` | ✅ same |
+| `b.OnEvent("Close", G)` | `Parameter #1 …` | ✅ same |
+| **`e.OnEvent("Change", G)`** | **`""`** | ❌ **`Parameter #2 … is invalid.`** |
+| `e.OnEvent("Click", G)` | `Parameter #1 …` | ✅ same |
+| `b.OnEvent("Click", 5)` | `Parameter #2 …` | ✅ same |
+
+**The bug is specific and it is worth more than the feature**: the window's
+version (round 98) accepted `g.OnEvent("Close", F)` where `F` takes **no**
+parameters, and the control's version rejects `G` where `G` takes **one**. So the
+test for "this value is a function object" -- `Value::Object` whose class is
+`func` -- **holds for one of those two function values and not the other**, and
+which one it is, is now the first thing to find.
+
+That is not a difference in the events at all; it is a difference in how a
+function of the script is carried when it has a parameter. It may be that a
+function with parameters is not an object of class `func` until something forces
+it, or that `arguments[1]` is a different `Value` in that case. Either way it is
+a small question with a box to answer it, and every later handler check depends
+on it.
+
+**The revert was the right call**: the tree is green and the behaviour that the
+box disagrees with is not in it. `audit/probe-gui-ctrlevent.ahk` is kept, so the
+seven cases can be run again the moment the cause is known.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
