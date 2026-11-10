@@ -12497,6 +12497,16 @@ impl<'a> Runtime<'a> {
                 let mut values = Vec::new();
                 for item in items {
                     match item {
+                        // Measured on the binary of v2.0.19 on 2026-11-10: the
+                        // last item of the literal may carry a star, and the
+                        // items of the value it names take its place: `[a*]`
+                        // is the items of `a`, the way a `for` loop walks them.
+                        Some(Node::Spread { value, line }) => {
+                            let spread = self.evaluate(value)?;
+                            for item in self.the_items_of_a_spread(&spread, *line)? {
+                                values.push(Some(item));
+                            }
+                        }
                         Some(item) => values.push(Some(self.evaluate(item)?)),
                         None => values.push(None),
                     }

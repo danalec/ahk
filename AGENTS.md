@@ -10397,3 +10397,24 @@ condition, because a hotkey that fires outside its condition is worse than a
 script that says why it cannot run. Before this the directive was refused with
 the stale "the hotkeys are not carried by this runtime." of the table of the
 directives, while the functions of the family were already carried.
+## 266. The spread of an array literal
+
+Measured on the binary of v2.0.19 on 2026-11-10: the **last** item of an array
+literal may carry a star -- `a := [1, 2]`, `b := [a*]` is an array of two,
+`c := [0, a*]` an array of three -- and the value is enumerated the way a `for`
+loop enumerates it: an array gives its items, a `Map` its keys, and a class
+with an `__Enum` its own (`[Map("k", 1)*]` is one item, "k"). A star with a
+comma after it is refused the way the star of a call argument is --
+"Missing operand." with the text from the star, `[a*, 9]` naming `*, 9]` -- and
+`[*a]` is not a v2 form.
+
+The parser tells the star of a spread from the star of a multiplication the way
+it does in the arguments of a call: the flag `the_star_spreads_the_argument`
+is set while the item is read, and `the_star_ends_this_argument` now counts the
+`]` of the literal as the end. The literal itself is built by the runtime, and
+the items of a spread are put in the place of it, so a spread is not a value of
+its own.
+
+The corpus case `collections-map.ahk` passed the `c := [a*]` line that stopped
+it (it stops later now, at `Map.ToString`, which v2.0.19 does not have), and
+`flow-enum.ahk` passed `a := [EnumFunc*].Length`.

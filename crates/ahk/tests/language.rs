@@ -6161,6 +6161,37 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_array_literal_takes_the_items_of_a_spread() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the last item of an
+    // array literal may carry a star, and the items of the value it names take
+    // its place -- `[a*]` is the items of `a`, the way a `for` loop walks
+    // them: an array gives its items, a map its keys, and a class with an
+    // `__Enum` its own. The star in the middle is "Missing operand." with the
+    // text from the star, and so is a star after a trailing comma.
+    let (report, _desktop) = run(concat!(
+        "a := [1, 2]\n",
+        "b := [a*]\n",
+        "c := [0, a*]\n",
+        "m := Map(\"k\", 1)\n",
+        "d := [m*]\n",
+        "class Empty {\n",
+        "    static __Enum(n) => (&c) => false\n",
+        "}\n",
+        "none := [Empty*]\n",
+        "MsgBox b.Length \":\" c.Length \":\" d.Length \":\" none.Length\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2:3:1:0"]);
+    // The star in the middle is the refusal of the binary, and it is named
+    // from the star.
+    let failure = parse("a := [1, 2]\nb := [a*, 9]\n").expect_err("refused");
+    assert_eq!(
+        failure.message,
+        "Missing operand.\n     Specifically: *, 9]"
+    );
+}
+
+#[test]
 fn the_hotif_directive_sets_the_condition_of_the_hotkeys() {
     // Measured on the binary of v2.0.19 on 2026-11-10: `#HotIf` takes an
     // expression, and the hotkeys that follow it carry the condition until

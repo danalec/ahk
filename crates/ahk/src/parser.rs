@@ -6261,7 +6261,7 @@ impl Parser {
             self.the_token_after_the_newlines(),
             Some(token)
                 if token.kind == TokenKind::Op
-                    && (token.value == ")" || token.value == ",")
+                    && (token.value == ")" || token.value == "," || token.value == "]")
         )
     }
 
@@ -12048,10 +12048,47 @@ impl Parser {
                         }
                         // The bracket that is not closed is the failure, and
                         // not the operand that is not there inside it.
-                        let item = match self.parse_expression() {
+                        // Measured on the binary of v2.0.19 on 2026-11-10: the
+                        // last item of an array literal may carry a star --
+                        // `[a*]` is the items of `a` -- and the star of a
+                        // multiplication is not it. A star with a comma after
+                        // it is "Missing operand." with the text from the star.
+                        let outer_spread = self.the_star_spreads_the_argument;
+                        self.the_star_spreads_the_argument = !self.dialect.legacy_commands();
+                        let parsed = self.parse_expression();
+                        self.the_star_spreads_the_argument = outer_spread;
+                        let mut item = match parsed {
                             Ok(item) => item,
                             Err(error) => return Err(self.the_error_of_the_bracket(error, "]")),
                         };
+                        if self.at_op(&["*"]) {
+                            let at = self.position;
+                            let after = self.the_token_after_the_newlines();
+                            let after_ends = matches!(
+                                after,
+                                Some(token)
+                                    if token.kind == TokenKind::Op
+                                        && (token.value == "]" || token.value == ",")
+                            );
+                            let after_is_a_comma = after
+                                .map(|token| token.kind == TokenKind::Op && token.value == ",")
+                                .unwrap_or(false);
+                            let star = self.next();
+                            if !after_ends || after_is_a_comma {
+                                return Err(SyntaxError {
+                                    message: format!(
+                                        "Missing operand.\n     Specifically: {}",
+                                        the_source_of_the_rest_of_the_line(self, at)
+                                    ),
+                                    line: star.line,
+                                    column: star.column,
+                                });
+                            }
+                            item = Node::Spread {
+                                value: Box::new(item),
+                                line: star.line,
+                            };
+                        }
                         items.push(Some(item));
                         // The list may be written in more than one line.
                         self.skip_newlines();
