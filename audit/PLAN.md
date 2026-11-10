@@ -4031,6 +4031,37 @@ thing to do at the end of a round.
 **Recorded rather than done**, because the runtime is already telling the truth and the
 catalogue's disagreement is a **documentation defect**, not a behavioural one.
 
+### Round 214 — 2026-11-09: what the fix of round 213 would actually touch
+
+Round 213 found the surface printing the row's variant message while the runtime prints
+the handler's, and said the fix is "a variant per reason". Reading the mechanism makes
+that precise, and shows why it is not a one-line change:
+
+**`refusal_message(variant)` (`builtins.rs:3797`) maps a variant number to a text**, and
+it already has **sixteen** of them -- nought is the Windows reason, one is the hotkeys,
+two is the clock, three is the end of the script, and so on to fifteen for the listing
+of the variables. **So the mechanism for a narrow reason already exists**: a variant per
+reason, and the catalogue prints it.
+
+**The catch is the count.** Round 171 showed that the surface counts a row as answering
+or refusing by its **variant**, and that `REFUSAL` is the number **100**. So:
+
+- a row with variant 100 is **refused**, and the catalogue prints `refusal_message(100)`,
+  which is the Windows reason;
+- a row with variant 0 is **answered**, whatever its handler does -- which is how
+  `ObjAddRef` counts as a value and refuses at runtime for a bad argument;
+- **a new variant 16 with a narrow reason would print the right message and count as a
+  VALUE**, which is the opposite of what it means.
+
+**So making the catalogue tell the truth needs both halves**: a variant per reason,
+**and** the count to know which variants are refusals. That is a small table of refusal
+variants beside `REFUSAL`, and it is the whole of the work.
+
+**Not done**, and the reason is the one this session keeps reaching: **it changes the
+meaning of a field that the count is built on**, at the end of a context, and the cost of
+getting it wrong is a count that lies in a way that is hard to see. The finding and its
+exact shape are worth more than a rushed version of it.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
