@@ -2287,6 +2287,43 @@ text.
 **Nothing about it is unknown**, which is why it is banked rather than written
 under a spent budget: the three steps are the same three that have worked twice.
 
+### Round 82 — 2026-11-09: GetPos cannot be honest on Wayland, and the box said so
+
+Measured on the binary of v2.0.19 first: `g.GetPos(&x, &y, &w, &h)` answers the
+**empty text** and writes the four numbers of the window on the screen.
+
+Then the same question was put to the box, with the helper answering what the
+toolkit says and the compositor answering what is actually there:
+
+| who answers | the window |
+|---|---|
+| GTK, through the helper | **`[20, 20, 320, 180]`** |
+| the compositor, through the accessibility tree | **`[0, 0, 360, 257]`** |
+
+**Both numbers are wrong in a different way, and the first one is the lie.**
+
+- `[20, 20]` is where the window was **asked** to be, which is what GTK reports
+  to its own client -- and the compositor put it at `[0, 0]`.
+- The size differs too, `320x180` against `360x257`, because one is the client
+  area and the other is the frame with its title bar.
+
+**A Wayland client is not told where its window is.** The protocol gives no such
+event, and GTK's answer is its own request echoed back. So `GetPos` cannot report
+what v2 reports, and a script that asked it would be given a place where the
+window is not -- which is worse than a refusal, because it looks right.
+
+**So `GetPos` stays refused**, and the reason is the platform's and not the
+tree's: *this session does not tell a program where its window is, so the place
+of it cannot be answered -- only the place it was asked for, which is not the
+same question*. The helper keeps its `geometry` operation, because what the
+toolkit says is a real answer to a different question and the next member may want
+it; it is not wired to `GetPos`.
+
+**This is the third member in the family to stop at a platform fact** -- after
+`ControlGetPos` (three coordinate spaces identical) and the checked pair (a
+toggle is not a set) -- and the first where the temptation was strongest, because
+the helper **had** an answer ready and it looked like the right one.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

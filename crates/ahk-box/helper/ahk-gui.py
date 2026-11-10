@@ -172,6 +172,23 @@ def the_flag(number, name, setting):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_geometry():
+    """The place and the size of the window, on the screen.
+
+    `GetPos` of v2. **A Wayland client is not told where its window is** -- the
+    compositor places it and does not report the place -- so the position a
+    toolkit answers may be noughts. What this answers is therefore what the
+    toolkit says, and the box run is what decides whether it is the screen place
+    or a pair of noughts.
+    """
+    if state["window"] is None:
+        answer({"ok": False, "error": "there is no window"})
+        return
+    x, y = state["window"].get_position()
+    width, height = state["window"].get_size()
+    answer({"ok": True, "value": [x, y, width, height]})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -181,6 +198,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "geometry":
+        run_on_loop(the_geometry)
     elif op == "add":
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))
