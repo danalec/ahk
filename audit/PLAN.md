@@ -3881,6 +3881,43 @@ the box says nothing about the code until the copy is known to be current. **Che
 that the copy moved before reading the result** -- a timestamp, a hash, or the count of
 a thing that changed.
 
+### Round 206 — 2026-11-09: two names counted as answering cannot answer
+
+Round 171 found that the surface reads a row's **variant** and that eleven names were
+answering while counted refused. This round found **the inverse**, and it is a defect:
+
+```
+the surface:   ObjAddRef   function   value
+               ObjRelease  function   value
+
+the tree:      ObjAddRef({a: 1})   -> Parameter #1 of ObjAddRef is invalid.
+               ObjRelease({a: 1})  -> Parameter #1 of ObjRelease is invalid.
+```
+
+**`obj_add_ref` (`builtins.rs:5768`) always returns `Err`** -- it names the parameter
+and refuses, whatever the argument. So **two names count as answering and cannot
+answer**, and the message they give is worse than a refusal: *"Parameter #1 is
+invalid"* says the **argument** is wrong, when nothing would have been right.
+
+**So the count of 722 is two too high**, and the honest operations were 720 before
+round 203 raised it.
+
+**What they should do**: v2's `ObjAddRef` answers the **reference count** of the object
+and `ObjRelease` answers it after taking one away. This tree holds its objects in
+`Rc`, whose count is exactly that number -- so the answer is available, and the pair
+would be a small handler each. **The two are `ObjPtrAddRef` and `ObjFromPtrAddRef`'s
+base** (round 205), which is why all four were left alone.
+
+**Not written**: it is a handler pair plus the decision of whether adding a reference
+to a script-visible object should hold one (which it should, or the count is a lie),
+and that decision is the whole of the work.
+
+**The lesson, and it is round 171's from the other side**: **a row's variant and its
+handler can disagree in either direction.** An audit that checks only one direction --
+answering-but-counted-refused -- will miss the names that are counted-refused-by-claim
+and answer-nothing. Round 173 checked one direction; **this round is the check of the
+other.**
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
