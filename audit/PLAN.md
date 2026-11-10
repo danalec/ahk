@@ -2421,6 +2421,35 @@ at a moment the runtime is not waiting.
 The first is nearer to how the runner already works, and it is what a fresh
 session should cost out first.
 
+### Round 94 — 2026-11-09: the smoke is a check now, and not a one-off
+
+No code. `audit/probe-gui-smoke.ahk` was written in round 91 as a one-off and it
+found nothing, which makes it exactly the sort of thing that gets thrown away and
+then wished for. It is now **the check to run after any change to the `Gui`
+family**, and this says so.
+
+**What it covers, in one run of about a fifth of a second**: a window with a
+`Text` and an `Edit` and a `Button`; the class of each; the value of the first
+two and the caption of the third; a write read back; `Enabled` to nought and back;
+`Visible` to nought; the title written and read; `Show`; `Destroy`. Nine steps and
+an `ok` with no error, or it says where.
+
+**How to run it**, on the box, with nothing else needed -- the `Gui` operations
+go to the helper directly and not through the accessibility bus, so the bridge
+does not have to be on:
+
+```sh
+scp audit/probe-gui-smoke.ahk box:/tmp/guismoke.ahk
+ssh box '~/ahk/target/release/ahk --timeout=90 < /tmp/guismoke.ahk'
+```
+
+**Why it earns a place beside the suite**: the suite's `Gui` cases run against
+the fake desktop, which has no window to make and answers the desktop's refusal.
+They cannot see a property arm that reads the wrong control's number, a helper
+whose state was reset by an intervening command, or a window that survives `Show`
+but not a flag change. **Nine steps through the whole family is the shape that
+finds those**, and it is cheap enough to run every time.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
