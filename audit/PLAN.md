@@ -1515,6 +1515,54 @@ does not carry (`ControlGetClassNN`, `ControlGetHwnd`, `ControlGetStyle`,
 `ControlGetExStyle`, `ControlGetFocus`, and now the checked pair). Neither group
 is a matter of effort.
 
+### Round 36 — 2026-11-09: the text of a window, and the title bar in the way
+
+`WinGetText` was the next candidate, because the accessibility tree looks like it
+already holds the answer. **It does, and the answer is not the one v2 gives.**
+
+Measured on the binary of v2.0.19: a window with an `Edit` and a `Button` answers
+a **String**, the text of the controls, a line break after each:
+
+```
+text=[hello<CRLF>Press me<CRLF>]   len=17
+```
+
+and a title that no window has is *"Target window not found."*, the same as the
+empty title.
+
+**The obstacle is the title bar.** The tree of a GTK window holds the frame's own
+controls beside the client's -- the frame has two children, a `panel` that is the
+title bar and a `filler` that is the client:
+
+```
+frame  /accessible/1  name=[ahk-gtk-probe]
+  panel  /accessible/2   →  /accessible/7  name=[Minimize]
+                            /accessible/8  name=[Maximize]
+                            /accessible/9  name=[Close]
+                            /accessible/10 name=[ahk-gtk-probe]  (the title)
+  filler /accessible/3   →  /accessible/12 name=[hello control]
+                            /accessible/13 (the entry) text=[entry value]
+                            /accessible/14 name=[tick me]
+```
+
+A concatenation of everything under the window therefore starts with
+`Minimize`, `Maximize`, `Close` and the title -- none of which is a control of
+the window in the sense v2 means, and none of which a script scraping a dialog
+would expect. The two are told apart only by the role `panel` on the one child of
+the frame, which is a GTK layout and not a rule.
+
+So it is refused, with the tree above as the reason. The alternative was a
+command that answers "Minimize Maximize Close" for the text of a window, which
+passes a naive test and fails the first real one.
+
+**Three rounds running have ended in a refusal, and the shape of the floor is
+now clear and recorded**: the `Control*` and `Win*` families that remain need
+either a call AT-SPI does not have or a value that is Windows-shaped, and the
+three that looked closest -- `ControlGetPos`, the checked pair, `WinGetText` --
+each failed on a fact that only the measurement could give. That is the honest
+state of this area, and it is worth more than three commands that would have
+been wrong.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
