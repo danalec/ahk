@@ -2863,6 +2863,39 @@ answerable when the path is a mount point of a device, and not otherwise.
 another refusal.** That is the first cluster since the controls where the reason
 to refuse was weaker than the reason to build.
 
+### Round 135 — 2026-11-09: the drives need ONE method, and the language side is already built
+
+The reading that changes the cost of the cluster. The handlers of the family are
+not stubs:
+
+```
+drive_get_space_free  -> the_drive_of(rt, values, line, "DriveGetSpaceFree")?.free
+drive_get_capacity    -> the_drive_of(rt, values, line, "DriveGetCapacity")?.capacity
+```
+
+and `the_drive_of` (`builtins.rs:8694`) reads the path from the arguments and asks
+**`rt.desktop().drive_space(&path)`**, which answers `Result<Option<DriveSpace>, String>`
+-- `Some` with the numbers, `None` when the drive is not there.
+
+**So the whole family is wired already, and what is missing is the box's
+`drive_space`.** One method, and it unlocks the handlers that exist: the capacity
+and the free space from one `statvfs` -- or, in the style the box already uses for
+`ip`, one `df -BM` whose columns are the size and the available.
+
+**Two things to settle while writing it**, both recorded rather than guessed:
+
+1. **`None` is not what v2 answers.** Measured in round 134: a drive that is not
+   there answers **`""`** and is **not a failure**, where `the_drive_of` turns
+   `None` into *"DriveGetType: the drive of Q:\ is not there."* One of the two has
+   to move, and the reference is the one with the measurement.
+2. **the path a Linux user passes is a mount point**, and v2's is a drive letter.
+   That is fine for the six that ask the filesystem; it is what makes the serial
+   and the list the two to refuse (round 134).
+
+**Not written**: it is the box's implementation of `drive_space` and the answer of
+`None`, and both want the `DriveSpace` fields and the runner-of-a-command of the
+box in hand. That is the next round, and it is now a small one.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
