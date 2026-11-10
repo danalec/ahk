@@ -42,6 +42,8 @@ struct Fake {
     tree_items: Vec<(i64, String, i64)>,
     tree_next: i64,
     tree_selected: i64,
+    /// The number of the one UpDown the fake carries, shared with its buddy.
+    updown_value: i64,
     /// Whether the fake has a window of the script at all.
     gui_open: bool,
 }
@@ -369,15 +371,33 @@ impl Windows for Fake {
     fn gui_is_open(&mut self) -> bool {
         self.gui_open
     }
-    fn gui_add(&mut self, _handle: u64, kind: &str, _text: &str) -> Result<(u64, String), String> {
+    fn gui_add(&mut self, _handle: u64, kind: &str, text: &str) -> Result<(u64, String), String> {
         self.calls.push(("add".into(), kind.to_string()));
         let classnn = match kind.to_lowercase().as_str() {
             "treeview" => "SysTreeView321",
             "listview" => "SysListView321",
             "statusbar" => "msctls_statusbar321",
+            "updown" => "msctls_updown321",
             _ => "ComboBox1",
         };
+        // An UpDown starts at the lower bound of its `Range` option. Measured
+        // on the binary of v2.0.19 on 2026-11-10: `Range1-10` starts at 1.
+        if kind.eq_ignore_ascii_case("updown") {
+            for word in text.split_whitespace() {
+                if word.to_lowercase().starts_with("range") {
+                    if let Some(low) = word[5..].split('-').next() {
+                        self.updown_value = low.parse().unwrap_or(0);
+                    }
+                }
+            }
+        }
         Ok((1, classnn.to_string()))
+    }
+    fn gui_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if let Some(text) = setting {
+            self.updown_value = text.parse().unwrap_or(0);
+        }
+        Ok(self.updown_value.to_string())
     }
     fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
         self.calls.push(("resolve".into(), classnn.to_string()));
@@ -4387,6 +4407,27 @@ fn list_view_get_content_of_the_selected_row() {
 // Measured on the binary of v2.0.19 on 2026-11-10: a TreeView is
 // `SysTreeView321`, `tv.Add(text, parent)` answers an item id, and the Get*
 // family walks the tree by those ids.
+
+#[test]
+fn an_up_down_shares_its_integer_value_with_the_buddy_edit() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: an UpDown is
+    // `msctls_updown321`, its `Value` is an Integer, and setting it changes
+    // the buddy Edit's text (and the other way round).
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "g := Gui()\ne := g.Add(\"Edit\", \"\", \"5\")\nud := g.Add(\"UpDown\", \"Range1-10\")\ncls := ud.ClassNN\na := ud.Value\nud.Value := 7\nb := ud.Value\nc := e.Value\ne.Value := 3\nd := ud.Value",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "cls"), Value::Text("msctls_updown321".into()));
+    assert_eq!(int_of(&report, "a"), 1);
+    assert_eq!(int_of(&report, "b"), 7);
+    assert_eq!(value_of(&report, "c"), Value::Text("7".into()));
+    assert_eq!(int_of(&report, "d"), 3);
+}
 
 #[test]
 fn a_tree_view_is_built_and_walked_by_its_items() {

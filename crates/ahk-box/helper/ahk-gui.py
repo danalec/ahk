@@ -121,9 +121,6 @@ def the_control(kind, text):
         state.setdefault("list_columns", {})[state["next_id"]] = len(columns)
     elif kind == "TreeView":
         # `Add("TreeView", options)` -- one column of item texts, with parents.
-        # Measured on the binary of v2.0.19 on 2026-11-10: a TreeView is
-        # `SysTreeView321`, `tv.Add("text", parent)` answers an item id, and
-        # GetParent/GetChild/GetNext/GetPrev/GetSelection walk the tree by ids.
         store = Gtk.TreeStore(str, int)
         control = Gtk.TreeView(model=store)
         control.append_column(
@@ -135,6 +132,37 @@ def the_control(kind, text):
             "next": 1,
             "by_id": {},
         }
+    elif kind == "UpDown":
+        # An UpDown is a spinner attached to the Edit that was added before it.
+        # Measured on the binary of v2.0.19 on 2026-11-10: it is
+        # `msctls_updown321`, its `Value` is an Integer, and it shares that
+        # value with the buddy in BOTH directions -- setting the Edit's text
+        # changes what the UpDown reads and the other way round.
+        low, high = 0, 100
+        for word in text.split():
+            if word.lower().startswith("range"):
+                try:
+                    bounds = word[5:].split("-")
+                    low, high = int(bounds[0]), int(bounds[-1])
+                except (ValueError, IndexError):
+                    pass
+        control = Gtk.SpinButton()
+        control.set_range(low, high)
+        control.set_increments(1, 1)
+        control.set_value(low)
+        number = state["next_id"]
+        # The buddy is the last Edit added before this one.
+        buddy = None
+        for held, held_kind, _held_control in reversed(state["controls"]):
+            if held_kind == "Edit":
+                buddy = held
+                break
+        state.setdefault("updown_buddy", {})[number] = buddy
+        if buddy is not None:
+            for held, _held_kind, held_control in state["controls"]:
+                if held == buddy:
+                    held_control.set_text(str(low))
+                    break
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -216,6 +244,34 @@ def the_value(number, text):
     for held, kind, control in state["controls"]:
         if held != number:
             continue
+        if kind == "UpDown":
+            # The spinner shares its number with the buddy Edit in both
+            # directions. Measured on the binary of v2.0.19 on 2026-11-10.
+            buddy = state.get("updown_buddy", {}).get(number)
+            buddy_text = ""
+            if buddy is not None:
+                for held2, _kind2, buddy_control in state["controls"]:
+                    if held2 == buddy:
+                        buddy_text = buddy_control.get_text()
+                        break
+            if text is None:
+                try:
+                    answer({"ok": True, "value": str(int(buddy_text))})
+                except ValueError:
+                    answer({"ok": True, "value": "0"})
+            else:
+                try:
+                    value = int(text)
+                except ValueError:
+                    value = 0
+                control.set_value(value)
+                if buddy is not None:
+                    for held2, _kind2, buddy_control in state["controls"]:
+                        if held2 == buddy:
+                            buddy_control.set_text(str(value))
+                            break
+                answer({"ok": True, "value": str(value)})
+            return
         if text is None:
             answer({"ok": True, "value": the_text_of_a_control(kind, control)})
         else:
@@ -563,6 +619,12 @@ def the_text_of_all():
         return
     parts = []
     for _number, kind, control in state["controls"]:
+        # An UpDown is a spinner and has no text of its own; v2 leaves it out
+        # of `WinGetText` entirely, and does not even give it an empty line.
+        # Measured on the binary of v2.0.19 on 2026-11-10: a window with an
+        # Edit holding 3 and an UpDown answers just "3" and a line break.
+        if kind == "UpDown":
+            continue
         parts.append(the_text_of_a_control(kind, control))
         parts.append("\n")
     answer({"ok": True, "value": "".join(parts)})
@@ -591,6 +653,10 @@ def the_class_of(kind):
         return "SysListView32"
     if kind == "TreeView":
         return "SysTreeView32"
+    # Measured on the binary of v2.0.19 on 2026-11-10: an UpDown is named
+    # `msctls_updown321`, the Win32 common-control class.
+    if kind == "UpDown":
+        return "msctls_updown32"
     return kind
 
 

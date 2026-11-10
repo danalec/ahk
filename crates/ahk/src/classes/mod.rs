@@ -1521,6 +1521,19 @@ pub(crate) fn call(
             Some(value) => value.to_text(),
             None => String::new(),
         };
+        // An UpDown carries its `Range` in the OPTIONS (the second argument),
+        // not the text. Measured on the binary of v2.0.19 on 2026-11-10:
+        // `Add("UpDown", "Range1-10")` starts at 1, the range's lower bound.
+        // The helper reads the range from the text it is given, so the options
+        // are passed as that text when there is no text of its own.
+        let text = if kind.eq_ignore_ascii_case("updown") && text.is_empty() {
+            arguments
+                .get(1)
+                .map(|value| value.to_text())
+                .unwrap_or_default()
+        } else {
+            text
+        };
         return Some(match the_control_of_the_gui(&kind, &text, rt, line) {
             Ok(made) => {
                 remember_the_control(this, &made);
@@ -1892,6 +1905,19 @@ fn the_control_of_the_gui(
     }
 }
 
+/// Whether the class of a control is an UpDown spinner.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: its `ClassNN` is
+/// `msctls_updown321` and its `Value` is an Integer it shares with the Edit
+/// that was added before it.
+fn the_control_is_an_updown(class: &str) -> bool {
+    let tail = match class.rsplit_once('.') {
+        Some((_, tail)) => tail,
+        None => class,
+    };
+    tail.eq_ignore_ascii_case("updown")
+}
+
 /// Whether the class of a control is one of the list-shaped kinds.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-10: the `ClassNN` of a
@@ -2000,6 +2026,16 @@ pub(crate) fn property(
         let number = the_number_of_a_control(this).unwrap_or(0);
         return Some(match rt.desktop().gui_checked(number, None) {
             Ok(checked) => Ok(Value::Int(checked)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // An UpDown's `Value` is an Integer shared with its buddy Edit. Measured
+    // on the binary of v2.0.19 on 2026-11-10: `ud.Value` answers a whole
+    // number, and setting it changes the Edit's text too.
+    if the_control_is_an_updown(class) && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_value(number, None) {
+            Ok(text) => Ok(Value::Int(text.parse().unwrap_or(0))),
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }

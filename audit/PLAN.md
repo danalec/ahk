@@ -4000,8 +4000,8 @@ their own.
 **all 140 rows of the AHK_X11 feature matrix**, **all four mechanisms**, **zero
 blanket refusals** (all 78 say what they are about), all seven `Edit*` names,
 twenty-four `Control*`, seventeen `Win*`, the four **pointer** names, the `Gui`
-capability entire with `ComboBox`, `StatusBar` and `ListView` controls, a
-`TreeView` control, and `DriveGet*`,
+capability entire with `ComboBox`, `StatusBar`, `ListView`, `TreeView` and
+`UpDown` controls, and `DriveGet*`,
 `MonitorGet*`, `SysGet`, `ToolTip`, `WinMove`, `FileCreateShortcut`,
 `FileRecycleEmpty`, `Group*`, `WinGetIDLast`, `OnClipboardChange` and
 `Persistent`.
@@ -4819,6 +4819,35 @@ c1=3 | count=3 | text=[Parent one] | parent=1 child=3 next=2 prev=1 sel=1
 afterDelete=2` -- every line matching the reference's semantics.
 
 The surface count does not move (these are class methods, not builtin rows):
+**755 / 78**, sum 833, both platforms green, clippy clean.
+
+### Round 268 — 2026-11-10: an UpDown, and a value shared both ways
+
+**Measured on the binary of v2.0.19 on 2026-11-10**: `Add("UpDown",
+"Range1-10")` is `msctls_updown321`; its `Value` is an Integer that starts at
+the RANGE'S LOWER BOUND (1 for `Range1-10`, 0 with no range); setting
+`ud.Value := 7` changes the buddy Edit's text to 7, and setting `e.Value := 3`
+changes what `ud.Value` reads to 3. `WinGetText` of the window answers only the
+Edit's text -- the spinner contributes nothing, not even an empty line.
+
+**Two things the measurements corrected on the way**:
+
+1. the `Range` is in the OPTIONS argument of `Add`, not the text, so the
+   dispatcher passes the options through as the text when an UpDown has no
+   text of its own; without it the tree answered 0 where v2 answered 1;
+2. the first `WinGetText` gave "3" and "7" because the spinner read its OWN
+   value; v2 leaves the spinner out entirely, so `the_text_of_all` now skips
+   it.
+
+**Built**: a `Gtk.SpinButton` in the helper that shares its number with the
+Edit added before it, a `Value` arm in the class dispatcher that returns an
+Integer, and **one language case** covering the class name, the range default,
+and the two-way sharing. The Fake gained `gui_value` and a `gui_add` that
+parses the range. **Verified on the box** against every measured line:
+`classnn=msctls_updown321 | type=Integer value=[1] edit=[1] | ud7=[7] edit7=[7]
+| edit3=[3] ud3=[3] | wintext=[3\n]`.
+
+The surface count does not move (UpDown is a control kind, not a builtin row):
 **755 / 78**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified
