@@ -1161,7 +1161,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_checked,
     },
     Builtin {
         name: "ControlGetChoice",
@@ -1323,7 +1323,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 6,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_checked,
     },
     Builtin {
         name: "ControlSetEnabled",
@@ -9505,6 +9505,59 @@ pub(crate) fn control_set_enabled(
 ) -> Result<Value, RuntimeError> {
     let on = number_of(values, 0) != 0.0;
     the_state_of_a_control(rt, values, line, "enabled", on)
+}
+
+/// `ControlGetChecked(Control)` and `ControlSetChecked(Value, Control)`: whether a
+/// check box of the script's window is ticked.
+///
+/// Round 35 refused this because the accessibility layer reports no `CHECKED` state
+/// and a click toggles, which is true of another program's window and not of this
+/// one: the check box is the helper's own and its state is one call.
+fn the_tick_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    at: usize,
+    setting: Option<bool>,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, at);
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))? as u64;
+    let checked = rt
+        .desktop()
+        .gui_checked(number, setting)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    match setting {
+        Some(_) => Ok(Value::Text(String::new())),
+        None => Ok(Value::Int(checked)),
+    }
+}
+
+pub(crate) fn control_get_checked(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_tick_of_a_control(rt, values, line, 0, None)
+}
+
+pub(crate) fn control_set_checked(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    the_tick_of_a_control(rt, values, line, 1, Some(on))
 }
 
 pub(crate) fn sleep(
