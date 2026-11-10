@@ -2694,6 +2694,31 @@ shortened for a function that takes parameters.
 *why* something failed is worth less than one measurement of *what it is*.
 `Type()` cost one run and would have saved round 114's attempt entirely.
 
+### Round 117 — 2026-11-09: the argument is carried cleanly, so the probe has to go inside
+
+The guess of round 115 was that the call might not carry the second argument, or
+carry it as something other than a function. Both were tested and **both are
+false**: passing `F` (no parameters) and `G` (one) to a method of a class answers
+`Func / Func` for each, and `G is Func` is 1 exactly as `F is Func` is.
+
+**So a one-parameter function is a function, and a method call carries it.** What
+is left is only the question of what the **arm itself** sees, and there is no way
+to answer it from outside: it has to be printed from inside, which means the arm
+has to exist again.
+
+**Two hypotheses are now dead** (the arity changes the kind of value; the call
+drops the argument), and the third is the one that survives: **the arm's own
+`arguments` is not what the script wrote.** The arm is on a `Gui.Control` receiver,
+which every other member of the family answers through a different path --
+`Add` goes through the `gui` class, `OnEvent` was added to the control's classes
+-- so the call that arrives may be the *method* call of the control's class rather
+than the plain call the script wrote, and its arguments may be the ones the base
+object passed on.
+
+**That is the thing to print**, and it is one temporary word in the arm's `_`
+branch, the error message carrying the length and the class. It needs the arm
+re-added, so it belongs to a round that can also keep it.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
