@@ -1179,7 +1179,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_classnn,
     },
     Builtin {
         name: "ControlGetEnabled",
@@ -9445,6 +9445,30 @@ pub(crate) fn control_show(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     the_visibility_of_a_control(rt, values, line, true)
+}
+
+/// `ControlGetClassNN(Control)`: the class and number that name a control.
+///
+/// Answered for a window of the script's own. The name is what v2 gives a control
+/// of a window it made, and the lookup that already exists is what checks that the
+/// control is really there.
+pub(crate) fn control_get_classnn(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(classnn))
 }
 
 pub(crate) fn sleep(
