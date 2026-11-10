@@ -3378,6 +3378,46 @@ the divergence it was committed with. **A fix that does nothing is worse than no
 fix**: it makes the code claim something the behaviour does not do, and the next
 person reads it as handled.
 
+### Round 159 — 2026-11-09: the selection is not a bug, it is the focus
+
+The probe of round 158, run as a script of its own in the graphical session (`audit/gtk-selection-probe.py`):
+
+```
+after set_text:            bounds = ()    position = 0
+after select_region(0,0):  bounds = ()
+after set_position(-1):    bounds = ()    position = 9
+after a second set_text:   bounds = ()
+has select_region: True
+```
+
+**`get_selection_bounds()` answers an EMPTY TUPLE when nothing is selected** -- not
+the whole range. So a bare `Gtk.Entry` has **no** selection, and `select_region(0,
+0)` and `set_position(-1)` are both real and both work.
+
+**So the whole text that `EditGetSelectedText` answered in round 157 comes from the
+entry being SHOWN and FOCUSED** -- GTK selects all of an entry's text when it takes
+the focus. That is the standard behaviour of a text field, and **v2's control very
+likely does the same thing when it is focused**.
+
+**Which means round 157's "divergence" may not be one at all** -- the test created a
+control, showed the window, and asked for the selection; if v2 selects on focus too,
+both trees answer the whole text and the member is right.
+
+**Three things follow, and the first is the important one:**
+
+1. **the convergence probe**: the same script against the binary of v2.0.19 -- add a
+   control with text, show it, ask `EditGetSelectedText` **without touching
+   anything**. If v2 answers the whole text, there is no divergence and round 157's
+   note should be corrected;
+2. the three "failed" fixes of round 158 were **not failed** -- they worked; the
+   selection was simply made after them, by the focus;
+3. `set_position(-1)` in the add path is worth having anyway, since it puts the
+   cursor at the end, which is where round 155 measured v2's to be.
+
+**This is the fifth time in this session that a reading of the code produced a
+"bug" that a measurement dissolved** -- after the drives, the window names, the
+`Edit` holding lines, and the one-parameter function.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
