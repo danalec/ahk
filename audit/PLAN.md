@@ -2591,6 +2591,39 @@ after it (the walk in `Sleep`, the call by name) are what would make the field
 observable. A registry that nothing walks cannot be verified, and unverifiable
 code shaped like wiring is the thing this plan has refused at every turn.
 
+### Round 113 — 2026-11-09: a control's events are per kind, and the callback is checked
+
+Measured on the binary of v2.0.19 on 2026-11-09, and the contract is **richer
+than the window's**:
+
+| the call | the binary |
+|---|---|
+| `b.OnEvent("Click", F)` where `F` takes **no** parameters | **`Invalid callback function.`** |
+| `b.OnEvent("Bogus", F)` | *"Parameter #1 of Gui.Control.Prototype.OnEvent is invalid."* |
+| `b.OnEvent("Close", F)` | the same -- `Close` is a **window** event, not a control's |
+| `e.OnEvent("Change", F)` on an `Edit`, `F` taking none | **`Invalid callback function.`** |
+| `e.OnEvent("Click", F)` on an `Edit` | *"Parameter #1 … is invalid."* -- an `Edit` has no `Click` |
+
+**Two things follow that the window's version did not have:**
+
+1. **the events are per kind of control.** A `Button` has `Click`, an `Edit` has
+   `Change`; neither has the other's, and neither has `Close`. So this needs a
+   **table of the events of each kind**, where the window's version needed only a
+   list of two.
+2. **the callback's arity is checked**, and checked *before* the event is: my `F`
+   took no parameters and the answer was `Invalid callback function.` rather than
+   a complaint about the event. v2 passes the control to a control's handler, so a
+   handler that takes nothing cannot be one.
+
+**So this piece is bigger than "the same as the window's"** -- a table, an arity
+check, a registry of controls on the `Gui`, and a call that passes the control as
+an argument (`call_function_by_name` takes none; `call_function(&f, &args, …)`
+does).
+
+**Not attempted**: it is four things and I would rather bank the contract than
+start it with what is left. The measurement above is the part that would have cost
+a round to rediscover.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
