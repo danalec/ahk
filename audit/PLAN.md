@@ -4313,6 +4313,40 @@ different module.
 variable dispatch of round 175 and the array constructor of round 219: **a mechanism this
 tree has that is not where its name suggests.**
 
+### Round 239 — 2026-11-09: FileGetVersion is the third name the reference will not answer
+
+`FileGetVersion` was the next of the ten, and the first thing to do was measure it:
+
+```ahk
+FileGetVersion("C:\Temp\ahkprobe\ver-probe.txt")   -> nothing, at all
+FileGetVersion("E:\autohotkey\AutoHotkey64.exe")   -> nothing, at all
+```
+
+**The reference hung**: an eight-second timeout with no result file, on a script whose
+other statements are a `FileAppend` and two more `FileGetVersion` calls. **That is the
+third name in this session that the binary of v2.0.19 will not answer**:
+
+| name | what the reference does |
+|---|---|
+| `FileGetShortcut` | hangs (recorded before this session) |
+| `FileRecycle` | fails on a file that exists -- the `Failed` of the audit's defect #4 |
+| **`FileGetVersion`** | **hangs** |
+
+**So it joins the unmeasurable**, and the honest answer stays the refusal -- but with a
+reason that says WHICH thing is missing: **the reference will not say what it answers, so
+there is nothing to match.** That is different from "a name of Windows": `FileGetVersion`
+is not Windows-shaped; it reads a PE version resource, which Linux does not have, **and
+the reference cannot be asked about it either.**
+
+**What an implementation would look like anyway**, for whoever has a working reference:
+read the `.note` or the version resource of an ELF -- but the honest version of that is
+"there is no version resource in an ELF", so the answer would be the empty text for every
+file, **which is a value that looks like an answer and is not**. That is the `"0"`-is-truthy
+trap and the `GetPos` trap, and it is why the refusal is right.
+
+**The round cost one probe and produced a category**, which is the shape of the useful
+rounds at this end of a long session.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

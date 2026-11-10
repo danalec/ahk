@@ -97,7 +97,7 @@ files	FileGetAttrib	FileGetAttrib	yes	value	covered	v2 surface value
 files	FileCreateShortcut	FileCreateShortcut	yes	refusal	GAP-desktop-integration	refusal: name of Windows (.desktop is the Linux form)
 files	FileRecycle	FileRecycle	yes	refusal	GAP-desktop-integration	refusal: name of Windows (freedesktop trash exists)
 files	FileRecycleEmpty	FileRecycleEmpty	yes	value	covered	answers the empty text through gio trash --empty; the emptying itself is unproven because the box has no file to spare
-files	FileGetVersion	FileGetVersion	yes	refusal	GAP-desktop-integration	refusal: name of Windows
+files	FileGetVersion	FileGetVersion	yes	refusal	GAP-desktop-integration	UNMEASURABLE: the reference binary hangs on it, as it does on FileGetShortcut
 files	IniRead	IniRead	yes	value	covered	v2 surface value
 files	IniWrite	IniWrite	yes	value	covered	v2 surface value
 files	IniDelete	IniDelete	yes	value	covered	v2 surface value
