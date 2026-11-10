@@ -21,26 +21,30 @@ spelling (`Add` and every `Add*`), read and write its `Value`, `Text`, `Enabled`
 and `Visible`, set the `Title`, `Show` and `Destroy` -- each verified on the box
 against a measurement of the reference.
 
-**The events are DONE** (round 111). The whole chain works and is verified on the
-box: a window of the helper writes `close`, `click:<n>` or `escape` to a file the
-desktop derives from the process; `Sleep` drains it; the runtime walks the list of
-windows it remembered and finds the handler the `Gui` kept under `on:close` and
-the like; and the handler is called by the **name** the function value carries.
-The proof is in the steps of the run, where the handler's own lines execute
-between the `Destroy` and the end of the `Sleep`.
+**The events are COMPLETE** (rounds 111 and 119). Both kinds are verified on the
+box with the whole chain and not a signal fired by hand:
 
-**What is next in the family**, in the order that costs least:
+- **a window's** `Close` and `Escape` -- the handler's own lines execute between
+  the `Destroy` and the end of the `Sleep`;
+- **a control's** `Click` -- the button was clicked through the tree's own
+  `ControlClick`, which goes through the accessibility layer as an outside client
+  would, and the handler ran during the `Sleep` and was handed the control, whose
+  `__Class` it read as `Gui.Button`.
 
-1. **a control's own events** -- `c.OnEvent("Click", fn)`. The producer already
-   writes `click:<n>`, so the missing halves are the registration on a control
-   object and a dispatch that finds the control by the number in the line. The
-   `Gui` object needs a registry of the controls it made, beside its handlers, and
-   the call needs the variant that takes arguments (`call_function(&f, &args, …)`
-   exists; `call_function_by_name` takes none), because v2 passes the control to
-   the handler.
-2. **the layout members** (`c.Move`, `c.Opt`), and `g.GetPos`, which is refused
-   with a reason already written down (round 82: a Wayland client is not told
-   where its window is).
+The mechanism: the helper writes `close`, `click:<n>` or `escape` to a file the
+desktop derives from the process; `Sleep` drains it; the runtime finds the
+handler -- on the window for its own events, on the control (remembered on the
+window under the number that names it) for a click -- and calls it by the **name**
+the function value carries, with the control as the argument when there is one.
+
+**A trap worth knowing for any future test of this family**: the names of v2 are
+case-insensitive, so a test function called `G` beside a variable `g` **is that
+variable**. That produced a feature reverted in round 114 for a defect that was in
+the probe and not in the tree, and three rounds of wrong hypotheses.
+
+**What is next in the family**: the layout members (`c.Move`, `c.Opt`), and
+`g.GetPos`, which is refused with a reason already written down (round 82: a
+Wayland client is not told where its window is).
 
 **The template for the next member**, which has now worked three times without a
 surprise (`Value` 76-77, `Enabled`/`Visible` 80-81, `Text` 84):
