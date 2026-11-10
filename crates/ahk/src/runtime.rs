@@ -3596,7 +3596,25 @@ impl<'a> Runtime<'a> {
                             Some(node) => self.evaluate(node)?.to_text(),
                             None => String::new(),
                         };
-                        let pieces: Vec<String> = if delimiters.is_empty() {
+                        // Measured on the binary of v2.0.19 on 2026-11-10: a
+                        // text that is empty has no field at all, whatever the
+                        // delimiters are.
+                        let pieces: Vec<String> = if text.is_empty() {
+                            Vec::new()
+                        } else if delimiters.eq_ignore_ascii_case("csv") {
+                            // Measured on the binary of v2.0.19 on 2026-11-10:
+                            // the delimiters of the text "csv" read the text as
+                            // a comma-separated file, with the quotes of the
+                            // fields taken away.
+                            the_fields_of_a_csv(&text)
+                                .into_iter()
+                                .map(|piece| {
+                                    piece
+                                        .trim_matches(|character| omitted.contains(character))
+                                        .to_string()
+                                })
+                                .collect()
+                        } else if delimiters.is_empty() {
                             // Measured on the binary of v2.0.19 on
                             // 2026-10-31: the delimiters that are not
                             // there make every character of the text a
@@ -14843,6 +14861,74 @@ pub(crate) fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
             line,
         },
     }
+}
+
+
+/// The fields of a text that is separated the way a CSV file is.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the separator is the
+/// comma; a field that begins with a quote runs to the closing quote, and a
+/// pair of quotes inside it is one quote; the text between the closing quote
+/// and the comma is dropped; a quote that is not the first character of a
+/// field is the quote itself; a quote that is never closed takes the rest of
+/// the text; the newline is not a separator; a comma at the end of the text
+/// is the empty field after it, and a text that is empty has no field at all.
+fn the_fields_of_a_csv(text: &str) -> Vec<String> {
+    if text.is_empty() {
+        return Vec::new();
+    }
+    let characters: Vec<char> = text.chars().collect();
+    let mut fields = Vec::new();
+    let mut index = 0;
+    loop {
+        let mut field = String::new();
+        if characters.get(index) == Some(&'"') {
+            index += 1;
+            loop {
+                match characters.get(index) {
+                    None => break,
+                    Some('"') => {
+                        if characters.get(index + 1) == Some(&'"') {
+                            field.push('"');
+                            index += 2;
+                        } else {
+                            index += 1;
+                            break;
+                        }
+                    }
+                    Some(character) => {
+                        field.push(*character);
+                        index += 1;
+                    }
+                }
+            }
+            while let Some(character) = characters.get(index) {
+                if *character == ',' {
+                    break;
+                }
+                index += 1;
+            }
+        } else {
+            while let Some(character) = characters.get(index) {
+                if *character == ',' {
+                    break;
+                }
+                field.push(*character);
+                index += 1;
+            }
+        }
+        fields.push(field);
+        if characters.get(index) == Some(&',') {
+            index += 1;
+            if index >= characters.len() {
+                fields.push(String::new());
+                break;
+            }
+            continue;
+        }
+        break;
+    }
+    fields
 }
 
 /// The pieces of a text, cut at every character of the delimiters.

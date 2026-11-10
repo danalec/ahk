@@ -10657,3 +10657,25 @@ letter on its own, so `WDay` was "W" and then the day and the year.
 
 The corpus is 78 of 162 pure scripts (48.1 %): `string-strlower.ahk` and
 `props-date-time.ahk` pass whole now.
+## 278. The parse loop of a text that is a CSV file
+
+Measured on the binary of v2.0.19 on 2026-11-10: the delimiters of the text
+"csv" -- with any case -- read the text of `Loop Parse` as a comma-separated
+file. A field that begins with a quote runs to the closing quote, and a pair of
+quotes inside it is one quote (`"a""b"` is `a"b`); the text between the closing
+quote and the comma is not part of the field (`"a" x,b` is `a` and `b`); a quote
+that is not the first character of a field is the quote itself (`a"b` stays
+`a"b`); a quote that is never closed takes the rest of the text; the newline is
+not a separator, so `"a,b`nc`nd"` is one field with the newlines in it; a comma
+at the end of the text is the empty field after it, and OmitChars trims the
+fields the way it does for any other delimiter.
+
+Measured on the same day: a text that is empty has **no field at all**, whatever
+the delimiters are -- `Loop Parse "", ","` takes no turn -- while `a,,b` has
+three fields and `a,` has two.
+
+The tree split the text at the characters of the delimiters in every case, so
+the "csv" was read as the three characters `c`, `s` and `v`, and an empty text
+was one empty field. Both are the measured rules now, and the corpus case
+`flow-loop-parse.ahk` passes whole: the corpus is 79 of 162 pure scripts
+(48.8 %).

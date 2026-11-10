@@ -6161,6 +6161,40 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_parse_loop_reads_a_comma_separated_text_the_way_a_csv_file_is() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the delimiters of the
+    // text "csv" read the text as a comma-separated file. A field that begins
+    // with a quote runs to the closing quote, a pair of quotes in it is one
+    // quote, the text between the closing quote and the comma is dropped, the
+    // quotes are not part of the field, and an empty text has no field at all
+    // while a comma at the end of it is the empty field after it.
+    let (report, _desktop) = run(concat!(
+        "x := \"`\"first field`\",SecondField,`\"the word `\"`\"special`\"`\" is quoted literally`\",,`\"last field, has literal comma`\"\"\n",
+        "z := \"\"\n",
+        "Loop Parse x, \"csv\"\n",
+        "    z .= A_LoopField\n",
+        "MsgBox z\n",
+        "s := \"\"\n",
+        "Loop Parse \"\", \",\"\n",
+        "    s .= \"x\"\n",
+        "MsgBox \"empty=[\" s \"]\"\n",
+        "t := \"\"\n",
+        "Loop Parse \"a,,b\", \",\"\n",
+        "    t .= \"[\" A_LoopField \"]\"\n",
+        "MsgBox t\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "first fieldSecondFieldthe word \"special\" is quoted literallylast field, has literal comma",
+            "empty=[]",
+            "[a][][b]",
+        ]
+    );
+}
+
+#[test]
 fn a_function_that_reads_a_local_is_a_closure() {
     // Measured on the binary of v2.0.19 on 2026-11-10: the arrow that reads a
     // local variable of the function that has it is a `Closure` -- and it is a
