@@ -244,6 +244,17 @@ impl Windows for Fake {
         self.the_edit(control, title)
     }
 
+    fn control_send_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-send-text".into(), format!("{control}|{title}|{text}")));
+        self.the_edit(control, title)
+    }
+
     fn matching_windows(
         &mut self,
         title: &str,

@@ -1424,6 +1424,46 @@ The four commands of the family now share one walk: `find_control` answers the
 node or which of the two failures it was, and the text, the flags, the write, the
 click and the focus all ride it.
 
+### Round 34 — 2026-11-09: typing into a control, and the position refused
+
+**`ControlSendText` ships, and it is the first command of this tree that uses two
+capabilities at once**: the focus goes on the control through the accessibility
+layer, and the keys go through the keyboard of our own.
+
+Measured on the binary of v2.0.19: it answers the **empty text**, and the control
+holds the text afterwards; the missing control is `Target control not found.`.
+
+Verified end to end on the box against the GTK3 fixture:
+
+```
+send_ret=[]                    the empty text, as v2 answers
+read_back=[typed by ahk]       ControlGetText reads what was typed
+missing_ctl=ERR|Target control not found.
+```
+
+and the report says `opened a uinput keyboard for the keys`, which is the second
+capability doing its work. The call took 4.8 s, and almost all of it is the four
+seconds a new uinput device needs before the compositor adopts it (section 4).
+
+**`ControlGetPos` is refused, and the measurement is the reason.** v2 writes the
+coordinates **relative to the client area** of the window. AT-SPI offers three
+coordinate spaces -- screen, window and parent -- and the dump now reads all
+three. Measured on the box:
+
+```
+label  ext=[[110,28,124,20]]   win=[[110,28,124,20]]   par=[[110,28,124,20]]
+button ext=[[240,24,28,28]]    win=[[240,24,28,28]]    par=[[240,24,28,28]]
+```
+
+**All three are the same number.** The compositor does not distinguish them, so
+the client-area origin -- the thing v2 measures from -- is not obtainable: the
+best this tree could do is subtract the window's own origin, and that lands on
+the *window* origin, which differs from the client origin by the height of the
+title bar. Writing that into the variables of a script would be wrong by exactly
+the frame, silently. It stays refused.
+
+The surface moved **682 → 683 values, 151 → 150 refusals**.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

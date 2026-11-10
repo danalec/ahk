@@ -511,6 +511,19 @@ pub trait Windows {
     fn control_focus(&mut self, _control: &str, _title: &str) -> Result<ControlEdit, String> {
         Err("this desktop cannot focus the controls of a window".to_string())
     }
+
+    /// Type a text into a named control of the window with this title.
+    ///
+    /// The way in is two capabilities together: the focus goes on the control
+    /// through the accessibility layer, and the keys go through the keyboard.
+    fn control_send_text(
+        &mut self,
+        _control: &str,
+        _title: &str,
+        _text: &str,
+    ) -> Result<ControlEdit, String> {
+        Err("this desktop cannot type into the controls of a window".to_string())
+    }
 }
 
 /// The processes of the desktop.

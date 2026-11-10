@@ -259,8 +259,8 @@ fn the_surface_flag_answers_with_json() {
     // it, through the notification of the session, then the four `WinGet*`
     // that read the listing of the windows, then the two that read where
     // a window is, and the one that reads whether it is maximized.
-    assert_eq!(report.number("values"), 682);
-    assert_eq!(report.number("refusals"), 151);
+    assert_eq!(report.number("values"), 683);
+    assert_eq!(report.number("refusals"), 150);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -275,7 +275,7 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(field_text(abs, "state"), "value");
     let windows = entries
         .iter()
-        .find(|entry| field_text(entry, "name") == "ControlSendText")
+        .find(|entry| field_text(entry, "name") == "WinActivate")
         .expect("the name is in the report");
     assert_eq!(field_text(windows, "state"), "refusal");
     assert!(windows.get("reason").map(|v| v.is_string()).unwrap_or(false));

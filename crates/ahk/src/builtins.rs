@@ -1312,9 +1312,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_send_text,
     },
     Builtin {
         name: "ControlSetChecked",
@@ -8299,6 +8299,49 @@ pub(crate) fn control_act(
     }
     .map_err(|e| desktop_failure(e, line))?;
     match answer {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `ControlSendText`: type a text into a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the **empty
+/// text**, and the control holds the text afterwards. The parameters are the
+/// text first, then the control, then the title.
+pub(crate) fn control_send_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the parameters after the text, the control and the window are not carried yet.".into(),
+            line,
+        });
+    }
+    let text = text_of(values, 0);
+    let control = text_of(values, 1);
+    let title = text_of(values, 2);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .control_send_text(&control, &title, &text)
+        .map_err(|e| desktop_failure(e, line))?
+    {
         crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
         crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
             message: TARGET_WINDOW.into(),

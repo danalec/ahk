@@ -982,6 +982,23 @@ impl ahk::desktop::Windows for LabDesktop {
         let address = crate::atspi::address()?;
         crate::atspi::control_focus(&address, title, control)
     }
+    fn control_send_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // The focus first, through the accessibility layer, and then the keys
+        // through the keyboard of our own: the two capabilities together.
+        match crate::atspi::control_focus(&address, title, control)? {
+            ahk::desktop::ControlEdit::Done => {}
+            other => return Ok(other),
+        }
+        ahk::desktop::Keyboard::type_text(self, text)?;
+        Ok(ahk::desktop::ControlEdit::Done)
+    }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.
