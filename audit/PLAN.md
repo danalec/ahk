@@ -3610,6 +3610,44 @@ cause is the same each time: **an anchor written from memory of a file rather th
 from a read of it**. The rule that would have prevented all three: **read the exact
 lines first, then write the anchor from what was printed.**
 
+### Round 178 — 2026-11-09: the check box is a kind the tree does not make, and why it is not one edit
+
+The helper makes **three** kinds of control -- `Edit`, `Button`, `Text` -- and a
+`CheckBox` is not one of them, so `g.Add("CheckBox", "", "tick me")` answers *"CheckBox
+is not a kind of control"*. That is a gap in what the tree **makes**, and it was
+opened as one.
+
+**What the attempt found, and it is why it was reverted:**
+
+1. the kind itself is **one line**: `elif kind == "CheckBox": control = Gtk.CheckButton(label=text)`,
+   and with it in, `Add("CheckBox")` works and answers an object of class `Gui.CheckBox`;
+2. **and then `c.Value` fails**, with
+
+   ```
+   the control of the script gave no value: {"ok": true, "value": 0}
+   ```
+
+   because **the value of a check box is a NUMBER in v2** -- nought or one, measured --
+   and the `Value` channel built in round 77 is **text**: `gui_value` answers a
+   `String` and parses the quoted text of the answer. A bare `0` has no quotes to
+   parse.
+
+**So the kind is one line and the value is a semantic of its own.** There are two
+wrong ways to close the gap and one right one:
+
+- answer `"0"`/`"1"` as text and let `Value` hand back a String -- **wrong, and the
+  worst kind**: `if c.Value` is true in this dialect for a String `"0"`, so the
+  script would read a tick that is not there;
+- parse the number inside `gui_value` and return it for every control -- **wrong**:
+  it would change the `Value` of an `Edit` too;
+- **a channel of its own for the ticked state** -- `gui_checked` answering a number,
+  and the `Value` arm of `gui.checkbox` answering `Int` instead of `Text`. That is
+  the right one, and it is three more edits.
+
+**Reverted**, because a half-supported kind is worse than an unsupported one:
+`Add("CheckBox")` answering a control whose `Value` throws is a trap, and the tree
+answers a clear reason today.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
