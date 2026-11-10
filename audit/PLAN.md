@@ -1892,6 +1892,40 @@ handler building the array the way `WinGetList` does; the case; then the box run
 against the interfaces the machine actually has, which the measurement above
 gives for the workstation and the box will give for itself.
 
+### Round 56 — 2026-11-09: who owns the helper, settled
+
+No code this round; the state is verified (clean, green, 690/143) and the **one
+question that blocks the `Gui` wiring is answered**, so the next session starts
+on the writing rather than on a design debate.
+
+**Who owns the helper process.** The `Gui` class cannot own it: a class of the
+tree is a value the script may copy, pass and overwrite, and a process is not a
+value. The runner cannot own it either without the language crate learning about
+processes, which is the one thing it deliberately does not do.
+
+So **the desktop owns it**: `LabDesktop` holds an `Option<TheWindow>`, filled on
+the first `gui_open` and used by every operation after it. That is the same
+lifetime the rest of the box's hands have -- the pointer device, the keyboard
+device -- and it is the thing that already knows how to start and stop a program.
+
+**The close is `Drop`.** A helper that is dropped is a helper whose input pipe
+closes, and the helper ends its own loop when its input closes (that is why it
+was written that way in round 40). `impl Drop for LabDesktop` calling `close` is
+therefore enough for every exit the runner has -- the normal end, an error, a
+panic -- with no shutdown hook to remember to call.
+
+**The two consequences to write into the code, not to discover later:**
+
+1. **The helper is lazy.** A script that never makes a `Gui` never starts a
+   process, so the cost is only paid by a script that uses it.
+2. **A failing helper is a failure of the desktop, not of the script.** If
+   `python3` is not on the machine, `gui_open` answers the reason and the `Gui`
+   refuses with it -- the same rule as every other capability.
+
+**What is left of the wiring is now mechanical**: the five `Desktop` methods over
+the transport, the handle in the `Gui` class's reserved key, and the five members
+of the surface (`Gui()`, `Add`, `Show`, `Destroy`, `Title`).
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
