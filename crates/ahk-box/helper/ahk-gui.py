@@ -113,7 +113,7 @@ def the_control(kind, text):
     # The class and number of v2: `Edit1` is the first edit, `Button1` the first
     # button, whatever the order of the Add calls.
     same_kind = sum(1 for _n, k, _c in state["controls"] if k == kind)
-    answer({"ok": True, "id": number, "classnn": "%s%d" % (kind, same_kind)})
+    answer({"ok": True, "id": number, "classnn": "%s%d" % (the_class_of(kind), same_kind)})
 
 
 def the_destroy():
@@ -374,7 +374,7 @@ def the_focused():
     held = window.get_focus()
     for number, kind, control in state["controls"]:
         if control is held:
-            answer({"ok": True, "value": "%s%d" % (kind, number)})
+            answer({"ok": True, "value": "%s%d" % (the_class_of(kind), number)})
             return
     answer({"ok": True, "value": ""})
 
@@ -387,7 +387,7 @@ def the_number_named(classnn):
     """
     wanted = classnn.strip().lower()
     for number, kind, _control in state["controls"]:
-        if ("%s%d" % (kind, number)).lower() == wanted:
+        if ("%s%d" % (the_class_of(kind), number)).lower() == wanted:
             answer({"ok": True, "value": number})
             return
     answer({"ok": False, "error": "there is no control named %s" % classnn})
@@ -403,7 +403,7 @@ def the_state_of(classnn, what, on):
     """
     wanted = classnn.strip().lower()
     for number, kind, control in state["controls"]:
-        if ("%s%d" % (kind, number)).lower() == wanted:
+        if ("%s%d" % (the_class_of(kind), number)).lower() == wanted:
             if what == "enabled":
                 control.set_sensitive(on)
             else:
@@ -497,6 +497,18 @@ def the_text_of_all():
             parts.append(control.get_text())
         parts.append("\n")
     answer({"ok": True, "value": "".join(parts)})
+
+
+def the_class_of(kind):
+    """The class that names a control in v2.
+
+    Measured on the binary of v2.0.19 on 2026-11-09: a `Text` control is a **`Static`**
+    to v2 -- `WinGetControls` of a window with a label, an edit and a button answers
+    `Static1`, `Edit1` and `Button1` -- and the other kinds are named as they are.
+    """
+    if kind == "Text":
+        return "Static"
+    return kind
 
 
 def run_on_loop(what):
