@@ -54,7 +54,7 @@ windows	WinClose	WinClose	yes	value	covered	answered on the script own window, r
 windows	WinKill	WinKill	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinGetPos	WinGetPos/WinGetClientPos	yes	value	covered	DONE round 4 (2026-11-09): the geometry event of zcosmic_toplevel_info_v1, which needs wl_output bound; verified on the box (214,181 1280x468)
 windows	-	WinGetMinMax	yes	value	covered	DONE round 5 (2026-11-09): the maximized/minimized entries of the same state array; 0 measured on the box, the 1 and -1 paths unit-tested against the protocol enum
-windows	WinGetText	WinGetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
+windows	WinGetText	WinGetText	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
 windows	WinGetClass	WinGetClass	yes	value	covered	DONE round 3 (2026-11-09): the class of the window is the application id of the toplevel; verified on the box (chromium)
 windows	WinGet	WinGetList/WinGetID/WinGetCount	yes	value	covered	DONE round 3 (2026-11-09): WinGetList/WinGetID/WinGetCount read the toplevel listing; verified on the box (2 windows, Array with Length). WinGetPID still refuses
 windows	WinMaximize	WinMaximize	yes	value	covered	answered on the script own window, rounds 193 to 199
@@ -69,12 +69,12 @@ windows	WinWaitActive	WinWaitActive	yes	value	covered	answered on the script own
 windows	WinWaitClose	WinWaitClose	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinWaitNotActive	WinWaitNotActive	yes	value	covered	answered on the script own window, rounds 193 to 199
 windows	WinHide/WinShow	WinHide/WinShow	yes	value	covered	answered on the script own window, rounds 193 to 199
-controls	ControlGetText	ControlGetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
-controls	ControlSetText	ControlSetText	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
+controls	ControlGetText	ControlGetText	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
+controls	ControlSetText	ControlSetText	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
 controls	ControlGetPos	ControlGetPos	yes	refusal	GAP-accessibility	refusal: name of Windows (AT-SPI is the Linux route)
-controls	ControlGetFocus	ControlGetFocus	yes	refusal	GAP-accessibility	refusal: name of Windows
-controls	ControlFocus	ControlFocus	yes	refusal	GAP-accessibility	refusal: name of Windows
-controls	Control	Control* (29 names)	yes	refusal	GAP-accessibility	refusal: name of Windows
+controls	ControlGetFocus	ControlGetFocus	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
+controls	ControlFocus	ControlFocus	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
+controls	Control	Control* (29 names)	yes	value	covered	the control family of rounds 30 to 34 and the window text of round 216
 gui	MsgBox	MsgBox	yes	value	covered	answer goes to the report output
 gui	InputBox	InputBox	yes	value	covered	zenity present on the box
 gui	FileSelectFile	FileSelect	yes	value	covered	zenity present on the box
