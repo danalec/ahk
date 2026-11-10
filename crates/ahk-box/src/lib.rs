@@ -7,6 +7,7 @@
 
 pub mod atspi;
 pub mod desktop;
+pub mod gui;
 pub mod files;
 pub mod hotkeys;
 pub mod keyboard;
