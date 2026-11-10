@@ -10635,3 +10635,25 @@ case that asked for it -- `op-is.ahk` -- passed the arrow.
 
 The corpus is 76 of 162 pure scripts (46.9 %): `flow-while.ahk` and
 `op-is.ahk` pass whole now.
+## 277. The title of a text, and the named codes of a time format
+
+Measured on the binary of v2.0.19 on 2026-11-10: only the whitespace begins a
+word in `StrTitle` -- `hello-world` is `Hello-world` and `ab-cd` is `Ab-cd`, so
+the hyphen and the apostrophe do not -- and the first *letter* of the word is
+the one in the upper case: the digits in front of it keep the word waiting, so
+`123abc` is `123Abc` and `123 456abc` is `123 456Abc`, while the digits inside a
+word do not, so `abc123def` is `Abc123def`. The tree began a word at every
+character that is not a letter or a digit, and it took the digit as the first
+character of the word, so `hello-world` became `Hello-World` and `123abc` was
+left alone.
+
+Measured on the same day: the format of `FormatTime` that is the *name* of a
+code as a whole is that code -- `WDay` is the number of the day of the week,
+`YDay` the number of the day of the year and `YWeek` the year and the week of
+it, as four digits and two -- read without its leading whitespace and with any
+case. A name that is a part of a longer format is not one: `A_WDay_B` reads the
+letters one by one, and the tree already read it that way. The tree read every
+letter on its own, so `WDay` was "W" and then the day and the year.
+
+The corpus is 78 of 162 pure scripts (48.1 %): `string-strlower.ahk` and
+`props-date-time.ahk` pass whole now.

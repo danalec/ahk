@@ -5344,3 +5344,39 @@ fn the_obj_bind_method_binds_the_method_of_a_class_type() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "n"), 0);
 }
+
+#[test]
+fn the_title_of_a_text_keeps_the_words_of_the_whitespace() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: only the whitespace
+    // begins a word -- `hello-world` is `Hello-world` and `ab-cd` is `Ab-cd`
+    // -- and the first letter of the word is the one in the upper case, so
+    // the digits in front of it keep the word waiting (`123abc` is `123Abc`)
+    // while the digits inside it do not (`abc123def` is `Abc123def`).
+    let report = run(concat!(
+        "MsgBox StrTitle(\"hello-world 3rd o'neil\")\n",
+        "MsgBox StrTitle(\"mIxEd`tcase`nnext\")\n",
+        "MsgBox StrTitle(\"123abc\") \"|\" StrTitle(\"abc123def\") \"|\" StrTitle(\"AB-CD\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Hello-world 3Rd O'neil", "Mixed\tCase\nNext", "123Abc|Abc123def|Ab-cd"]
+    );
+}
+
+#[test]
+fn the_named_codes_of_the_format_of_a_time_are_the_whole_of_the_format() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `WDay` is the number of
+    // the day of the week, `YDay` the number of the day of the year and
+    // `YWeek` the year and the week of it, as four digits and two; the name is
+    // read with any case and without its leading whitespace, and a name that
+    // is a part of a longer format is read letter by letter.
+    let report = run(concat!(
+        "MsgBox FormatTime(\"20200704\", \"WDay\") \" \" FormatTime(\"20200704\", \"WDay\")\n",
+        "MsgBox FormatTime(\"20200704\", \"YDay\") \" \" FormatTime(\"20200704\", \" wday\")\n",
+        "MsgBox FormatTime(\"20200704\", \"YWeek\")\n",
+        "MsgBox FormatTime(\"20200704\", \"A_WDay_B\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["7 7", "186 7", "202027", "A_WDa20_B"]);
+}

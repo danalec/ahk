@@ -745,7 +745,37 @@ pub fn format_time(
         .get(1)
         .map(|value| value.to_text())
         .unwrap_or_default();
+    // Measured on the binary of v2.0.19 on 2026-11-10: a format that is the
+    // name of a code as a whole is that code -- `WDay` is the number of the
+    // day of the week, `YDay` the day of the year and `YWeek` the year and
+    // the week of it -- and the whitespace in front of it does not count.
+    // The name that is a part of a longer format is not one: `A_WDay_B` reads
+    // the letters of it one by one.
+    if let Some(named) = the_named_code(&moment, &format) {
+        return Ok(Value::Text(named));
+    }
     Ok(Value::Text(format_moment(&moment, &format)))
+}
+
+/// The answer of a format that is the name of a code as a whole.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `WDay` answers the number
+/// of the day of the week, `YDay` the number of the day of the year, and
+/// `YWeek` the year and the week of it, as four digits and two. The name is
+/// read without its leading whitespace and with any case.
+fn the_named_code(moment: &Moment, format: &str) -> Option<String> {
+    let date = &moment.date;
+    let format = format.trim_start();
+    if format.eq_ignore_ascii_case("WDay") {
+        return Some(date.weekday.to_string());
+    }
+    if format.eq_ignore_ascii_case("YDay") {
+        return Some(date.yday.to_string());
+    }
+    if format.eq_ignore_ascii_case("YWeek") {
+        return Some(format!("{:04}{:02}", date.year, the_week(date)));
+    }
+    None
 }
 
 /// The value of a built-in variable of the date.

@@ -9026,20 +9026,33 @@ pub(crate) fn str_title(
 
 /// The text with the first letter of each word in the upper case and the
 /// rest of it in the lower case.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: a word begins at the
+/// start of the text and after the whitespace, and at nothing else --
+/// `hello-world` becomes `Hello-world` and `ab-cd` becomes `Ab-cd` -- and the
+/// first *letter* of the word is the one in the upper case: the digits in
+/// front of it keep the word waiting, so `123abc` becomes `123Abc`, and a
+/// word that has begun keeps the letters after its digits in the lower case,
+/// so `abc123def` becomes `Abc123def`.
 fn title_case(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
-    let mut first = true;
+    let mut at_a_word = true;
     for character in text.chars() {
-        if character.is_alphanumeric() {
-            if first {
+        if character.is_alphabetic() {
+            if at_a_word {
                 out.extend(character.to_uppercase());
+                at_a_word = false;
             } else {
                 out.extend(character.to_lowercase());
             }
-            first = false;
         } else {
             out.push(character);
-            first = true;
+            // The whitespace begins a word, and the other characters leave the
+            // word that has begun as it is and the one that has not begun
+            // waiting for its first letter.
+            if character.is_whitespace() {
+                at_a_word = true;
+            }
         }
     }
     out
