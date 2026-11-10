@@ -21,34 +21,26 @@ spelling (`Add` and every `Add*`), read and write its `Value`, `Text`, `Enabled`
 and `Visible`, set the `Title`, `Show` and `Destroy` -- each verified on the box
 against a measurement of the reference.
 
-**The one architectural piece left is the EVENTS, and two of its three parts are
-built.** The channel was chosen (a file the helper appends to and the runtime
-looks at between statements), and:
+**The events are DONE** (round 111). The whole chain works and is verified on the
+box: a window of the helper writes `close`, `click:<n>` or `escape` to a file the
+desktop derives from the process; `Sleep` drains it; the runtime walks the list of
+windows it remembered and finds the handler the `Gui` kept under `on:close` and
+the like; and the handler is called by the **name** the function value carries.
+The proof is in the steps of the run, where the handler's own lines execute
+between the `Destroy` and the end of the `Sleep`.
 
-- **the producer is done and proven** (round 95): the helper writes `close` and
-  `click:<n>` when the window is destroyed or a control is clicked, proven by a
-  real click through the tree's own `ControlClick`;
-- **the registration is done and proven** (round 98): `g.OnEvent("Close", fn)`
-  answers the empty text, refuses an event the window does not have on the first
-  parameter and a non-function on the second, all four cases matching the
-  reference, and it keeps the function in the property table of the `Gui` object
-  under a key only the module reads;
-- **the dispatch is the last step**: the runtime reads what the file holds between
-  statements and calls the stored function. Two details are settled in round 96 --
-  `close` takes no argument because the window is not a control, and an event with
-  no handler is **dropped, not queued** -- and one is not: what a `click:<n>` is
-  called with, since v2 passes the control object and the control object of that
-  round is the one `Add` answered.
+**What is next in the family**, in the order that costs least:
 
-**The two places that step touches**: the loop that already checks the timeout and
-the step count between statements (which is where the drain belongs, round 96),
-and the function-call path of the runtime, which is what turns a stored `Value`
-into a call. Both are deep and neither is small, which is why it is the one thing
-this session did not attempt at the end of a long context.
-
-**After that, the layout members** (`c.Move`, `c.Opt`, `g.Move`), and the ones the
-platform refuses with a reason already written down (`g.GetPos`, round 82: a
-Wayland client is not told where its window is).
+1. **a control's own events** -- `c.OnEvent("Click", fn)`. The producer already
+   writes `click:<n>`, so the missing halves are the registration on a control
+   object and a dispatch that finds the control by the number in the line. The
+   `Gui` object needs a registry of the controls it made, beside its handlers, and
+   the call needs the variant that takes arguments (`call_function(&f, &args, …)`
+   exists; `call_function_by_name` takes none), because v2 passes the control to
+   the handler.
+2. **the layout members** (`c.Move`, `c.Opt`), and `g.GetPos`, which is refused
+   with a reason already written down (round 82: a Wayland client is not told
+   where its window is).
 
 **The template for the next member**, which has now worked three times without a
 surprise (`Value` 76-77, `Enabled`/`Visible` 80-81, `Text` 84):
