@@ -1314,8 +1314,10 @@ fn a_name_of_windows_without_a_counterpart_says_so() {
     // The group reason was corrected on 2026-11-10: a re-measurement found the
     // reference does NOT hang on these names -- an earlier note had mistaken
     // one call shape for the name. The true obstacle is that they ask for
-    // Win32 resources this runtime has no counterpart for.
-    let report = run("StrGet(\"a\")");
+    // Win32 resources this runtime has no counterpart for. `StrGet` was the
+    // example until the same round answered it; `CallbackFree` is still in
+    // the group.
+    let report = run("CallbackFree(1)");
     assert_eq!(
         failure_of(&report),
         "these names ask for things of Windows that this runtime has no counterpart for: a caret's screen place, a Win32 shortcut, a COM audio interface, a string at a raw address, or a native callback thunk. Re-measured on the binary of v2.0.19 on 2026-11-10: it does NOT hang on them -- an earlier note mistook one call shape for the name."
@@ -5071,6 +5073,52 @@ fn the_bytes_of_a_text_are_the_ones_v2_counts() {
 fn an_encoding_that_v2_does_not_know_is_refused() {
     let report = run("x := StrPut(\"hello\", \"Bogus\")");
     assert_eq!(failure_of(&report), "Invalid Encoding.");
+}
+
+#[test]
+fn str_put_writes_a_buffer_and_str_get_reads_it_back() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: StrPut("hello", buf)
+    // answers 12 (the UTF-16 bytes with the terminator), StrGet(buf.Ptr)
+    // answers "hello", and a length of 3 answers "hel". A length of zero
+    // answers the empty text.
+    let report = run(concat!(
+        "buf := Buffer(64)\n",
+        "written := StrPut(\"hello\", buf)\n",
+        "a := StrGet(buf.Ptr)\n",
+        "b := StrGet(buf.Ptr, 3)\n",
+        "c := StrGet(buf.Ptr, 0)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "written"), 12);
+    assert_eq!(value_of(&report, "a"), Value::Text("hello".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("hel".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text(String::new()));
+}
+
+#[test]
+fn str_put_writes_utf8_and_str_get_reads_it_with_the_encoding() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: StrGet with an
+    // explicit length of zero answers the empty text -- a length is a count
+    // of characters, and zero of them is nothing.
+    let report = run(concat!(
+        "buf := Buffer(64)\n",
+        "written := StrPut(\"abc\", buf, , \"UTF-8\")\n",
+        "a := StrGet(buf.Ptr, 3, \"UTF-8\")\n",
+        "b := StrGet(buf.Ptr, 0, \"UTF-8\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "written"), 4);
+    assert_eq!(value_of(&report, "a"), Value::Text("abc".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text(String::new()));
+}
+
+#[test]
+fn str_get_of_an_address_no_buffer_answered_fails() {
+    let report = run("x := StrGet(99)");
+    assert_eq!(
+        failure_of(&report),
+        "the address 99 does not name a buffer this script has asked about"
+    );
 }
 
 #[test]

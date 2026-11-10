@@ -4283,7 +4283,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **757 answer, 76 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **758 answer, 75 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -4980,6 +4980,30 @@ buffers and a byte reader -- recorded, not started.
 **Three language cases** protect the two new names and the corrected group
 reason. **Surface 755/78 -> 757/76**, sum 833, both platforms green, clippy
 clean.
+
+### Round 273 — 2026-11-10: StrPut writes a buffer and StrGet reads it back
+
+The piece round 272 recorded rather than started. **Measured on the binary of
+v2.0.19 on 2026-11-10**: `StrPut("hello", buf)` answers 12 (the UTF-16 bytes
+with the terminator) and WRITES them; `StrGet(buf.Ptr)` answers `hello`;
+`StrGet(buf.Ptr, 3)` answers `hel` (a length is a count of CHARACTERS);
+`StrGet(buf.Ptr, 0)` answers the empty text; `StrPut("abc", buf, , "UTF-8")`
+answers 4 and `StrGet(buf.Ptr, 3, "UTF-8")` reads `abc`.
+
+**Built**: a `buffer_addresses` table on the runtime -- when `Buffer.Ptr` is
+read, the runtime remembers which buffer that address names, and `StrGet`/
+`StrPut` look the address up there. `b.Ptr` itself keeps its real address, which
+`NumPut`'s arithmetic (`address - b.Ptr == 4`) depends on. `StrPut` gained the
+write form (a Buffer object or an address as the second argument; a Text second
+argument keeps its established count-the-encoding meaning), and `StrGet` reads
+until a terminator or a character count in UTF-16 or UTF-8.
+
+**Three language cases**: the UTF-16 round trip with a length, the UTF-8 round
+trip with an encoding, and the refusal for an address no buffer answered.
+**Verified on the box**: `written=12 get=[hello] | len3=[hel] len0=[] |
+putu8=4 getu8=[abc] | noaddr=ERR` -- the address error naming the number.
+
+**Surface 757/76 -> 758/75**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in

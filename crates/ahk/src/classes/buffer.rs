@@ -116,12 +116,20 @@ pub(crate) fn call(
 pub(crate) fn property(
     name: &str,
     this: &Value,
-    _rt: &mut Runtime,
+    rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match name.to_lowercase().as_str() {
         "size" => Some(state(this, line).map(|buffer| Value::Int(buffer.bytes.len() as i64))),
-        "ptr" => Some(ptr_of(this, line).map(Value::Int)),
+        "ptr" => Some(match ptr_of(this, line) {
+            Ok(address) => {
+                // `StrGet` and `StrPut` are given this address back, so the
+                // runtime remembers which buffer it names.
+                rt.remember_a_buffer_at(address, this.clone());
+                Ok(Value::Int(address))
+            }
+            Err(failure) => Err(failure),
+        }),
         _ => None,
     }
 }
@@ -168,6 +176,11 @@ pub(crate) fn fill(value: &Value, bytes: &[u8], line: u32) -> Result<usize, Runt
 /// How many bytes a buffer has.
 pub(crate) fn size_of(value: &Value, line: u32) -> Result<i64, RuntimeFailure> {
     Ok(state(value, line)?.bytes.len() as i64)
+}
+
+/// The bytes of a buffer, for `StrGet` to decode.
+pub(crate) fn bytes_of(value: &Value, line: u32) -> Result<Vec<u8>, RuntimeFailure> {
+    Ok(state(value, line)?.bytes)
 }
 
 /// The address of the memory of the buffer.

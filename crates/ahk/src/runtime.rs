@@ -1160,6 +1160,13 @@ pub struct Runtime<'a> {
     /// back, so the number has to be the SAME for the same object for the life of the
     /// run. Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips.
     pointers: Vec<(Value, i64)>,
+    /// The buffers a script has asked the address of, by that address.
+    ///
+    /// `Buffer.Ptr` answers a real address of the storage the runtime keeps.
+    /// `StrGet` and `StrPut` are given that number back and need the buffer it
+    /// names. Measured on the binary of v2.0.19 on 2026-11-10: `StrPut(text,
+    /// buf)` writes the bytes and `StrGet(buf.Ptr)` reads them again.
+    buffer_addresses: Vec<(i64, Value)>,
     /// The window groups a script has named, and the window titles in each.
     ///
     /// `GroupAdd` of v2 puts a window specification into a set that outlives the
@@ -1372,6 +1379,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             guis: Vec::new(),
             pointers: Vec::new(),
+            buffer_addresses: Vec::new(),
             groups: Vec::new(),
             last_window: None,
             clipboard_watcher: None,
@@ -1441,6 +1449,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             guis: Vec::new(),
             pointers: Vec::new(),
+            buffer_addresses: Vec::new(),
             groups: Vec::new(),
             last_window: None,
             clipboard_watcher: None,
@@ -2212,6 +2221,25 @@ impl<'a> Runtime<'a> {
     /// The identifier of the window a `Win*` call last found, if one was found.
     pub fn the_last_window(&self) -> Option<&str> {
         self.last_window.as_deref()
+    }
+
+    /// Remember that a buffer answers to this address.
+    pub(crate) fn remember_a_buffer_at(&mut self, address: i64, buffer: Value) {
+        if !self
+            .buffer_addresses
+            .iter()
+            .any(|(held, _)| *held == address)
+        {
+            self.buffer_addresses.push((address, buffer));
+        }
+    }
+
+    /// The buffer an address names, if `Buffer.Ptr` gave that address.
+    pub(crate) fn the_buffer_at(&self, address: i64) -> Option<Value> {
+        self.buffer_addresses
+            .iter()
+            .find(|(held, _)| *held == address)
+            .map(|(_, buffer)| buffer.clone())
     }
 
     /// Register the function `OnClipboardChange` named, or take it away.

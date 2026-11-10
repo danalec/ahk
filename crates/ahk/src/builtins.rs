@@ -2258,9 +2258,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 3,
-        variant: 132,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: str_get,
     },
     Builtin {
         name: "StrPtr",
@@ -8422,37 +8422,181 @@ pub(crate) fn control_send_text(
 ///
 /// The form that **writes** the text takes a target address, and this runtime has
 /// no pointers: that form is refused with that reason.
+/// The bytes of a text in the encoding v2 writes, with the terminator.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the default is UTF-16
+/// (two bytes a unit, two bytes of terminator), UTF-8 is one byte a unit and
+/// one byte of terminator. `StrPut("hello")` answers 12, `StrGet` of the same
+/// buffer answers `hello`.
+fn the_bytes_of_a_text(text: &str, encoding: &str) -> Option<Vec<u8>> {
+    match encoding.to_ascii_uppercase().as_str() {
+        "" | "CP0" | "UTF-16" => {
+            let mut bytes = Vec::new();
+            for unit in text.encode_utf16() {
+                bytes.extend_from_slice(&unit.to_le_bytes());
+            }
+            bytes.extend_from_slice(&[0, 0]);
+            Some(bytes)
+        }
+        "UTF-8" | "CP65001" => {
+            let mut bytes = text.as_bytes().to_vec();
+            bytes.push(0);
+            Some(bytes)
+        }
+        _ => None,
+    }
+}
+
+/// Read a text back out of the bytes a buffer holds.
+///
+/// `length` is a count of CHARACTERS: absent means read until the terminator,
+/// and zero means read nothing. Measured on the binary of v2.0.19 on
+/// 2026-11-10: `StrGet(buf.Ptr)` answers `hello`, `StrGet(buf.Ptr, 3)`
+/// answers `hel`, and `StrGet(buf.Ptr, 0)` answers the empty text.
+fn the_text_of_bytes(bytes: &[u8], encoding: &str, length: Option<i64>) -> Option<String> {
+    match encoding.to_ascii_uppercase().as_str() {
+        "" | "CP0" | "UTF-16" => {
+            let mut units: Vec<u16> = Vec::new();
+            let mut at = 0;
+            while at + 1 < bytes.len() {
+                let unit = u16::from_le_bytes([bytes[at], bytes[at + 1]]);
+                if length.is_none() && unit == 0 {
+                    break;
+                }
+                units.push(unit);
+                at += 2;
+            }
+            if let Some(count) = length {
+                units.truncate(count.max(0) as usize);
+            }
+            Some(String::from_utf16_lossy(&units))
+        }
+        "UTF-8" | "CP65001" => {
+            let mut taken: Vec<u8> = Vec::new();
+            for byte in bytes {
+                if length.is_none() && *byte == 0 {
+                    break;
+                }
+                taken.push(*byte);
+            }
+            if let Some(count) = length {
+                taken.truncate(count.max(0) as usize);
+            }
+            Some(String::from_utf8_lossy(&taken).into_owned())
+        }
+        _ => None,
+    }
+}
+
+/// The buffer a `StrPut` or `StrGet` target names.
+///
+/// A Buffer object may be given directly, or the address `Buffer.Ptr` answered
+/// -- the runtime remembers which buffer that address names.
+fn the_buffer_of_a_target(
+    rt: &mut Runtime<'_>,
+    target: &Value,
+    line: u32,
+) -> Result<Value, RuntimeError> {
+    match target {
+        Value::Object(_) => Ok(target.clone()),
+        Value::Int(address) => rt.the_buffer_at(*address).ok_or_else(|| RuntimeError {
+            message: format!("the address {address} does not name a buffer this script has asked about"),
+            line,
+        }),
+        other => Err(RuntimeError {
+            message: format!(
+                "the target of a text is a buffer or its address, not a {}",
+                other.type_name().name()
+            ),
+            line,
+        }),
+    }
+}
+
+/// `StrPut(Text, Target, Length, Encoding)`: count the bytes of a text, or
+/// write them into a Buffer.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `StrPut("hello")` answers
+/// 12, `StrPut("hello", buf)` writes the UTF-16 bytes and answers 12, and
+/// `StrGet(buf.Ptr)` reads `hello` back. A Text second argument is the
+/// ENCODING in this tree (its established count-only form); a Buffer object or
+/// an address is the target of the write.
 pub(crate) fn str_put(
-    _rt: &mut Runtime<'_>,
+    rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    if values.len() > 2 {
-        return Err(RuntimeError {
-            message: "the form of StrPut that writes the text takes an address, and this runtime has no pointers.".into(),
-            line,
-        });
-    }
     let text = text_of(values, 0);
-    let encoding = if values.len() > 1 {
-        text_of(values, 1)
-    } else {
-        "CP0".to_string()
+    let second = values.get(1);
+    // A Text second argument names an encoding; a Buffer or an address is a
+    // target to write into. The fourth argument of v2 names the encoding of
+    // the write.
+    let encoding = match values.get(3) {
+        Some(value) => value.to_text(),
+        None => match second {
+            Some(Value::Text(name)) => name.clone(),
+            _ => "CP0".to_string(),
+        },
     };
-    let bytes = match encoding.to_ascii_uppercase().as_str() {
-        // The encoding of the machine is the UTF-16 of v2, and the terminator
-        // is one unit of it.
-        "CP0" | "UTF-16" => text.encode_utf16().count() * 2 + 2,
-        "UTF-8" | "CP65001" => text.len() + 1,
-        _ => {
-            return Err(RuntimeError {
-                message: "Invalid Encoding.".into(),
-                line,
-            })
-        }
+    let bytes = the_bytes_of_a_text(&text, &encoding).ok_or_else(|| RuntimeError {
+        message: "Invalid Encoding.".to_string(),
+        line,
+    })?;
+    let writes = match second {
+        Some(Value::Object(_)) => true,
+        Some(Value::Int(address)) => rt.the_buffer_at(*address).is_some(),
+        _ => false,
     };
-    Ok(Value::Int(bytes as i64))
+    if writes {
+        let buffer = the_buffer_of_a_target(rt, second.unwrap(), line)?;
+        let written = crate::classes::buffer::fill(&buffer, &bytes, line).map_err(|failure| {
+            match failure {
+                crate::runtime::RuntimeFailure::Error(error) => error,
+                crate::runtime::RuntimeFailure::Detailed(error, _) => error,
+                _ => RuntimeError {
+                    message: "the buffer did not answer.".to_string(),
+                    line,
+                },
+            }
+        })?;
+        return Ok(Value::Int(written as i64));
+    }
+    Ok(Value::Int(bytes.len() as i64))
+}
+
+/// `StrGet(Source, Length, Encoding)`: the text a buffer holds.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `StrGet(buf.Ptr)` answers
+/// `hello`, `StrGet(buf.Ptr, 3)` answers `hel`, and a Length of zero answers
+/// the empty text. The source is the address `Buffer.Ptr` answered.
+pub(crate) fn str_get(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let source = values.first().cloned().unwrap_or(Value::Int(0));
+    let buffer = the_buffer_of_a_target(rt, &source, line)?;
+    let bytes = crate::classes::buffer::bytes_of(&buffer, line).map_err(|failure| match failure {
+        crate::runtime::RuntimeFailure::Error(error) => error,
+        crate::runtime::RuntimeFailure::Detailed(error, _) => error,
+        _ => RuntimeError {
+            message: "the buffer did not answer.".to_string(),
+            line,
+        },
+    })?;
+    let length = values.get(1).map(|value| value.to_number().unwrap_or(0.0) as i64);
+    let encoding = values
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_else(|| "CP0".to_string());
+    the_text_of_bytes(&bytes, &encoding, length)
+        .map(Value::Text)
+        .ok_or_else(|| RuntimeError {
+            message: "Invalid Encoding.".to_string(),
+            line,
+        })
 }
 
 /// `WinGetPID`: the process of a window.
