@@ -757,6 +757,11 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         Ok(path.to_string_lossy().to_string())
     }
+    fn gui_all_text(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"all-text\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
     fn gui_opacity(&mut self, setting: Option<i64>) -> Result<i64, String> {
         let command = match setting {
             Some(on) => format!("{{\"op\": \"opacity\", \"on\": {}}}", on),

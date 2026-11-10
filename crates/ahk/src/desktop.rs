@@ -136,6 +136,14 @@ pub trait Screen {
     ///
     /// The width comes first and the height second, the way the two
     /// variables of v2 ask for them.
+    /// The text of every control of the script's window, each followed by a line break.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetText` of a window with a
+    /// label and an edit answers the two texts, one after the other, each with a break.
+    fn gui_all_text(&mut self) -> Result<String, String> {
+        Err("this desktop cannot read the text of the window of the script".to_string())
+    }
+
     /// The opacity of the window of the script, or set it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `WinSetTransparent` counts

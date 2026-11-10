@@ -477,6 +477,28 @@ def the_opacity(setting):
     answer({"ok": True, "value": int(round(window.get_opacity() * 255))})
 
 
+def the_text_of_all():
+    """The text of every control of the window, each followed by a line break.
+
+    `WinGetText` of v2, for the script's own window. Measured on the binary: a label
+    and an edit answered their two texts, one after the other, each with a break after
+    it.
+    """
+    if state["window"] is None:
+        answer({"ok": False, "error": "there is no window"})
+        return
+    parts = []
+    for _number, kind, control in state["controls"]:
+        if kind in ("Button", "CheckBox"):
+            parts.append(control.get_label())
+        elif kind == "Text":
+            parts.append(control.get_text())
+        else:
+            parts.append(control.get_text())
+        parts.append("\n")
+    answer({"ok": True, "value": "".join(parts)})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -492,6 +514,8 @@ def handle(command):
                 command.get("classnn", ""), "visible", command.get("on", True)
             )
         )
+    elif op == "all-text":
+        run_on_loop(the_text_of_all)
     elif op == "opacity":
         run_on_loop(lambda: the_opacity(command.get("on")))
     elif op == "paste":

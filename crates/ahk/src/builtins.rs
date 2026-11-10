@@ -2512,14 +2512,14 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 121,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_text,
     },
     Builtin {
         name: "WinGetTransColor",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: win_trans_color,
     },
@@ -10115,6 +10115,30 @@ pub(crate) fn win_style(
         message: "a window style is a number of Windows that says how a window is decorated, and under this compositor the decoration belongs to the compositor and a client has no style number at all".to_string(),
         line,
     })
+}
+
+/// `WinGetText(WinTitle)`: the text of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a window with a label and an edit
+/// answers the two texts, one after the other, **each followed by a line break**, and a
+/// window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's.** This name was measured and
+/// refused in an earlier round for a foreign window, and that reason still holds: the
+/// accessibility tree of another program carries its title bar with its content and no
+/// rule separates them. Its own window has only the controls the script made.
+pub(crate) fn win_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_all_text()
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
 }
 
 pub(crate) fn sleep(
