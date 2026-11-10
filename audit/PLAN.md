@@ -2225,6 +2225,37 @@ the second, and the desktop already has the seam for it -- `control_set_text` an
 `control_get_text` of round 30 to 32 -- so the second is the answer, with the
 property table holding only `ClassNN` and `Hwnd`.
 
+### Round 78 — 2026-11-09: the metric did not move, and why that is the metric's shape
+
+Everything is green on both machines -- the workstation and the box, 28 suites,
+no failure -- and the surface is the same **690 / 143** it was in round 55.
+
+**Thirty rounds of work moved no number.** The `Gui` frontier went from nothing
+to a working window with controls, and `--surface` counts the same. That is not a
+failure of the work; it is what the metric measures.
+
+`--surface` counts whether the tree **carries** a name: answers with a value, or
+refuses with the reason it cannot. A `Gui` member that refused with "the toolkit
+is not joined to it yet" and a `Gui` member that opens a real GTK3 window are
+**both** "carried" -- and the second is worth far more. The metric was built to
+find *gaps in the coverage of the dialect*, and it did that job well; it cannot
+see the difference between a reason that is honest and a reason that has been
+made unnecessary.
+
+**So the objective cannot be judged by that number alone**, and this is the
+measurement note that says so. What the numbers should be read beside:
+
+- the **name counts** (690/143) -- the coverage of the surface;
+- the **nine members of `Gui` that answer on the box** (rounds 70 to 77), each
+  verified against a live window and a reference measurement;
+- the **seven `Control*` names** the same way (rounds 30 to 34);
+- the **defects closed** against the audit, and the three it was wrong about.
+
+**The honest summary of "surpass AHK_X11"** is therefore two sentences, not one:
+the tree carries 690 of the 833 names of v2 with a reason for the rest, and
+**it can do the thing AHK_X11 alone could do** -- make a window, put controls in
+it, read and write them -- which the count cannot express.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
