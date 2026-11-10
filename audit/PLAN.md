@@ -3648,6 +3648,40 @@ wrong ways to close the gap and one right one:
 `Add("CheckBox")` answering a control whose `Value` throws is a trap, and the tree
 answers a clear reason today.
 
+### Round 179 — 2026-11-09: the check box, second attempt, and a hang at the label
+
+The whole of round 178's finding was built -- the ticked channel, the kind, and the
+two `Value` arms -- and it **hung the helper**, at a line this time rather than at the
+operation:
+
+```
+the window helper stopped answering        (line 11)
+```
+
+Line 11 is `c.Text` on the check box. The `Value` reads and writes of lines 6 to 10
+had already run, so **the ticked state works** and **the label of a check box does
+not**: `Text` goes through the same `value` operation, that operation answers a
+**number** for a check box (round 178's measurement), and the text side expects a
+quoted string. What is not known is why that **hung** rather than failing with the
+reason the same mismatch gave in round 178.
+
+**Reverted again**, and the tree is `HEAD`, building, at **702 / 131**.
+
+**What is now settled, and it is more than round 178 had**:
+
+- the kind is one line and it makes a `Gui.CheckBox`;
+- `Value` on it is a number and the channel for it works;
+- **`Text` on it is the thing that breaks**, and it is one more branch -- the text
+  side must answer the LABEL of a check box (`get_label`) instead of its tick.
+
+**So the next attempt is three things, not two**: the kind, the `Value` arms (both
+directions), and a `Text` branch for `gui.checkbox` that reads and writes the label.
+
+**Two rounds have now been spent on this kind**, both reverted, both leaving a
+precise finding. That is the honest cost of a member whose **value and text are two
+different things on one control** -- and it is the first kind of the family where
+that is true.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
