@@ -2181,9 +2181,14 @@ fn the_end_of_the_number(
         // the number when a name does not come after it: `1.ToString` is the
         // number 1 and the member that follows it, and `1.` is the number
         // 1.0.
+        // The point of the concat-assign is not the point of the number:
+        // `n.1.="D"` is the property "1" of `n` written by `.=`, and the
+        // binary reads the number 1 and the operator. Measured on the binary
+        // of v2.0.19 on 2026-11-10.
         if !chars
             .get(index + 1)
             .is_some_and(|character| the_character_is_a_letter(*character, marks))
+            && chars.get(index + 1) != Some(&'=')
         {
             the_number_has_a_point = true;
             index += 1;

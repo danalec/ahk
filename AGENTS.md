@@ -10418,3 +10418,17 @@ its own.
 The corpus case `collections-map.ahk` passed the `c := [a*]` line that stopped
 it (it stops later now, at `Map.ToString`, which v2.0.19 does not have), and
 `flow-enum.ahk` passed `a := [EnumFunc*].Length`.
+## 267. The point of the concat-assign after a number, and the hole of a loop
+
+Measured on the binary of v2.0.19 on 2026-11-10: `n.1.="D"` is the property
+"1" of `n` written by `.=`, and the number before the point of the operator is
+1 -- not 1.0. The lexer reads the point of the number only when a name does not
+follow it, and the `=` after it is not a name: the number ends before the
+point, and the operator keeps its own. `x := 1.` is still the float 1.0.
+
+The parameters of a `Loop` keep the place that is not there, the way the
+parameters of a command do: `Loop Parse "hello", , "l"` leaves the delimiters
+out and walks the letters. The hole is a comma that follows a comma, and the
+parser of the loop pushes the empty parameter and lets the separator comma be
+read by the next turn of the list. Before this the loop parser asked for an
+expression at the comma and answered "Missing operand.".

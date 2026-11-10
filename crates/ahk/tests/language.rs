@@ -6161,6 +6161,34 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_number_before_the_point_of_the_concat_assign_is_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `n.1.="D"` is the
+    // property "1" of `n` written by `.=`, and the point of the operator is
+    // not the point of the number: the number is 1 and the operator is `.=`.
+    let (report, _desktop) = run(concat!(
+        "n := {1: \"Y\"}\n",
+        "n.1 .= \"D\"\n",
+        "MsgBox n.1\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["YD"]);
+}
+
+#[test]
+fn the_hole_of_a_loop_parameter_keeps_its_place() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `Loop Parse "hello", ,
+    // "l"` leaves the delimiters out and the loop walks the letters, and the
+    // hole is the comma that follows a comma.
+    let (report, _desktop) = run(concat!(
+        "Loop Parse \"hello\", , \"l\" {\n",
+        "    MsgBox A_LoopField\n",
+        "}\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["h", "e", "o"]);
+}
+
+#[test]
 fn the_array_literal_takes_the_items_of_a_spread() {
     // Measured on the binary of v2.0.19 on 2026-11-10: the last item of an
     // array literal may carry a star, and the items of the value it names take

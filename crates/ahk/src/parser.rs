@@ -9701,6 +9701,17 @@ impl Parser {
                             // The body is where the parameter should be.
                             return Err(self.error(format!("Unexpected \"Loop {name}\"")));
                         }
+                        // Measured on the binary of v2.0.19 on 2026-11-10: the
+                        // parameter that is not there keeps its place -- `Loop
+                        // Parse "hello", , "l"` is the loop over the letters
+                        // with the delimiters left out -- and the hole is the
+                        // comma that follows a comma.
+                        if self.at_op(&[","]) {
+                            let line = self.peek().line;
+                            self.position += 1;
+                            arguments.push(Node::Empty { line });
+                            continue;
+                        }
                         self.the_expression_begins();
                         arguments.push(self.parse_expression()?);
                         if first_end.is_none() {
@@ -9716,11 +9727,22 @@ impl Parser {
                     self.the_expression_begins();
                     arguments.push(self.parse_expression()?);
                     first_end = Some(self.position);
-                    while self.at_op(&[","]) {
+                    loop {
+                        if !self.at_op(&[","]) {
+                            break;
+                        }
                         self.position += 1;
                         if self.at_op(&["{"]) {
                             // The body is where the parameter should be.
                             return Err(self.error(format!("Unexpected \"Loop {name}\"")));
+                        }
+                        // The parameter that is not there keeps its place:
+                        // the comma of the hole is the separator of the next
+                        // look, and it is not consumed here.
+                        if self.at_op(&[","]) {
+                            let line = self.peek().line;
+                            arguments.push(Node::Empty { line });
+                            continue;
                         }
                         self.the_expression_begins();
                         arguments.push(self.parse_expression()?);
