@@ -4161,6 +4161,54 @@ name.
 **capabilities the tree lacks** and **mechanisms it does not carry**, and this is the
 third mechanism after the window list and the pointer table.
 
+### Round 224 — 2026-11-09: the objective cannot be certified, because its own instrument is stale
+
+The objective is **"implement to surpass all features of AHK_X11"**, and the instrument
+for judging it has existed since round 1: `audit/gap-matrix.tsv`, 140 rows of
+v1 name -> v2 name -> tree state -> **gap class**. Read now:
+
+| gap class | rows |
+|---|---|
+| **covered** | **86** |
+| GAP-windows-act | **15** |
+| GAP-accessibility | 7 |
+| GAP-desktop-integration | 5 |
+| GAP-gui-toolkit | **4** |
+| GAP-machine-metrics | 4 |
+| lifecycle | 4 |
+| not-a-gap-v2-removed | 4 |
+| GAP-controls | 3 |
+| GAP-events | 2 |
+| GAP-wayland-no-grab | 2 |
+| the rest | 1 each |
+
+**The matrix says 15 rows are a gap in acting on a window and 4 in the GUI toolkit.**
+This session **built exactly those two things** -- the `Win*` family that acts on the
+script's own window (rounds 193 to 199) and the `Gui` capability (rounds 70 to 132) --
+and **the matrix has not been touched since round 1**.
+
+**So the objective cannot be certified from its own evidence**, and the reason is not the
+tree: it is that **the instrument that would judge it is 220 rounds out of date**. A
+verdict from it would be a verdict about round 1.
+
+**What certifying it would take**, and it is a round of its own and more: **re-derive the
+140 rows** -- each is a v1 name of AHK_X11, a v2 name, and a claim about what the tree
+does with it. The claim in each row is exactly the kind this session has learned to
+distrust: **a state read out of the code rather than measured**. Every row whose class is
+a `GAP-*` needs its v1 name **run**, the way rounds 136 and 138 ran the drives and the
+windows and found them already working.
+
+**So the honest answer to "is the objective met?" is: it is not known, and the way to know
+is a measurement that has not been made.** That is a better answer than a guess, and it is
+the same discipline as round 205: **a discrepancy is only a discrepancy once the second
+side is measured.**
+
+**What IS known**: 727 of the 833 v2 names answer, and the two things the matrix called
+gaps -- acting on a window and the GUI toolkit -- are the two things this session built
+and verified. **The matrix has 19 rows that are probably covered now and 15 of them are
+the family this session finished.** That is the next round's work, and it is the work
+that would let the objective be judged instead of assumed.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
