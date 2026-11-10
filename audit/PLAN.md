@@ -1212,6 +1212,53 @@ catches carries `What: "ControlGetText"`, the way v2's does.
 An empty title is refused rather than treated as a wildcard: v2 reads it as the
 active window, and this tree has no active window to read.
 
+### Round 29 — 2026-11-09: the family is implementable and **not verifiable here**
+
+Round 28 ended with a claim that the rest of the control family is "cheap: each
+is a handler rather than a build". This round measured that claim and it is
+**half wrong**: the handlers are cheap, and **there is nothing on the box to
+verify them against**.
+
+**What v2 answers, measured** on the binary of v2.0.19:
+
+| call | the binary |
+|---|---|
+| `ControlGetFocus("A")` — a window that is there, nothing focused | **`0`**, an Integer |
+| `ControlGetFocus("zzz…")` | *"Target window not found."* |
+| `ControlGetVisible("x", "zzz…")` | *"Target window not found."* |
+| `ControlGetVisible("x", "A")` | *"Target control not found."* |
+| `ControlGetEnabled("x", "A")` | *"Target control not found."* |
+
+So the two failures are the ones round 28 already raises, and `ControlGetFocus`
+answers the **zero** rather than failing when the window has no focused control.
+
+**Why none of it can be verified here.** Three programs were launched with the
+bridge on and the whole tree was dumped node by node:
+
+| program | what it publishes |
+|---|---|
+| `zenity --info` | the dialog, `Name` = the window title, role `dialog`; **every descendant unnamed, no `Text`** |
+| `nautilus /tmp` | the window, `Name` = `tmp`, role `window`; **every descendant unnamed, no `Text`** |
+| `chromium --force-renderer-accessibility` | **nothing**: it never registered on the bus |
+
+The trees are real -- the roles are there and the windows are named -- and the
+controls inside them are not. So `ControlGetText`, `ControlGetVisible`,
+`ControlGetEnabled` and the rest have **no case that can pass on this box**, and
+the project's rule is that an unverified behaviour is not shipped.
+
+**What this changes.** The remaining 31 `Control*` names are not a matter of
+writing handlers: they need a program that publishes its controls, and there is
+none here. Two ways forward, both honest:
+
+1. Find or install a program that publishes a real tree (`atspi` test tools,
+   `accerciser`'s probe, a GTK3 application, or Chromium with a working launch),
+   and then the family falls quickly -- the client, the walk and the two failures
+   are done and verified.
+2. Leave the family refused and spend the rounds on what the box *can* answer.
+
+**Nothing was shipped this round**, and the plan's wording from round 28 is
+corrected here rather than left standing.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
