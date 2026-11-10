@@ -1498,7 +1498,13 @@ pub(crate) fn call(
             .get(2)
             .map(|value| value.to_text())
             .unwrap_or_default();
-        return Some(the_control_of_the_gui(&kind, &text, rt, line));
+        return Some(match the_control_of_the_gui(&kind, &text, rt, line) {
+            Ok(made) => {
+                remember_the_control(this, &made);
+                Ok(made)
+            }
+            Err(failure) => Err(failure),
+        });
     }
     // The short spelling of the same question: `AddText` is `Add("Text", …)`.
     // Its arguments are the options and then the text, so the text is the second.
@@ -1512,7 +1518,13 @@ pub(crate) fn call(
             .get(1)
             .map(|value| value.to_text())
             .unwrap_or_default();
-        return Some(the_control_of_the_gui(&kind, &text, rt, line));
+        return Some(match the_control_of_the_gui(&kind, &text, rt, line) {
+            Ok(made) => {
+                remember_the_control(this, &made);
+                Ok(made)
+            }
+            Err(failure) => Err(failure),
+        });
     }
     // `OnEvent` of a `Gui`: keep the function that answers an event of the
     // window. Measured on the binary of v2.0.19 on 2026-11-09: it answers the
@@ -1762,6 +1774,28 @@ fn the_flag_of(name: &str) -> Option<&'static str> {
         Some("visible")
     } else {
         None
+    }
+}
+
+/// Keep a control on the window it belongs to.
+///
+/// The number that names it is the `Hwnd` it carries, which is the number the
+/// helper answered and the same number an event about it carries. A click says
+/// `click:<n>`, and this is how the drain finds the control -- and through it the
+/// handler -- from that number alone.
+fn remember_the_control(window: &Value, control: &Value) {
+    let number = match the_number_of_a_control(control) {
+        Some(number) => number,
+        None => return,
+    };
+    if let Value::Object(object) = window {
+        object.borrow_mut().properties.insert(
+            format!("control:{number}"),
+            crate::runtime::Property {
+                name: format!("Control{number}"),
+                value: control.clone(),
+            },
+        );
     }
 }
 

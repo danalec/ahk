@@ -1994,6 +1994,17 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// Call a function of the script by its name, with the arguments of a call.
+    fn call_function_by_name_with(
+        &mut self,
+        name: &str,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        self.call_named(name, arguments, line, Route::Written)
+            .map(|_answer| ())
+    }
+
     /// Answer the events of the windows of the script that have happened.
     ///
     /// The helper speaks first, and what it said is read here -- one name each:
@@ -2006,33 +2017,54 @@ impl<'a> Runtime<'a> {
         let Ok(events) = self.desktop().gui_events() else {
             return Ok(());
         };
-        let mut pending: Vec<String> = Vec::new();
+        let mut pending: Vec<(String, Option<Value>)> = Vec::new();
         for event in events {
-            let name = event.split(':').next().unwrap_or("").to_lowercase();
+            let mut pieces = event.splitn(2, ':');
+            let name = pieces.next().unwrap_or("").to_lowercase();
+            let number = pieces.next().map(str::to_string);
             if name.is_empty() {
                 continue;
             }
             let key = format!("on:{name}");
             let found = self.the_guis().iter().find_map(|gui| {
-                let Value::Object(object) = gui else {
+                let Value::Object(window) = gui else {
                     return None;
                 };
-                let object = object.borrow();
-                let handler = object.properties.get(&key)?;
-                let Value::Object(function) = &handler.value else {
+                let window = window.borrow();
+                // A click is about one control of the window, and the control is
+                // the side that keeps the handler. Every other event is about the
+                // window itself.
+                let (holder, about) = match &number {
+                    Some(number) => {
+                        let held = window.properties.get(&format!("control:{number}"))?;
+                        (held.value.clone(), Some(held.value.clone()))
+                    }
+                    None => (gui.clone(), None),
+                };
+                let Value::Object(object) = &holder else {
                     return None;
                 };
-                let function = function.borrow();
-                function.properties.get("name").map(|held| held.value.to_text())
-            });
-            if let Some(function) = found {
-                if !function.is_empty() {
-                    pending.push(function);
+                let handler = object.borrow().properties.get(&key)?.value.clone();
+                let Value::Object(function) = &handler else {
+                    return None;
+                };
+                let name = function
+                    .borrow()
+                    .properties
+                    .get("name")
+                    .map(|held| held.value.to_text())?;
+                if name.is_empty() {
+                    return None;
                 }
+                Some((name, about))
+            });
+            if let Some(found) = found {
+                pending.push(found);
             }
         }
-        for function in pending {
-            self.call_function_by_name(&function, line)
+        for (function, about) in pending {
+            let arguments: Vec<Value> = about.into_iter().collect();
+            self.call_function_by_name_with(&function, &arguments, line)
                 .map_err(|failure| crate::runtime::as_error(failure, line))?;
         }
         Ok(())
