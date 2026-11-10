@@ -8956,3 +8956,45 @@ fn the_line_of_the_arguments_of_a_call_is_the_line_of_the_call() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["b=2 5", "c=6"]);
 }
+#[test]
+fn a_property_that_holds_a_function_is_called_as_a_method() {
+    // Measured on the test suite of KeySharp (the corpus script
+    // `class-ownprops.ahk`) and on the notes of v2.1-alpha: a property that holds
+    // a function is called as the method of its object -- the descriptor of
+    // `DefineProp` holds the getter in `get`, and `o.get()` calls it with `o` as
+    // the `this` of the function, so `(this) => 456` answers 456 and a setter
+    // that writes a property of `this` writes the object. The v2.0.19 refuses
+    // the call with "This value of type ... has no method named get.".
+    let (report, _desktop) = run_in(
+        concat!(
+            "o := { get: (this) => 456, set: (this) => this.b := 789 }\n",
+            "MsgBox \"a\" o.get()\n",
+            "o.set()\n",
+            "MsgBox \"b\" o.b\n",
+            "class Kls {\n",
+            "    x := 1\n",
+            "}\n",
+            "k := Kls()\n",
+            "k.DefineProp(\"p\", { get: (this) => this.x * 2 })\n",
+            "MsgBox \"c\" k.p\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a456", "b789", "c2"]);
+}
+
+#[test]
+fn the_property_that_holds_a_function_is_refused_by_the_v2() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a property that holds a
+    // function is not the method of the object, and the call of it names the
+    // method that is not there.
+    let (report, _desktop) = run(concat!(
+        "o := { get: (this) => 456 }\n",
+        "o.get()\n",
+    ));
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Object\" has no method named \"get\".")
+    );
+}

@@ -1929,6 +1929,18 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether a property that holds a function is called as the method of its
+    /// object.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-10-29 and on the test suite of
+    /// KeySharp (the corpus script `class-ownprops.ahk`) and on the notes of
+    /// v2.1-alpha: the v2.0.19 refuses `o.p()` when `p` is a property that holds
+    /// a function -- "This value of type ... has no method named p" -- and the
+    /// v2.1 calls the function with `o` as its first parameter.
+    fn a_property_that_holds_a_function_is_a_method(&self) -> bool {
+        false
+    }
+
     /// Whether the lexer knows the null assignment of the v2.1, `??=`.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-10: `x ??= 5` is refused
@@ -2077,6 +2089,10 @@ impl Dialect for V2 {
     }
 
     fn the_absent_value_may_be_the_class_of_the_is(&self) -> bool {
+        self.extended
+    }
+
+    fn a_property_that_holds_a_function_is_a_method(&self) -> bool {
         self.extended
     }
 

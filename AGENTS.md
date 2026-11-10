@@ -11094,3 +11094,30 @@ that has no value with the absent value and does not fail, and it does not know
 yet which of the two -- the item of a property with parameters and the answer of
 a call that nobody reads -- is the failure the script names. It is the next
 block, and it is not guessed here.
+## 295. A property that holds a function, and the descriptor that names one accessor
+
+Measured on the test suite of KeySharp (the corpus script `class-ownprops.ahk`)
+and on the notes of v2.1-alpha, three mechanisms of the class system of the
+v2.1 are carried now:
+
+- **A property that holds a function is called as a method.** The descriptor of
+  `DefineProp` keeps the getter in `get`, and `val.get()` calls the function that
+  `get` holds with `val` as the `this` of it: a function written `(this) => 456`
+  answers 456, and one that writes a property of `this` writes the object. The
+  member of a class type is answered by the type, so `Array.HasProp` and the
+  other names of the types do not go through the property; a name that is not a
+  property at all is refused with the words of v2.0.19. The v2.0.19 refuses the
+  call, and it keeps refusing it: the mechanism is behind the dialect.
+- **A descriptor that names one accessor keeps the other.** `DefineProp("a",
+  {set: ...})` over a property that has a getter keeps the getter, and the read
+  answers what the getter answered before. A descriptor that carries a `value`
+  is a property of its own and replaces the one before it.
+- **The property that a write gives a function to is called with the object.**
+  `o.prop := (this, p*) => this.a := p.Length` over a value property puts the
+  function in the property, and `o.prop(1, 2)` calls it with `o` as `this`.
+
+`class-ownprops.ahk` runs from the test of the dynamic property to line 501: what
+is left there is `OwnPropKeys(Array.Prototype, true)`, which asks the prototype
+of a class type for its own properties and expects `__Class` alone -- the getters
+of the type have no receiver, so the one-variable form of the enumeration does
+not name them -- and the tree names all of them. That is the next block.

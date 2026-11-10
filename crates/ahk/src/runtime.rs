@@ -6171,6 +6171,7 @@ impl<'a> Runtime<'a> {
                 return self.call_the_function(&value, target, &values, line);
             }
         }
+
         let class = match target {
             Value::Object(object) => object.borrow().class.clone(),
             _ => String::new(),
@@ -6199,6 +6200,21 @@ impl<'a> Runtime<'a> {
         if self.class_name_of(target).is_none() {
             if let Some(result) = crate::classes::call(&class, name, target, &values, self, line) {
                 return result;
+            }
+        }
+        // Measured on the test suite of KeySharp (the corpus script
+        // `class-ownprops.ahk`) and on the notes of v2.1-alpha: a property that
+        // holds a function is called as the method of its object -- the
+        // descriptor of `DefineProp` holds the getter in `get`, and `val.get()`
+        // calls it with `val` as the `this` of the function, so a function
+        // written `(this) => 456` answers 456 and one that writes a property of
+        // `this` writes the object. The member of a class type is answered above
+        // this, and a name that is not a property at all is the refusal below.
+        if self.dialect.a_property_that_holds_a_function_is_a_method() {
+            if let Ok(held) = self.read_property(target, &name.to_lowercase(), line) {
+                if self.is_a_function(&held) {
+                    return self.call_the_function(&held, target, &values, line);
+                }
             }
         }
         // The prototype of an `Any`, of a `ComObject` and of a `ComValue` is
@@ -7841,6 +7857,42 @@ impl<'a> Runtime<'a> {
                     Ok(descriptor) => descriptor,
                     Err(failure) => return Some(Err(failure)),
                 };
+                // Measured on the test suite of KeySharp (the corpus script
+                // `class-ownprops.ahk`) and on the notes of v2.1-alpha: a
+                // descriptor that names only one of the two accessors of a
+                // property that is already described keeps the other one --
+                // `DefineProp("a", {set: ...})` over a property that has a getter
+                // keeps the getter, and the read answers what the getter
+                // answered before.
+                if self.dialect.a_property_that_holds_a_function_is_a_method() {
+                    // A descriptor that carries a value is a property of its own
+                    // and replaces the one before it; one that carries only
+                    // accessors keeps the accessor the previous one has.
+                    if matches!(&descriptor, Value::Object(fresh) if fresh.borrow().value_of("value").is_some())
+                    {
+                        put(&mut object.borrow_mut().properties, &name, descriptor);
+                        return Some(Ok(target.clone()));
+                    }
+                    let old = object.borrow().value_of(&name.to_lowercase());
+                    if let (Some(old), Value::Object(fresh)) = (old, &descriptor) {
+                        if self.is_a_descriptor(&old) {
+                            if let Value::Object(before) = &old {
+                                for key in ["get", "set"] {
+                                    if fresh.borrow().value_of(key).is_some() {
+                                        continue;
+                                    }
+                                    if let Some(held) = before.borrow().value_of(key) {
+                                        put(
+                                            &mut fresh.borrow_mut().properties,
+                                            &key.to_string(),
+                                            held,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 put(&mut object.borrow_mut().properties, &name, descriptor);
                 // The answer of v2 is the object itself.
                 Some(Ok(target.clone()))
