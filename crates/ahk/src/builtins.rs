@@ -1548,7 +1548,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_current_col,
     },
     Builtin {
         name: "EditGetCurrentLine",
@@ -9317,6 +9317,35 @@ pub(crate) fn edit_get_current_line(
     let before: usize = (cursor.max(0) as usize).min(text.chars().count());
     let breaks = text.chars().take(before).filter(|c| *c == '\n').count();
     Ok(Value::Int(breaks as i64 + 1))
+}
+
+/// `EditGetCurrentCol(Hwnd)`: which column of its line the cursor is at.
+///
+/// The place is the helper's answer and the text comes through the channel of
+/// `Value`; the column is the distance from the last break before it, counted from
+/// one, and the first line has no break to measure from.
+pub(crate) fn edit_get_current_col(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    let cursor = rt
+        .desktop()
+        .gui_cursor(number)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let before: usize = (cursor.max(0) as usize).min(text.chars().count());
+    let seen: Vec<char> = text.chars().take(before).collect();
+    let column = match seen.iter().rposition(|held| *held == '\n') {
+        Some(at) => seen.len() - at,
+        None => seen.len() + 1,
+    };
+    Ok(Value::Int(column as i64))
 }
 
 pub(crate) fn sleep(
