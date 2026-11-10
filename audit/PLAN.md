@@ -1826,6 +1826,46 @@ So the next attempt on it is: add the accessor, then the handler that writes one
 line per variable to the `output`, then a case with two variables. Small, but not
 the one-line thing the ladder promised.
 
+### Round 53 — 2026-11-09: the lock keys, and why the ladder stops here
+
+Round 52's box verification was outstanding and is done: **28 suites, surface
+689/144 on the box**, the same as the workstation.
+
+Then ladder item 4 was measured on the binary of v2.0.19, and the measurement
+makes it a different job than the ladder claimed:
+
+| call | the binary |
+|---|---|
+| `SetCapsLockState("On")` | **`""`**, and `GetKeyState("CapsLock","T")` answers 1 after |
+| `SetCapsLockState("Off")` | `""`, and it answers 0 after |
+| `SetCapsLockState("AlwaysOn")` | `""` |
+| `SetCapsLockState("Bogus")` | **`""`** -- no failure at all |
+
+**Three obstacles, and the third is the one that decides it:**
+
+1. The state has to be **read**, and this desktop reads it with `EVIOCGLED` on the
+   uinput keyboard -- ioctl code behind `#[cfg(target_os = "linux")]`, which does
+   **not type-check on the workstation** and has already produced a green Windows
+   build over a file that did not compile on the box (section 4). It is a job
+   that has to be done with the box build in the loop from the first edit.
+2. **`"AlwaysOn"` cannot be honoured.** It means "keep it on across every press",
+   which needs a keyboard hook that this runtime does not have. Answering `""` for
+   it -- which is what v2 answers -- would be a lie about a state the tree cannot
+   hold.
+3. **v2 accepts any word silently**, so the tree cannot copy v2's tolerance
+   without inventing a meaning for `"Bogus"`.
+
+So the ladder ends here, and that is the useful result: item 4 is **not a quick
+win**. It is an ioctl job with a semantic corner (`AlwaysOn`) that this runtime
+cannot honour, and the honest version of it is narrower than the reference's --
+`On` and `Off` only, with `AlwaysOn`/`AlwaysOff` refused and the difference
+written down.
+
+**The ladder, at its end**: items 1, 2 and 3 shipped five names
+(`WinGetProcessName`, `WinGetProcessPath`, `Persistent`, `ListVars`, and the
+`WinGetPID` that opened the chain). Item 4 is a scoped job for a round with room
+for the box build loop, not a tail-end win.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
