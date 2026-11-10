@@ -4356,6 +4356,42 @@ trap and the `GetPos` trap, and it is why the refusal is right.
 **The round cost one probe and produced a category**, which is the shape of the useful
 rounds at this end of a long session.
 
+### Round 247 — 2026-11-09: Edit takes no parameters, and the script of this tree has no file
+
+`Edit` looked like the last closable desktop row: open a file with the machine's own
+handler, which is `xdg-open`. The trait method, the box method, the handler and the row
+were written and the build was clean at **730 / 103**. Then the box:
+
+```
+Edit("/tmp/edit-probe.txt")
+  -> Too many parameters passed to function.
+     Specifically: Edit
+```
+
+**The row's arity is `min: 0, max: 0`** -- read out of the binary -- and that is
+**round 188's rule**: the **declaration** refuses a call before the handler runs, so the
+handler I wrote could never be reached with a path.
+
+**And the arity is not a mistake in the table: `Edit` of v2 takes no parameters because it
+opens the SCRIPT'S OWN FILE.** This tree's script is read from the standard input, so
+**there is no file to open** -- `A_ScriptFullPath` and `A_ScriptName` are refused for the
+same reason.
+
+**So `Edit` is not a gap the desktop can close: it is a name whose whole subject is a file
+this runtime does not have.** Reverted, and the tree is clean at **729 / 104**.
+
+**The round is worth keeping for three things**:
+
+1. **a handler that cannot be reached** is what an arity mismatch produces, and the error
+   names the function and not the handler -- so it reads like a bad call, not like a
+   wrong implementation;
+2. **the arity in the row is a measurement**, and I wrote an implementation without
+   reading it first -- the sixth time a reading of the code (or a plausible design) was
+   corrected by running the thing;
+3. **`Edit` joins `A_ScriptFullPath`, `A_ScriptDir` and `A_ScriptName`** as a family
+   refused for one reason: **the script of this runtime is the standard input**, and a
+   name that is about the file of a script has nothing to be about.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
