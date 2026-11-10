@@ -3776,6 +3776,46 @@ windows, which the compositor's toplevel list already gives -- but it needs **st
 that survives between statements**, which this runtime does not carry for windows. That
 is a mechanism, not a kind, and it is a worse trade.
 
+### Round 192 — 2026-11-09: the seam of round 191 cannot be measured, and the advice is corrected
+
+Round 191 named the list-shaped controls as the best ratio left: one kind, eight
+names, three to four rounds. **The measurement that has to come first was taken, and
+the reference hangs on it.**
+
+Two probes, both timed out with no output at all:
+
+```ahk
+g := Gui()
+d := g.Add("DropDownList", "", "one|two|three")
+value := d.Value
+text  := d.Text
+```
+
+and the same without reading anything but the class. **The binary of v2.0.19 stops on
+`Add("DropDownList", …)`** in this environment and never writes a result.
+
+**So the seam is not measurable**, and the advice of round 191 is withdrawn: it was
+costed on the assumption that the reference would say what the control should do, and
+the reference will not say.
+
+**What is not known, and it is the honest boundary**:
+
+- whether the hang is the control, the `|`-separated item list, or the environment;
+- and therefore **what the eight names should answer** -- the number of an item, its
+  text, and what `Add` and `Delete` do to the numbering.
+
+**Building it would mean inventing all of that**, which is `FileRecycle`'s mistake
+(round 189) and round 178's trap: an answer with no measurement behind it, in a family
+where the reference is the only authority.
+
+**So the next name should be picked from the ones whose contract IS measurable** -- the
+`Control*` names that read a state the tree already has, rather than the ones that need
+a control the reference will not describe.
+
+**This is the second seam this session has had to withdraw** after `FileRecycle`, and
+the reason is the same both times: **a name is only work if its contract can be
+measured**, and that is a property of the reference, not of the tree.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
