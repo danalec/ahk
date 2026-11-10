@@ -6089,6 +6089,7 @@ fn the_hotkey_of_the_v2_is_a_line_of_its_own() {
         "F3::\n{\n    MsgBox \"three\"\n}\n",
         "F4::return\n",
         "^!a::MsgBox \"chord\"\n",
+        "F6 Up::MsgBox \"up\"\n",
         "#z::MsgBox \"hash\"\n",
         "$F5::MsgBox \"hook\"\n",
         "MsgBox \"after\"\n",

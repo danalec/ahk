@@ -10236,3 +10236,39 @@ replacement of a hotstring, and the corpus script that pins those
 (`hotstring-parsing2.ahk`). The key table of the tree also still refuses
 names the binary accepts (`LButton`, `F13`..`F24`, `WheelUp`, the numpad
 names); a worker carries the table this round.
+## 260. The key table of the hotkeys
+
+Measured on the binary of v2.0.19 on 2026-11-09: the binary accepts the mouse
+buttons (`LButton`, `RButton`, `MButton`, `XButton1`, `XButton2`), `F11`,
+`F12` and `F13`..`F24` (`F25` is refused), `NumpadMult`, `AppsKey`, `Sleep`,
+`Help`, `CtrlBreak`, `RShift`, the **underscore** spellings of the media keys
+(`Media_Play_Pause`, `Media_Stop`, `Media_Next`, `Media_Prev` -- the
+`MediaPlay`-style names are refused), the `Browser_*` and the `Launch_*` keys,
+and it refuses `zzz`, `F25`, `MediaPlay`, `MediaPlayPause`, `Nonsense`,
+`NumpadClean` and `Joy1` with "Invalid key name." and the name in `Specifically:`.
+The table `crates/ahk/src/keys.rs` now carries every accepted one with the
+box's Linux input code: the buttons 0x110..0x114 (BTN_LEFT..BTN_EXTRA), the
+function keys 87, 88 and 183..194, `NumpadMult` 55, `AppsKey` 127, `Sleep` 142,
+`Help` 138, `CtrlBreak` 119 (the Pause key; the Ctrl is not part of the code),
+`RShift` 54 (also a modifier), and the media/browser/launch codes.
+
+**The wheel has a table of its own.** `WheelUp`, `WheelDown`, `WheelLeft` and
+`WheelRight` are EV_REL events in the kernel (`REL_WHEEL` 0x08 and
+`REL_HWHEEL` 0x06), and those numbers are the codes of the `7` and the `5` keys
+already: a name that answers 0x08 would press a digit when the runtime types
+its own hotkey. `WHEEL_NAMES` answers 0xfff1..0xfff4, above `KEY_MAX` (0x2ff),
+so the names parse and the keyboard watcher of the box -- EV_KEY only -- never
+fires them. The decision is pinned by
+`the_wheel_is_not_a_key_and_has_a_code_of_its_own`.
+
+**The probe of a key name hangs without `/ErrorStdOut`.** Measured on
+2026-11-09: `/validate` on `NAME::MsgBox "x"` opens a dialog for a load error
+unless `/ErrorStdOut` is there, and a `#Requires v2` line in the probe file
+makes `/validate` answer "This script requires v2" for every name. The recipe
+is `AutoHotkey64.exe /validate /ErrorStdOut NAME::MsgBox "x"` with no
+`#Requires`, and the exit code is the verdict.
+
+The ` Up` suffix is the only space a name of a hotkey may hold: `F1 Up::` and
+`^!a Up::` are the key coming up, and the parser now tells that spelling apart
+from the line that is not a hotkey. The case of the corpus is
+`func-hotkey-local.ahk`, which passes now.

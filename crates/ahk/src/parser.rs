@@ -3210,11 +3210,36 @@ impl Parser {
         if at == self.statement_start {
             return false;
         }
-        let name = the_source_of_the_tokens(self, self.statement_start, at);
-        if name.is_empty() || name.contains(' ') || name.contains('\t') {
+        if self.the_name_of_a_hotkey_of_the_v2(at).is_none() {
             return false;
         }
         self.tokens[self.statement_start].kind != TokenKind::Directive
+    }
+
+    /// The name of a hotkey of the v2 that the line writes, when it writes
+    /// one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the ` Up` at the end
+    /// of the spelling is the only space a name of a hotkey may hold --
+    /// `F1 Up::` is the key coming up -- and every other space is not the
+    /// name of a hotkey (the two colons of an expression are not one).
+    fn the_name_of_a_hotkey_of_the_v2(&self, at: usize) -> Option<String> {
+        let name = the_source_of_the_tokens(self, self.statement_start, at);
+        if name.is_empty() {
+            return None;
+        }
+        let without_up = if name.len() > 3 && name[name.len() - 3..].eq_ignore_ascii_case(" up") {
+            &name[..name.len() - 3]
+        } else {
+            name.as_str()
+        };
+        if without_up.is_empty()
+            || without_up.contains(' ')
+            || without_up.contains('\t')
+        {
+            return None;
+        }
+        Some(name)
     }
 
     /// The hotkey of the v2: the line that defines it, and its action.

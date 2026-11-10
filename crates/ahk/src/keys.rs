@@ -138,6 +138,73 @@ pub const EVDEV: &[(&str, u16)] = &[
     ("LEFTALT", 56),
     ("LEFTMETA", 125),
     ("RIGHTMETA", 126),
+    // The keys of the v2 list that were missing here. Measured on the binary
+    // of v2.0.19 on 2026-11-09: every name below is one it accepts as a hotkey
+    // (`NAME::MsgBox "x"` is validated, and `F25::` is refused), and the
+    // numbers are the Linux input event codes of the box.
+    //
+    // The mouse buttons are EV_KEY codes of the pointer's device: BTN_LEFT is
+    // 0x110 and the rest follow. They are keys like any other to this table,
+    // and which device reports them is the desktop's business.
+    ("BTN_LEFT", 0x110),
+    ("BTN_RIGHT", 0x111),
+    ("BTN_MIDDLE", 0x112),
+    ("BTN_SIDE", 0x113),
+    ("BTN_EXTRA", 0x114),
+    ("RIGHTSHIFT", 54),
+    ("KPASTERISK", 55),
+    // The right shift was the other missing modifier. The table above names
+    // the left one, and v2 knows the two apart.
+    ("F11", 87),
+    ("F12", 88),
+    ("F13", 183),
+    ("F14", 184),
+    ("F15", 185),
+    ("F16", 186),
+    ("F17", 187),
+    ("F18", 188),
+    ("F19", 189),
+    ("F20", 190),
+    ("F21", 191),
+    ("F22", 192),
+    ("F23", 193),
+    ("F24", 194),
+    ("COMPOSE", 127),
+    ("STOP", 128),
+    ("HELP", 138),
+    ("SLEEP", 142),
+    ("MAIL", 155),
+    ("BOOKMARKS", 156),
+    ("COMPUTER", 157),
+    ("BACK", 158),
+    ("FORWARD", 159),
+    ("NEXTSONG", 163),
+    ("PLAYPAUSE", 164),
+    ("PREVIOUSSONG", 165),
+    ("STOPCD", 166),
+    ("HOMEPAGE", 172),
+    ("REFRESH", 173),
+    ("SEARCH", 217),
+    ("MEDIA", 226),
+    ("CALC", 148),
+];
+
+/// The names of the wheel of the pointer.
+///
+/// The wheel is **not** a key: the kernel reports it as a relative axis
+/// (`REL_WHEEL` 0x08 and `REL_HWHEEL` 0x06), and those two numbers are EV_KEY
+/// codes already -- 0x08 is the `7` of the keyboard and 0x06 is the `5` -- so
+/// they cannot be in the table above without making `Send "{WheelUp}"` press a
+/// digit. The names therefore answer codes above `KEY_MAX` (0x2ff), which no
+/// key of a Linux machine has: the name resolves and a hotkey of it parses,
+/// and the watcher of the box -- which watches `EV_KEY` only -- never fires
+/// it. Measured on the binary of v2.0.19 on 2026-11-09: `WheelUp::`,
+/// `WheelDown::`, `WheelLeft::` and `WheelRight::` are all accepted.
+pub const WHEEL_NAMES: &[(&str, u16)] = &[
+    ("wheelup", 0xfff1),
+    ("wheeldown", 0xfff2),
+    ("wheelleft", 0xfff3),
+    ("wheelright", 0xfff4),
 ];
 
 /// The names people actually write, mapped onto the codes above.
@@ -252,6 +319,44 @@ pub const KEY_ALIASES: &[(&str, &str)] = &[
     ("super", "LEFTMETA"),
     ("meta", "LEFTMETA"),
     ("cmd", "LEFTMETA"),
+    // The mouse buttons of the v2 list, and the wheel.
+    ("lbutton", "BTN_LEFT"),
+    ("rbutton", "BTN_RIGHT"),
+    ("mbutton", "BTN_MIDDLE"),
+    ("xbutton1", "BTN_SIDE"),
+    ("xbutton2", "BTN_EXTRA"),
+    ("numpadmult", "KPASTERISK"),
+    ("numpadmultiply", "KPASTERISK"),
+    // The other names of the v2 list that the table lacked. Measured on the
+    // binary of v2.0.19 on 2026-11-09.
+    ("appskey", "COMPOSE"),
+    ("apps", "COMPOSE"),
+    ("menu", "COMPOSE"),
+    ("sleep", "SLEEP"),
+    ("help", "HELP"),
+    // The Break of a PC keyboard is the Pause key with Ctrl held, and the
+    // code is the Pause key: the Ctrl is not part of the code.
+    ("ctrlbreak", "PAUSE"),
+    ("rshift", "RIGHTSHIFT"),
+    ("shiftright", "RIGHTSHIFT"),
+    ("launch_mail", "MAIL"),
+    ("launch_media", "MEDIA"),
+    ("launch_app1", "COMPUTER"),
+    ("launch_app2", "CALC"),
+    // The media keys: the v2 spelling is the one with the underscores, and
+    // `MediaPlay` without them is not a name of v2 -- measured on the binary
+    // of v2.0.19 on 2026-11-09, it answers "Invalid key name.".
+    ("media_play_pause", "PLAYPAUSE"),
+    ("media_stop", "STOPCD"),
+    ("media_next", "NEXTSONG"),
+    ("media_prev", "PREVIOUSSONG"),
+    ("browser_back", "BACK"),
+    ("browser_forward", "FORWARD"),
+    ("browser_refresh", "REFRESH"),
+    ("browser_stop", "STOP"),
+    ("browser_search", "SEARCH"),
+    ("browser_favorites", "BOOKMARKS"),
+    ("browser_home", "HOMEPAGE"),
 ];
 
 /// The virtual key codes of the PC keyboard, and the key each one names.
@@ -431,6 +536,9 @@ pub const MODIFIERS: &[(&str, &str)] = &[
     ("rcontrol", "RIGHTCTRL"),
     ("shift", "LEFTSHIFT"),
     ("lshift", "LEFTSHIFT"),
+    // The right shift is a modifier of its own, and v2 knows it: measured on
+    // the binary of v2.0.19 on 2026-11-09, `RShift::` is accepted.
+    ("rshift", "RIGHTSHIFT"),
     ("alt", "LEFTALT"),
     ("lalt", "LEFTALT"),
     ("ralt", "RIGHTALT"),
@@ -468,6 +576,11 @@ pub fn resolve_name(name: &str) -> Result<u16, UnknownKey> {
     let lowered = key.to_lowercase();
     if let Some((_, target)) = KEY_ALIASES.iter().find(|(alias, _)| *alias == lowered) {
         return code_of(target).ok_or_else(|| UnknownKey(name.to_string()));
+    }
+    // The wheel is not a key of the keyboard, and it is answered from its own
+    // table: the codes above `KEY_MAX` say "the box has no such key".
+    if let Some((_, code)) = WHEEL_NAMES.iter().find(|(alias, _)| *alias == lowered) {
+        return Ok(*code);
     }
     if let Some(code) = hex_code(&lowered, "vk") {
         if let Some(target) = virtual_key_name(code) {
@@ -851,14 +964,79 @@ mod tests {
 
     #[test]
     fn a_name_the_box_has_no_key_for_is_refused() {
-        assert!(resolve_name("Browser_Back").is_err());
-        assert!(resolve_name("Media_Next").is_err());
-        assert!(resolve_name("Launch_Mail").is_err());
+        // The joystick of v2 has no device on the box, and the names the
+        // binary itself refuses are refused here too: `F25::` and
+        // `MediaPlay::` answer "Invalid key name." on the binary of v2.0.19
+        // (measured on 2026-11-09), and a name that is not a key at all is
+        // not answered with a guess.
         assert!(resolve_name("Joy1").is_err());
-        assert!(resolve_name("WheelUp").is_err());
-        assert!(resolve_name("AppsKey").is_err());
-        assert!(resolve_name("F11").is_err());
-        assert!(resolve_name("NumpadMult").is_err());
+        assert!(resolve_name("F25").is_err());
+        assert!(resolve_name("MediaPlay").is_err());
+        assert!(resolve_name("MediaPlayPause").is_err());
+        assert!(resolve_name("zzz").is_err());
+        assert!(resolve_name("Nonsense").is_err());
+        assert!(resolve_name("NumpadClean").is_err());
+        // `Mute` is not a name of v2 -- `Volume_Mute` is -- and the tree
+        // answers it anyway: the bare epdev names of this table are part of
+        // its own surface, and `MUTE` is one of them.
+        assert_eq!(resolve_name("Mute").unwrap(), 113);
+    }
+
+    #[test]
+    fn the_keys_the_binary_accepts_are_carried() {
+        // Measured on the binary of v2.0.19 on 2026-11-09: every name here is
+        // accepted as a hotkey, and the code is the Linux input event code of
+        // the key on the box.
+        assert_eq!(resolve_name("LButton").unwrap(), 0x110);
+        assert_eq!(resolve_name("RButton").unwrap(), 0x111);
+        assert_eq!(resolve_name("MButton").unwrap(), 0x112);
+        assert_eq!(resolve_name("XButton1").unwrap(), 0x113);
+        assert_eq!(resolve_name("XButton2").unwrap(), 0x114);
+        assert_eq!(resolve_name("F11").unwrap(), 87);
+        assert_eq!(resolve_name("F12").unwrap(), 88);
+        assert_eq!(resolve_name("F13").unwrap(), 183);
+        assert_eq!(resolve_name("F24").unwrap(), 194);
+        assert_eq!(resolve_name("NumpadMult").unwrap(), 55);
+        assert_eq!(resolve_name("AppsKey").unwrap(), 127);
+        assert_eq!(resolve_name("Sleep").unwrap(), 142);
+        assert_eq!(resolve_name("Help").unwrap(), 138);
+        assert_eq!(resolve_name("CtrlBreak").unwrap(), 119);
+        assert_eq!(resolve_name("RShift").unwrap(), 54);
+        assert_eq!(resolve_name("Media_Play_Pause").unwrap(), 164);
+        assert_eq!(resolve_name("Media_Stop").unwrap(), 166);
+        assert_eq!(resolve_name("Media_Next").unwrap(), 163);
+        assert_eq!(resolve_name("Media_Prev").unwrap(), 165);
+        assert_eq!(resolve_name("Browser_Back").unwrap(), 158);
+        assert_eq!(resolve_name("Browser_Forward").unwrap(), 159);
+        assert_eq!(resolve_name("Browser_Refresh").unwrap(), 173);
+        assert_eq!(resolve_name("Browser_Stop").unwrap(), 128);
+        assert_eq!(resolve_name("Browser_Search").unwrap(), 217);
+        assert_eq!(resolve_name("Browser_Favorites").unwrap(), 156);
+        assert_eq!(resolve_name("Browser_Home").unwrap(), 172);
+        assert_eq!(resolve_name("Launch_Mail").unwrap(), 155);
+        assert_eq!(resolve_name("Launch_Media").unwrap(), 226);
+        assert_eq!(resolve_name("Launch_App1").unwrap(), 157);
+        assert_eq!(resolve_name("Launch_App2").unwrap(), 148);
+    }
+
+    #[test]
+    fn the_wheel_is_not_a_key_and_has_a_code_of_its_own() {
+        // The wheel is a relative axis of the pointer, and the two numbers of
+        // it -- REL_WHEEL 0x08 and REL_HWHEEL 0x06 -- are keys of the
+        // keyboard already (the `7` and the `5`). The names answer codes
+        // above KEY_MAX (0x2ff), which no key has, so a hotkey of the wheel
+        // parses and the watcher of the box, which watches EV_KEY, never
+        // fires it.
+        for name in ["WheelUp", "WheelDown", "WheelLeft", "WheelRight"] {
+            let code = resolve_name(name).expect("the name of the wheel is carried");
+            assert!(code > 0x2ff, "{name} is {code}, and it must be above KEY_MAX");
+            assert_ne!(code, 8, "{name} must not be the `7` key");
+            assert_ne!(code, 6, "{name} must not be the `5` key");
+        }
+        let mut codes: Vec<u16> = WHEEL_NAMES.iter().map(|(_, code)| *code).collect();
+        codes.sort_unstable();
+        codes.dedup();
+        assert_eq!(codes.len(), WHEEL_NAMES.len(), "two names share a code");
     }
 
     #[test]
