@@ -4088,6 +4088,42 @@ names that DO answer rather than at the ones that do not.
 work is not the two names, it is the one function they need, and **finding it is worth
 a round of its own rather than a guess at the end of this one**.
 
+### Round 219 — 2026-11-09: the array constructor found, a numbering bug caught, and a commit made with a red box
+
+Three things, and the third is a process failure worth recording beside the successes.
+
+**1. The constructor was found**: `crate::classes::construct("array", &values, rt, line)`,
+with `Ok(Value::List(values))` as the fallback -- read out of `str_split`, the name that
+already answers an array. **That is round 175's lesson again**: find the entry point by
+reading the names that DO answer.
+
+**2. `WinGetControls` answers, and the first run on the box found a bug in it**:
+
+```
+first run:   count=3  names=[Static1][Edit2][Button3]
+after:       count=3  names=[Static1][Edit1][Button1]
+```
+
+**The helper numbers a control globally; v2 numbers it per class.** The measurement of
+the reference was right (`Static1`, `Edit1`, `Button1`) and the first implementation of
+it was wrong in a way **only the reference's own answer could show**.
+
+**3. And the commit went in with the box red.** The order of the call was: update the
+test, run it locally (green), **check the box (stale, 725 against a code that answers
+726)**, commit -- all chained with `;`, so the commit ran whatever the box said. **That
+is round 85's `;` over a build, done again over a test, ninety-four rounds later.**
+
+Re-synced and the box is green: **0 failures, 28 suites, 726 / 107**.
+
+**So the thirteenth rule stands and was broken in the same round it was cited**:
+**`&&`, never `;`, between a check and a commit** -- and **sync after the LAST edit**,
+which is the twelfth. Two rules, both already written, both violated by one chained
+command.
+
+**What made it recoverable**: the commit's own message said what the code should do, and
+the box's failure named the number. **A red box after a commit is not a lost round if the
+record says what happened.**
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
