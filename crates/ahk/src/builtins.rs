@@ -1258,9 +1258,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_text,
     },
     Builtin {
         name: "ControlGetVisible",
@@ -8109,6 +8109,45 @@ pub(crate) fn output_debug(
     let text = rt.interpolate(&text_of(values, 0), line)?;
     rt.push_output(text);
     Ok(Value::Text(String::new()))
+}
+
+/// `ControlGetText`: the text of a control of a window.
+///
+/// The control is found by its name and the window by its title, through the
+/// accessibility layer, because that is the only description of the controls of
+/// a window that a Wayland session keeps.
+///
+/// **A control that the application does not publish answers the empty text,
+/// and that is not a failure.** Measured on the box on 2026-11-09 with a dump of
+/// the whole tree: `zenity` publishes its dialog -- the `Name` of the window is
+/// the title of the window, and it is a `dialog` -- and publishes no name and no
+/// text for anything inside it. Any client of AT-SPI sees the same nothing. The
+/// walk therefore answers what the tree holds, which for that program is the
+/// empty text.
+pub(crate) fn control_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the text of the
+    // window and the two exclusions, and they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    match rt
+        .desktop()
+        .control_text(&control, &title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(text) => Ok(Value::Text(text)),
+        None => Ok(Value::Text(String::new())),
+    }
 }
 
 // -- the monitors ------------------------------------------------------------------

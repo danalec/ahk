@@ -1134,6 +1134,53 @@ wrong. The buses are named by the registry and change between dialogs --
 `:1.8` in one probe and `:1.18` minutes later -- so a probe that hard-codes one
 is measuring nothing.
 
+### Round 27 — 2026-11-09: the walk was right and the fixture was empty
+
+Round 26 withheld `ControlGetText` because the walk reached the application and
+not the control, and could not say why. The cause is found, and **it was not the
+walk**.
+
+**A dump of the whole tree** (`audit/atspi-dump.sh`, the walker that prints the
+name, the role and the text of every node) against a live `zenity` dialog:
+
+```
+root                                name=[main]     role=[desktop frame]
+  /org/a11y/atspi/accessible/root   name=[zenity]   role=[application]
+    /org/gnome/Zenity/a11y/efef…    name=[ahk-ctrl-probe] role=[dialog]
+      /org/gnome/Zenity/a11y/c92d…  name=[]         role=[generic]
+        /org/gnome/Zenity/a11y/b08e… name=[]        role=[generic]
+          …                          name=[]         role=[generic]
+```
+
+Two things, both measured:
+
+1. **The title match works.** The `Name` of the dialog is the title of the
+   window, so the correlation that round 24 called the hard part is there.
+2. **`zenity` publishes no control.** Every node under the dialog has an empty
+   `Name` and answers no `Text`. The label is on the screen and is not in the
+   tree, and **no AT-SPI client can read it** -- not this tree, and not the
+   AHK_X11 either. The empty answer was the tree's answer, and it was right.
+
+So `ControlGetText` ships: it walks, it finds the window by title, and it
+answers what the tree holds. Verified end to end on the box with the dialog
+registered -- `ok: true`, the walk took 83 ms, the answer was the empty text.
+
+**Three findings that a later round must not have to rediscover:**
+
+- **The bridge is off by default.** `org.a11y.Status.IsEnabled` was `false` on
+  the box, and applications publish nothing while it is. It is set with
+  `busctl --user set-property org.a11y.Bus /org/a11y/bus org.a11y.Status
+  IsEnabled b true`. The tree does **not** set it: that is a session-wide switch
+  of the user's desktop, and a runtime does not flip it to read a label. It is
+  the caller's business, and it is recorded here. (The box was restored to
+  `false` after the measurement.)
+- **Registration takes about ten seconds.** A dialog launched and queried after
+  three seconds is not in the registry at all; after ten it is.
+- **`zenity` is a bad fixture** for this family: it publishes a skeleton. A
+  program that publishes its controls is needed to test a control that has text.
+
+The surface moved **676 → 677 values, 157 → 156 refusals**.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
