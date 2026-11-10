@@ -4249,6 +4249,40 @@ of every row found **no other victim**: no refuse-handler counted as a value, an
 cancelled. **That is the worst kind of bug: invisible in the total, and found only by
 asking about one name's state specifically.**
 
+### Round 232 — 2026-11-09: two instruments, and they agree
+
+There are now **two measurements** of this tree, and both were re-run at the end of this
+session and agree with each other and with the code:
+
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **727 answer, 106 refuse**, on both
+platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
+every name).
+
+**2. `audit/gap-matrix.tsv`** -- the 140 rows of AHK_X11's own feature set, each a v1
+name, its v2 name and what the tree does with it: **113 covered, 27 accounted for**:
+
+| the 27 | rows | what they are |
+|---|---|---|
+| `GAP-desktop-integration` | 5 | `FileRecycle` is unmeasurable, `FileGetVersion` and `FileCreateShortcut` are Windows, `Edit` opens an editor, `FileRecycleEmpty` |
+| `not-a-gap-v2-removed` | 4 | `GoTo`, `GoSub`, `IfMsgBox`, `FileReadLine` -- v2 took them away |
+| `GAP-windows-act` | 3 | `WinMinimizeAll`, `WinActivateBottom`, `WinMinimizeAllUndo` -- all windows, which a client cannot do |
+| `lifecycle` | 3 | `Suspend`, `Pause`, `Reload` -- a difference of model, not a gap |
+| `GAP-machine-metrics` | 2 | `Shutdown`, `SysGet` |
+| `GAP-wayland-no-grab` | 2 | `BlockInput`, `WinMove` |
+| one each | 8 | `ControlGetPos`, `ControlSend`, `OnClipboardChange`, `ToolTip`, `CallbackCreate`, `RunAs`, `OnMessage`, and the one row that is **beyond both trees** |
+
+**How the two instruments were made to agree**, and it is the last lesson worth reading:
+**round 224 found the matrix 220 rounds stale, and rounds 225 to 230 re-derived 27 rows by
+running each name rather than reading the row.** Twenty-six of them turned out covered;
+one (`OutputDebug`) had been carried all along.
+
+**And round 227 found the cost of NOT doing that**: two rows had been miscounted in
+opposite directions by the edit technique, so the surface and the matrix each said
+something untrue while the total was right.
+
+**So a successor has two re-runnable measurements and no claims that cannot be checked.**
+That is the state to hand over, and it is worth more than either number.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
