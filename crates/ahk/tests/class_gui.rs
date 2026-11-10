@@ -110,12 +110,15 @@ fn a_gui_is_made() {
 }
 
 #[test]
-fn a_gui_that_shows_itself_says_why_it_cannot() {
+fn a_gui_that_shows_itself_asks_the_desktop_for_a_window() {
+    // The window is made by the desktop, and the fake of this suite has none to
+    // make: `Show` reaches it and fails with its reason. On the box the same
+    // call draws a GTK3 window, which round 70 proved there.
     let report = run("window := Gui()\nwindow.Show()");
     assert!(!report.ok);
     assert_eq!(
         error_of(&report),
-        "Gui cannot show the window: a window is made by a toolkit, and the toolkit this tree draws with is not joined to it yet."
+        "this desktop cannot make a window of the script"
     );
     assert_eq!(report.error_line, Some(2));
 }
