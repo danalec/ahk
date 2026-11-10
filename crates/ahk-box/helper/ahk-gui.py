@@ -147,6 +147,31 @@ def the_value(number, text):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_flag(number, name, setting):
+    """Read a flag of a control, or write it. `Enabled` and `Visible` of v2.
+
+    These are the calls of the window itself -- `set_sensitive` and
+    `set_visible` -- and not of the accessibility layer: the window is the
+    runtime's own, so nothing is being asked of a program that does not answer.
+    The answer is the integer of nought and one that v2 gives.
+    """
+    for held, _kind, control in state["controls"]:
+        if held != number:
+            continue
+        if name == "enabled":
+            if setting is not None:
+                control.set_sensitive(setting)
+            answer({"ok": True, "value": 1 if control.get_sensitive() else 0})
+        elif name == "visible":
+            if setting is not None:
+                control.set_visible(setting)
+            answer({"ok": True, "value": 1 if control.get_visible() else 0})
+        else:
+            answer({"ok": False, "error": "%s is not a flag of a control" % name})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -162,6 +187,14 @@ def handle(command):
         )
     elif op == "value":
         run_on_loop(lambda: the_value(command.get("id", 0), command.get("text")))
+    elif op == "flag":
+        run_on_loop(
+            lambda: the_flag(
+                command.get("id", 0),
+                command.get("name", ""),
+                command.get("on"),
+            )
+        )
     elif op == "show":
         run_on_loop(the_show)
     elif op == "destroy":
