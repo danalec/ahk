@@ -1018,10 +1018,21 @@ impl ahk::desktop::Windows for LabDesktop {
 
     fn gui_open(&mut self, title: &str) -> Result<u64, String> {
         box_tools_are_near()?;
-        if self.gui.is_none() {
-            let helper = the_helper_of_the_window()?;
-            self.gui = Some(crate::gui::TheWindow::open(&helper)?);
+        // One window at a time. The helper replaces the window it holds when it
+        // is told to make another, so a second one would silently take the place
+        // of the first -- and a script that made two `Gui`s would find one
+        // window with no word about it. It fails with the reason instead, which
+        // is the rule of this tree; a window that was taken away frees the place
+        // again, so `Destroy` and then a new `Gui` works.
+        if self.gui.is_some() {
+            return Err(
+                "this desktop makes one window at a time, and a window of the script is \
+                 already there."
+                    .to_string(),
+            );
         }
+        let helper = the_helper_of_the_window()?;
+        self.gui = Some(crate::gui::TheWindow::open(&helper)?);
         let window = self.gui.as_mut().ok_or("the helper of the window did not start")?;
         let answer = window.send(&format!(
             "{{\"op\": \"window\", \"title\": {}}}",
@@ -1030,8 +1041,6 @@ impl ahk::desktop::Windows for LabDesktop {
         if !answer.contains("\"ok\": true") {
             return Err(format!("the window of the script was not made: {answer}"));
         }
-        // One window at a time is what the helper holds, so the handle of it is a
-        // constant of this desktop: a second `Gui` replaces the first.
         Ok(1)
     }
 
@@ -1054,7 +1063,11 @@ impl ahk::desktop::Windows for LabDesktop {
     }
 
     fn gui_destroy(&mut self, _handle: u64) -> Result<(), String> {
-        self.the_gui_says("{\"op\": \"destroy\"}").map(|_| ())
+        self.the_gui_says("{\"op\": \"destroy\"}").map(|_| ())?;
+        // The helper goes with the window: it has nothing left to hold, and
+        // letting it go frees the one place a window of the script can have.
+        self.gui = None;
+        Ok(())
     }
 
     fn gui_title(&mut self, _handle: u64, setting: Option<&str>) -> Result<String, String> {
