@@ -273,6 +273,32 @@ def the_hide():
     answer({"ok": True})
 
 
+def the_option(name, on):
+    """Apply one option of the window, for the ones the toolkit honours.
+
+    The four are the ones GTK gives a program control of. The rest of v2's options
+    are refused by the caller with a reason, because a window whose title bar
+    belongs to the compositor is not one whose buttons a program sets.
+    """
+    window = state["window"]
+    if window is None:
+        answer({"ok": False, "error": "there is no window"})
+        return
+    low = name.lower()
+    if low == "alwaysontop":
+        window.set_keep_above(on)
+    elif low == "resize":
+        window.set_resizable(on)
+    elif low == "caption":
+        window.set_decorated(on)
+    elif low == "disabled":
+        window.set_sensitive(not on)
+    else:
+        answer({"ok": False, "error": "%s is not an option this window can set" % name})
+        return
+    answer({"ok": True})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -282,6 +308,10 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "option":
+        run_on_loop(
+            lambda: the_option(command.get("name", ""), command.get("on", True))
+        )
     elif op == "hide":
         run_on_loop(the_hide)
     elif op == "focus":

@@ -595,6 +595,14 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// Apply one option to a window of the script, with the sign the script wrote.
+    ///
+    /// The options a program controls under this compositor are `AlwaysOnTop`,
+    /// `Resize`, `Caption` and `Disabled`; the rest are refused with the reason.
+    fn gui_option(&mut self, _name: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot set an option of the window of the script".to_string())
+    }
+
     /// Take a window of the script off the screen.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `Hide` answers the empty

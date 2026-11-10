@@ -1122,6 +1122,22 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
     }
 
+    fn gui_option(&mut self, name: &str, on: bool) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"option\", \"name\": {}, \"on\": {}}}",
+            quoted(name),
+            if on { "true" } else { "false" }
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!(
+                "the option {name} of the window was not set: {answer}"
+            ))
+        }
+    }
+
     fn gui_hide(&mut self) -> Result<(), String> {
         let answer = self.the_gui_says("{\"op\": \"hide\"}")?;
         if answer.contains("\"ok\": true") {

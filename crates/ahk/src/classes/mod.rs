@@ -1658,6 +1658,44 @@ pub(crate) fn call(
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
+    // `Opt` of a window. Measured on the binary of v2.0.19 on 2026-11-09: an
+    // option of v2 answers the empty text and one that is not answers
+    // "Invalid option.". The reader of the gui module gives that validation; the
+    // four of the eighteen that this window can set are applied, and the rest are
+    // refused with the reason -- a window whose title bar belongs to the
+    // compositor is not one whose buttons a program sets.
+    if class.eq_ignore_ascii_case("gui") && method.eq_ignore_ascii_case("opt") {
+        let options = arguments
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        if let Err(failure) = gui::the_options_are_read(&options, line) {
+            return Some(Err(failure));
+        }
+        for word in options.split([' ', '\t']) {
+            let word = word.trim();
+            if word.is_empty() {
+                continue;
+            }
+            let on = !word.starts_with('-');
+            let name = word.trim_start_matches(['+', '-']);
+            let lower = name.to_lowercase();
+            let honoured = ["alwaysontop", "resize", "caption", "disabled"]
+                .iter()
+                .find(|held| lower.starts_with(*held));
+            let Some(honoured) = honoured.copied() else {
+                return Some(Err(the_failure_with(
+                    "the window of this tree cannot set that option",
+                    "",
+                    line,
+                )));
+            };
+            if let Err(reason) = rt.desktop().gui_option(honoured, on) {
+                return Some(Err(the_failure_with(&reason, "", line)));
+            }
+        }
+        return Some(Ok(Value::Text(String::new())));
+    }
     // `Hide` of a window: it takes no parameters and answers the empty text.
     // Measured on the binary of v2.0.19 on 2026-11-09.
     if class.eq_ignore_ascii_case("gui") && method.eq_ignore_ascii_case("hide") {
