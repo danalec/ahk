@@ -255,6 +255,59 @@ const OPERATORS: &[&str] = &[
 /// Measured on the binary of v2.0.19 on 2026-11-09: the `#` that begins a line
 /// is the `#` of the Win modifier when the line carries the two colons of a
 /// hotkey definition, and the `#` of a directive otherwise.
+/// Whether the text of the line from this place to its end is blank.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the line that begins the
+/// replacement of a hotstring is the one that is `(` and nothing else, and a
+/// `(` that has text after it on the line is the text of the hotstring.
+/// Whether the text of a hotstring of the v2 opens a block of code.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the `X` option executes
+/// the replacement of the hotstring, and a replacement that ends with `{` is
+/// a block that closes with a `}` on a line of its own (`:X:mf2::{`).
+fn the_hotstring_of_the_v2_has_a_block(text: &str) -> bool {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the block of a
+    // hotstring is a replacement that ends with `{` -- with the `X` option or
+    // without it -- and a replacement that is empty whose next line begins
+    // with `{`. A replacement that is empty and has no `{` is the failure
+    // "Hotkey or hotstring is missing its opening brace.".
+    let text = text.trim_end();
+    text.ends_with('{') || text.rsplit("::").next().map(str::is_empty).unwrap_or(false)
+}
+/// Whether the block that the text of a hotstring opens really follows it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the `X` hotstring whose
+/// replacement ends with `{` carries its block on the lines that follow, and
+/// the one whose replacement is empty carries the `{` on the line after it.
+/// A replacement that is empty and has no `{` below is the failure "Hotkey or
+/// hotstring is missing its opening brace.".
+fn the_block_of_the_hotstring_follows(chars: &[char], text: &str, index: usize) -> bool {
+    let text = text.trim_end();
+    if text.ends_with('{') {
+        return true;
+    }
+    let mut at = index;
+    if at < chars.len() && chars[at] == '\r' {
+        at += 1;
+    }
+    if at < chars.len() && chars[at] == '\n' {
+        at += 1;
+    }
+    while at < chars.len() && (chars[at] == ' ' || chars[at] == '\t' || chars[at] == '\r') {
+        at += 1;
+    }
+    at < chars.len() && chars[at] == '{'
+}
+fn the_rest_of_the_line_is_blank(chars: &[char], from: usize) -> bool {
+    let mut at = from;
+    while at < chars.len() && chars[at] != '\n' {
+        if chars[at] != ' ' && chars[at] != '\t' && chars[at] != '\r' {
+            return false;
+        }
+        at += 1;
+    }
+    true
+}
 fn the_line_from_has_the_two_colons(chars: &[char], from: usize) -> bool {
     let mut at = from;
     while at < chars.len() && chars[at] != '\n' {
@@ -1845,9 +1898,114 @@ fn tokenize_the_source(
                 column += 1;
             }
             let text: String = chars[start..index].iter().collect();
+            // The replacement of a hotstring may be the text of the
+            // continuation section that follows it: the line after the
+            // definition that begins with `(` and nothing else, and the lines
+            // up to the one that closes it with `)`. Measured on the binary of
+            // v2.0.19 on 2026-11-10: `::text1::` followed by `(` and three
+            // lines and `)` is a hotstring whose replacement is that text.
+            let mut after = index;
+            if after < chars.len() && chars[after] == '\r' {
+                after += 1;
+            }
+            let mut the_text = text;
+            if after < chars.len() && chars[after] == '\n' {
+                let mut at = after + 1;
+                while at < chars.len() && (chars[at] == ' ' || chars[at] == '\t') {
+                    at += 1;
+                }
+                if at < chars.len() && chars[at] == '(' && the_rest_of_the_line_is_blank(&chars, at + 1)
+                {
+                    let content_start = at + 1;
+                    let mut line_begin = content_start;
+                    let mut closing: Option<usize> = None;
+                    while line_begin <= chars.len() {
+                        let mut line_end = line_begin;
+                        while line_end < chars.len() && chars[line_end] != '\n' {
+                            line_end += 1;
+                        }
+                        let line_text: String = chars[line_begin..line_end].iter().collect();
+                        if line_begin != content_start && line_text.trim() == ")" {
+                            closing = Some(line_begin);
+                            break;
+                        }
+                        if line_end >= chars.len() {
+                            break;
+                        }
+                        line_begin = line_end + 1;
+                    }
+                    if let Some(close_start) = closing {
+                        let content: String = chars[content_start..close_start].iter().collect();
+                        the_text.push('\n');
+                        the_text.push_str(content.trim_end_matches(['\r', '\n']));
+                        let consumed = chars[index..close_start]
+                            .iter()
+                            .filter(|character| **character == '\n')
+                            .count() as u32;
+                        line += consumed;
+                        // The parser sees the line of the hotstring and the
+                        // text of the section as one line, and the newline
+                        // that ends the closing line is the one the loop
+                        // takes next.
+                        index = close_start;
+                        while index < chars.len() && chars[index] != '\n' {
+                            index += 1;
+                        }
+                        column = 1;
+                    }
+                }
+            }
+            // Measured on the binary of v2.0.19 on 2026-11-10: a hotstring
+            // with the `X` option executes its replacement as code, and a
+            // replacement that ends with `{` is a block of statements that
+            // closes with the `}` on a line of its own. The block is the text
+            // of the hotstring here: the runtime has no dispatcher of a
+            // hotstring yet, and the lines of the block must not be read as
+            // statements of the script.
+            if the_hotstring_of_the_v2_has_a_block(&the_text)
+                && the_block_of_the_hotstring_follows(&chars, &the_text, index)
+            {
+                let mut end = index;
+                let mut depth = 0i32;
+                let mut at = end;
+                while at < chars.len() {
+                    let mut line_end = at;
+                    while line_end < chars.len() && chars[line_end] != '\n' {
+                        line_end += 1;
+                    }
+                    for character in &chars[at..line_end] {
+                        match character {
+                            '{' => depth += 1,
+                            '}' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    if depth <= 0 && chars[at..line_end].contains(&'}') {
+                        end = line_end;
+                        break;
+                    }
+                    if line_end >= chars.len() {
+                        end = line_end;
+                        break;
+                    }
+                    at = line_end + 1;
+                }
+                let block: String = chars[index..end].iter().collect();
+                the_text.push_str(block.trim_end_matches(['\r', '\n']));
+                let consumed = chars[index..end]
+                    .iter()
+                    .filter(|character| **character == '\n')
+                    .count() as u32;
+                line += consumed;
+                index = end;
+                while index < chars.len() && chars[index] != '\n' {
+                    index += 1;
+                }
+                column = 1;
+            }
             tokens.push(Token {
                 kind: TokenKind::String,
-                value: text,
+                value: the_text,
                 line,
                 column: start_column,
                 spaced: before,

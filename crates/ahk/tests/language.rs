@@ -6148,6 +6148,18 @@ fn the_hotstring_of_the_v2_is_a_line_of_raw_text() {
         ":*?:both::both of them\n",
         ":*:i\"q::I \"quote\"\n",
         ":?:; btu::; but\n",
+        "::text1::\n",
+        "(\n",
+        "line one\n",
+        "line two\n",
+        ")\n",
+        "::mf4::{\n",
+        "    MsgBox \"x\"\n",
+        "}\n",
+        "::mf5::\n",
+        "{\n",
+        "    MsgBox \"y\"\n",
+        "}\n",
         "MsgBox \"after\"\n",
     ));
     assert!(report.ok, "{:?}", report.error);

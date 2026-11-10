@@ -10332,3 +10332,29 @@ the toggle as the state.
 The corpus case `module_suspend_exempt_target.ahk` passes now. Not carried: a
 hotkey that is suspended never fires in the runner anyway (there is no
 keyboard), so the exemption is observable through the state and the table.
+## 263. The continuation text of a hotstring, and the block of one
+
+Measured on the binary of v2.0.19 on 2026-11-10: a hotstring whose replacement
+is empty takes the text of the continuation section that follows it -- the line
+that is `(` and nothing else, the lines after it, and the line that is `)` --
+and a hotstring whose replacement ends with `{` carries a block of statements
+that closes with `}` on a line of its own, with the `X` option or without it;
+the same holds for a replacement that is empty and a `{` on the next line.
+`::text1::` + `(` … `)` and `::mf4::{` … `}`, `::mf5::` + `{` … `}` and
+`:X:mf2::{` … `}` are all accepted by the binary; a replacement that is empty
+and has no section or block after it is "Hotkey or hotstring is missing its
+opening brace.".
+
+The lexer carries both: when the raw line of a hotstring is read, the line
+after it is looked at -- a `(` line consumes the section into the text of the
+hotstring, and a `{` block consumes the statements up to the `}` into it -- so
+the lines of the text are not statements of the script and the parser sees one
+hotstring. The line numbers after a consumed section are advanced by the
+newlines it held, so a later error names its own line.
+
+The corpus case `hotstring-parsing2.ahk` moved past the continuation and the
+blocks and is now stopped by `#Hotstring X` / `#Hotstring X0`: a directive that
+changes the options of the hotstrings that follow it, which has to be known
+while the lexer is reading those lines. That is the next block; the script also
+pins `:T:brace::{` -- a replacement that is text and not a block because the
+options say so.
