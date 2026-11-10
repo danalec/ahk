@@ -220,6 +220,16 @@ F() {
 {"elapsed_ms":0,"error":"the hotkeys of this box watch a Linux device; this is not Linux","error_line":0,"exit_code":null,"notes":["no uid on this platform; the session environment is unknown"],"ok":false,"output":[],"steps":[{"detail":"F is defined","elapsed_ms":0,"line":2,"ok":true,"op":"FunctionDef"}],"variables":{"a_linenumber":1},"warnings":[]}
 ```
 
+**A value that the script throws and nobody catches is the failure of the
+run.** The `error` is the text of the thrown value: for an error of the
+machine -- `throw Error("boom")` -- it is the message of the error
+(`boom`), and for a value that is not an error -- `throw "a text"` -- the
+runtime says `Unhandled exception.` and names the value under
+`Specifically:`. Measured on the binary of v2.0.19 on 2026-11-09: the
+dialog it shows for an uncaught error shows the message of the error, and
+the report carries the same text, so a tool that reads the report learns
+what the script threw.
+
 ## The notes
 
 The notes are the places where the machine was not what the script
@@ -307,7 +317,7 @@ BlockInput command refusal: this is a name of Windows, and this desktop is not W
 CallbackCreate command refusal: this is a name of Windows, and this desktop is not Windows.
 ...
 ClipboardAll.Size method value
-the surface of v2 has 833 entries: 674 answer with a value, 159 are refused, 0 are pending.
+the surface of v2 has 833 entries: 679 answer with a value, 154 are refused, 0 are pending.
 ```
 
 A line is `name kind state`, and a name that is not answered with a
@@ -360,7 +370,7 @@ The JSON is for the CI, and it carries the numbers of the summary and
 the state of every name:
 
 ```json
-{"dialect":"v2","total":833,"values":674,"refusals":159,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
+{"dialect":"v2","total":833,"values":679,"refusals":154,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
 ```
 
 (The `entries` array above is cut to four of its 833 members, and the

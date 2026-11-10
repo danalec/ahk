@@ -2391,9 +2391,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 5,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: window_query,
     },
     Builtin {
         name: "WinGetClientPos",
@@ -2427,9 +2427,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 2,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: window_query,
     },
     Builtin {
         name: "WinGetExStyle",
@@ -2445,27 +2445,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 3,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: window_query,
     },
     Builtin {
         name: "WinGetIDLast",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 4,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: window_query,
     },
     Builtin {
         name: "WinGetList",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: window_query,
     },
     Builtin {
         name: "WinGetMinMax",
@@ -3446,6 +3446,22 @@ pub fn find(name: &str) -> Option<&'static Builtin> {
 /// of an input box that v2 does not know does not: the value there is
 /// the option itself, and the built-in says which one it is.
 pub fn the_extra_of(name: &str, message: &str, values: &[Value]) -> Option<String> {
+    // The failure of a window query carries the window it was asked about in
+    // the `Extra`, and a window that was named by its id leaves it empty.
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-09: `WinGetID("zzz")` is
+    // "Target window not found." with "zzz" in the `Extra`, and `WinGetID(0)`
+    // carries nothing.
+    if matches!(
+        name,
+        "WinGetID" | "WinGetIDLast" | "WinGetClass" | "WinGetTitle"
+    ) && message == "Target window not found."
+    {
+        return match values.first() {
+            Some(Value::Int(_)) | None => None,
+            Some(value) => Some(value.to_text()),
+        };
+    }
     // The base of an object is written with the `ObjSetBase`, and the value
     // that is not an object goes in the `Extra` of the refusal.
     //
@@ -9283,6 +9299,147 @@ pub(crate) fn screenshot(
 // -- the windows ----------------------------------------------------------------
 
 /// `WinActive`: whether the window with this title is the active one.
+/// The windows of the session.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the window family of v2
+/// asks the system about its windows, and a window of this runtime is named
+/// by the id it is given here -- an identifier of this runtime, and not a
+/// handle of Windows. A number that no window has is a window that is not
+/// there.
+fn the_windows_of(
+    rt: &mut Runtime<'_>,
+    line: u32,
+) -> Result<Vec<crate::desktop::WindowInfo>, RuntimeError> {
+    rt.desktop()
+        .windows()
+        .map_err(|e| desktop_failure(e, line))
+}
+
+/// The window a call of the family names, inside a listing of the windows.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a number is the id of a
+/// window of this runtime, and a text is a title matched the way the script
+/// matches it -- the mode of the settings. The empty text and the omitted one
+/// ask about the active window, which is the way this tree has always asked.
+fn the_window_in(
+    windows: &[crate::desktop::WindowInfo],
+    value: Option<&Value>,
+    line: u32,
+) -> Result<Option<crate::desktop::WindowInfo>, RuntimeError> {
+    match value {
+        Some(Value::Int(id)) => Ok(windows.iter().find(|window| window.id == *id).cloned()),
+        Some(value) if !value.to_text().is_empty() => {
+            let wanted = value.to_text();
+            let mode = crate::settings::title_match_mode();
+            for window in windows {
+                if mode
+                    .matches(&window.title, &wanted)
+                    .map_err(|reason| RuntimeError { message: reason, line })?
+                {
+                    return Ok(Some(window.clone()));
+                }
+            }
+            Ok(None)
+        }
+        _ => Ok(windows.iter().find(|window| window.active).cloned()),
+    }
+}
+
+/// The windows of a call that match the window it names.
+///
+/// The first parameter of the family is the window to ask about -- a number
+/// is the id of one, a text is a title, and an omitted one is every window.
+/// The other parameters of v2 are the text of the window and the two
+/// exclusions, and this desktop has none of them.
+fn the_matching_windows(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+) -> Result<Vec<crate::desktop::WindowInfo>, RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".to_string(),
+            line,
+        });
+    }
+    let windows = the_windows_of(rt, line)?;
+    let Some(value) = values.first() else {
+        return Ok(windows);
+    };
+    if let Value::Int(id) = value {
+        return Ok(windows.into_iter().filter(|window| window.id == *id).collect());
+    }
+    let wanted = value.to_text();
+    if wanted.is_empty() {
+        return Ok(windows);
+    }
+    let mode = crate::settings::title_match_mode();
+    let mut matched = Vec::new();
+    for window in windows {
+        if mode
+            .matches(&window.title, &wanted)
+            .map_err(|reason| RuntimeError { message: reason, line })?
+        {
+            matched.push(window);
+        }
+    }
+    Ok(matched)
+}
+
+/// The failure of a window query that found nothing.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetID`, `WinGetIDLast`
+/// and `WinGetClass` of a window that is not there answer "Target window not
+/// found.", and the `Extra` of the failure is the title that was asked about.
+fn no_window(line: u32) -> RuntimeError {
+    RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    }
+}
+
+/// `WinGetList`, `WinGetCount`, `WinGetID`, `WinGetIDLast` and `WinGetClass`:
+/// what the session knows about its windows.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetList` answers an
+/// array of the ids -- an empty one when nothing matches -- `WinGetCount`
+/// answers the number of the windows, and the other three answer the id, or
+/// the class, of the first (or the last) of them, and fail with "Target
+/// window not found." when there is none.
+pub(crate) fn window_query(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let windows = the_matching_windows(rt, values, line)?;
+    match variant {
+        1 => {
+            let ids: Vec<Value> = windows
+                .iter()
+                .map(|window| Value::Int(window.id))
+                .collect();
+            crate::classes::array::construct(&ids, rt, line).map_err(|failure| RuntimeError {
+                message: the_message_of(failure),
+                line,
+            })
+        }
+        2 => Ok(Value::Int(windows.len() as i64)),
+        5 => match windows.into_iter().next() {
+            Some(window) => Ok(Value::Text(window.class)),
+            None => Err(no_window(line)),
+        },
+        3 => match windows.into_iter().next() {
+            Some(window) => Ok(Value::Int(window.id)),
+            None => Err(no_window(line)),
+        },
+        _ => match windows.into_iter().last() {
+            Some(window) => Ok(Value::Int(window.id)),
+            None => Err(no_window(line)),
+        },
+    }
+}
+
 pub(crate) fn window_active(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -9296,6 +9453,31 @@ pub(crate) fn window_active(
             message: "the text of the window and the exclusions are not carried yet.".into(),
             line,
         });
+    }
+    // The listing names the window the way v2 answers it: measured on the
+    // binary of v2.0.19 on 2026-11-09, `WinActive("A")` is the id of the
+    // active window, and not one.
+    match rt.desktop().windows() {
+        Ok(windows) => {
+            let window = the_window_in(&windows, values.first(), line)?;
+            return Ok(Value::Int(
+                match window {
+                    Some(window) if window.active => window.id,
+                    _ => 0,
+                },
+            ));
+        }
+        Err(reason) => {
+            // A window of the listing that is not there is the answer of the
+            // desktop itself, and a window that is named by its id cannot be
+            // looked up without the listing.
+            if matches!(values.first(), Some(Value::Int(_))) {
+                return Err(RuntimeError {
+                    message: format!("WinActive cannot look a window up by its id: {reason}"),
+                    line,
+                });
+            }
+        }
     }
     let title = text_of(values, 0);
     let mode = crate::settings::title_match_mode();
@@ -9334,6 +9516,23 @@ pub(crate) fn window_exist(
             line,
         });
     }
+    // The answer of v2 is the id of the window that is there, and not one:
+    // measured on the binary of v2.0.19 on 2026-11-09, `WinExist("A")` is the
+    // id of the active window.
+    match rt.desktop().windows() {
+        Ok(windows) => {
+            let window = the_window_in(&windows, values.first(), line)?;
+            return Ok(Value::Int(window.map(|window| window.id).unwrap_or(0)));
+        }
+        Err(reason) => {
+            if matches!(values.first(), Some(Value::Int(_))) {
+                return Err(RuntimeError {
+                    message: format!("WinExist cannot look a window up by its id: {reason}"),
+                    line,
+                });
+            }
+        }
+    }
     let title = text_of(values, 0);
     let mode = crate::settings::title_match_mode();
     match rt
@@ -9359,11 +9558,44 @@ pub(crate) fn win_get_title(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    // v2 asks for a window and for the text of it, and the box has only
-    // the window that is in front.
-    if !values.is_empty() {
+    // The other parameters of v2 are the text of the window and the two
+    // exclusions, and the desktop of the box has none of them.
+    if values.len() > 1 {
         return Err(RuntimeError {
-            message: "the window to ask about is not carried yet: only the active one is.".into(),
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    // Measured on the binary of v2.0.19 on 2026-11-09: the title of a window
+    // that is not there is "Target window not found.", while the empty text
+    // and the omitted one ask about the active window, which the tree has
+    // always answered with the empty text when there is none.
+    let asked = match values.first() {
+        None => false,
+        Some(value) => match value {
+            Value::Int(_) => true,
+            other => !other.to_text().is_empty(),
+        },
+    };
+    if let Ok(windows) = rt.desktop().windows() {
+        let window = the_window_in(&windows, values.first(), line)?;
+        let title = match window {
+            Some(window) => window.title,
+            None if asked => return Err(no_window(line)),
+            None => String::new(),
+        };
+        // The pause of v2 follows a windowing function, and a delay of -1 is
+        // no pause at all.
+        let delay = crate::settings::the_win_delay();
+        if delay > 0 {
+            rt.sleep_ms(delay as u64);
+        }
+        return Ok(Value::Text(title));
+    }
+    if asked && matches!(values.first(), Some(Value::Int(_))) {
+        let reason = rt.desktop().windows().err().unwrap_or_default();
+        return Err(RuntimeError {
+            message: format!("WinGetTitle cannot look a window up by its id: {reason}"),
             line,
         });
     }

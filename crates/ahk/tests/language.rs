@@ -2862,6 +2862,24 @@ fn a_catch_of_any_takes_a_thrown_value() {
 }
 
 #[test]
+fn the_message_of_an_uncaught_error_is_the_message_of_the_error() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the dialog of an
+    // uncaught error shows the message of the error, and the report of the
+    // runner carries the same text, so a tool that reads it learns what the
+    // script threw instead of a generic line. A value that is not an error
+    // keeps the generic line.
+    let (report, _desktop) = run("f() {\n    throw Error(\"boom\")\n}\nf()");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("boom"));
+    let (report, _desktop) = run("throw ValueError(\"bad value\")");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("bad value"));
+    let (report, _desktop) = run("throw {a: 1}");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Unhandled exception."));
+}
+
+#[test]
 fn a_throw_without_a_value_throws_again_what_the_catch_took() {
     let (report, _desktop) = run(concat!(
         "try {\n",
@@ -6043,6 +6061,64 @@ fn the_name_that_the_script_builds_is_incremented_the_way_a_variable_is() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["5|7|7"]);
+}
+
+#[test]
+fn a_text_that_holds_a_hexadecimal_number_is_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: "0x1" + 0 is 1,
+    // "0X1F" + 0 is 31, "-0x10" + 0 is -16, " 0x10 " + 0 is 16, `~"0x1"` is
+    // -2, and "0x10" * 1 is 16. A text that holds a whole decimal number adds
+    // as a whole number while "1e3" is a float. "0x" and "0xzz" hold no
+    // number and are the "Expected a Number but got a String." of any other
+    // text.
+    let (report, _desktop) = run(concat!(
+        "a := \"0x1\"\n",
+        "b := \"0X1F\"\n",
+        "c := \"-0x10\"\n",
+        "d := \" 0x10 \"\n",
+        "e := ~a\n",
+        "f := b + 0\n",
+        "g := c + 0\n",
+        "h := d + 0\n",
+        "i := a * 2\n",
+        "t := \"2\"\n",
+        "j := t + 1\n",
+        "u := \"1e3\"\n",
+        "k := u + 0\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    for (name, number) in [
+        ("e", -2),
+        ("f", 31),
+        ("g", -16),
+        ("h", 16),
+        ("i", 2),
+        ("j", 3),
+    ] {
+        assert_eq!(report.variables.get(name), Some(&Value::Int(number)), "{name}");
+    }
+    assert_eq!(
+        report.variables.get("k"),
+        Some(&Value::Float(1000.0))
+    );
+}
+
+#[test]
+fn a_text_that_is_not_a_hexadecimal_number_is_not_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the prefix with no
+    // digit and a digit that is not a hexadecimal one are not numbers.
+    let (report, _desktop) = run("a := \"0x\"\nb := a + 0");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a Number but got a String.")
+    );
+    let (report, _desktop) = run("a := \"0xzz\"\nb := a + 0");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("Expected a Number but got a String.")
+    );
 }
 
 #[test]

@@ -62,6 +62,12 @@ pub struct Client {
     queue: EventQueue<State>,
     /// What the compositor has said.
     state: State,
+    /// The identifier this runtime gives each window, by the identifier of
+    /// the compositor. It is kept for the life of the process, so that the id
+    /// of a window does not change between two questions.
+    window_ids: BTreeMap<String, i64>,
+    /// The next id a window that was not seen before takes.
+    next_window_id: i64,
 }
 
 impl Client {
@@ -78,6 +84,10 @@ impl Client {
                 globals: Some(globals),
                 ..State::default()
             },
+            window_ids: BTreeMap::new(),
+            // The zero is the window that is not there, and no window takes
+            // it: the ids of the windows count from one.
+            next_window_id: 1,
         };
         client.bind();
         client.refresh()?;
@@ -109,6 +119,20 @@ impl Client {
             return Err(reason);
         }
         Ok(self.state.windows())
+    }
+
+    /// The windows of the compositor, with the id this runtime gives each of
+    /// them.
+    ///
+    /// The id is the identifier of this runtime, and not a handle of Windows:
+    /// it is stable for the life of the window, and a number that no window
+    /// has is a window that is not there.
+    pub fn windows_with_ids(&mut self) -> Result<Vec<(i64, Window)>, String> {
+        let windows = self.windows()?;
+        Ok(windows
+            .into_iter()
+            .map(|window| (self.the_id_of(&window), window))
+            .collect())
     }
 
     /// The window that has the focus.
@@ -208,6 +232,27 @@ impl Client {
     }
 
     /// Ask the compositor what there is, and wait for the answer.
+    /// The id of a window: the one it already has, and a new one when it was
+    /// not seen before.
+    ///
+    /// The key of a window is the identifier the compositor gives it, which
+    /// is stable for the life of the window. A compositor that gives none
+    /// leaves the application id and the title, which is the best the
+    /// listing has: the id of such a window may change when its title does.
+    fn the_id_of(&mut self, window: &Window) -> i64 {
+        let key = window
+            .identifier
+            .clone()
+            .unwrap_or_else(|| format!("{}|{}", window.app_id, window.title));
+        if let Some(id) = self.window_ids.get(&key) {
+            return *id;
+        }
+        let id = self.next_window_id;
+        self.next_window_id += 1;
+        self.window_ids.insert(key, id);
+        id
+    }
+
     fn refresh(&mut self) -> Result<(), String> {
         self.roundtrip()?;
         self.roundtrip()
@@ -615,6 +660,33 @@ impl Dispatch<ZcosmicToplevelHandleV1, ()> for State {
             });
             // The compositor has said the state of this window.
             toplevel.state_seen = true;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The id of a window is the same from one question to the next, and no
+    /// window takes the zero that says "no window".
+    ///
+    /// The test needs the session of the box -- the compositor is what lists
+    /// the windows -- and it stands aside when there is none, which is the
+    /// way the tests of this crate are run over ssh.
+    #[test]
+    fn the_ids_of_the_windows_are_the_same_from_one_question_to_the_next() {
+        if std::env::var_os("WAYLAND_DISPLAY").is_none() {
+            return;
+        }
+        let mut client = Client::open().expect("the compositor is there");
+        let first = client.windows_with_ids().expect("the windows are listed");
+        let second = client.windows_with_ids().expect("the windows are listed");
+        assert_eq!(first.len(), second.len());
+        for ((id, window), (other, other_window)) in first.iter().zip(second.iter()) {
+            assert_eq!(id, other, "the id of {:?} moved", window.title);
+            assert_eq!(window.title, other_window.title);
+            assert_ne!(*id, 0, "no window takes the zero of no window");
         }
     }
 }

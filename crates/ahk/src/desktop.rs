@@ -311,6 +311,38 @@ pub trait Windows {
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         Err("this desktop cannot tell which window is active".to_string())
     }
+
+    /// The windows of the session, in the order the desktop lists them.
+    ///
+    /// The id of a window is the identifier of this runtime, and not a handle
+    /// of Windows: a script hands it back to this runtime, and a number that
+    /// no window has is a window that is not there -- it is not a failure.
+    /// The class of a window is the name the desktop gives it: the
+    /// application id on Wayland, and the class of the window on X11.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetList` answers
+    /// the ids of the windows as an array, `WinGetCount` their number, and
+    /// the class of a window is the class name the system gives it.
+    fn windows(&mut self) -> Result<Vec<WindowInfo>, String> {
+        Err("this desktop cannot list the windows".to_string())
+    }
+}
+
+/// A window of the session, as the window family of v2 reads it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a window has an
+/// identifier, a title and a class name, and the question about the active
+/// window is answered by the same listing.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WindowInfo {
+    /// The identifier of the window, as this runtime names it.
+    pub id: i64,
+    /// The title of the window.
+    pub title: String,
+    /// The class of the window.
+    pub class: String,
+    /// Whether the window is the active one.
+    pub active: bool,
 }
 
 /// The processes of the desktop.

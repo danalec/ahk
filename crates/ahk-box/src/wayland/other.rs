@@ -27,6 +27,12 @@ impl Client {
         Err(not_linux())
     }
 
+    /// The windows the compositor has, with the id this runtime gives each of
+    /// them.
+    pub fn windows_with_ids(&mut self) -> Result<Vec<(i64, Window)>, String> {
+        Err(not_linux())
+    }
+
     /// The window that has the focus.
     pub fn active(&mut self) -> Result<Option<Window>, String> {
         Err(not_linux())

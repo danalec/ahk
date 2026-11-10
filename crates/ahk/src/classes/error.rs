@@ -93,6 +93,13 @@ pub(crate) fn the_class_of(message: &str) -> &'static str {
     if message == "Target process not found." {
         return "TargetError";
     }
+    // Measured on the binary of v2.0.19 on 2026-11-09: a window of the window
+    // family that is not there is a failure of the class `TargetError` too --
+    // `WinGetID("zzz-nothing")` answers "Target window not found." with the
+    // title in the `Extra`.
+    if message == "Target window not found." {
+        return "TargetError";
+    }
     if message.contains("has no property named") {
         return "PropertyError";
     }

@@ -220,6 +220,39 @@ fn the_article_of(name: &str) -> &'static str {
     }
 }
 
+/// The number that a text holds when it is a hexadecimal number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a text of the form
+/// "0x1F" -- with an optional sign, either case of the prefix, and the
+/// spaces around it -- is a number: "0x1" + 0 is 1, "0X1F" + 0 is 31,
+/// "-0x10" + 0 is -16, " 0x10 " + 0 is 16 and `~"0x1"` is -2. A text that
+/// says "0x" and no digit, or that holds a character which is not a
+/// hexadecimal one, is not a number: "0x" + 0 and "0xzz" + 0 are the
+/// "Expected a Number but got a String." of the other strings.
+fn the_hexadecimal_of_a_text(text: &str) -> Option<i64> {
+    let text = text.trim();
+    let (negative, digits) = match text.strip_prefix('-') {
+        Some(rest) => (true, rest),
+        None => (false, text.strip_prefix('+').unwrap_or(text)),
+    };
+    let digits = digits
+        .strip_prefix("0x")
+        .or_else(|| digits.strip_prefix("0X"))?;
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    // A value that does not fit in the sixty-four bits is the largest one:
+    // measured on the binary of v2.0.19 on 2026-11-09, "0x7FFFFFFFFFFFFFFF"
+    // plus zero is 9223372036854775807.
+    let magnitude = u64::from_str_radix(digits, 16).unwrap_or(u64::MAX);
+    let value = if magnitude > i64::MAX as u64 {
+        i64::MAX
+    } else {
+        magnitude as i64
+    };
+    Some(if negative { -value } else { value })
+}
+
 /// The number that a text holds at its front.
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: "20x" is 20, "x20" is
@@ -894,6 +927,9 @@ impl Value {
                 let trimmed = text.trim();
                 if trimmed.is_empty() {
                     return Err(TypeName::String);
+                }
+                if let Some(number) = the_hexadecimal_of_a_text(trimmed) {
+                    return Ok(number as f64);
                 }
                 trimmed.parse::<f64>().map_err(|_| TypeName::String)
             }
@@ -9299,6 +9335,31 @@ impl<'a> Runtime<'a> {
         })
     }
 
+    /// The value as the number v2 makes of it: a whole number stays whole, and a
+    /// text that holds a whole number becomes one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `x := "2"`, `x + 1` is
+    /// the whole 3 and not the float 3.0, `x := "0x10"`, `x + 1` is 17, while
+    /// `x := "1e3"`, `x + 0` is the float 1000.0 and `x := "1.5"`, `x + 1` is
+    /// 2.5.
+    fn the_number_value(&self, value: &Value, line: u32) -> Result<Value, RuntimeFailure> {
+        match value {
+            Value::Int(number) => Ok(Value::Int(*number)),
+            Value::Float(number) => Ok(Value::Float(*number)),
+            Value::Text(text) => {
+                let trimmed = text.trim();
+                if let Some(number) = the_hexadecimal_of_a_text(trimmed) {
+                    return Ok(Value::Int(number));
+                }
+                if let Ok(whole) = trimmed.parse::<i64>() {
+                    return Ok(Value::Int(whole));
+                }
+                self.number(value, line).map(Value::Float)
+            }
+            _ => self.number(value, line).map(Value::Float),
+        }
+    }
+
     /// The value as a whole number, the way the bitwise operations want it.
     ///
     /// The number comes first: a text that holds a number is a number. A
@@ -12305,9 +12366,10 @@ impl<'a> Runtime<'a> {
                             _ => Value::Text(String::new()),
                         });
                     }
-                    Ok(match value {
+                    Ok(match self.the_number_value(&value, *line)? {
                         Value::Int(number) => Value::Int(number.wrapping_neg()),
-                        other => Value::Float(-self.number(&other, *line)?),
+                        Value::Float(number) => Value::Float(-number),
+                        other => other,
                     })
                 }
                 // The unary plus turns a numeric string into a number.
@@ -12319,10 +12381,10 @@ impl<'a> Runtime<'a> {
                     if self.dialect.a_value_that_is_not_a_number_is_blank() {
                         return Ok(value);
                     }
-                    Ok(match value {
-                        Value::Int(number) => Value::Int(number),
-                        other => Value::Float(self.number(&other, *line)?),
-                    })
+                    // Measured on the binary of v2.0.19 on 2026-11-09: the
+                    // plus of the v2 makes the number of the value, and a
+                    // whole number stays one: `x := "5"`, `+x` is 5.
+                    self.the_number_value(&value, *line)
                 }
                 // The bitwise not works on the bits of a whole number.
                 UnaryOp::BitwiseNot => {
@@ -12570,28 +12632,39 @@ impl<'a> Runtime<'a> {
                                 right_value.to_text()
                             ))
                         } else {
-                            let a = self.number(&left_value, line)?;
-                            let b = self.number(&right_value, line)?;
-                            match (&left_value, &right_value) {
+                            // Measured on the binary of v2.0.19 on 2026-11-09:
+                            // a text that holds a whole number adds as a whole
+                            // number -- `x := "2"`, `x + 1` is 3, and `x :=
+                            // "0x10"`, `x + 1` is 17 -- and a text that holds
+                            // a float adds as one.
+                            let a = self.the_number_value(&left_value, line)?;
+                            let b = self.the_number_value(&right_value, line)?;
+                            match (&a, &b) {
                                 (Value::Int(a), Value::Int(b)) => Value::Int(a.wrapping_add(*b)),
-                                _ => Value::Float(a + b),
+                                _ => Value::Float(
+                                    a.to_number().unwrap_or(0.0) + b.to_number().unwrap_or(0.0),
+                                ),
                             }
                         }
                     }
                     BinaryOp::Subtract => {
-                        let a = self.number(&left_value, line)?;
-                        let b = self.number(&right_value, line)?;
-                        match (&left_value, &right_value) {
+                        let a = self.the_number_value(&left_value, line)?;
+                        let b = self.the_number_value(&right_value, line)?;
+                        match (&a, &b) {
                             (Value::Int(a), Value::Int(b)) => Value::Int(a.wrapping_sub(*b)),
-                            _ => Value::Float(a - b),
+                            _ => Value::Float(
+                                a.to_number().unwrap_or(0.0) - b.to_number().unwrap_or(0.0),
+                            ),
                         }
                     }
                     BinaryOp::Multiply => {
-                        let a = self.number(&left_value, line)?;
-                        let b = self.number(&right_value, line)?;
-                        match (&left_value, &right_value) {
+                        let a = self.the_number_value(&left_value, line)?;
+                        let b = self.the_number_value(&right_value, line)?;
+                        match (&a, &b) {
                             (Value::Int(a), Value::Int(b)) => Value::Int(a.wrapping_mul(*b)),
-                            _ => Value::Float(a * b),
+                            _ => Value::Float(
+                                a.to_number().unwrap_or(0.0) * b.to_number().unwrap_or(0.0),
+                            ),
                         }
                     }
                     BinaryOp::Divide => {
@@ -12623,20 +12696,21 @@ impl<'a> Runtime<'a> {
                         Value::Int(a.wrapping_div(b))
                     }
                     BinaryOp::Power => {
-                        let a = self.number(&left_value, line)?;
-                        let b = self.number(&right_value, line)?;
+                        let a = self.the_number_value(&left_value, line)?;
+                        let b = self.the_number_value(&right_value, line)?;
                         // Two whole numbers with a whole exponent give a
                         // whole number; a negative exponent gives a float.
-                        if let (Value::Int(base), Value::Int(exponent)) =
-                            (&left_value, &right_value)
-                        {
+                        if let (Value::Int(base), Value::Int(exponent)) = (&a, &b) {
                             if *exponent >= 0 && *exponent <= 63 {
                                 if let Some(power) = base.checked_pow(*exponent as u32) {
                                     return Ok(Value::Int(power));
                                 }
                             }
                         }
-                        Value::Float(powf(a, b))
+                        Value::Float(powf(
+                            a.to_number().unwrap_or(0.0),
+                            b.to_number().unwrap_or(0.0),
+                        ))
                     }
                     BinaryOp::BitwiseAnd => {
                         let a = self.integer(&left_value, line)?;
@@ -14232,6 +14306,22 @@ fn the_key_of(name: &str) -> String {
 fn thrown_message(value: &Value) -> String {
     match value {
         Value::Text(text) => format!("Unhandled exception.\n     Specifically: {text}"),
+        // Measured on the binary of v2.0.19 on 2026-11-09: the dialog of an
+        // uncaught error shows the message of the error -- `throw
+        // Error("boom")` shows "boom" -- and the report of the runner carries
+        // the same text, so a tool that reads it learns what the script threw
+        // instead of a generic line.
+        Value::Object(object) => {
+            let borrowed = object.borrow();
+            if crate::classes::error::is_a_class(&borrowed.class) {
+                if let Some(Value::Text(message)) = borrowed.value_of("message") {
+                    if !message.is_empty() {
+                        return message;
+                    }
+                }
+            }
+            "Unhandled exception.".to_string()
+        }
         _ => "Unhandled exception.".to_string(),
     }
 }

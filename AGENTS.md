@@ -10135,3 +10135,59 @@ keeps an assertion failure apart from an engine failure. With the harness the
 corpus is **59 of 162 pure scripts (36.4 %)** passing, 15 failing their
 assertions and 88 stopped by the tree. `ThrowsMessage` is not in the library
 on purpose: its two uses are in a script that defines the function itself.
+## 256. The message of an uncaught error reaches the report
+
+Measured on the binary of v2.0.19 on 2026-11-09: the dialog of an uncaught
+error shows the message of the error -- `throw Error("boom")` shows "boom" --
+and the report of the runner now carries the same text instead of the generic
+"Unhandled exception.". A value that is not an error keeps the generic line:
+`throw "a text"` is "Unhandled exception." and names the value under
+`Specifically:`; `throw {a: 1}` is the generic line alone. The corpus harness
+needed no marker line any more for the message -- though it keeps its own
+marker to tell an assertion failure from an engine failure, because the triage
+still cannot ask the report for the class of the failure. The case is
+`the_message_of_an_uncaught_error_is_the_message_of_the_error`, and the rule is
+in `docs/runner-and-report.md`.
+
+## 257. A text that holds a hexadecimal number is a number
+
+Measured on the binary of v2.0.19 on 2026-11-09: a text of the form `0x1F` --
+optional sign, either case of the prefix, spaces around it -- is a number:
+`"0x1" + 0` is 1, `"0X1F" + 0` is 31, `"-0x10" + 0` is -16, `" 0x10 " + 0` is
+16, `~"0x1"` is -2 and `"0x10" * 1` is 16. `"0x"` and `"0xzz"` hold no number
+and are the "Expected a Number but got a String." of any other text. The
+conversion is `the_hexadecimal_of_a_text`, used by `to_number_strict`, so the
+operators, the comparisons and the kind check of a built-in parameter all see
+it.
+
+**A text that holds a whole number is still a whole number.** Measured on
+2026-11-09: `x := "2"`, `x + 1` is the whole 3 and not 3.0, and `x := "0x10"`,
+`x + 1` is 17; `x := "1e3"`, `x + 0` is the float 1000.0 and `x := "1.5"`,
+`x + 1` is 2.5. The operators of the sum, the difference, the product and the
+power make the number with `the_number_value`, which keeps an integral text an
+`Int`; the unary `-` and `+` do the same. Before this the tree answered a
+float for every text operand. **A literal string followed by an operator is a
+load error** ("Unexpected operator following literal string."), so the cases of
+the tests put the text in a variable first, the way the corpus does.
+
+## 258. The window queries the compositor answers
+
+Measured on the binary of v2.0.19 on 2026-11-09, probing the windows of the
+box: five names answer from the toplevel list of the compositor instead of
+saying "this is a name of Windows" -- `WinGetList` (an `Array` of the ids),
+`WinGetCount`, `WinGetID`, `WinGetIDLast`, `WinGetClass` (the application id on
+Wayland) -- and a `WinTitle` that is a whole number is a window id in those and
+in `WinExist`, `WinActive` and `WinGetTitle` (a numeric *text* is a title, not
+an id). Two shapes of the binary are not the guesses they looked like:
+`WinGetList()` of a title that matches nothing is the empty array and not a
+failure, while `WinGetID`, `WinGetIDLast` and `WinGetClass` of a window that is
+not there **throw** `TargetError("Target window not found.")` with the title in
+the `Extra` (the name of the built-in is in the `What`, and an id leaves the
+`Extra` empty); and `WinExist`/`WinActive` answer the id of the window and not
+1. On the box the run listed the kitty window, id 1, its title and class, the
+id stable across calls. The operations a Wayland client cannot do to another
+application's window -- activate, close, move, minimize, set the title, read
+its text or its position -- stay refusals with the reason. The capability is
+`Windows::windows()` answering `WindowInfo { id, title, class, active }`, and
+the Wayland client keeps a per-process map from the compositor's stable
+identifier to the id, counting from one, so zero is never a window.

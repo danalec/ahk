@@ -7,7 +7,7 @@
 use ahk::desktop::{
     Clipboard, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native, Network,
-    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
+    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WindowInfo, Windows,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -186,7 +186,34 @@ impl Dialogs for Fake {
     }
 }
 
-impl Windows for Fake {}
+impl Windows for Fake {
+    // The windows of the fake: three of them, and the first one is the active
+    // one. The ids and the class names are the shapes measured on the binary
+    // of v2.0.19 on 2026-11-09: an id of the runtime, a title, and the class
+    // of the window -- the application id of the compositor on the box.
+    fn windows(&mut self) -> Result<Vec<WindowInfo>, String> {
+        Ok(vec![
+            WindowInfo {
+                id: 101,
+                title: "Steam".into(),
+                class: "steam_app".into(),
+                active: true,
+            },
+            WindowInfo {
+                id: 102,
+                title: "Firefox".into(),
+                class: "firefox".into(),
+                active: false,
+            },
+            WindowInfo {
+                id: 103,
+                title: "Download".into(),
+                class: "chromium".into(),
+                active: false,
+            },
+        ])
+    }
+}
 
 impl Files for Fake {
     fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
@@ -1303,6 +1330,137 @@ fn the_readings_of_a_drive_are_asked_of_the_desktop() {
     assert_eq!(
         failure_of(&run("a := DriveGetType(Map())")),
         "Parameter #1 of DriveGetType requires a String, but received a Map."
+    );
+}
+
+#[test]
+fn the_windows_of_the_session_are_asked_of_the_desktop() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `WinGetList` answers
+    // an array of the ids as whole numbers, and the empty array when nothing
+    // matches; `WinGetCount` the number; and the other three the id or the
+    // class of the first, with "Target window not found." when there is none.
+    let report = run(concat!(
+        "list := WinGetList()\n",
+        "kind := Type(list)\n",
+        "len := list.Length\n",
+        "first := list[1]\n",
+        "some := WinGetList(\"Fire\")\n",
+        "some_len := some.Length\n",
+        "none := WinGetList(\"zzz-nothing-zzz\").Length\n",
+        "count := WinGetCount()\n",
+        "count_some := WinGetCount(\"Fire\")\n",
+        "count_none := WinGetCount(\"zzz-nothing-zzz\")\n",
+        "id_first := WinGetID()\n",
+        "id_some := WinGetID(\"Fire\")\n",
+        "id_last := WinGetIDLast()\n",
+        "id_last_some := WinGetIDLast(\"Fire\")\n",
+        "class_first := WinGetClass()\n",
+        "class_some := WinGetClass(\"Fire\")\n",
+        "id_of_id := WinGetID(102)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "kind"), Value::Text("Array".into()));
+    assert_eq!(int_of(&report, "len"), 3);
+    assert_eq!(int_of(&report, "first"), 101);
+    assert_eq!(int_of(&report, "some_len"), 1);
+    assert_eq!(int_of(&report, "none"), 0);
+    assert_eq!(int_of(&report, "count"), 3);
+    assert_eq!(int_of(&report, "count_some"), 1);
+    assert_eq!(int_of(&report, "count_none"), 0);
+    // The first and the last of the windows, and an id that names one.
+    assert_eq!(int_of(&report, "id_first"), 101);
+    assert_eq!(int_of(&report, "id_some"), 102);
+    assert_eq!(int_of(&report, "id_last"), 103);
+    assert_eq!(int_of(&report, "id_last_some"), 102);
+    assert_eq!(value_of(&report, "class_first"), Value::Text("steam_app".into()));
+    assert_eq!(value_of(&report, "class_some"), Value::Text("firefox".into()));
+    assert_eq!(int_of(&report, "id_of_id"), 102);
+}
+
+#[test]
+fn a_window_that_is_not_there_is_the_target_error_of_v2() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `WinGetID`,
+    // `WinGetIDLast` and `WinGetClass` of a window that is not there are the
+    // failure "Target window not found." of the class `TargetError`, and the
+    // title that was asked about is in its `Extra`; a window that is named by
+    // its id leaves the `Extra` empty.
+    let report = run(concat!(
+        "try\n",
+        "    WinGetID(\"zzz-nothing-zzz\")\n",
+        "catch as e\n",
+        "    a := Type(e) \"|\" e.Message \"|\" e.Extra\n",
+        "try\n",
+        "    WinGetID(999)\n",
+        "catch as e2\n",
+        "    b := Type(e2) \"|\" e2.Extra\n",
+        "try\n",
+        "    WinGetClass(\"zzz-nothing-zzz\")\n",
+        "catch as e3\n",
+        "    c := e3.Message\n",
+        "try\n",
+        "    WinGetIDLast(\"zzz-nothing-zzz\")\n",
+        "catch as e4\n",
+        "    d := e4.Message\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "a"),
+        Value::Text("TargetError|Target window not found.|zzz-nothing-zzz".into())
+    );
+    assert_eq!(
+        value_of(&report, "b"),
+        Value::Text("TargetError|".into())
+    );
+    assert_eq!(
+        value_of(&report, "c"),
+        Value::Text("Target window not found.".into())
+    );
+    assert_eq!(
+        value_of(&report, "d"),
+        Value::Text("Target window not found.".into())
+    );
+}
+
+#[test]
+fn a_window_is_named_by_its_id_in_the_window_family() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a whole number as the
+    // window is its id, and `WinExist` and `WinActive` answer the id of the
+    // window when it is there, and zero when it is not.
+    let report = run(concat!(
+        "exist_title := WinExist(\"Fire\")\n",
+        "exist_id := WinExist(102)\n",
+        "exist_none := WinExist(999)\n",
+        "exist_absent := WinExist(\"zzz-nothing-zzz\")\n",
+        "active_title := WinActive(\"Steam\")\n",
+        "active_other := WinActive(\"Fire\")\n",
+        "active_id := WinActive(101)\n",
+        "active_none := WinActive(102)\n",
+        "title_of_id := WinGetTitle(102)\n",
+        "title_of_title := WinGetTitle(\"Fire\")\n",
+        "title_active := WinGetTitle()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "exist_title"), 102);
+    assert_eq!(int_of(&report, "exist_id"), 102);
+    assert_eq!(int_of(&report, "exist_none"), 0);
+    assert_eq!(int_of(&report, "exist_absent"), 0);
+    assert_eq!(int_of(&report, "active_title"), 101);
+    assert_eq!(int_of(&report, "active_other"), 0);
+    assert_eq!(int_of(&report, "active_id"), 101);
+    assert_eq!(int_of(&report, "active_none"), 0);
+    assert_eq!(value_of(&report, "title_of_id"), Value::Text("Firefox".into()));
+    assert_eq!(
+        value_of(&report, "title_of_title"),
+        Value::Text("Firefox".into())
+    );
+    assert_eq!(value_of(&report, "title_active"), Value::Text("Steam".into()));
+    let report = run("WinGetTitle(999)");
+    assert_eq!(failure_of(&report), "Target window not found.");
+    // The other parameters of v2 are the text of the window and the two
+    // exclusions, and they are not carried.
+    assert_eq!(
+        failure_of(&run("WinGetID(\"a\", \"b\")")),
+        "the text of the window and the exclusions are not carried yet."
     );
 }
 

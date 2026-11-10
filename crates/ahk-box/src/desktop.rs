@@ -922,6 +922,18 @@ impl ahk::desktop::Windows for LabDesktop {
             "the X server lists {windows:?}, which this runtime does not parse yet"
         )))
     }
+    fn windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
+        // The windows of the box are the ones of the compositor: the session
+        // is Wayland, and the X server beside it is the rootless Xwayland of
+        // gamescope, which reports an empty client list.
+        if wayland_session() {
+            return self.wayland_windows();
+        }
+        Err("the windows of this session are asked of the Wayland compositor, and this session is \
+             not one: the X11 server beside it is asked for the active window only, and not for \
+             the list of the windows."
+            .to_string())
+    }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.
@@ -1666,6 +1678,22 @@ impl LabDesktop {
         }
         Ok(WindowAnswer::Absent)
     }
+
+    /// The windows of the session, with the ids this runtime gives them, by
+    /// Wayland.
+    #[cfg(target_os = "linux")]
+    fn wayland_windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
+        let windows = self.wayland()?.windows_with_ids()?;
+        Ok(windows
+            .into_iter()
+            .map(|(id, window)| ahk::desktop::WindowInfo {
+                id,
+                title: window.title,
+                class: window.app_id,
+                active: window.active,
+            })
+            .collect())
+    }
 }
 
 /// The windows of a Wayland session, on a platform that has no Wayland.
@@ -1695,6 +1723,11 @@ impl LabDesktop {
         _title: &str,
         _mode: ahk::desktop::TitleMatch,
     ) -> Result<WindowAnswer, String> {
+        Err(not_linux())
+    }
+
+    /// The windows of the session, with the ids this runtime gives them.
+    fn wayland_windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
         Err(not_linux())
     }
 }
