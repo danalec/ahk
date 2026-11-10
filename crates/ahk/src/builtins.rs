@@ -1357,9 +1357,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_text,
     },
     Builtin {
         name: "ControlShow",
@@ -8212,6 +8212,52 @@ pub(crate) fn control_flag(
             line,
         }),
         crate::desktop::ControlFlag::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `ControlSetText`: write a text into a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the **empty
+/// text**, and the text of the control is the new one afterwards. The
+/// parameters are the *new text first*, then the control, then the title --
+/// which is the order of v2 and not the order of `ControlGetText`.
+pub(crate) fn control_set_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the three are the text of the window and the two
+    // exclusions, and they are not carried yet.
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let text = text_of(values, 0);
+    let control = text_of(values, 1);
+    let title = text_of(values, 2);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .control_set_text(&control, &title, &text)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
             message: TARGET_CONTROL.into(),
             line,
         }),

@@ -1341,6 +1341,49 @@ tree does not carry; the second answers the same, and it can be reached through
 the `ATSPI_STATE_FOCUSED` bit (12) once there is an answer to give for the name
 of what holds the focus.
 
+### Round 32 — 2026-11-09: the write half, and a round trip
+
+`ControlSetText`, verified by writing and then reading the same control back.
+
+**Measured on the binary of v2.0.19**, against a window it makes itself:
+
+| call | the binary |
+|---|---|
+| `ControlSetText("changed", "Edit1", title)` | **`""`**, and `ControlGetText` answers `changed` after it |
+| `ControlSetEnabled(0, "Edit1", title)` | `""`, and `ControlGetEnabled` answers `0` after it |
+| `ControlSetEnabled(1, "Edit1", title)` | `""` |
+
+**Its parameters are not the parameters of `ControlGetText`**: the new text
+comes **first**, then the control, then the title. Getting that wrong is what the
+first attempt at the measurement did, and it answered *"Target control not
+found."* for a control that was there -- the failure was the measurement's, not
+the binary's.
+
+**A real bug fell out of the round trip.** `Text.GetText` was being called with
+the signature `uu`; the interface takes **`ii`**, two *signed* thirty-two bit
+numbers. With `uu` the call answers nothing, so the text of a `Gtk.Entry` was
+invisible -- `ControlGetText` could only ever read a label, by falling back to its
+name. That is why the first attempt at the round trip could not find
+`entry value` at all.
+
+**Verified end to end on the box** against the GTK3 fixture:
+
+```
+set_ret=[]                        the empty text, as v2 answers
+read_back=[written by ahk]        ControlGetText reads what was just written
+missing_ctl=ERR|Target control not found.
+missing_win=ERR|Target window not found.
+```
+
+The surface moved **679 → 680 values, 154 → 153 refusals**.
+
+**`ControlSetEnabled` and `ControlSetVisible` were measured and are not taken.**
+v2 answers the empty text for both, but AT-SPI has no call that disables or
+hides a control of another program: the accessibility tree *describes* a
+control, it does not offer a client a way to change its sensitivity or its
+visibility. Answering the empty text without doing the thing would be the silent
+wrong answer this plan keeps refusing.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

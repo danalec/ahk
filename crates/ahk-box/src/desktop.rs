@@ -954,6 +954,16 @@ impl ahk::desktop::Windows for LabDesktop {
         // `ATSPI_STATE_ENABLED` is the bit 8.
         crate::atspi::control_flag(&address, title, control, 8)
     }
+    fn control_set_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_set_text(&address, title, control, text)
+    }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.

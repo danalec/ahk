@@ -30,7 +30,7 @@
 
 use std::process::Command;
 
-use ahk::desktop::{ControlAnswer, ControlFlag};
+use ahk::desktop::{ControlAnswer, ControlEdit, ControlFlag};
 
 /// One node of the tree: the connection that holds it, and its object path.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -118,7 +118,10 @@ pub fn text(address: &str, node: &Node) -> Option<String> {
         &node.bus,
         &node.path,
         "org.a11y.atspi.Text.GetText",
-        &["uu", "0", "4096"],
+        // The signature is `ii` and not `uu`: `Text.GetText` takes two *signed*
+        // thirty-two bit numbers in AT-SPI, and a call with the wrong signature
+        // is not the text. Measured on the box on 2026-11-09 on a `Gtk.Entry`.
+        &["ii", "0", "4096"],
     )
     .ok()?;
     the_strings_of(&answer).into_iter().next()
@@ -283,6 +286,50 @@ fn the_numbers_of(answer: &str) -> Vec<u64> {
         numbers.extend(current.parse::<u64>().ok());
     }
     numbers
+}
+
+/// Write a text into a named control of a window.
+///
+/// The interface is `org.a11y.atspi.EditableText`: it is on a control that takes
+/// a text and not on a label, and a control that has none is told apart from a
+/// control that is not there.
+pub fn control_set_text(
+    address: &str,
+    title: &str,
+    control: &str,
+    text: &str,
+) -> Result<ControlEdit, String> {
+    let root = Node {
+        bus: "org.a11y.atspi.Registry".to_string(),
+        path: "/org/a11y/atspi/accessible/root".to_string(),
+    };
+    let mut the_window_is_there = false;
+    for application in children(address, &root)? {
+        for window in children(address, &application).unwrap_or_default() {
+            if !name(address, &window).contains(title) {
+                continue;
+            }
+            the_window_is_there = true;
+            if let Some((node, _)) = the_control(address, &window, control, 0) {
+                call(
+                    address,
+                    &node.bus,
+                    &node.path,
+                    "org.a11y.atspi.EditableText.SetTextContents",
+                    &["s", text],
+                )
+                .map_err(|reason| {
+                    format!("the control of this window does not take a text: {reason}")
+                })?;
+                return Ok(ControlEdit::Done);
+            }
+        }
+    }
+    if the_window_is_there {
+        Ok(ControlEdit::NoSuchControl)
+    } else {
+        Ok(ControlEdit::NoSuchWindow)
+    }
 }
 
 /// A method of a node.

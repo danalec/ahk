@@ -5,8 +5,8 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, ControlAnswer, ControlFlag, FileAnswer, FileOptions, Files,
-    Hotkeys, Image, ImageOptions, ImageSearch, InputAnswer, InputOptions, Keyboard, Machine,
+    Clipboard, Desktop, Dialogs, ControlAnswer, ControlEdit, ControlFlag, FileAnswer, FileOptions,
+    Files, Hotkeys, Image, ImageOptions, ImageSearch, InputAnswer, InputOptions, Keyboard, Machine,
     Native, Network, PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WaitFor,
     WindowGeometry, WindowRef, Windows, DriveSpace, Monitor,
 };
@@ -201,6 +201,23 @@ impl Windows for Fake {
         self.calls
             .push(("control-enabled".into(), format!("{control}|{title}")));
         self.the_flag(control, title)
+    }
+
+    fn control_set_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-set-text".into(), format!("{control}|{title}|{text}")));
+        Ok(if control == "the label" && title == "the window" {
+            ControlEdit::Done
+        } else if title == "the window" {
+            ControlEdit::NoSuchControl
+        } else {
+            ControlEdit::NoSuchWindow
+        })
     }
 
     fn matching_windows(

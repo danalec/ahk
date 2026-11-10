@@ -343,6 +343,21 @@ pub enum ControlFlag {
     NoSuchControl,
 }
 
+/// What became of a question that writes to a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ControlSetText` answers the
+/// **empty text** when it worked, and the two failures are the two of
+/// `ControlGetText`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlEdit {
+    /// The text was written.
+    Done,
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
 /// The windows of the desktop.
 pub trait Windows {
     /// Whether the window with this title is the active one.
@@ -475,6 +490,16 @@ pub trait Windows {
     /// Whether a named control of the window with this title is enabled.
     fn control_enabled(&mut self, _control: &str, _title: &str) -> Result<ControlFlag, String> {
         Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Write a text into a named control of the window with this title.
+    fn control_set_text(
+        &mut self,
+        _control: &str,
+        _title: &str,
+        _text: &str,
+    ) -> Result<ControlEdit, String> {
+        Err("this desktop cannot write to the controls of a window".to_string())
     }
 }
 
