@@ -10810,3 +10810,37 @@ it: under `--dialect=v2.1` it passes whole now, and `flow-loop-return.ahk` with
 it -- 88 of the 162 pure scripts (54.3 %) against the 86 (53.1 %) of the v2.0.19.
 The triage harness takes the dialect from `AHK_TRIAGE_DIALECT`, so the same
 corpus is measured under both.
+## 284. Three more mechanisms of the v2.1, and the static that shadows
+
+Measured on the test suite of KeySharp (the corpus scripts `flow-if.ahk`,
+`func-global-static.ahk`, `op-logical-not.ahk`, `assign-unset.ahk` and
+`op-null-assign.ahk`) and on the notes of v2.1-alpha, three mechanisms of the
+v2.1 are carried behind `--dialect=v2.1` now:
+
+- `x is unset` asks whether the left side has a value, and it does **not** read
+  the left side as a value of its own: the name that has none is the answer and
+  not a failure. A name that has a value answers zero, and an expression answers
+  one when its answer is the absent value. The v2.0.19 refuses the word -- the
+  absent value has no class -- and the parser keeps refusing it there.
+- `??` takes any expression on its left. An answer that is the absent value, and
+  a left side whose read fails the way a name without a value fails, are the
+  right side; every other failure is the failure. The v2.0.19 wants a variable
+  there, and `f() ?? 1` is a "Syntax error." in it.
+- `??=` writes the value only when the name has none. The lexer knows the token
+  only in the dialect that carries the v2.1 -- the v2.0.19 sees the `??` and the
+  `=` -- so the operator does not leak into the dialect that does not have it.
+
+Measured on the binary of v2.0.19 on 2026-11-10, and fixed for the v2.0.19 as
+well: a `static z` that has no value **shadows** the name of the script that has
+the same name. The tree read the global `z := 3` through the declaration and
+answered three; the read of the local name fails with "This local variable has
+not been assigned a value." in the binary, and it does now as well.
+
+The four lists of the assignment operators of the parser -- the statement, the
+call, the member and the `parse_assignment` one -- are one table now, the
+`the_assignment_operator` that the dialect already had. The next operator of the
+dialect is one line and not four.
+
+The corpus under `--dialect=v2.1` is 91 of the 162 pure scripts (56.2 %) against
+the 88 (54.3 %) of the round before: `flow-if.ahk`, `op-logical-not.ahk` and
+`func-global-static.ahk` pass whole now, with the two of the round before.

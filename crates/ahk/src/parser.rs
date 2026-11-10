@@ -4534,38 +4534,13 @@ impl Parser {
                 }
                 return Err(self.the_equal_sign_is_not_an_assignment(name_token.line));
             }
-            let is_assignment = operator.kind == TokenKind::Op
-                && matches!(
-                    operator.value.as_str(),
-                    ":=" | "+="
-                        | "-="
-                        | "*="
-                        | "/="
-                        | "//="
-                        | ".="
-                        | "&="
-                        | "|="
-                        | "^="
-                        | "<<="
-                        | ">>="
-                        | ">>>="
-                );
-            if is_assignment {
-                let op = match operator.value.as_str() {
-                    ":=" => AssignOp::Set,
-                    "+=" => AssignOp::Add,
-                    "-=" => AssignOp::Subtract,
-                    "*=" => AssignOp::Multiply,
-                    "/=" => AssignOp::Divide,
-                    "//=" => AssignOp::IntegerDivide,
-                    ".=" => AssignOp::Concat,
-                    "&=" => AssignOp::BitwiseAnd,
-                    "|=" => AssignOp::BitwiseOr,
-                    "^=" => AssignOp::BitwiseXor,
-                    "<<=" => AssignOp::ShiftLeft,
-                    ">>=" => AssignOp::ShiftRight,
-                    _ => AssignOp::ShiftRightUnsigned,
-                };
+            // The table of `the_assignment_operator` is the one place that says
+            // which operators write a value: a list of its own here is a list
+            // that the next operator of the dialect forgets.
+            let op = (operator.kind == TokenKind::Op)
+                .then(|| the_assignment_operator(&operator.value))
+                .flatten();
+            if let Some(op) = op {
                 self.next();
                 let start = self.position;
                 let value = self.the_expression_of_a_statement()?;
@@ -4671,21 +4646,7 @@ impl Parser {
             }
             return Err(self.the_equal_sign_is_not_an_assignment(name_token.line));
         }
-        if !matches!(
-            operator.value.as_str(),
-            ":=" | "+="
-                | "-="
-                | "*="
-                | "/="
-                | "//="
-                | ".="
-                | "&="
-                | "|="
-                | "^="
-                | "<<="
-                | ">>="
-                | ">>>="
-        ) {
+        if the_assignment_operator(&operator.value).is_none() {
             return Ok(vec![self.parse_call_statement(name_token)?]);
         }
         self.parse_assignment(name_token)
@@ -5851,32 +5812,24 @@ impl Parser {
             return Err(refusal);
         }
         let operator = self.peek().clone();
-        let op = match operator.value.as_str() {
-            ":=" => AssignOp::Set,
-            // Measured on the binary of v1.1.37.02 on 2026-11-01: the equal
-            // sign assigns in the v1.
-            "=" if self.dialect.assign_with_equal() => AssignOp::Set,
-            "+=" => AssignOp::Add,
-            "-=" => AssignOp::Subtract,
-            "*=" => AssignOp::Multiply,
-            "/=" => AssignOp::Divide,
-            "//=" => AssignOp::IntegerDivide,
-            ".=" => AssignOp::Concat,
-            "&=" => AssignOp::BitwiseAnd,
-            "|=" => AssignOp::BitwiseOr,
-            "^=" => AssignOp::BitwiseXor,
-            "<<=" => AssignOp::ShiftLeft,
-            ">>=" => AssignOp::ShiftRight,
-            ">>>=" => AssignOp::ShiftRightUnsigned,
-            _ => {
-                return Err(SyntaxError {
-                    message: format!(
-                        "expected an assignment operator after {:?}",
-                        name_token.value
-                    ),
-                    line: operator.line,
-                    column: operator.column,
-                });
+        // Measured on the binary of v1.1.37.02 on 2026-11-01: the equal sign
+        // assigns in the v1, and the table of the dialect says which operators
+        // write a value.
+        let op = if operator.value == "=" && self.dialect.assign_with_equal() {
+            AssignOp::Set
+        } else {
+            match the_assignment_operator(&operator.value) {
+                Some(op) => op,
+                None => {
+                    return Err(SyntaxError {
+                        message: format!(
+                            "expected an assignment operator after {:?}",
+                            name_token.value
+                        ),
+                        line: operator.line,
+                        column: operator.column,
+                    });
+                }
             }
         };
         // Measured on the binary of v2.0.19 on 2026-11-01: the name of a
@@ -10796,7 +10749,10 @@ impl Parser {
             // wants a variable on its left, and the v2 refuses the script at
             // the load when it is another value. The text that is named is
             // the rest of the line, from the operator.
-            if op == BinaryOp::Coalesce && !matches!(left, Node::Var { .. }) {
+            if op == BinaryOp::Coalesce
+                && !matches!(left, Node::Var { .. })
+                && !self.dialect.an_expression_may_be_the_left_of_the_maybe()
+            {
                 return Err(self.error(format!(
                     "Syntax error.\n     Specifically: {}",
                     the_source_of_the_rest_of_the_line(self, self.position.saturating_sub(1))
@@ -10837,7 +10793,7 @@ impl Parser {
             // the absent value may not be the class of the `is` -- `x is unset`
             // is a "Syntax error." at the load -- because the absent value has
             // no class.
-            if op == BinaryOp::Is {
+            if op == BinaryOp::Is && !self.dialect.the_absent_value_may_be_the_class_of_the_is() {
                 if let Node::Var { name, .. } = &right {
                     if name.eq_ignore_ascii_case("unset") {
                         return Err(SyntaxError {
@@ -13881,6 +13837,7 @@ fn the_number_of(text: &str, dialect: &'static dyn crate::dialect::Dialect) -> L
 fn the_assignment_operator(value: &str) -> Option<AssignOp> {
     Some(match value {
         ":=" => AssignOp::Set,
+        "??=" => AssignOp::CoalesceSet,
         "+=" => AssignOp::Add,
         "-=" => AssignOp::Subtract,
         "*=" => AssignOp::Multiply,

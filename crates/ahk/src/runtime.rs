@@ -4516,6 +4516,15 @@ impl<'a> Runtime<'a> {
     /// v1 is not a value either -- `x := StrLen` is a blank text -- and the
     /// dialect says so.
     fn lookup(&self, name: &str) -> Option<Value> {
+        // Measured on the binary of v2.0.19 on 2026-11-10: a `static z` that
+        // has no value shadows a name of the script that has the same name --
+        // the `z` of the function is a local variable with no value, and it is
+        // not the global `z := 3` -- and the read of it fails the way a local
+        // variable that has not been assigned a value fails.
+        let key = name.to_lowercase();
+        if self.is_declared_static(&key) && self.the_static_of_the_frame(&key).is_none() {
+            return None;
+        }
         if let Some(value) = self.lookup_variable(name) {
             return Some(value);
         }
@@ -9389,7 +9398,7 @@ impl<'a> Runtime<'a> {
         // "0x10" is 16 -- and the text that is not a number is the number
         // zero: the `x += 1` of the "abc" is 1.
         if self.dialect.a_value_that_is_not_a_number_is_blank()
-            && !matches!(op, AssignOp::Set | AssignOp::Concat)
+            && !matches!(op, AssignOp::Set | AssignOp::Concat | AssignOp::CoalesceSet)
         {
             // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
             // the compound write of a variable that has no value makes the
@@ -9404,6 +9413,13 @@ impl<'a> Runtime<'a> {
         }
         Ok(match op {
             AssignOp::Set => value,
+            // Measured on the test suite of KeySharp (the corpus script
+            // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the null
+            // assignment writes the value only when the variable has none.
+            AssignOp::CoalesceSet => match current {
+                Some(Value::Unset) | None => value,
+                Some(current) => current,
+            },
             AssignOp::Add => {
                 // Measured on the binary of v2.0.19 on 2026-10-31: the
                 // dialect converts the value that is written before it
@@ -9570,6 +9586,10 @@ impl<'a> Runtime<'a> {
             _ => None,
         };
         Ok(match op {
+            // The lexer of the v1 does not know the null assignment, so the
+            // arm is never taken there; the value that is written is the one
+            // of the write.
+            AssignOp::CoalesceSet => b.clone(),
             AssignOp::Add => match whole(&a, &b) {
                 Some((one, other)) => Value::Int(one.wrapping_add(other)),
                 None => Value::Float(one + other),
@@ -13256,16 +13276,53 @@ impl<'a> Runtime<'a> {
                 // at all, so its left side is not read the way the other
                 // operators read their left side.
                 if *op == BinaryOp::Coalesce {
-                    let Node::Var { name, .. } = left.as_ref() else {
+                    if let Node::Var { name, .. } = left.as_ref() {
+                        if let Some(value) = self.lookup(name) {
+                            return Ok(value);
+                        }
+                        return self.evaluate(right);
+                    }
+                    // Measured on the test suite of KeySharp (the corpus
+                    // scripts `assign-unset.ahk` and `class-ownprops.ahk`) and
+                    // on the notes of v2.1-alpha: the v2.1 takes any expression
+                    // on the left of the `??`, and an answer that is the absent
+                    // value -- or a name that has none -- is the right side.
+                    if !self.dialect.an_expression_may_be_the_left_of_the_maybe() {
                         return Err(RuntimeFailure::Error(RuntimeError {
                             message: "the left side of ?? must be a variable".into(),
                             line,
                         }));
-                    };
-                    if let Some(value) = self.lookup(name) {
-                        return Ok(value);
                     }
-                    return self.evaluate(right);
+                    return match self.evaluate(left) {
+                        Ok(Value::Unset) => self.evaluate(right),
+                        Ok(value) => Ok(value),
+                        Err(failure) if the_failure_is_an_unset_variable(&failure) => {
+                            self.evaluate(right)
+                        }
+                        Err(failure) => Err(failure),
+                    };
+                }
+                // Measured on the test suite of KeySharp (the corpus scripts
+                // `flow-if.ahk`, `func-global-static.ahk` and
+                // `op-logical-not.ahk`) and on the notes of v2.1-alpha: the
+                // `is` of the absent value asks whether the left side has a
+                // value at all, and the left side is not read as a value of its
+                // own -- the read of a name that has none is the answer, and
+                // not a failure.
+                if *op == BinaryOp::Is
+                    && self.dialect.the_absent_value_may_be_the_class_of_the_is()
+                    && matches!(right.as_ref(), Node::Var { name, .. } if name.eq_ignore_ascii_case("unset"))
+                {
+                    let answer = match left.as_ref() {
+                        Node::Var { name, .. } => self.lookup(name).is_none(),
+                        _ => match self.evaluate(left) {
+                            Ok(Value::Unset) => true,
+                            Ok(_) => false,
+                            Err(failure) if the_failure_is_an_unset_variable(&failure) => true,
+                            Err(failure) => return Err(failure),
+                        },
+                    };
+                    return Ok(Value::Int(answer as i64));
                 }
                 let left_value = self.evaluate(left)?;
                 match op {
@@ -15154,6 +15211,20 @@ fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
 }
 
 /// The message of a failure, the way the report carries it.
+/// Whether the failure is the one of a name that has no value.
+///
+/// The class of the failure is the one of the dialect: the read of a variable
+/// that has not been assigned a value is an `UnsetError`, and the two
+/// mechanisms of the v2.1 that ask about the absent value are about exactly
+/// that failure.
+pub(crate) fn the_failure_is_an_unset_variable(failure: &RuntimeFailure) -> bool {
+    matches!(
+        failure,
+        RuntimeFailure::Error(error) | RuntimeFailure::Detailed(error, _)
+            if crate::classes::error::the_class_of(&error.message) == "UnsetError"
+    )
+}
+
 pub(crate) fn the_message_of(failure: &RuntimeFailure) -> String {
     match failure {
         RuntimeFailure::Error(error) => error.message.clone(),

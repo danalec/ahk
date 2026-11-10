@@ -321,6 +321,17 @@ fn the_line_from_has_the_two_colons(chars: &[char], from: usize) -> bool {
 
 /// The operators of the dialect.
 fn the_operators_of(dialect: &'static dyn crate::dialect::Dialect) -> Vec<&'static str> {
+    if dialect.the_lexer_knows_the_null_assignment() {
+        // The v2.1 has the null assignment, and it is the longest match of the
+        // operators that begin with the two question marks.
+        let mut operators = OPERATORS.to_vec();
+        let at = operators
+            .iter()
+            .position(|operator| *operator == "??")
+            .unwrap_or(0);
+        operators.insert(at, "??=");
+        return operators;
+    }
     if !dialect.the_lexer_knows_the_legacy_operators() {
         return OPERATORS.to_vec();
     }
@@ -2241,6 +2252,28 @@ fn the_end_of_the_number(
 
 #[cfg(test)]
 mod tests {
+    /// The null assignment of the v2.1 is one token, and the v2.0.19 does not
+    /// know it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `x ??= 5` is refused at
+    /// the load; the v2.1 has the operator of its own.
+    #[test]
+    fn the_null_assignment_is_a_token_of_the_v2_1() {
+        let tokens = tokenize_with("z ??= 5", crate::dialect::v2_1()).expect("tokens");
+        assert!(
+            tokens
+                .iter()
+                .any(|token| token.kind == TokenKind::Op && token.value == "??="),
+            "{tokens:?}"
+        );
+        let tokens = tokenize_with("z ??= 5", crate::dialect::v2()).expect("tokens");
+        assert!(
+            !tokens
+                .iter()
+                .any(|token| token.kind == TokenKind::Op && token.value == "??="),
+            "{tokens:?}"
+        );
+    }
     use super::*;
 
     fn kinds(source: &str) -> Vec<TokenKind> {

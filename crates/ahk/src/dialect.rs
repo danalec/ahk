@@ -1915,6 +1915,37 @@ pub trait Dialect: Sync {
         crate::settings::the_defaults_of_the_v2();
     }
 
+    /// Whether the lexer knows the null assignment of the v2.1, `??=`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `x ??= 5` is refused
+    /// at the load, and the two signs are the `??` and the `=`; the v2.1 has
+    /// the operator of its own, and the lexer is where the difference is: a
+    /// script that the v2.0.19 runs may not see the token at all.
+    fn the_lexer_knows_the_null_assignment(&self) -> bool {
+        false
+    }
+
+    /// Whether the absent value may be the class of the `is`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `x is unset` is a
+    /// "Syntax error." at the load, because the absent value has no class. The
+    /// v2.1 answers the question: the `is` of it is one when the left side has
+    /// no value, and the left side is not read as a value of its own -- the
+    /// `x is unset` of a name that has no value is one and not a failure.
+    fn the_absent_value_may_be_the_class_of_the_is(&self) -> bool {
+        false
+    }
+
+    /// Whether an expression may be the left side of the `??`.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: only a variable may be
+    /// on the left of the `??`, and `f() ?? 1` is a "Syntax error." at the
+    /// load. The v2.1 takes any expression there: the answer of the left side
+    /// that is the absent value is the right side.
+    fn an_expression_may_be_the_left_of_the_maybe(&self) -> bool {
+        false
+    }
+
     /// Whether a `while` may carry the `Until` clause of the v2.1.
     ///
     /// Measured on the test suite of KeySharp (the corpus script
@@ -2020,6 +2051,18 @@ impl Dialect for V2 {
     }
 
     fn a_while_may_carry_an_until(&self) -> bool {
+        self.extended
+    }
+
+    fn the_lexer_knows_the_null_assignment(&self) -> bool {
+        self.extended
+    }
+
+    fn the_absent_value_may_be_the_class_of_the_is(&self) -> bool {
+        self.extended
+    }
+
+    fn an_expression_may_be_the_left_of_the_maybe(&self) -> bool {
         self.extended
     }
 

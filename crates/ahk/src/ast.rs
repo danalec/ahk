@@ -279,6 +279,13 @@ pub enum LoopKind {
 pub enum AssignOp {
     /// `:=`.
     Set,
+    /// `??=`: the v2.1 assignment that writes the value only when the variable
+    /// has none.
+    ///
+    /// Measured on the test suite of KeySharp (the corpus script
+    /// `op-null-assign.ahk`) and on the notes of v2.1-alpha: `x ??= v` writes
+    /// `v` when `x` has no value and changes nothing when it has one.
+    CoalesceSet,
     /// `+=`.
     Add,
     /// `-=`.

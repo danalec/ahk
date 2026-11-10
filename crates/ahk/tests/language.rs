@@ -5326,8 +5326,62 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
 }
 
 #[test]
-fn the_until_of_a_while_is_the_mechanism_of_the_v2_1() {
-    // Measured on the test suite of KeySharp (the corpus script
+fn the_mechanisms_of_the_v2_1_ask_about_the_absent_value() {
+    // Measured on the test suite of KeySharp (the corpus scripts
+    // `flow-if.ahk`, `func-global-static.ahk`, `op-logical-not.ahk`,
+    // `assign-unset.ahk` and `op-null-assign.ahk`) and on the notes of
+    // v2.1-alpha: `x is unset` answers whether the left side has a value and
+    // does not read it, `??` takes any expression on its left, and `??=`
+    // writes the value only when the name has none.
+    let (report, _desktop) = run_in(
+        concat!(
+            "x := 5\n",
+            "MsgBox \"a\" (x is unset)\n",
+            "F(a?) {\n",
+            "    return a\n",
+            "}\n",
+            "MsgBox \"b\" (F() is unset)\n",
+            "MsgBox \"c\" (F(7) is unset)\n",
+            "MsgBox \"d\" (F() ?? \"none\")\n",
+            "MsgBox \"e\" (F(7) ?? \"none\")\n",
+            "MsgBox \"f\" ((1 + 1) ?? 9)\n",
+            "z := unset\n",
+            "z ??= 5\n",
+            "MsgBox \"g\" z\n",
+            "z ??= 7\n",
+            "MsgBox \"h\" z\n",
+        ),
+        ahk::dialect::v2_1(),
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["a0", "b1", "c0", "dnone", "e7", "f2", "g5", "h5"]
+    );
+}
+
+#[test]
+fn a_static_without_a_value_shadows_the_global_of_the_same_name() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the `static z` of a
+    // function has no value, and the read of it fails with the local variable
+    // that has not been assigned a value; it does not read the global `z`.
+    let (report, _desktop) = run(concat!(
+        "z := 3\n",
+        "F() {\n",
+        "    static z\n",
+        "    MsgBox z\n",
+        "}\n",
+        "F()\n",
+    ));
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This local variable has not been assigned a value.")
+    );
+}
+
+#[test]
+fn the_until_of_a_while_is_the_mechanism_of_the_v2_1() {    // Measured on the test suite of KeySharp (the corpus script
     // `flow-until.ahk`) and on the notes of v2.1-alpha: the `Until` of a
     // `while` comes after the body, the body runs before the condition is read
     // on every turn, and the loop ends when it is true. The x of the script is
