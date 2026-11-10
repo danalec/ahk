@@ -152,6 +152,28 @@ says.
 
 ## 5. What to do
 
+### 5.0 The port has started
+
+The first family is ported: **`FileCreateShortcut` and `FileGetShortcut`**, the
+shortcuts of the machine. The tree answered 681 of the 833 names on
+2026-11-10 and answers **683** since 2026-11-11.
+
+The port is done family by family, and each family is:
+
+1. measured on the binary of v2.0.19 (the order of the parameters and the
+   shape of the answer are read from the binary, not from the branch),
+2. added to the capability of the tree (`crates/ahk/src/desktop.rs`) with
+   the refusal of its own,
+3. implemented in `crates/ahk-box` over the machine,
+4. wired into the built-in table of the tree (`crates/ahk/src/builtins.rs`),
+5. pinned by cases of its own (`crates/ahk/tests/builtins.rs`), and
+6. **verified on the box**, where the machine is the one the answer is
+   about.
+
+The shortcut family is done and verified on the box: the `.desktop` file is
+written with the mode of an executable, read back, and every one of the five
+fields comes back.
+
 Three options, in the order they cost.
 
 ### 5.1 Keep the lines apart (the honest default)
