@@ -1046,6 +1046,44 @@ bigger than a round, and it is worth modelling as a family the way `Process*`
 and `Drive*` were modelled: a trait, a box implementation, and the built-ins
 that ride it.
 
+### Round 25 — 2026-11-09: the parsing problem of AT-SPI solved, and one name
+
+**`busctl --json=short` is the way into the accessibility bus.** Round 24 proved
+AT-SPI is live on the box; the open question was how a tree with no D-Bus
+dependency reads it. Measured:
+
+```
+$ busctl --address=unix:path=/run/user/1000/at-spi/bus_0 --json=short call \
+    org.a11y.atspi.Registry /org/a11y/atspi/accessible/root \
+    org.a11y.atspi.Accessible GetChildren
+{"type":"a(so)","data":[[[":1.1","/org/a11y/atspi/accessible/root"], …]]}
+
+$ busctl … get-property :1.1 /org/a11y/atspi/accessible/root \
+    org.a11y.atspi.Accessible Name
+{"type":"s","data":"xdg-desktop-portal-gtk"}
+```
+
+That is JSON that a few string operations read -- no D-Bus crate, and the shape
+the tree already uses for `grim`, `zenity` and `df`. The AT-SPI family is now
+**unblocked on paper**; it is still a multi-file arc (a trait, the walk, the
+toplevel-to-application correlation) and starting it with too little left to
+finish would have produced a broken tree, so it starts next round.
+
+**One name landed instead: `OutputDebug`.** Measured on the binary of v2.0.19:
+it answers the empty text. There is no debugger on this desktop, and the tree
+has one channel for what a script says -- the `output` of the report, where a
+`MsgBox` goes -- so the text goes there, and a script that logs with
+`OutputDebug` shows up in the report its client reads.
+
+**`Critical` was measured and deliberately left refused.** It answers the
+previous setting (`0` then `16`), and it could be modelled as inert script
+state -- but its whole meaning is thread interruption, and this runtime runs one
+script in one thread. Its existing refusal, *"this runtime runs one script in one
+thread, and it cannot make it critical"*, is true. A value that is stored and
+has no effect would be the worse answer.
+
+The surface moved **675 → 676 values, 158 → 157 refusals**.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

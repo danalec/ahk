@@ -1943,9 +1943,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: output_debug,
     },
     Builtin {
         name: "PostMessage",
@@ -8092,8 +8092,26 @@ pub(crate) fn win_get_client_pos(
     window_geometry_into(rt, values, line, "WinGetClientPos")
 }
 
-// -- the monitors ------------------------------------------------------------------
+/// `OutputDebug`: send a text to the debugger of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the empty
+/// text. There is no debugger to write to on this desktop, and this tree has one
+/// channel for what a script says -- the `output` of the report, which is where
+/// a `MsgBox` goes -- so the text goes there. A script that logs with
+/// `OutputDebug` therefore shows up in the report, which is the thing a client
+/// of the runner reads.
+pub(crate) fn output_debug(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = rt.interpolate(&text_of(values, 0), line)?;
+    rt.push_output(text);
+    Ok(Value::Text(String::new()))
+}
 
+// -- the monitors ------------------------------------------------------------------
 /// The monitor that a number names, or the failure of v2 for a number that
 /// names none.
 ///

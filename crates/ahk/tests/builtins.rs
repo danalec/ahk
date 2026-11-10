@@ -4152,3 +4152,16 @@ fn the_work_area_is_the_monitor_when_the_panels_are_not_known() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "r"), 1920);
 }
+
+// -- what a script says to the debugger --------------------------------------------
+
+#[test]
+fn the_output_debug_goes_to_the_output_and_answers_nothing() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `OutputDebug` answers
+    // the empty text. This tree has no debugger, and one channel for what a
+    // script says -- the output of the report.
+    let report = run("r := OutputDebug(\"a log line\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["a log line"]);
+    assert_eq!(report.variables.get("r"), Some(&Value::Text(String::new())));
+}
