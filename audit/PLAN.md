@@ -3207,6 +3207,47 @@ the test harness of rounds 76 and 80.
 **The two names that DID work stay**: `EditGetLineCount` and `EditGetLine`, both
 verified on the box. The family is not poisoned; this one path is.
 
+### Round 148 — 2026-11-09: the helper does not hang, so the hang is a blocked read
+
+The helper was probed on its own, through the fifo, with the `paste` operation and a
+timeout around it. **It answers:**
+
+```
+{"ok": false, "error": "there is no window to add a control to"}
+{"ok": false, "error": "there is no window to show"}
+{"ok": false, "error": "there is no control with the number 1"}
+```
+
+(The window was not made in that run -- the session of the probe has no compositor
+connection of its own -- but the point stands: **the helper took the `paste`
+command, tried it, and answered**. It did not block.)
+
+**So the hang of round 147 was not the helper's operation**, and the shape of it is
+now visible:
+
+- `gui_paste` calls `the_gui_says`, which **reads a line from the helper and waits
+  for it**;
+- **the runner's timeout is checked between statements** -- round 6 of this plan's
+  own notes say so: *"it is checked before every statement, so a `Sleep` can
+  overshoot it"*;
+- so a read that never returns is **inside a statement and unbounded**. The
+  `--timeout=60` could not end it, which is exactly what was seen: more than ten
+  minutes and no report.
+
+**That is a property of the transport, not of `EditPaste`**, and it applies to every
+`the_gui_says` in the tree: `Value`, `flag`, `option`, `lines`, `paste`. **Any of
+them can hang the runner if the helper stops answering**, and nothing in the runtime
+bounds it.
+
+**So the work is not `EditPaste`** -- it is that **the transport needs a bound on
+its read**. A read with a deadline, or a kill of the helper after a second of
+silence, turns a hang into a failure with a reason, which is the thing this tree
+does everywhere else.
+
+**And it explains a mystery in the plan's own notes**: `FileGetShortcut` was
+recorded as *"hangs the reference binary"* -- which is about v2, not this tree, but
+the same class of failure: **a wait with no bound**.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
