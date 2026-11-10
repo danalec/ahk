@@ -841,13 +841,38 @@ pub struct Class {
     pub nested: Vec<String>,
 }
 
+/// Whether the text is a number and that number is zero.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the truth of a text is the
+/// truth of the number it holds, and a text that is not a number is true when
+/// it is not empty. The number may be written the way the dialect writes one:
+/// `0`, `00`, `0x0`, `0.0`, `0e0`, `-0` and ` 0` are all zero.
+fn the_zero_of_a_text(text: &str) -> Option<bool> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    if let Some(hex) = text
+        .strip_prefix("0x")
+        .or_else(|| text.strip_prefix("0X"))
+        .filter(|hex| !hex.is_empty() && hex.chars().all(|digit| digit.is_ascii_hexdigit()))
+    {
+        return Some(u128::from_str_radix(hex, 16).map(|number| number == 0).unwrap_or(false));
+    }
+    text.parse::<f64>().ok().map(|number| number == 0.0)
+}
 impl Value {
     /// Whether the value counts as true.
     pub fn truthy(&self) -> bool {
         match self {
-            // Measured on the binary of v2.0.19 on 2026-10-31: a text that
-            // is "0" is false, and a text that is not empty is true.
-            Value::Text(text) => !text.is_empty() && text != "0",
+            // Measured on the binary of v2.0.19 on 2026-11-10: a text that is
+            // a number is false when the number is zero -- "0", "00", "0x0",
+            // "0.0" and " 0" are false -- and a text that is not a number is
+            // true when it is not empty.
+            Value::Text(text) => match the_zero_of_a_text(text) {
+                Some(is_zero) => !is_zero,
+                None => !text.is_empty(),
+            },
             Value::Int(number) => *number != 0,
             Value::Float(number) => *number != 0.0,
             Value::List(items) => !items.is_empty(),

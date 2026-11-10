@@ -10499,3 +10499,27 @@ outside them is the FINALLY failure.
 
 The corpus case `flow-loop-switch-break-goto.ahk` passes: the corpus is 72 of
 162 pure scripts (44.4 %).
+## 271. The truth of a text is the truth of the number it holds
+
+Measured on the binary of v2.0.19 on 2026-11-10: a text counts as true when
+the number it holds is not zero. The texts that are zero -- "0", "00", "0x0",
+"0x00", "0.0", "0e0", "-0" and " 0" -- are false, and the ones that are not
+zero -- "0x10", "1" -- are true; a text that is not a number at all is true when
+it is not empty ("abc" and "." are true, "" is false). The rule holds for the
+`if` and for the operators alike: `"0x0" || 2` is 2 and `!"0x0"` is 1.
+
+`Value::truthy` read the text as a word before this -- only "0" was false, and
+"00" and "0x0" were true. It now reads the text as a number: the hex of the
+`0x` prefix, and the decimal or the exponent of the rest. The earlier note in
+the runtime said that v2 keeps the text as it was written and that "00" is true;
+that measurement was wrong, and the note is corrected with this one.
+
+The corpus case `op-logical-or.ahk` passes now: the corpus is 73 of 162 pure
+scripts (45.1 %).
+
+**Open: the class of a failure of `Mod`.** Measured on the binary of v2.0.19 on
+2026-11-10: `Mod("abc", 2)` is a `TypeError` with "Invalid parameter(s).", and
+`FileOpen(path, "z")` is a `ValueError` with the same message. The class of a
+failure of the tree comes from its message, so the same message cannot carry two
+classes: `Mod` answers the `ValueError` that the message maps to, and the
+distinction waits for a class of its own on the failure.

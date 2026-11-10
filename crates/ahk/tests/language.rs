@@ -6161,6 +6161,19 @@ fn the_hotstring_of_the_v2_reads_the_options_of_the_hotstring_directive() {
 }
 
 #[test]
+fn the_truth_of_a_text_is_the_truth_of_the_number_it_holds() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: a text that is a number
+    // is false when the number is zero -- "0", "00", "0x0", "0.0" and " 0" --
+    // and a text that is not a number is true when it is not empty.
+    let (report, _desktop) = run(concat!(
+        "MsgBox (\"00\" || 2) \":\" (\"0x0\" || 2) \":\" (\"0x10\" || 2)\n",
+        "MsgBox (\"\" || 2) \":\" (!\"0x0\") \":\" (\"0.0\" || 2) \":\" (\"abc\" || 2)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2:2:0x10", "2:1:2:abc"]);
+}
+
+#[test]
 fn the_goto_of_a_computed_label_is_resolved_when_it_runs() {
     // Measured on the binary of v2.0.19 on 2026-11-10: `goto(name)` resolves
     // the label when the jump runs, among the labels of the blocks that
