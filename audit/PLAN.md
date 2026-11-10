@@ -2798,6 +2798,34 @@ and -- the part that needs care -- the decision of **which options are in group 
 and which in group 3**, which wants the list of `THE_OPTIONS` read against what GTK
 can actually do. That is a round of its own, and it is the right next one.
 
+### Round 129 — 2026-11-09: the eighteen options, classified
+
+`THE_OPTIONS` (`classes/gui.rs:344`) has **eighteen**: `AlwaysOnTop`, `Border`,
+`Caption`, `Disabled`, `DPIScale`, `E`, `LastFound`, `MaximizeBox`, `MinimizeBox`,
+`MinSize`, `MaxSize`, `OwnDialogs`, `Owner`, `Parent`, and the rest of the list.
+
+**Classified against what GTK can actually do**, which is the decision round 128
+said was the work:
+
+| option | the window of this tree |
+|---|---|
+| `AlwaysOnTop` | **honour** -- `set_keep_above` |
+| `Resize` | **honour** -- `set_resizable` |
+| `Caption` | **honour** -- `set_decorated`, with `-Caption` being `false` |
+| `Disabled` | **honour** -- `set_sensitive` on the window |
+| `DPIScale` | **no-op that is not a lie**: GTK scales by the compositor's own rule, so the option is already true in the only sense it has here -- but say so in the note of the member rather than pretending to act |
+| `Border`, `MaximizeBox`, `MinimizeBox`, `MinSize`, `MaxSize`, `SysMenu`, `Theme`, `ToolWindow` | **refuse** -- GTK 4 has no per-box controls for these, and a window whose title bar is the compositor's is not one whose buttons a program sets |
+| `Owner`, `Parent`, `OwnDialogs`, `LastFound`, `E` | **refuse** -- these are about v2's own management of a window among its others, which this tree does not have |
+
+**The three lists are the whole of what `Opt` needs.** The reading gives v2's
+`Invalid option.` for anything outside the eighteen; the honour list is a helper
+operation with a sign; the refuse list is the `THE_OPTIONS_THAT_NAME_A_WINDOW`
+shape. **Nothing is left to decide** -- the next round is the writing.
+
+**One judgement recorded rather than hidden**: `DPIScale` is the only option whose
+"honour" is a no-op, and the honest way to carry it is a note that says the
+compositor does the scaling, not code that silently discards a request.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
