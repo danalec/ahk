@@ -266,8 +266,8 @@ fn the_surface_flag_answers_with_json() {
     // row stops carrying `REFUSAL` as its variant**, which is the last step of
     // that work and was found in round 171 of the audit: the handler alone
     // answers, and the surface reads the variant.
-    assert_eq!(report.number("values"), 709);
-    assert_eq!(report.number("refusals"), 124);
+    assert_eq!(report.number("values"), 713);
+    assert_eq!(report.number("refusals"), 120);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -280,9 +280,13 @@ fn the_surface_flag_answers_with_json() {
         .expect("the name is in the report");
     assert_eq!(field_text(abs, "kind"), "function");
     assert_eq!(field_text(abs, "state"), "value");
+    // A name that is genuinely refused, and its reason. `WinActivate` was the
+    // example until round 196 answered it: the window of a script is its own now,
+    // and what a program cannot do is set the STYLE of a window, which belongs to
+    // the compositor.
     let windows = entries
         .iter()
-        .find(|entry| field_text(entry, "name") == "WinActivate")
+        .find(|entry| field_text(entry, "name") == "WinGetStyle")
         .expect("the name is in the report");
     assert_eq!(field_text(windows, "state"), "refusal");
     assert!(windows.get("reason").map(|v| v.is_string()).unwrap_or(false));

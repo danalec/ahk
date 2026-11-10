@@ -301,6 +301,15 @@ def the_option(name, on):
         window.set_decorated(on)
     elif low == "disabled":
         window.set_sensitive(not on)
+    elif low == "activate":
+        window.present()
+    elif low == "minimize":
+        window.iconify()
+    elif low == "maximize":
+        window.maximize()
+    elif low == "restore":
+        window.unmaximize()
+        window.deiconify()
     else:
         answer({"ok": False, "error": "%s is not an option this window can set" % name})
         return

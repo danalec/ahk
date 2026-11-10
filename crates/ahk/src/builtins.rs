@@ -2330,9 +2330,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_activate,
     },
     Builtin {
         name: "WinActivateBottom",
@@ -2555,18 +2555,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_maximize,
     },
     Builtin {
         name: "WinMinimize",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_minimize,
     },
     Builtin {
         name: "WinMinimizeAll",
@@ -2627,9 +2627,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_restore,
     },
     Builtin {
         name: "WinSetAlwaysOnTop",
@@ -9745,6 +9745,64 @@ pub(crate) fn win_show(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     the_visibility_of_the_window(rt, values, line, true)
+}
+
+/// `WinActivate`, `WinMinimize`, `WinMaximize` and `WinRestore` of the script's
+/// window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: all four answer the empty text,
+/// and a window that is not there answers *"Target window not found."*
+///
+/// They go through the option channel of round 132, which already asks the helper to
+/// act on the window, so none of them needs a method of its own.
+fn the_state_of_the_window(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    state: &str,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option(state, true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn win_activate(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
+pub(crate) fn win_minimize(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "minimize")
+}
+
+pub(crate) fn win_maximize(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "maximize")
+}
+
+pub(crate) fn win_restore(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "restore")
 }
 
 pub(crate) fn sleep(
