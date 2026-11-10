@@ -1299,6 +1299,48 @@ The fixture is the way the rest of the family gets done: `ControlGetVisible`,
 `ControlGetEnabled`, `ControlGetFocus` and the `ControlSet*` half all read the
 same tree, and each now has something to be measured against.
 
+### Round 31 — 2026-11-09: the two flags, and the bits read from the machine
+
+`ControlGetVisible` and `ControlGetEnabled`, on the spine of round 30.
+
+**Measured on the binary of v2.0.19**, against a window it makes itself
+(`Gui` + `Add("Edit")`), because Notepad on this machine has no `Edit1`:
+
+| call | the binary |
+|---|---|
+| `ControlGetText("Edit1", title)` | `"hello"` |
+| `ControlGetVisible("Edit1", title)` | **`1`**, an Integer |
+| `ControlGetEnabled("Edit1", title)` | **`1`**, an Integer |
+| `ControlGetClassNN("Edit1", title)` | `"Edit1"`, a String |
+| `ControlGetFocus(title)` | **`0`** |
+
+So the two flags answer a **number** and not a truth of the host, and the two
+failures are the ones already carried.
+
+**The bits are not guessed.** They are read out of
+`/usr/include/at-spi-2.0/atspi/atspi-constants.h` on the box, where the enum
+starts at `ATSPI_STATE_INVALID = 0`: so `ATSPI_STATE_ENABLED` is **8** and
+`ATSPI_STATE_VISIBLE` is **30**. The measurement agrees: the label `hello
+control` answers the state `0x43020100`, which carries the 8 and the 30.
+
+**Verified end to end on the box** against the GTK3 fixture:
+
+```
+vis=[1]
+en=[1]
+flag_missing=ERR|Target control not found.
+flag_badwin=ERR|Target window not found.
+```
+
+`What` is `ControlGetVisible` on the failure, the way v2's is. The surface moved
+**677 → 679 values, 156 → 154 refusals**.
+
+`ControlGetClassNN` and `ControlGetFocus` were measured and **not** taken:
+the first answers a `ClassNN`, which is a Windows idea that the accessibility
+tree does not carry; the second answers the same, and it can be reached through
+the `ATSPI_STATE_FOCUSED` bit (12) once there is an answer to give for the name
+of what holds the focus.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

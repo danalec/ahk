@@ -5,10 +5,10 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, ControlAnswer, FileAnswer, FileOptions, Files, Hotkeys, Image,
-    ImageOptions, ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Native, Network,
-    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WaitFor, WindowGeometry,
-    WindowRef, Windows, DriveSpace, Monitor,
+    Clipboard, Desktop, Dialogs, ControlAnswer, ControlFlag, FileAnswer, FileOptions, Files,
+    Hotkeys, Image, ImageOptions, ImageSearch, InputAnswer, InputOptions, Keyboard, Machine,
+    Native, Network, PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WaitFor,
+    WindowGeometry, WindowRef, Windows, DriveSpace, Monitor,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -163,6 +163,20 @@ impl Dialogs for Fake {
     }
 }
 
+impl Fake {
+    /// The answer about a flag of a control: the one control is visible and
+    /// enabled, and every other question is one of the two failures.
+    fn the_flag(&self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        Ok(if control == "the label" && title == "the window" {
+            ControlFlag::Yes
+        } else if title == "the window" {
+            ControlFlag::NoSuchControl
+        } else {
+            ControlFlag::NoSuchWindow
+        })
+    }
+}
+
 impl Windows for Fake {
     fn control_text(&mut self, control: &str, title: &str) -> Result<ControlAnswer, String> {
         self.calls
@@ -175,6 +189,18 @@ impl Windows for Fake {
         } else {
             ControlAnswer::NoSuchWindow
         })
+    }
+
+    fn control_visible(&mut self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        self.calls
+            .push(("control-visible".into(), format!("{control}|{title}")));
+        self.the_flag(control, title)
+    }
+
+    fn control_enabled(&mut self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        self.calls
+            .push(("control-enabled".into(), format!("{control}|{title}")));
+        self.the_flag(control, title)
     }
 
     fn matching_windows(

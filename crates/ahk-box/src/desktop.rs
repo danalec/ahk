@@ -933,6 +933,27 @@ impl ahk::desktop::Windows for LabDesktop {
         let address = crate::atspi::address()?;
         crate::atspi::control_text(&address, title, control)
     }
+    fn control_visible(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlFlag, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // Measured on the box from the header of the machine: the enum of the
+        // states starts at zero, so `ATSPI_STATE_VISIBLE` is the bit 30.
+        crate::atspi::control_flag(&address, title, control, 30)
+    }
+    fn control_enabled(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlFlag, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // `ATSPI_STATE_ENABLED` is the bit 8.
+        crate::atspi::control_flag(&address, title, control, 8)
+    }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.

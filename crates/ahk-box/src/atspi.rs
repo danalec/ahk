@@ -30,7 +30,7 @@
 
 use std::process::Command;
 
-use ahk::desktop::ControlAnswer;
+use ahk::desktop::{ControlAnswer, ControlFlag};
 
 /// One node of the tree: the connection that holds it, and its object path.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,7 +147,7 @@ pub fn control_text(
                 continue;
             }
             the_window_is_there = true;
-            if let Some(found) = the_control(address, &window, control, 0) {
+            if let Some((_, found)) = the_control(address, &window, control, 0) {
                 return Ok(ControlAnswer::Found(found));
             }
         }
@@ -163,7 +163,12 @@ pub fn control_text(
 ///
 /// The walk is bounded in both ways -- the depth and the number of nodes -- so
 /// that a tree of a program that never ends does not hold the script.
-fn the_control(address: &str, node: &Node, control: &str, depth: usize) -> Option<String> {
+fn the_control(
+    address: &str,
+    node: &Node,
+    control: &str,
+    depth: usize,
+) -> Option<(Node, String)> {
     const DEPTH: usize = 8;
     const NODES: usize = 200;
     if depth > DEPTH {
@@ -182,11 +187,12 @@ fn the_control(address: &str, node: &Node, control: &str, depth: usize) -> Optio
             // `Text.GetText` on one answers `impl_GetText: assertion
             // 'ATK_IS_TEXT (user_data)' failed`. So the name of a control that
             // has no text is the text of it.
-            return Some(text(address, child).unwrap_or(named));
+            let text = text(address, child).unwrap_or(named);
+            return Some((child.clone(), text));
         }
-        if let Some(text) = text(address, child) {
-            if text.contains(control) {
-                return Some(text);
+        if let Some(held) = text(address, child) {
+            if held.contains(control) {
+                return Some((child.clone(), held));
             }
         }
         if let Some(found) = the_control(address, child, control, depth + 1) {
@@ -194,6 +200,89 @@ fn the_control(address: &str, node: &Node, control: &str, depth: usize) -> Optio
         }
     }
     None
+}
+
+/// Whether a named control of a window has one bit of its accessibility state.
+///
+/// The bit is one of the `ATSPI_STATE_*` of the machine: read from
+/// `/usr/include/at-spi-2.0/atspi/atspi-constants.h` on the box on 2026-11-09,
+/// where the enum starts at `ATSPI_STATE_INVALID = 0`, so `ATSPI_STATE_ENABLED`
+/// is **8** and `ATSPI_STATE_VISIBLE` is **30**. Measured on the box with a GTK3
+/// window: the label `hello control` answers `0x43020100`, which has the 8 and
+/// the 30 in it.
+pub fn control_flag(
+    address: &str,
+    title: &str,
+    control: &str,
+    bit: u32,
+) -> Result<ControlFlag, String> {
+    let root = Node {
+        bus: "org.a11y.atspi.Registry".to_string(),
+        path: "/org/a11y/atspi/accessible/root".to_string(),
+    };
+    let mut the_window_is_there = false;
+    for application in children(address, &root)? {
+        for window in children(address, &application).unwrap_or_default() {
+            if !name(address, &window).contains(title) {
+                continue;
+            }
+            the_window_is_there = true;
+            if let Some((node, _)) = the_control(address, &window, control, 0) {
+                return Ok(if state_has(address, &node, bit) {
+                    ControlFlag::Yes
+                } else {
+                    ControlFlag::No
+                });
+            }
+        }
+    }
+    if the_window_is_there {
+        Ok(ControlFlag::NoSuchControl)
+    } else {
+        Ok(ControlFlag::NoSuchWindow)
+    }
+}
+
+/// Whether one bit of the state of a node is set.
+///
+/// `GetState` answers an array of numbers, one for every thirty-two bits, and
+/// the bit asked for lives in the one that holds it.
+fn state_has(address: &str, node: &Node, bit: u32) -> bool {
+    let Ok(answer) = call(
+        address,
+        &node.bus,
+        &node.path,
+        "org.a11y.atspi.Accessible.GetState",
+        &[],
+    ) else {
+        return false;
+    };
+    let words = the_numbers_of(&answer);
+    words
+        .get((bit / 32) as usize)
+        .map(|word| (word >> (bit % 32)) & 1 == 1)
+        .unwrap_or(false)
+}
+
+/// The numbers of an answer, after its `data`.
+fn the_numbers_of(answer: &str) -> Vec<u64> {
+    let Some((_, data)) = answer.split_once("\"data\":") else {
+        return Vec::new();
+    };
+    let mut numbers = Vec::new();
+    let mut current = String::new();
+    for letter in data.chars() {
+        if letter.is_ascii_digit() {
+            current.push(letter);
+        } else if !current.is_empty() {
+            numbers.extend(current.parse::<u64>().ok());
+            current.clear();
+        }
+    }
+    if !current.is_empty() {
+        numbers.extend(current.parse::<u64>().ok());
+    }
+    numbers
 }
 
 /// A method of a node.

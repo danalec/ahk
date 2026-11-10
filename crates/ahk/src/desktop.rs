@@ -325,6 +325,24 @@ pub enum ControlAnswer {
     NoSuchControl,
 }
 
+/// What became of a question about a property of a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09 with a window of its own
+/// making: `ControlGetVisible` and `ControlGetEnabled` answer **1** for a control
+/// that is there and visible or enabled, so the answer is a number and not a
+/// truth of the host; and the two failures are the two of `ControlGetText`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlFlag {
+    /// The control is there and the flag is set.
+    Yes,
+    /// The control is there and the flag is not set.
+    No,
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
 /// The windows of the desktop.
 pub trait Windows {
     /// Whether the window with this title is the active one.
@@ -446,6 +464,16 @@ pub trait Windows {
     /// `None` is a window or a control that is not there, and not a failure: a
     /// script asks about a control that may be absent.
     fn control_text(&mut self, _control: &str, _title: &str) -> Result<ControlAnswer, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Whether a named control of the window with this title is visible.
+    fn control_visible(&mut self, _control: &str, _title: &str) -> Result<ControlFlag, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Whether a named control of the window with this title is enabled.
+    fn control_enabled(&mut self, _control: &str, _title: &str) -> Result<ControlFlag, String> {
         Err("this desktop cannot read the controls of a window".to_string())
     }
 }

@@ -1186,9 +1186,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_flag,
     },
     Builtin {
         name: "ControlGetExStyle",
@@ -1267,9 +1267,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_flag,
     },
     Builtin {
         name: "ControlHide",
@@ -8163,6 +8163,55 @@ pub(crate) fn control_get_text(
             line,
         }),
         crate::desktop::ControlAnswer::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `ControlGetVisible` and `ControlGetEnabled`: a flag of a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09 against a window of its own
+/// making: both answer the integer **1** for a control that is there and visible
+/// or enabled, and the two failures are the two of `ControlGetText`. The variant
+/// is the name -- this one is `ControlGetVisible` and the other is
+/// `ControlGetEnabled`.
+pub(crate) fn control_flag(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the text of the
+    // window and the two exclusions, and they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    let answer = if variant == 0 {
+        rt.desktop().control_visible(&control, &title)
+    } else {
+        rt.desktop().control_enabled(&control, &title)
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        crate::desktop::ControlFlag::Yes => Ok(Value::Int(1)),
+        crate::desktop::ControlFlag::No => Ok(Value::Int(0)),
+        crate::desktop::ControlFlag::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlFlag::NoSuchControl => Err(RuntimeError {
             message: TARGET_CONTROL.into(),
             line,
         }),
