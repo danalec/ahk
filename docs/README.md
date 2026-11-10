@@ -19,7 +19,7 @@ with what it holds and who it is for.
 | The kind | What it is | The documents |
 |---|---|---|
 | a **user guide** | written for someone who runs scripts or writes them: plain sentences, examples, the behaviour of the language | `language-guide.md`, `ahk-v2-reference.md`, `ahk-v1-reference.md`, `runner-and-report.md`, `desktop-backend.md`, `errors.md`, `dialects.md` |
-| a **record** | the design or the measurement of one piece of work, kept because it says *why* the tree is the way it is. The numbers and the decisions are the ones of the day it was written | `ahk-v1-dialect.md`, `v2-capability-report.md`, `wayland-toplevel-enumeration.md`, `ahk-x11-comparison.md`, `ahk-gaps-report.md` |
+| a **record** | the design or the measurement of one piece of work, kept because it says *why* the tree is the way it is. The numbers and the decisions are the ones of the day it was written | `ahk-v1-dialect.md`, `v2-capability-report.md`, `wayland-toplevel-enumeration.md`, `ahk-x11-comparison.md`, `ahk-gaps-report.md`, `two-lines.md` |
 | an **index** | this page | `README.md` |
 
 A guide is read to use the tree. A record is read before changing it: the
@@ -44,6 +44,7 @@ measurement is an opinion.
 | [ahk-v1-dialect.md](ahk-v1-dialect.md) | the plan that put the v1 beside the v2: the gate, the phases F0 to F5, the measurements on the binary of v1.1.37.02, the risks and what stays out | a contributor touching the parser or the built-in table: this is where the dialect is woven in |
 | [wayland-toplevel-enumeration.md](wayland-toplevel-enumeration.md) | how a Wayland compositor lists its windows -- the `ext_foreign_toplevel_list_v1` and `zcosmic_toplevel_info_v1` protocols -- with the Rust that does it, compiled and run on the box | a contributor to the windows: read it before touching `WinExist` or `WinActive` |
 | [ahk-x11-comparison.md](ahk-x11-comparison.md) | the AHK_X11 (the AHK v1.0.24 for X11, in Crystal) against this tree: what it does, what the tree does, and what is worth porting. Its code is GPL-2.0 and this tree is Apache 2.0: the behaviour may be ported, the code may not | a contributor to the hotkeys, the clipboard, the sound or the windows |
+| [two-lines.md](two-lines.md) | the two branches of the tree -- `master` and `audit-ahk-x11-parity` -- what each carries, how far they diverged, and what a merge of them costs | anyone about to merge, rebase or port between the two lines |
 
 The numbers of `v2-capability-report.md` and `ahk-gaps-report.md` are checked
 `../scripts/README.md` describes the instruments of the tree:
