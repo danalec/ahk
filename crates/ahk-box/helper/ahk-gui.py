@@ -101,6 +101,24 @@ def the_control(kind, text):
         # text the control was made with. Measured on the binary of v2.0.19 on
         # 2026-11-10: `StatusBarGetText(1, WinTitle)` answers it.
         control = Gtk.Label(label=text)
+    elif kind == "ListView":
+        # `Add("ListView", options, ["Col1", "Col2"])` -- the columns come as
+        # lines of the text the language joined. Measured on the binary of
+        # v2.0.19 on 2026-11-10: a ListView is `SysListView321`, rows are added
+        # with `lv.Add("", "a", "b")` and `ListViewGetContent` answers the
+        # cells separated by tabs and the rows by line breaks.
+        columns = [name for name in text.split("\n") if name]
+        if not columns:
+            columns = ["Column"]
+        store = Gtk.ListStore(*([str] * len(columns)))
+        control = Gtk.TreeView(model=store)
+        for index, name in enumerate(columns):
+            control.append_column(
+                Gtk.TreeViewColumn(name, Gtk.CellRendererText(), text=index)
+            )
+        control.set_headers_visible(True)
+        control.get_selection().set_mode(Gtk.SelectionMode.SINGLE)
+        state.setdefault("list_columns", {})[state["next_id"]] = len(columns)
     elif kind in ("DropDownList", "ComboBox", "ListBox"):
         # A ComboBox of v2: the third argument of Add is an array of items,
         # joined into lines by the language before it reaches the helper.
@@ -167,6 +185,10 @@ def the_text_of_a_control(kind, control):
         if index < 0:
             return ""
         return control.get_model()[index][0]
+    if kind == "ListView":
+        # The text of a list view is its rows, which `ListViewGetContent` reads.
+        model = control.get_model()
+        return "\n".join("\t".join(list(row)) for row in model)
     return control.get_text()
 
 
@@ -545,6 +567,9 @@ def the_class_of(kind):
     # `msctls_statusbar321` (the Win32 common-control class), not `StatusBar1`.
     if kind == "StatusBar":
         return "msctls_statusbar32"
+    # A ListView is `SysListView321`, and a TreeView is `SysTreeView321`.
+    if kind == "ListView":
+        return "SysListView32"
     return kind
 
 
@@ -777,6 +802,127 @@ def the_status_text():
     answer({"ok": False, "error": "there is no status bar on the window"})
 
 
+def the_list_view(number):
+    """The TreeView of this number, if it is a ListView of the script."""
+    for held, kind, control in state["controls"]:
+        if held == number and kind == "ListView":
+            return control
+    return None
+
+
+def the_list_rows(number):
+    """Every row of a ListView as a list of cell texts."""
+    control = the_list_view(number)
+    if control is None:
+        return None
+    model = control.get_model()
+    return [list(row) for row in model]
+
+
+def the_list_add(number, cells):
+    """Append a row to a ListView. `lv.Add` of v2.
+
+    Measured on the binary of v2.0.19 on 2026-11-10: `lv.Add("", "a", "b")`
+    answers the 1-based number of the row. The options come first and are not
+    carried here; the rest are the cells.
+    """
+    control = the_list_view(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list view" % number})
+        return
+    columns = state.get("list_columns", {}).get(number, 1)
+    row = list(cells[:columns])
+    while len(row) < columns:
+        row.append("")
+    control.get_model().append(row)
+    answer({"ok": True, "value": len(control.get_model())})
+
+
+def the_list_count(number):
+    """The number of rows. `lv.GetCount` of v2."""
+    control = the_list_view(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list view" % number})
+        return
+    answer({"ok": True, "value": len(control.get_model())})
+
+
+def the_list_text(number, row, column):
+    """The text of one cell. `lv.GetText` of v2, row and column 1-based."""
+    rows = the_list_rows(number)
+    if rows is None:
+        answer({"ok": False, "error": "%d is not a list view" % number})
+        return
+    if row < 1 or row > len(rows) or column < 1 or column > len(rows[row - 1]):
+        answer({"ok": True, "value": ""})
+        return
+    answer({"ok": True, "value": rows[row - 1][column - 1]})
+
+
+def the_list_content(number, selected_only):
+    """The rows of a ListView, cells by tabs and rows by line breaks.
+
+    `ListViewGetContent` of v2. Measured on the binary of v2.0.19 on
+    2026-11-10: all rows answer "alpha\t10\nbeta\t20", and the "Selected"
+    option answers only the rows that are chosen.
+    """
+    control = the_list_view(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list view" % number})
+        return
+    model = control.get_model()
+    chosen = None
+    if selected_only:
+        chosen = control.get_selection().get_selected()[1]
+    parts = []
+    for index, row in enumerate(model):
+        if selected_only and (chosen is None or model.get_path(chosen).get_indices()[0] != index):
+            continue
+        parts.append("\t".join(list(row)))
+    answer({"ok": True, "value": "\n".join(parts)})
+
+
+def the_list_modify(number, row, cells):
+    """Change the cells of a row, and select it. `lv.Modify` of v2."""
+    control = the_list_view(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list view" % number})
+        return
+    model = control.get_model()
+    if row < 1 or row > len(model):
+        answer({"ok": False, "error": "there is no row %d" % row})
+        return
+    current = list(model[row - 1])
+    for index, text in enumerate(cells):
+        if index < len(current):
+            current[index] = text
+    model[row - 1] = current
+    control.get_selection().select_iter(model.get_iter(row - 1))
+    answer({"ok": True, "value": 1})
+
+
+def the_list_next(number, start):
+    """The next row after a row, or zero. `lv.GetNext` of v2.
+
+    Measured on the binary of v2.0.19 on 2026-11-10: with no starting row the
+    answer is the first SELECTED row, or zero when nothing is chosen. With a
+    starting row it is that row plus one, or zero past the end.
+    """
+    control = the_list_view(number)
+    if control is None:
+        answer({"ok": False, "error": "%d is not a list view" % number})
+        return
+    count = len(control.get_model())
+    if start == 0:
+        selected = control.get_selection().get_selected()[1]
+        if selected is None:
+            answer({"ok": True, "value": 0})
+            return
+        answer({"ok": True, "value": control.get_model().get_path(selected).get_indices()[0] + 1})
+        return
+    answer({"ok": True, "value": start + 1 if start + 1 <= count else 0})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -887,6 +1033,34 @@ def handle(command):
         )
     elif op == "status-text":
         run_on_loop(the_status_text)
+    elif op == "list-add":
+        run_on_loop(
+            lambda: the_list_add(command.get("id", 0), command.get("cells", []))
+        )
+    elif op == "list-count":
+        run_on_loop(lambda: the_list_count(command.get("id", 0)))
+    elif op == "list-text":
+        run_on_loop(
+            lambda: the_list_text(
+                command.get("id", 0), command.get("row", 0), command.get("col", 0)
+            )
+        )
+    elif op == "list-content":
+        run_on_loop(
+            lambda: the_list_content(
+                command.get("id", 0), command.get("selected", False)
+            )
+        )
+    elif op == "list-modify":
+        run_on_loop(
+            lambda: the_list_modify(
+                command.get("id", 0), command.get("row", 0), command.get("cells", [])
+            )
+        )
+    elif op == "list-next":
+        run_on_loop(
+            lambda: the_list_next(command.get("id", 0), command.get("start", 0))
+        )
     elif op == "add":
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))

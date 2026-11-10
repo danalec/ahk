@@ -35,6 +35,9 @@ struct Fake {
     combo_popup: bool,
     /// The text of the one status bar the fake carries.
     status_text: String,
+    /// The rows of the one list view the fake carries.
+    list_rows: Vec<Vec<String>>,
+    list_selected: i64,
     /// Whether the fake has a window of the script at all.
     gui_open: bool,
 }
@@ -366,6 +369,7 @@ impl Windows for Fake {
         self.calls.push(("resolve".into(), classnn.to_string()));
         if classnn.eq_ignore_ascii_case("ComboBox1")
             || classnn.eq_ignore_ascii_case("msctls_statusbar321")
+            || classnn.eq_ignore_ascii_case("SysListView321")
         {
             Ok(1)
         } else {
@@ -439,6 +443,52 @@ impl Windows for Fake {
     }
     fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
         Ok("the window".to_string())
+    }
+    fn gui_list_add(&mut self, _number: u64, cells: &[String]) -> Result<i64, String> {
+        self.list_rows.push(cells.to_vec());
+        Ok(self.list_rows.len() as i64)
+    }
+    fn gui_list_count(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.list_rows.len() as i64)
+    }
+    fn gui_list_text(&mut self, _number: u64, row: i64, col: i64) -> Result<String, String> {
+        Ok(self
+            .list_rows
+            .get(row as usize - 1)
+            .and_then(|cells| cells.get(col as usize - 1))
+            .cloned()
+            .unwrap_or_default())
+    }
+    fn gui_list_content(&mut self, _number: u64, selected: bool) -> Result<String, String> {
+        let rows: Vec<String> = self
+            .list_rows
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| !selected || self.list_selected == *index as i64 + 1)
+            .map(|(_, cells)| cells.join("\t"))
+            .collect();
+        Ok(rows.join("\n"))
+    }
+    fn gui_list_modify(&mut self, _number: u64, row: i64, cells: &[String]) -> Result<i64, String> {
+        if let Some(existing) = self.list_rows.get_mut(row as usize - 1) {
+            for (index, text) in cells.iter().enumerate() {
+                if index < existing.len() {
+                    existing[index] = text.clone();
+                }
+            }
+        }
+        self.list_selected = row;
+        Ok(1)
+    }
+    fn gui_list_next(&mut self, _number: u64, start: i64) -> Result<i64, String> {
+        if start == 0 {
+            return Ok(self.list_selected);
+        }
+        Ok(if start < self.list_rows.len() as i64 {
+            start + 1
+        } else {
+            0
+        })
     }
 }
 impl Files for Fake {
@@ -4214,6 +4264,49 @@ fn status_bar_wait_of_a_part_that_is_not_one_is_refused() {
         failure_of(&report),
         "Parameter #3 of StatusBarWait is invalid."
     );
+}
+
+// -- the list view -----------------------------------------------------------------
+//
+// Measured on the binary of v2.0.19 on 2026-11-10: `ListViewGetContent` answers
+// the cells separated by tabs and the rows by line breaks, and the "Selected"
+// option limits it to the row that is chosen.
+
+fn a_fake_with_a_list_view() -> Fake {
+    Fake {
+        gui_open: true,
+        list_rows: vec![
+            vec!["alpha".into(), "10".into()],
+            vec!["beta".into(), "20".into()],
+        ],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn list_view_get_content_answers_the_rows_by_tabs_and_breaks() {
+    let mut desktop = a_fake_with_a_list_view();
+    let report = run_on(
+        "c := ListViewGetContent(\"\", \"SysListView321\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "c"),
+        Value::Text("alpha\t10\nbeta\t20".into())
+    );
+}
+
+#[test]
+fn list_view_get_content_of_the_selected_row() {
+    let mut desktop = a_fake_with_a_list_view();
+    desktop.list_selected = 1;
+    let report = run_on(
+        "c := ListViewGetContent(\"Selected\", \"SysListView321\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "c"), Value::Text("alpha\t10".into()));
 }
 
 #[test]

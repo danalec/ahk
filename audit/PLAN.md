@@ -3988,13 +3988,13 @@ index and the chosen text), and `ControlGetItems`, `ControlAddItem`,
 `ControlGetIndex`, `ControlDeleteItem` and `ControlFindItem`. **Verified on the
 box against every measured contract.**
 
-**What remains**: `ListViewGetContent` needs a real list-view (a
-`Gtk.TreeView` with columns and rows); the style names are Win32 bitmasks this
-platform has no equivalent for (`ControlGetStyle` answers 1342242944 on the
-reference); and `ControlMove` was measured to have **no size-only form**, so its
-refusal is true. `StatusBarWait` was answered in round 265. The registry, COM
-objects, image lists, HWND table, drive letters and the three unmeasurable file
-names are answers with reasons of their own.
+**What remains**: the style names are Win32 bitmasks this platform has no
+equivalent for (`ControlGetStyle` answers 1342242944 on the reference);
+`ControlMove` was measured to have **no size-only form**, so its refusal is
+true. `ListViewGetContent` and the whole `Gui.ListView` method family were
+answered in round 266. The registry, COM objects, image lists, HWND table,
+drive letters and the three unmeasurable file names are answers with reasons of
+their own.
 
 **What has actually been finished**, so the list above is not read as aspirational:
 **all 140 rows of the AHK_X11 feature matrix**, **all four mechanisms**, **zero
@@ -4280,7 +4280,7 @@ asking about one name's state specifically.**
 There are now **two measurements** of this tree, and both were re-run at the end of this
 session and agree with each other and with the code:
 
-**1. `ahk --surface`** -- the 833 names of v2.0.19: **754 answer, 79 refuse**, on both
+**1. `ahk --surface`** -- the 833 names of v2.0.19: **755 answer, 78 refuse**, on both
 platforms (`crates/ahk-cli/tests/runner.rs` holds the two numbers, and they move with
 every name).
 
@@ -4753,6 +4753,42 @@ is honoured in shape rather than short-circuited. **Verified on the box**:
 word for word. **Two new language cases** protect it.
 
 **Surface 753/80 -> 754/79**, sum 833, both platforms green, clippy clean.
+
+### Round 266 — 2026-11-10: a real ListView, and its six methods
+
+The last substantial implementable name. **The earlier probes had it wrong**:
+the array-row form of `lv.Add` creates rows but leaves the cells empty, and a
+string of column names is refused. **Measured on the binary of v2.0.19 on
+2026-11-10**, the working combination is:
+
+```
+g.Add("ListView", "w400", ["Name", "Size"])   -> SysListView321
+lv.Add("", "alpha", "10")                     -> row 1
+lv.Add("", "beta", "20")                      -> row 2
+lv.GetCount() -> 2
+lv.GetText(1, 1) -> "alpha", GetText(1, 2) -> "10"
+lv.GetNext() -> 0 with nothing selected, else the first selected row
+lv.Modify(1, "Select") selects row 1
+ListViewGetContent("", "SysListView321", title)
+   -> "alpha\t10\nbeta\t20"
+ListViewGetContent("Selected", ...) -> "alpha\t10"
+```
+
+**Built**: a `Gtk.TreeView` + `Gtk.ListStore` in the helper for the `ListView`
+kind, with columns joined by the language from the array; seven helper ops
+(add, count, text, content, modify, next and the content of selected rows);
+six trait methods and their box implementations; real handlers in `gui::call`
+for the `Gui.ListView` method family, which used to refuse every name; and a
+`ListViewGetContent` built-in. **Two new language cases** cover the content
+string and the selected variant.
+
+**Verified on the box** end to end: `classnn=SysListView321 | r1=1 r2=2
+count=2 | text11=[alpha] text12=[10] | next0=0 | content=[alpha\t10\nbeta\t20]
+| selected=[alpha\t10]` -- every line matching the reference. One divergence
+found and fixed: `GetNext()` with no args means "first SELECTED row", not
+"row 1".
+
+**Surface 754/79 -> 755/78**, sum 833, both platforms green, clippy clean.
 
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in

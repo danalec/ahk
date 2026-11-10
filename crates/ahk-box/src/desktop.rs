@@ -1265,6 +1265,64 @@ impl ahk::desktop::Windows for LabDesktop {
         Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
     }
 
+    fn gui_list_add(&mut self, number: u64, cells: &[String]) -> Result<i64, String> {
+        let list = cells
+            .iter()
+            .map(|cell| quoted(cell))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-add\", \"id\": {}, \"cells\": [{}]}}",
+            number, list
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the row was not added: {said}"))
+    }
+
+    fn gui_list_count(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-count\", \"id\": {}}}",
+            number
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the rows were not counted: {said}"))
+    }
+
+    fn gui_list_text(&mut self, number: u64, row: i64, col: i64) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-text\", \"id\": {}, \"row\": {}, \"col\": {}}}",
+            number, row, col
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    fn gui_list_content(&mut self, number: u64, selected: bool) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-content\", \"id\": {}, \"selected\": {}}}",
+            number, selected
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    fn gui_list_modify(&mut self, number: u64, row: i64, cells: &[String]) -> Result<i64, String> {
+        let list = cells
+            .iter()
+            .map(|cell| quoted(cell))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-modify\", \"id\": {}, \"row\": {}, \"cells\": [{}]}}",
+            number, row, list
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the row was not changed: {said}"))
+    }
+
+    fn gui_list_next(&mut self, number: u64, start: i64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-next\", \"id\": {}, \"start\": {}}}",
+            number, start
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the next row was not read: {said}"))
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }

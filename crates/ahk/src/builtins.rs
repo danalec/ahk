@@ -1726,9 +1726,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 6,
-        variant: 127,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_view_get_content,
     },
     Builtin {
         name: "MenuFromHandle",
@@ -11045,6 +11045,39 @@ pub(crate) fn status_bar_wait(
         };
         rt.sleep_ms((left as u64).clamp(1, CLIP_POLL_MS));
     }
+}
+
+/// `ListViewGetContent(Options, Control, WinTitle)`: the rows of a list view,
+/// cells by tabs and rows by line breaks.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with no options it answers
+/// "alpha\t10\nbeta\t20", and the "Selected" option answers only the rows that
+/// are chosen. The control is named by its `ClassNN` (`SysListView321`).
+pub(crate) fn list_view_get_content(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let options = text_of(values, 0);
+    let classnn = text_of(values, 1);
+    let title = text_of(values, 2);
+    the_window_of_the_script(rt, &title, line)?;
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let selected = options.eq_ignore_ascii_case("selected");
+    rt.desktop()
+        .gui_list_content(number as u64, selected)
+        .map(Value::Text)
+        .map_err(|e| desktop_failure(e, line))
 }
 
 pub(crate) fn sleep(

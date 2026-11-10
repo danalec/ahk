@@ -678,6 +678,46 @@ pub trait Windows {
         Err("this desktop cannot read the text of a status bar".to_string())
     }
 
+    // -- the list view ------------------------------------------------------------
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-10: a ListView is
+    // `SysListView321`, `lv.Add("", "a", "b")` answers a 1-based row number,
+    // `lv.GetCount()` counts them, `lv.GetText(row, col)` reads a cell,
+    // `lv.Modify(row, ...)` changes and selects one, `lv.GetNext()` gives the
+    // next row, and `ListViewGetContent` answers the cells separated by tabs
+    // and the rows by line breaks.
+
+    /// Append a row of cells; answers its 1-based number.
+    fn gui_list_add(&mut self, _number: u64, _cells: &[String]) -> Result<i64, String> {
+        Err("this desktop cannot add a row to a list view".to_string())
+    }
+
+    /// The number of rows.
+    fn gui_list_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the rows of a list view".to_string())
+    }
+
+    /// The text of one cell, by 1-based row and column.
+    fn gui_list_text(&mut self, _number: u64, _row: i64, _col: i64) -> Result<String, String> {
+        Err("this desktop cannot read a cell of a list view".to_string())
+    }
+
+    /// Every row, cells by tabs and rows by line breaks; `selected` limits it
+    /// to the row that is chosen.
+    fn gui_list_content(&mut self, _number: u64, _selected: bool) -> Result<String, String> {
+        Err("this desktop cannot read the content of a list view".to_string())
+    }
+
+    /// Change the cells of a row and select it; answers 1.
+    fn gui_list_modify(&mut self, _number: u64, _row: i64, _cells: &[String]) -> Result<i64, String> {
+        Err("this desktop cannot change a row of a list view".to_string())
+    }
+
+    /// The row after this one, or zero when there is none.
+    fn gui_list_next(&mut self, _number: u64, _start: i64) -> Result<i64, String> {
+        Err("this desktop cannot read the next row of a list view".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())

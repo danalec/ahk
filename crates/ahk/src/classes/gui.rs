@@ -4,14 +4,10 @@
 //! `Gui.StatusBar` are the parts of one. The script calls the menu
 //! `Menu`, and the binary calls it `Gui.Menu`: they are one table.
 //!
-//! All of them are shaped for a toolkit, and this runtime has none: a window
-//! is made by a GUI toolkit and not by a script runtime, so the objects are
-//! made -- a script may hold them -- and every name of them answers with the
-//! reason it cannot work here. A name that is not in the table is not a
-//! method of the class, and the runtime says so.
-//!
-//! The reason names no platform: the obstacle is the missing toolkit, and it
-//! is the same one on every system.
+//! A window is made by a GUI toolkit and not by a script runtime, but the
+//! helper of the box does make one, so the `Gui`, its controls, the list view
+//! and the status bar are answered here. The menu and the tree view are the
+//! parts the tree does not carry yet, and their names say so.
 
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -489,11 +485,59 @@ fn the_failure_of_an_argument(
 pub(crate) fn call(
     class: &str,
     method: &str,
-    _this: &Value,
-    _arguments: &[Value],
-    _rt: &mut Runtime,
+    this: &Value,
+    arguments: &[Value],
+    rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // The methods of a `Gui.ListView`: a row of cells, read and written.
+    // Measured on the binary of v2.0.19 on 2026-11-10. The number of the
+    // control is the `Hwnd` property the object carries.
+    if class.eq_ignore_ascii_case("gui.listview") {
+        let number = super::the_number_of_a_control(this).unwrap_or(0);
+        let words: Vec<String> = arguments
+            .iter()
+            .map(|value| value.to_text())
+            .collect();
+        let outcome: Result<Value, String> = match method.to_lowercase().as_str() {
+            // `Add(Options, Col1, Col2, ...)`: the options come first.
+            "add" => rt
+                .desktop()
+                .gui_list_add(number, words.get(1..).unwrap_or(&[]))
+                .map(Value::Int),
+            "getcount" => rt.desktop().gui_list_count(number).map(Value::Int),
+            "gettext" => {
+                let row = words.first().and_then(|w| w.parse().ok()).unwrap_or(0);
+                let col = words.get(1).and_then(|w| w.parse().ok()).unwrap_or(0);
+                rt.desktop()
+                    .gui_list_text(number, row, col)
+                    .map(Value::Text)
+            }
+            "getcontent" => {
+                let selected = words
+                    .first()
+                    .map(|w| w.eq_ignore_ascii_case("selected"))
+                    .unwrap_or(false);
+                rt.desktop()
+                    .gui_list_content(number, selected)
+                    .map(Value::Text)
+            }
+            "modify" => {
+                let row = words.first().and_then(|w| w.parse().ok()).unwrap_or(0);
+                rt.desktop()
+                    .gui_list_modify(number, row, words.get(2..).unwrap_or(&[]))
+                    .map(Value::Int)
+            }
+            "getnext" => {
+                let start = words.first().and_then(|w| w.parse().ok()).unwrap_or(0);
+                rt.desktop().gui_list_next(number, start).map(Value::Int)
+            }
+            _ => return Some(Err(refused(class, method, line)?)),
+        };
+        return Some(outcome.map_err(|reason| {
+            RuntimeFailure::Error(RuntimeError { message: reason, line })
+        }));
+    }
     Some(Err(refused(class, method, line)?))
 }
 

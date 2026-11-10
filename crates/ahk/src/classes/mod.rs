@@ -1942,7 +1942,7 @@ fn remember_the_control(window: &Value, control: &Value) {
 ///
 /// It is the `Hwnd` the control object carries, which is the number `gui_add`
 /// answered. A value that is not such an object has none.
-fn the_number_of_a_control(this: &Value) -> Option<u64> {
+pub(crate) fn the_number_of_a_control(this: &Value) -> Option<u64> {
     if let Value::Object(object) = this {
         if let Some(property) = object.borrow().properties.get("hwnd") {
             if let Value::Int(number) = property.value {
