@@ -85,6 +85,27 @@ def the_control(kind, text):
     answer({"ok": True, "id": number, "classnn": "%s%d" % (kind, same_kind)})
 
 
+def the_destroy():
+    """Take the window away. `Destroy` of v2 answers the empty text."""
+    if state["window"] is not None:
+        state["window"].destroy()
+    state["window"] = None
+    state["box"] = None
+    state["controls"] = []
+    state["next_id"] = 1
+    answer({"ok": True})
+
+
+def the_title(setting):
+    """Read the title of the window, or write it. `Title` of v2 is both."""
+    if state["window"] is None:
+        answer({"ok": False, "error": "there is no window"})
+        return
+    if setting is not None:
+        state["window"].set_title(setting)
+    answer({"ok": True, "title": state["window"].get_title()})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -98,6 +119,10 @@ def handle(command):
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))
         )
+    elif op == "destroy":
+        run_on_loop(the_destroy)
+    elif op == "title":
+        run_on_loop(lambda: the_title(command.get("set")))
     elif op == "quit":
         answer({"ok": True})
         GLib.idle_add(Gtk.main_quit)
