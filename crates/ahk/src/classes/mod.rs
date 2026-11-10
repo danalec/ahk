@@ -1484,11 +1484,6 @@ pub(crate) fn call(
     // rather than made by the class table, because a control of a script's own
     // window is not a class type of the runtime.
     if class == "gui" && method.eq_ignore_ascii_case("add") {
-        if !rt.desktop().gui_is_open() {
-            if let Err(reason) = rt.desktop().gui_open("") {
-                return Some(Err(the_failure_with(&reason, "", line)));
-            }
-        }
         let kind = arguments
             .first()
             .map(|value| value.to_text())
@@ -1497,32 +1492,21 @@ pub(crate) fn call(
             .get(2)
             .map(|value| value.to_text())
             .unwrap_or_default();
-        return Some(match rt.desktop().gui_add(0, &kind, &text) {
-            Ok((number, classnn)) => {
-                let mut properties = std::collections::BTreeMap::new();
-                properties.insert(
-                    "classnn".to_string(),
-                    crate::runtime::Property {
-                        name: "ClassNN".to_string(),
-                        value: Value::Text(classnn),
-                    },
-                );
-                properties.insert(
-                    "hwnd".to_string(),
-                    crate::runtime::Property {
-                        name: "Hwnd".to_string(),
-                        value: Value::Int(number as i64),
-                    },
-                );
-                Ok(Value::Object(std::rc::Rc::new(std::cell::RefCell::new(
-                    crate::runtime::Object {
-                        class: format!("Gui.{}", kind),
-                        properties,
-                    },
-                ))))
-            }
-            Err(reason) => Err(the_failure_with(&reason, "", line)),
-        });
+        return Some(the_control_of_the_gui(&kind, &text, rt, line));
+    }
+    // The short spelling of the same question: `AddText` is `Add("Text", …)`.
+    // Its arguments are the options and then the text, so the text is the second.
+    if class == "gui"
+        && method.len() > 3
+        && method.is_char_boundary(3)
+        && method[..3].eq_ignore_ascii_case("add")
+    {
+        let kind = method[3..].to_string();
+        let text = arguments
+            .get(1)
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        return Some(the_control_of_the_gui(&kind, &text, rt, line));
     }
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
@@ -1607,6 +1591,52 @@ pub(crate) fn call_the_value(
 ///
 /// `None` means the name is not a property of this class: the runtime then
 /// looks in the property table of the object.
+/// A control of a window of the script, as the object v2 reports.
+///
+/// The window is opened on the first control, since the construction of a `Gui`
+/// is generic and cannot make one. The object is written directly rather than
+/// made by the class table, because a control of a script's own window is not a
+/// class type of the runtime: its class is the name v2 gives it -- `Gui.Edit` for
+/// an `Edit` -- and `ClassNN` and `Hwnd` are properties of it.
+fn the_control_of_the_gui(
+    kind: &str,
+    text: &str,
+    rt: &mut Runtime,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
+    if !rt.desktop().gui_is_open() {
+        if let Err(reason) = rt.desktop().gui_open("") {
+            return Err(the_failure_with(&reason, "", line));
+        }
+    }
+    match rt.desktop().gui_add(0, kind, text) {
+        Ok((number, classnn)) => {
+            let mut properties = std::collections::BTreeMap::new();
+            properties.insert(
+                "classnn".to_string(),
+                crate::runtime::Property {
+                    name: "ClassNN".to_string(),
+                    value: Value::Text(classnn),
+                },
+            );
+            properties.insert(
+                "hwnd".to_string(),
+                crate::runtime::Property {
+                    name: "Hwnd".to_string(),
+                    value: Value::Int(number as i64),
+                },
+            );
+            Ok(Value::Object(std::rc::Rc::new(std::cell::RefCell::new(
+                crate::runtime::Object {
+                    class: format!("Gui.{}", kind),
+                    properties,
+                },
+            ))))
+        }
+        Err(reason) => Err(the_failure_with(&reason, "", line)),
+    }
+}
+
 /// The flag of a control that a name of a property asks about.
 fn the_flag_of(name: &str) -> Option<&'static str> {
     if name.eq_ignore_ascii_case("enabled") {
