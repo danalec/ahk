@@ -1588,6 +1588,43 @@ The surface moved **683 → 684 values, 150 → 149 refusals**.
 
 `StrGet` and `StrPtr` stay refused: both hand over or take an address.
 
+### Round 38 — 2026-11-09: the shortcut pair, half measured
+
+The next candidate was the shortcut pair, because a shortcut is a file operation
+and this tree already writes files.
+
+**`FileCreateShortcut` measured cleanly** on the binary of v2.0.19:
+
+| call | the binary |
+|---|---|
+| `FileCreateShortcut("C:\Windows\notepad.exe", <tmp>.lnk)` | **`""`** |
+| the file afterwards | `FileExist` answers **`A`** |
+
+**`FileGetShortcut` could not be measured at all.** The reference binary **hangs**
+on it in this environment: a script that makes a shortcut and then reads it back
+with four by-reference parameters produces **no report and no error**, and has to
+be killed. It was tried twice, once with eight references and once with four, and
+both timed out at 12 and 20 seconds. Twice is enough to say it is the binary and
+not the probe.
+
+So neither name ships this round:
+
+- `FileCreateShortcut` has its return measured and its shape is known, but the
+  body is a **writer**, and the write path through the `Files` capability was not
+  established inside the round. Shipping a writer against a guess is how this
+  plan has broken before.
+- `FileGetShortcut` has no measurement of its answer **or** of its by-reference
+  behaviour, and a name with neither is not one that can be written honestly.
+
+**The plan for it, recorded so the next attempt is not a rediscovery.** A
+shortcut on this desktop is a **`.desktop` file**, and that is the honest
+mapping: `Type=Application`, `Exec` from the target and the arguments, `Path`
+from the working directory, `Name` from the description. The reader is the same
+file parsed back. The first step is to establish the write path through `Files`
+(how `FileAppend` reaches the disk), and the second is a fixture that makes a
+`.desktop` and reads it, so that the pair is verified on both sides rather than
+only the writer.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
