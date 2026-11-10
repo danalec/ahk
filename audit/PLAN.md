@@ -3075,6 +3075,34 @@ batch audit of round 139.
 helper owns, all readable through `Text.GetText` or the entry's own `get_text` --
 the cheapest real answer of the lot.
 
+### Round 141 — 2026-11-09: the Edit family, and the two things the measuring found
+
+Started the audit at `Edit*`, the cheapest family of the 125. Two facts came out of
+the measurement, and both are the kind that would have cost a wrong implementation:
+
+**1. `EditGetLineCount(Hwnd)` answers, and answers a number.** Measured on the
+binary of v2.0.19 on 2026-11-09: a control added with three lines of text answered
+**`3`**.
+
+**2. The other names take the NUMBER FIRST and the handle second** --
+`EditGetLine(N, Hwnd)`, not `EditGetLine(Hwnd, N)`. Called the other way round the
+reference answers **`Target window not found.`**, which is a message about the
+*window* and reads as though the handle were wrong, while the handle was right and
+the two parameters had traded places. **The order is the trap here**, and it is the
+kind of trap that would have been read as "the family does not work here".
+
+**And a third, smaller**: a control of a window that has not been shown has no
+target window, so a measurement of this family must `Show()` first.
+
+**Where that leaves the audit**: the family is not Windows-shaped, which round 140
+predicted, and it is a family of questions about a text a `Gtk.Entry` holds. The
+honest implementation is the helper answering about a control it made -- the
+`EditGetLineCount` for free, and the rest from the entry's own buffer.
+
+**Not written**: the measurement was the round. What it settled is that the order is
+`(N, Hwnd)` and that the count answers today in the reference, which is exactly what
+the implementation needs and what a guess would have got wrong.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
