@@ -4062,6 +4062,32 @@ meaning of a field that the count is built on**, at the end of a context, and th
 getting it wrong is a count that lies in a way that is hard to see. The finding and its
 exact shape are worth more than a rushed version of it.
 
+### Round 218 — 2026-11-09: WinGetControls needs an Array, and the way to make one is the next thing to find
+
+`WinGetControls` and `WinGetControlsHwnd` are measured and ready in every part but one:
+
+| the call | the binary |
+|---|---|
+| `WinGetControls` of a window with a label, an edit and a button | **three items: `Static1`, `Edit1`, `Button1`** |
+| `WinGetControlsHwnd` of the same | **three items, each an Integer** |
+
+And the tree can produce both lists: the helper knows every control it made, and the
+`ClassNN` of round 217 is now the reference's own.
+
+**What is missing is how a handler ANSWERS an `Array`.** Two greps of `builtins.rs`
+found no `Value::Array`, no `an_array_of` and no `class: "array"`, so the arrays this
+tree makes are built somewhere else -- and `StrSplit`, `Array()` and the `for` loop all
+make one, so the entry point exists and was not found in the file I looked in.
+
+**So the next thing to find is one function**, not a decision: the place where a
+`Vec<Value>` becomes a `Value` the script sees as an array. It is the same shape of
+question as round 175's variable dispatch, and it was answered then by looking at the
+names that DO answer rather than at the ones that do not.
+
+**Not written**, and the reason is the shape of this session's last discoveries: the
+work is not the two names, it is the one function they need, and **finding it is worth
+a round of its own rather than a guess at the end of this one**.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
