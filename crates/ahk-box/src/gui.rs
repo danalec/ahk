@@ -115,7 +115,7 @@ fn the_line(command: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::the_line;
+    use super::{the_line, TheWindow};
 
     #[test]
     fn a_command_is_one_line_of_the_pipe() {
@@ -127,5 +127,30 @@ mod tests {
         let line = the_line("{}");
         assert!(line.ends_with('\n'));
         assert_eq!(line.matches('\n').count(), 1);
+    }
+
+    /// The live half of the transport, and it is ignored by default.
+    ///
+    /// It needs three things this workstation does not have together: a
+    /// graphical session for GTK, the helper of the tree, and the real
+    /// `python3` with `gi`. The box has all three, and the run is:
+    ///
+    /// ```text
+    /// AHK_GUI_HELPER=~/ahk/crates/ahk-box/helper/ahk-gui.py \
+    ///     cargo test -p ahk-box -- --ignored
+    /// ```
+    #[test]
+    #[ignore = "needs a graphical session and the helper; run it on the box"]
+    fn the_helper_starts_and_answers() {
+        let path = std::env::var("AHK_GUI_HELPER").expect("AHK_GUI_HELPER is the path of the helper");
+        let mut window = TheWindow::open(std::path::Path::new(&path)).expect("the helper starts");
+        let answer = window
+            .send("{\"op\": \"window\", \"title\": \"ahk-transport-probe\"}")
+            .expect("the helper answers");
+        assert!(
+            answer.contains("\"ok\": true"),
+            "the helper said {answer}"
+        );
+        window.close().expect("the helper goes");
     }
 }
