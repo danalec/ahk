@@ -11069,3 +11069,28 @@ discards it may not -- and `IsSet(holder?.Prop)` must throw as well, while
 told apart by what the absent value came from -- the read of a property against
 the answer of a call -- and the notes of the v2.1 do not settle that difference
 yet; it is not guessed here.
+## 294. The read of a property that has no value
+
+Measured on the test suite of KeySharp (the corpus script `op-null-assign.ahk`)
+and on the notes of v2.1-alpha: the read of a property whose getter answers the
+absent value is a failure in the dialect that carries the chain of the v2.1, and
+it is the `UnsetError` the mark of the chain tolerates -- `holder?.Prop` as a
+statement is an `UnsetError`, `holder.Prop?.Inner` has no value, and
+`holder.Prop.Inner` is the failure of the value the script holds. The property
+that takes the parameters of the access -- `holder.Items[1]` -- is the item of a
+value, and its answer is a value: `IsSet(holder.Items[1])` answers zero and does
+not fail.
+
+`IsSet` of a member answers zero only for a member that is not there at all
+(`IsSet(holder.Present.Missing)`), and the read of a property that has no value
+is the failure of the question: `IsSet(holder?.Prop)` is an `UnsetError`. The
+two are told apart by the class of the failure, and the case is
+`the_member_is_missing` beside the older `the_member_is_not_there`.
+
+`op-null-assign.ahk` runs to line 394: `Throws(() => holder?.Items[1],
+UnsetError)` -- the answer of the property that takes parameters has no value,
+and the call of the lambda discards it. The tree answers the item of a value
+that has no value with the absent value and does not fail, and it does not know
+yet which of the two -- the item of a property with parameters and the answer of
+a call that nobody reads -- is the failure the script names. It is the next
+block, and it is not guessed here.

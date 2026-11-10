@@ -4063,13 +4063,13 @@ impl<'a> Runtime<'a> {
             Node::Index { .. } => {
                 // An item that is a statement is read, and the value it
                 // leaves behind is not used: v2 reads it.
-                self.evaluate(statement)?;
+                let value = self.evaluate(statement)?;
                 detail = "the item was read".into();
             }
             Node::DynamicName { .. } => {
                 // A name that the script builds is a statement that reads
                 // it, and the value it leaves behind is not used.
-                self.evaluate(statement)?;
+                let value = self.evaluate(statement)?;
                 detail = "the variable was read".into();
             }
             Node::Literal { .. }
@@ -8667,6 +8667,18 @@ impl<'a> Runtime<'a> {
             &[][..]
         };
         if let Some(value) = self.the_value_of_an_accessor(target, &written, given, line)? {
+            // Measured on the test suite of KeySharp (the corpus script
+            // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the read of a
+            // property that has no value is a failure -- `holder?.Prop` as a
+            // statement is an `UnsetError` -- and the mark of the chain is the
+            // one that tolerates it. The property that takes the parameters of
+            // the access is the item of a value, and its answer is a value.
+            if self.dialect.the_chain_may_be_skipped()
+                && !the_parameters_are_the_getters
+                && matches!(value, Value::Unset)
+            {
+                return Err(self.the_failure_of_an_absent_value(line));
+            }
             return Ok((value, the_parameters_are_the_getters));
         }
         if let Some(value) = object.borrow().value_of(&name) {
@@ -8676,6 +8688,12 @@ impl<'a> Runtime<'a> {
                 self.the_value_of_the_descriptor(&value, target, &written, line)?
             {
                 return Ok((answer, false));
+            }
+            // The same rule for a property that holds the absent value: the read
+            // of it is a failure in the dialect that carries the chain, and the
+            // mark is what tolerates it.
+            if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset) {
+                return Err(self.the_failure_of_an_absent_value(line));
             }
             return Ok((value, false));
         }
@@ -12056,9 +12074,9 @@ impl<'a> Runtime<'a> {
                 let target_value = self.evaluate(target)?;
                 let name = self.the_name_of_the_member(name, *line)?;
                 match self.read_property(&target_value, &name, *line) {
-                    Ok(Value::Unset) => Ok(false),
+                    Ok(Value::Unset) | Ok(Value::Skipped) => Ok(false),
                     Ok(_) => Ok(true),
-                    Err(failure) if the_member_is_not_there(&failure) => Ok(false),
+                    Err(failure) if the_member_is_missing(&failure) => Ok(false),
                     Err(failure) => Err(failure),
                 }
             }
@@ -12099,6 +12117,7 @@ impl<'a> Runtime<'a> {
             },
         )
     }
+
 
     /// The absent value that an operation answers.
     ///
@@ -13427,8 +13446,12 @@ impl<'a> Runtime<'a> {
                     Ok(Value::Unset) => Ok(Value::Skipped),
                     Ok(value) => Ok(value),
                     Err(failure) => {
-                        if the_failure_is_an_unset_variable(&failure)
-                            || (!from_a_group && the_member_is_not_there(&failure))
+                        // The mark of a group is the chain on a value, and the
+                        // failure of the value is the failure: only the mark that
+                        // follows a name or an access tolerates it.
+                        if !*from_a_group
+                            && (the_failure_is_an_unset_variable(&failure)
+                                || the_member_is_not_there(&failure))
                         {
                             Ok(Value::Skipped)
                         } else {
@@ -15813,6 +15836,23 @@ fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
 }
 
 /// The message of a failure, the way the report carries it.
+
+/// Whether the failure is the one of a member that is not there at all.
+///
+/// The read of a property that has no value is a failure of a different kind,
+/// and `IsSet` does not answer it: measured on the test suite of KeySharp (the
+/// corpus script `op-null-assign.ahk`), `IsSet(holder.Present.Missing)` answers
+/// zero and `IsSet(holder?.Prop)` is an `UnsetError`.
+fn the_member_is_missing(failure: &RuntimeFailure) -> bool {
+    matches!(
+        failure,
+        RuntimeFailure::Error(error) | RuntimeFailure::Detailed(error, _)
+            if matches!(
+                crate::classes::error::the_class_of(&error.message),
+                "PropertyError" | "MethodError" | "UnsetItemError"
+            )
+    )
+}
 
 /// Whether the failure is the one of a member that is not there.
 ///
