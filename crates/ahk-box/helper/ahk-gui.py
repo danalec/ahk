@@ -511,6 +511,26 @@ def the_class_of(kind):
     return kind
 
 
+def the_controls():
+    """The class and number of every control of the window, one per line.
+
+    `WinGetControls` of v2, which answers an array of them.
+    """
+    if state["window"] is None:
+        answer({"ok": False, "error": "there is no window"})
+        return
+    # The number of a control is counted PER CLASS, which is what v2 does: a label, an
+    # edit and a button are `Static1`, `Edit1` and `Button1` and not `Static1`, `Edit2`
+    # and `Button3`.
+    seen = {}
+    names = []
+    for _number, kind, _control in state["controls"]:
+        held = the_class_of(kind)
+        seen[held] = seen.get(held, 0) + 1
+        names.append("%s%d" % (held, seen[held]))
+    answer({"ok": True, "value": "\n".join(names)})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -526,6 +546,8 @@ def handle(command):
                 command.get("classnn", ""), "visible", command.get("on", True)
             )
         )
+    elif op == "controls":
+        run_on_loop(the_controls)
     elif op == "all-text":
         run_on_loop(the_text_of_all)
     elif op == "opacity":

@@ -136,6 +136,15 @@ pub trait Screen {
     ///
     /// The width comes first and the height second, the way the two
     /// variables of v2 ask for them.
+    /// The `ClassNN` of every control of the script's window, one per line.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetControls` answers the
+    /// three of a window with a label, an edit and a button, as `Static1`, `Edit1` and
+    /// `Button1`.
+    fn gui_controls(&mut self) -> Result<String, String> {
+        Err("this desktop cannot list the controls of the window of the script".to_string())
+    }
+
     /// The text of every control of the script's window, each followed by a line break.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetText` of a window with a

@@ -2366,9 +2366,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_controls,
     },
     Builtin {
         name: "WinGetControlsHwnd",
@@ -10139,6 +10139,38 @@ pub(crate) fn win_get_text(
         .gui_all_text()
         .map(Value::Text)
         .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `WinGetControls(WinTitle)`: the `ClassNN` of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a window with a label, an edit and a
+/// button answers three items, `Static1`, `Edit1` and `Button1`, and a window that is not
+/// there answers *"Target window not found."*
+pub(crate) fn win_get_controls(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let joined = rt
+        .desktop()
+        .gui_controls()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let answers: Vec<Value> = if joined.is_empty() {
+        Vec::new()
+    } else {
+        joined
+            .split('\n')
+            .map(|name| Value::Text(name.to_string()))
+            .collect()
+    };
+    // The answer of v2 is an array, and this is how `StrSplit` makes one.
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
 }
 
 pub(crate) fn sleep(

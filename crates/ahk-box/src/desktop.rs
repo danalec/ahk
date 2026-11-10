@@ -757,6 +757,11 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         Ok(path.to_string_lossy().to_string())
     }
+    fn gui_controls(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"controls\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
     fn gui_all_text(&mut self) -> Result<String, String> {
         let answer = self.the_gui_says("{\"op\": \"all-text\"}")?;
         Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
