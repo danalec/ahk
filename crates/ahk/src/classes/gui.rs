@@ -151,7 +151,7 @@ const TREEVIEW: &[(&str, &str)] = &[
 ///
 /// The script calls this class `Menu`, and the registry hands the module
 /// the two names.
-const MENU: &[(&str, &str)] = &[
+pub(crate) const MENU: &[(&str, &str)] = &[
     ("add", "add an item to the menu bar"),
     ("addstandard", "add the standard items to the menu bar"),
     ("check", "check an item of the menu bar"),
@@ -638,6 +638,21 @@ fn refused(class: &str, name: &str, line: u32) -> Option<RuntimeFailure> {
         message: format!("{} cannot {what}: {}.", entry.name, entry.reason),
         line,
     }))
+}
+
+/// The refusal a `Menu` gives for a name of its surface that this tree does
+/// not carry yet, worded like the other classes' refusals.
+pub(crate) fn menu_refusal(name: &str, line: u32) -> Option<Result<Value, RuntimeFailure>> {
+    let what = MENU
+        .iter()
+        .find(|entry| entry.0 == name.to_lowercase())
+        .map(|entry| entry.1)?;
+    Some(Err(RuntimeFailure::Error(RuntimeError {
+        message: format!(
+            "Menu cannot {what}: the toolkit the helper draws with has no call for it yet."
+        ),
+        line,
+    })))
 }
 
 #[cfg(test)]

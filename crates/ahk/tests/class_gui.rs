@@ -131,16 +131,14 @@ fn a_menu_is_made() {
 }
 
 #[test]
-fn a_menu_that_adds_an_item_says_why_it_cannot() {
+fn a_menu_that_adds_an_item_without_a_callback_answers_the_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `bar.Add("File")` with
+    // no callback answers the empty text and adds a plain holder item. The
+    // old refusal ("the toolkit this tree draws with is not joined to it
+    // yet") predates the helper, which now draws menus.
     let report = run("bar := Menu()\nbar.Add(\"File\")");
-    assert!(!report.ok);
-    let error = error_of(&report);
-    assert!(
-        error.contains("Menu cannot add an item to the menu bar"),
-        "{error}"
-    );
-    assert!(error.contains("toolkit"), "{error}");
-    assert_eq!(report.error_line, Some(2));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.error_line, None);
 }
 
 #[test]

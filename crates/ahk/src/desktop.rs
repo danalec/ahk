@@ -782,6 +782,15 @@ pub trait Windows {
         Err("this desktop cannot say where a control of the window is".to_string())
     }
 
+    /// Show a menu bar on the window of the script.
+    ///
+    /// The JSON is an array of `[name, callback]` entries. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: a `MenuBar` attached with
+    /// `Gui.Menu :=` shows at the top of the window.
+    fn gui_menu_bar(&mut self, _json: &str) -> Result<(), String> {
+        Err("this desktop cannot show a menu bar on the window of the script".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())

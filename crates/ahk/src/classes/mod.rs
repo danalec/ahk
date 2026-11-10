@@ -39,6 +39,7 @@ pub(crate) mod gui;
 pub(crate) mod hotkey;
 pub(crate) mod inputhook;
 pub(crate) mod map;
+pub(crate) mod menu;
 
 /// The methods of the class types, with the name v2 spells them and
 /// the number of the arguments they take.
@@ -1068,7 +1069,7 @@ fn the_arity_failure_of_a_constructor(
 /// they. The hotkey is the one that is not a name of its own: the name
 /// `Hotkey` is a function of the dialect, and the class of a hotkey is
 /// the class of the object that the function makes.
-pub(crate) const TYPES: [&str; 25] = [
+pub(crate) const TYPES: [&str; 26] = [
     "any",
     "array",
     "boundfunc",
@@ -1089,6 +1090,7 @@ pub(crate) const TYPES: [&str; 25] = [
     "integer",
     "map",
     "menu",
+    "menubar",
     "number",
     "object",
     "primitive",
@@ -1346,13 +1348,14 @@ pub(crate) fn object_with(class: &str, properties: Vec<(&str, Value)>) -> Value 
 ///
 /// The dialect spells some of them with more than one capital, and the
 /// name of the class is the name that the dialect uses.
-const THE_SPELLINGS: [(&str, &str); 7] = [
+const THE_SPELLINGS: [(&str, &str); 8] = [
     ("boundfunc", "BoundFunc"),
     ("clipboardall", "ClipboardAll"),
     ("closure", "Closure"),
     ("comobject", "ComObject"),
     ("comvalue", "ComValue"),
     ("inputhook", "InputHook"),
+    ("menubar", "MenuBar"),
     ("regexmatchinfo", "RegExMatchInfo"),
 ];
 
@@ -1434,11 +1437,25 @@ pub(crate) fn construct(
     }
     let made = match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
+        "menu" | "menubar" => {
+            // Measured on the binary of v2.0.19 on 2026-11-10: `Type` of a
+            // MenuBar answers "MenuBar", so the spelling the script used is
+            // the class of the object.
+            let spelling = class.to_string();
+            let made = match menu::construct(arguments, rt, line) {
+                Ok(made) => made,
+                Err(failure) => return Some(Err(failure)),
+            };
+            if let Value::Object(object) = &made {
+                object.borrow_mut().class = spelling;
+            }
+            Some(Ok(made))
+        }
         "buffer" => Some(buffer::construct(arguments, rt, line)),
         "clipboardall" => Some(clipboard::construct(arguments, rt, line)),
         "hotkey" => Some(hotkey::construct(arguments, rt, line)),
         "map" => Some(map::construct(arguments, rt, line)),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.menu" | "gui.statusbar" => {
+        "gui" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.statusbar" => {
             Some(gui::construct(class, arguments, rt, line))
         }
         _ => None,
@@ -1826,10 +1843,11 @@ fn call_once(
         // The methods of the base object are the methods of every object,
         // and they are answered by the runtime.
         "object" => rt.base_method(this, method, arguments, line),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.treeview"
+        "gui" | "gui.control" | "gui.listview" | "gui.treeview"
         | "gui.menu" | "gui.statusbar" => {
             gui::call(class, method, this, arguments, rt, line)
         }
+        "menu" | "menubar" => menu::call(method, this, arguments, rt, line),
         _ => None,
     }
 }
@@ -2135,9 +2153,10 @@ pub(crate) fn property(
         "func" => func::property(name, this, rt, line),
         "hotkey" => hotkey::property(name, this, rt, line),
         "map" => map::property(name, this, rt, line),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.menu" | "gui.statusbar" => {
+        "gui" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.statusbar" => {
             gui::property(class, name, this, rt, line)
         }
+        "menu" | "menubar" => menu::property(name, this, rt, line),
         _ => None,
     }
 }
@@ -2185,6 +2204,30 @@ pub(crate) fn set_property(
         return Some(match rt.desktop().gui_second_value(number, Some(&text)) {
             Ok(_) => Ok(()),
             Err(failure) => Err(the_failure_with(&failure, "", line)),
+        });
+    }
+    // Attaching a menu bar to the window: `Gui.Menu := MenuBarObject`.
+    // Measured on the binary of v2.0.19 on 2026-11-10: the answer is nothing
+    // the script reads, the menu bar shows at the top of the window, and a
+    // value that is not a menu is refused. The items go to the helper as
+    // JSON; choosing one is an event on the same channel as a click.
+    if class.eq_ignore_ascii_case("gui") && name.eq_ignore_ascii_case("menu") {
+        if !crate::classes::menu::is_a_menu(&value) {
+            return Some(Err(the_failure_with(
+                "Expected a MenuBar object.",
+                "",
+                line,
+            )));
+        }
+        // The JSON of the bar, built by the menu module itself.
+        let Some(Ok(Value::Text(json))) =
+            crate::classes::menu::call("the-bar-json", &value, &[], rt, line)
+        else {
+            return Some(Ok(()));
+        };
+        return Some(match rt.desktop().gui_menu_bar(&json) {
+            Ok(()) => Ok(()),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
     // Setting `Value` of a Tab chooses the page. Measured on the binary of
@@ -2257,7 +2300,7 @@ pub(crate) fn set_property(
         "func" => func::set_property(name, this, value, rt, line),
         "hotkey" => hotkey::set_property(name, this, value, rt, line),
         "map" => map::set_property(name, this, value, rt, line),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.menu" | "gui.statusbar" => {
+        "gui" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.statusbar" => {
             gui::set_property(class, name, this, value, rt, line)
         }
         _ => None,

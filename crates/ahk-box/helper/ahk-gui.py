@@ -1416,6 +1416,41 @@ def the_control_pos(number):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_menu_bar(items):
+    """Show a menu bar at the top of the window. `Gui.Menu :=` of v2.
+
+    Measured on the binary of v2.0.19 on 2026-11-10: a MenuBar attached with
+    `Gui.Menu :=` shows at the top of the window. Each entry is a name and the
+    name of the function to call when it is chosen; choosing it is an event
+    the runtime reads from the same channel as a click on a control.
+    """
+    if state["box"] is None:
+        answer({"ok": False, "error": "there is no window to put a menu bar on"})
+        return
+    if state.get("menubar") is None:
+        bar = Gtk.MenuBar()
+        state["box"].pack_start(bar, False, False, 0)
+        state["box"].reorder_child(bar, 0)
+        bar.show()
+        state["menubar"] = bar
+    else:
+        bar = state["menubar"]
+        for child in bar.get_children():
+            bar.remove(child)
+    for entry in items:
+        name = entry[0]
+        item = Gtk.MenuItem(label=name)
+        if len(entry) > 1:
+            held = name
+            item.connect(
+                "activate",
+                lambda *_args, held=held: an_event("menu:%s" % held),
+            )
+        item.show()
+        bar.append(item)
+    answer({"ok": True})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -1597,6 +1632,8 @@ def handle(command):
         )
     elif op == "control-pos":
         run_on_loop(lambda: the_control_pos(command.get("id", 0)))
+    elif op == "menu-bar":
+        run_on_loop(lambda: the_menu_bar(command.get("items", [])))
     elif op == "add":
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))

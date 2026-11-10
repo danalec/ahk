@@ -1411,6 +1411,18 @@ impl ahk::desktop::Windows for LabDesktop {
         Ok((get("\"x\": ")?, get("\"y\": ")?, get("\"w\": ")?, get("\"h\": ")?))
     }
 
+    fn gui_menu_bar(&mut self, json: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"menu-bar\", \"items\": {}}}",
+            json
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the menu bar was not shown: {said}"))
+        }
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }
