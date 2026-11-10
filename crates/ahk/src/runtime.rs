@@ -1154,6 +1154,12 @@ pub struct Runtime<'a> {
     /// the object is put here when it is asked for something, and the drain walks
     /// it looking for a handler for the event that arrived.
     guis: Vec<Value>,
+    /// The objects that a script has asked the number of, with that number.
+    ///
+    /// `ObjPtr` answers the identity of an object and `ObjFromPtr` gives the object
+    /// back, so the number has to be the SAME for the same object for the life of the
+    /// run. Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips.
+    pointers: Vec<(Value, i64)>,
     /// The directory where the run started.
     ///
     /// The runtime asks the desktop for it when it is made, and it keeps
@@ -1344,6 +1350,7 @@ impl<'a> Runtime<'a> {
             timeout,
             variables: BTreeMap::new(),
             guis: Vec::new(),
+            pointers: Vec::new(),
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -1409,6 +1416,7 @@ impl<'a> Runtime<'a> {
             timeout,
             variables: BTreeMap::new(),
             guis: Vec::new(),
+            pointers: Vec::new(),
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -2068,6 +2076,36 @@ impl<'a> Runtime<'a> {
                 .map_err(|failure| crate::runtime::as_error(failure, line))?;
         }
         Ok(())
+    }
+
+    /// The number that names an object, giving it one if it has none.
+    ///
+    /// The same object always gets the same number, which is what makes
+    /// `ObjFromPtr` an inverse of `ObjPtr`.
+    pub fn the_pointer_of(&mut self, value: &Value) -> i64 {
+        let found = self.pointers.iter().position(|held| match (&held.0, value) {
+            (Value::Object(first), Value::Object(second)) => std::rc::Rc::ptr_eq(first, second),
+            _ => held.0 == *value,
+        });
+        let index = match found {
+            Some(index) => index,
+            None => {
+                self.pointers.push((value.clone(), 0));
+                self.pointers.len() - 1
+            }
+        };
+        // An address-shaped number, so that a script that prints it sees something
+        // that looks like what v2 prints. It is an identity, not an address.
+        0x1000 + index as i64
+    }
+
+    /// The object that a number names, if the number is one of them.
+    pub fn the_object_of(&self, number: i64) -> Option<Value> {
+        let index = number - 0x1000;
+        if index < 0 {
+            return None;
+        }
+        self.pointers.get(index as usize).map(|held| held.0.clone())
     }
 
     /// The windows of the script that have been remembered.

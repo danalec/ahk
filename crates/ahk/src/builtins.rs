@@ -1817,9 +1817,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_from_ptr,
     },
     Builtin {
         name: "ObjFromPtrAddRef",
@@ -1880,9 +1880,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_ptr,
     },
     Builtin {
         name: "ObjPtrAddRef",
@@ -9946,6 +9946,49 @@ pub(crate) fn win_redraw(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     the_state_of_the_window(rt, values, line, "redraw")
+}
+
+/// `ObjPtr(Object)` and `ObjFromPtr(Ptr)`: the number that names an object, and the
+/// object a number names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ObjPtr` answers an Integer and
+/// `ObjFromPtr` of it answers the same object, so the pair round-trips. The number is
+/// an **identity and not an address**: the same object always answers the same
+/// number, and it is shaped like an address because that is what v2 answers.
+pub(crate) fn obj_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            })
+        }
+    };
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+pub(crate) fn obj_from_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as i64;
+    match rt.the_object_of(number) {
+        Some(value) => Ok(value),
+        None => Err(RuntimeError {
+            message: format!(
+                "the number {number} does not name an object this script has asked about"
+            ),
+            line,
+        }),
+    }
 }
 
 pub(crate) fn sleep(

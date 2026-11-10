@@ -1787,7 +1787,11 @@ fn the_take_away_of_a_property_answers_its_value() {
 
 #[test]
 fn the_names_of_com_fail_with_the_reason() {
-    let report = run("a := ObjFromPtr(0)");
+    // `ObjFromPtr` was the example until round 203 answered it: a number that names an
+    // object is a feature a runtime can carry on any platform, and it is an address in
+    // v2 only because v2 is a C++ program. What is genuinely Windows is the COM
+    // objects, and `ComObjActive` is one.
+    let report = run("a := ComObjActive(\"Excel.Application\")");
     assert_eq!(
         failure_of(&report),
         "this is a name of Windows, and this desktop is not Windows."

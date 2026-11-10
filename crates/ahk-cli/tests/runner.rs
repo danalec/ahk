@@ -266,8 +266,8 @@ fn the_surface_flag_answers_with_json() {
     // row stops carrying `REFUSAL` as its variant**, which is the last step of
     // that work and was found in round 171 of the audit: the handler alone
     // answers, and the surface reads the variant.
-    assert_eq!(report.number("values"), 720);
-    assert_eq!(report.number("refusals"), 113);
+    assert_eq!(report.number("values"), 722);
+    assert_eq!(report.number("refusals"), 111);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
