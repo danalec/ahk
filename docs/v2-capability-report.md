@@ -2,7 +2,7 @@
 
 > **Generated.** The generator is `crates/ahk/reference/ahk-v2.0.19.areas.py` , and the state of every name is the one of the tree itself: `ahk --surface` asks the table of the built-ins, the table of the built-in variables and the classes, and answers with a value, with the reason of a refusal, or with the reason of a name to do.
 
-The surface of the v2.0.19 has **833 entries** : **661 answer with a value** , **172 are refused** and **none is pending**.
+The surface of the v2.0.19 has **833 entries** : **674 answer with a value** , **159 are refused** and **none is pending**.
 
 The table has **833 entries and 785 distinct names** : a property with a setter is in the table twice --- the `Hotkey` class has eleven of them and the `InputHook` has twelve --- and a name that is both a command and a variable is two entries (`SendMode` , `SendLevel` , `Min` , `FileEncoding` , `ListLines` , `DetectHiddenText` , `DetectHiddenWindows` ). The numbers below are entries.
 
@@ -11,8 +11,8 @@ The table has **833 entries and 785 distinct names** : a property with a setter 
 | Area | Names | Answer | Refused |
 |---|---|---|---|
 | Parser and script execution | 56 | 49 | 7 |
-| File and directory operations | 97 | 78 | 19 |
-| Hotkeys, hotstrings, and input | 138 | 131 | 7 |
+| File and directory operations | 97 | 87 | 10 |
+| Hotkeys, hotstrings, and input | 138 | 134 | 4 |
 | GUI windows and window automation | 288 | 177 | 111 |
 | Screen capture and pixel functions | 7 | 6 | 1 |
 | Native function calls (DllCall) | 10 | 10 | 0 |
@@ -21,10 +21,10 @@ The table has **833 entries and 785 distinct names** : a property with a setter 
 | The core of the language: text, math and patterns | 69 | 69 | 0 |
 | The objects of the language: Array, Map and Func | 68 | 68 | 0 |
 | Dates and times | 23 | 23 | 0 |
-| The machine, the processes and the environment | 35 | 30 | 5 |
+| The machine, the processes and the environment | 35 | 31 | 4 |
 | The clipboard | 5 | 4 | 1 |
 | Sound | 8 | 6 | 2 |
-| **The whole of it** | **833** | **661** | **172** |
+| **The whole of it** | **833** | **674** | **159** |
 
 ## What the numbers do not say
 
@@ -89,23 +89,23 @@ names that the tree answers.
 
 ## 2. File and directory operations
 
-**97 names: 78 answer with a value, 19 are refused.**
+**97 names: 87 answer with a value, 10 are refused.**
 
-**The ones that answer** (78): `DirCopy`, `DirCreate`, `DirDelete`, `DirExist`, `DirMove`, `DirSelect`, `Download`, `File`, `File.AtEOF`, `File.Close`, `File.Encoding`, `File.Encoding`, `File.Handle`, `File.Length`, `File.Length`, `File.Pos`, `File.Pos`, `File.RawRead`, `File.RawWrite`, `File.Read`, `File.ReadChar`, `File.ReadDouble`, `File.ReadFloat`, `File.ReadInt`, `File.ReadInt64`, `File.ReadLine`, `File.ReadShort`, `File.ReadUChar`, `File.ReadUInt`, `File.ReadUShort`, `File.Seek`, `File.Write`, `File.WriteChar`, `File.WriteDouble`, `File.WriteFloat`, `File.WriteInt`, `File.WriteInt64`, `File.WriteLine`, `File.WriteShort`, `File.WriteUChar`, `File.WriteUInt`, `File.WriteUShort`, `FileAppend`, `FileCopy`, `FileDelete`, `FileEncoding`, `FileEncoding`, `FileExist`, `FileGetAttrib`, `FileGetSize`, `FileGetTime`, `FileInstall`, `FileMove`, `FileOpen`, `FileRead`, `FileSelect`, `FileSetAttrib`, `FileSetTime`, `IniDelete`, `IniRead`, `IniWrite`, `LoopField`, `LoopFileAttrib`, `LoopFileDir`, `LoopFileExt`, `LoopFileFullPath`, `LoopFileName`, `LoopFilePath`, `LoopFileShortName`, `LoopFileShortPath`, `LoopFileSize`, `LoopFileSizeKB`, `LoopFileSizeMB`, `LoopFileTimeAccessed`, `LoopFileTimeCreated`, `LoopFileTimeModified`, `LoopReadLine`, `SplitPath`
+**The ones that answer** (87): `DirCopy`, `DirCreate`, `DirDelete`, `DirExist`, `DirMove`, `DirSelect`, `Download`, `DriveGetCapacity`, `DriveGetFilesystem`, `DriveGetLabel`, `DriveGetSerial`, `DriveGetSpaceFree`, `DriveGetStatus`, `DriveGetType`, `File`, `File.AtEOF`, `File.Close`, `File.Encoding`, `File.Encoding`, `File.Handle`, `File.Length`, `File.Length`, `File.Pos`, `File.Pos`, `File.RawRead`, `File.RawWrite`, `File.Read`, `File.ReadChar`, `File.ReadDouble`, `File.ReadFloat`, `File.ReadInt`, `File.ReadInt64`, `File.ReadLine`, `File.ReadShort`, `File.ReadUChar`, `File.ReadUInt`, `File.ReadUShort`, `File.Seek`, `File.Write`, `File.WriteChar`, `File.WriteDouble`, `File.WriteFloat`, `File.WriteInt`, `File.WriteInt64`, `File.WriteLine`, `File.WriteShort`, `File.WriteUChar`, `File.WriteUInt`, `File.WriteUShort`, `FileAppend`, `FileCopy`, `FileDelete`, `FileEncoding`, `FileEncoding`, `FileExist`, `FileGetAttrib`, `FileGetSize`, `FileGetTime`, `FileInstall`, `FileMove`, `FileOpen`, `FileRead`, `FileRecycle`, `FileRecycleEmpty`, `FileSelect`, `FileSetAttrib`, `FileSetTime`, `IniDelete`, `IniRead`, `IniWrite`, `LoopField`, `LoopFileAttrib`, `LoopFileDir`, `LoopFileExt`, `LoopFileFullPath`, `LoopFileName`, `LoopFilePath`, `LoopFileShortName`, `LoopFileShortPath`, `LoopFileSize`, `LoopFileSizeKB`, `LoopFileSizeMB`, `LoopFileTimeAccessed`, `LoopFileTimeCreated`, `LoopFileTimeModified`, `LoopReadLine`, `SplitPath`
 
-**The ones that are refused** (19), by the reason:
+**The ones that are refused** (10), by the reason:
 
-- *this is a name of Windows, and this desktop is not Windows.* (19): `DriveEject`, `DriveGetCapacity`, `DriveGetFilesystem`, `DriveGetLabel`, `DriveGetList`, `DriveGetSerial`, `DriveGetSpaceFree`, `DriveGetStatus`, `DriveGetStatusCD`, `DriveGetType`, `DriveLock`, `DriveRetract`, `DriveSetLabel`, `DriveUnlock`, `FileCreateShortcut`, `FileGetShortcut`, `FileGetVersion`, `FileRecycle`, `FileRecycleEmpty`
+- *this is a name of Windows, and this desktop is not Windows.* (10): `DriveEject`, `DriveGetList`, `DriveGetStatusCD`, `DriveLock`, `DriveRetract`, `DriveSetLabel`, `DriveUnlock`, `FileCreateShortcut`, `FileGetShortcut`, `FileGetVersion`
 
 ## 3. Hotkeys, hotstrings, and input
 
-**138 names: 131 answer with a value, 7 are refused.**
+**138 names: 134 answer with a value, 4 are refused.**
 
-**The ones that answer** (131): `Click`, `ClipWait`, `CoordModeMouse`, `CoordModePixel`, `DefaultMouseSpeed`, `EventInfo`, `GetKeyName`, `GetKeySC`, `GetKeyState`, `GetKeyVK`, `HotIf`, `HotIfWinActive`, `HotIfWinExist`, `HotIfWinNotActive`, `HotIfWinNotExist`, `Hotkey`, `Hotkey.BackspaceIsUndo`, `Hotkey.BackspaceIsUndo`, `Hotkey.CaseSensitive`, `Hotkey.CaseSensitive`, `Hotkey.EndKey`, `Hotkey.EndMods`, `Hotkey.EndReason`, `Hotkey.FindAnywhere`, `Hotkey.FindAnywhere`, `Hotkey.InProgress`, `Hotkey.Input`, `Hotkey.KeyOpt`, `Hotkey.Match`, `Hotkey.MinSendLevel`, `Hotkey.MinSendLevel`, `Hotkey.NotifyNonText`, `Hotkey.NotifyNonText`, `Hotkey.OnChar`, `Hotkey.OnChar`, `Hotkey.OnEnd`, `Hotkey.OnEnd`, `Hotkey.OnKeyDown`, `Hotkey.OnKeyDown`, `Hotkey.OnKeyUp`, `Hotkey.OnKeyUp`, `Hotkey.Start`, `Hotkey.Stop`, `Hotkey.Timeout`, `Hotkey.Timeout`, `Hotkey.VisibleNonText`, `Hotkey.VisibleNonText`, `Hotkey.VisibleText`, `Hotkey.VisibleText`, `Hotkey.Wait`, `Hotkey.__New`, `HotkeyInterval`, `HotkeyModifierTimeout`, `Hotstring`, `InputHook`, `InputHook.BackspaceIsUndo`, `InputHook.BackspaceIsUndo`, `InputHook.CaseSensitive`, `InputHook.CaseSensitive`, `InputHook.EndKey`, `InputHook.EndMods`, `InputHook.EndReason`, `InputHook.FindAnywhere`, `InputHook.FindAnywhere`, `InputHook.InProgress`, `InputHook.Input`, `InputHook.KeyOpt`, `InputHook.Match`, `InputHook.MinSendLevel`, `InputHook.MinSendLevel`, `InputHook.NotifyNonText`, `InputHook.NotifyNonText`, `InputHook.OnChar`, `InputHook.OnChar`, `InputHook.OnEnd`, `InputHook.OnEnd`, `InputHook.OnKeyDown`, `InputHook.OnKeyDown`, `InputHook.OnKeyUp`, `InputHook.OnKeyUp`, `InputHook.Start`, `InputHook.Stop`, `InputHook.Timeout`, `InputHook.Timeout`, `InputHook.VisibleNonText`, `InputHook.VisibleNonText`, `InputHook.VisibleText`, `InputHook.VisibleText`, `InputHook.Wait`, `InputHook.__New`, `InstallKeybdHook`, `InstallMouseHook`, `IsLabel`, `KeyDelay`, `KeyDelayPlay`, `KeyDuration`, `KeyDurationPlay`, `KeyHistory`, `KeyWait`, `ListHotkeys`, `MaxHotkeysPerInterval`, `MenuMaskKey`, `MouseClick`, `MouseClickDrag`, `MouseDelay`, `MouseDelayPlay`, `MouseGetPos`, `MouseMove`, `PriorHotkey`, `PriorKey`, `Send`, `SendEvent`, `SendInput`, `SendLevel`, `SendLevel`, `SendMode`, `SendMode`, `SendPlay`, `SendText`, `SetDefaultMouseSpeed`, `SetKeyDelay`, `SetMouseDelay`, `SetStoreCapsLockMode`, `StoreCapsLockMode`, `ThisHotkey`, `TimeIdle`, `TimeIdleKeyboard`, `TimeIdleMouse`, `TimeIdlePhysical`, `TimeSincePriorHotkey`, `TimeSinceThisHotkey`
+**The ones that answer** (134): `Click`, `ClipWait`, `CoordModeMouse`, `CoordModePixel`, `DefaultMouseSpeed`, `EventInfo`, `GetKeyName`, `GetKeySC`, `GetKeyState`, `GetKeyVK`, `HotIf`, `HotIfWinActive`, `HotIfWinExist`, `HotIfWinNotActive`, `HotIfWinNotExist`, `Hotkey`, `Hotkey.BackspaceIsUndo`, `Hotkey.BackspaceIsUndo`, `Hotkey.CaseSensitive`, `Hotkey.CaseSensitive`, `Hotkey.EndKey`, `Hotkey.EndMods`, `Hotkey.EndReason`, `Hotkey.FindAnywhere`, `Hotkey.FindAnywhere`, `Hotkey.InProgress`, `Hotkey.Input`, `Hotkey.KeyOpt`, `Hotkey.Match`, `Hotkey.MinSendLevel`, `Hotkey.MinSendLevel`, `Hotkey.NotifyNonText`, `Hotkey.NotifyNonText`, `Hotkey.OnChar`, `Hotkey.OnChar`, `Hotkey.OnEnd`, `Hotkey.OnEnd`, `Hotkey.OnKeyDown`, `Hotkey.OnKeyDown`, `Hotkey.OnKeyUp`, `Hotkey.OnKeyUp`, `Hotkey.Start`, `Hotkey.Stop`, `Hotkey.Timeout`, `Hotkey.Timeout`, `Hotkey.VisibleNonText`, `Hotkey.VisibleNonText`, `Hotkey.VisibleText`, `Hotkey.VisibleText`, `Hotkey.Wait`, `Hotkey.__New`, `HotkeyInterval`, `HotkeyModifierTimeout`, `Hotstring`, `InputHook`, `InputHook.BackspaceIsUndo`, `InputHook.BackspaceIsUndo`, `InputHook.CaseSensitive`, `InputHook.CaseSensitive`, `InputHook.EndKey`, `InputHook.EndMods`, `InputHook.EndReason`, `InputHook.FindAnywhere`, `InputHook.FindAnywhere`, `InputHook.InProgress`, `InputHook.Input`, `InputHook.KeyOpt`, `InputHook.Match`, `InputHook.MinSendLevel`, `InputHook.MinSendLevel`, `InputHook.NotifyNonText`, `InputHook.NotifyNonText`, `InputHook.OnChar`, `InputHook.OnChar`, `InputHook.OnEnd`, `InputHook.OnEnd`, `InputHook.OnKeyDown`, `InputHook.OnKeyDown`, `InputHook.OnKeyUp`, `InputHook.OnKeyUp`, `InputHook.Start`, `InputHook.Stop`, `InputHook.Timeout`, `InputHook.Timeout`, `InputHook.VisibleNonText`, `InputHook.VisibleNonText`, `InputHook.VisibleText`, `InputHook.VisibleText`, `InputHook.Wait`, `InputHook.__New`, `InstallKeybdHook`, `InstallMouseHook`, `IsLabel`, `KeyDelay`, `KeyDelayPlay`, `KeyDuration`, `KeyDurationPlay`, `KeyHistory`, `KeyWait`, `ListHotkeys`, `MaxHotkeysPerInterval`, `MenuMaskKey`, `MouseClick`, `MouseClickDrag`, `MouseDelay`, `MouseDelayPlay`, `MouseGetPos`, `MouseMove`, `PriorHotkey`, `PriorKey`, `Send`, `SendEvent`, `SendInput`, `SendLevel`, `SendLevel`, `SendMode`, `SendMode`, `SendPlay`, `SendText`, `SetCapsLockState`, `SetDefaultMouseSpeed`, `SetKeyDelay`, `SetMouseDelay`, `SetNumLockState`, `SetScrollLockState`, `SetStoreCapsLockMode`, `StoreCapsLockMode`, `ThisHotkey`, `TimeIdle`, `TimeIdleKeyboard`, `TimeIdleMouse`, `TimeIdlePhysical`, `TimeSincePriorHotkey`, `TimeSinceThisHotkey`
 
-**The ones that are refused** (7), by the reason:
+**The ones that are refused** (4), by the reason:
 
-- *this is a name of Windows, and this desktop is not Windows.* (6): `BlockInput`, `CallbackCreate`, `CallbackFree`, `SetCapsLockState`, `SetNumLockState`, `SetScrollLockState`
+- *this is a name of Windows, and this desktop is not Windows.* (3): `BlockInput`, `CallbackCreate`, `CallbackFree`
 - *the shape of the cursor of the machine is not read by this runtime.* (1): `Cursor`
 
 ## 4. GUI windows and window automation
@@ -179,13 +179,13 @@ names that the tree answers.
 
 ## 12. The machine, the processes and the environment
 
-**35 names: 30 answer with a value, 5 are refused.**
+**35 names: 31 answer with a value, 4 are refused.**
 
-**The ones that answer** (30): `AhkVersion`, `AppData`, `AppDataCommon`, `ComSpec`, `ComputerName`, `Desktop`, `DesktopCommon`, `Language`, `MyDocuments`, `OSVersion`, `ProcessClose`, `ProcessExist`, `ProcessGetName`, `ProcessGetParent`, `ProcessGetPath`, `ProcessSetPriority`, `ProcessWait`, `ProcessWaitClose`, `Programs`, `ProgramsCommon`, `Run`, `RunWait`, `StartMenu`, `StartMenuCommon`, `Startup`, `StartupCommon`, `SysGet`, `SysGetIPAddresses`, `Temp`, `UserName`
+**The ones that answer** (31): `AhkVersion`, `AppData`, `AppDataCommon`, `ComSpec`, `ComputerName`, `Desktop`, `DesktopCommon`, `Language`, `MyDocuments`, `OSVersion`, `OutputDebug`, `ProcessClose`, `ProcessExist`, `ProcessGetName`, `ProcessGetParent`, `ProcessGetPath`, `ProcessSetPriority`, `ProcessWait`, `ProcessWaitClose`, `Programs`, `ProgramsCommon`, `Run`, `RunWait`, `StartMenu`, `StartMenuCommon`, `Startup`, `StartupCommon`, `SysGet`, `SysGetIPAddresses`, `Temp`, `UserName`
 
-**The ones that are refused** (5), by the reason:
+**The ones that are refused** (4), by the reason:
 
-- *this is a name of Windows, and this desktop is not Windows.* (4): `OutputDebug`, `ProgramFiles`, `RunAs`, `Shutdown`
+- *this is a name of Windows, and this desktop is not Windows.* (3): `ProgramFiles`, `RunAs`, `Shutdown`
 - *this runtime is not AutoHotkey, and it has no path of an executable.* (1): `AhkPath`
 
 ## 13. The clipboard

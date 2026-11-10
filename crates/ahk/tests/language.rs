@@ -1756,6 +1756,26 @@ fn the_is_operator_says_whether_an_object_is_of_a_class() {
 }
 
 #[test]
+fn a_class_is_a_class_and_an_object_and_not_an_instance_of_itself() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `C is Class` is 1,
+    // `C is Object` is 1 and `C is C` is 0 -- a class is not an instance of
+    // itself -- and a prototype is not an instance of its own class either.
+    let (report, _desktop) = run(
+        "class Alpha {\n}\nm := Map\n\
+         a := Alpha is Class\nb := Alpha is Object\nc := Alpha is Alpha\n\
+         d := m is Class\ne := m is Object\nf := Alpha.Prototype is Alpha",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("b"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("c"), Some(&Value::Int(0)));
+    // The class of a class type of the runtime is the same kind.
+    assert_eq!(report.variables.get("d"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("e"), Some(&Value::Int(1)));
+    assert_eq!(report.variables.get("f"), Some(&Value::Int(0)));
+}
+
+#[test]
 fn the_is_operator_wants_a_class() {
     let (report, _desktop) = run("class Alpha {\n}\nb := Alpha()\na := b is \"Alpha\"");
     assert!(!report.ok);
@@ -6023,6 +6043,59 @@ fn the_name_that_the_script_builds_is_incremented_the_way_a_variable_is() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["5|7|7"]);
+}
+
+#[test]
+fn a_loop_may_carry_an_else_that_runs_when_it_took_no_turn() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: every loop kind --
+    // the counted one, the one without a count, `while`, `for`, `Files` and
+    // `Parse` -- may carry an `else`, and the `else` runs exactly when the
+    // loop took no turn. The `else` may come after a brace block or after the
+    // one statement of the body.
+    let (report, _desktop) = run(concat!(
+        "seen := \"\"\n",
+        "Loop 0 {\n",
+        "    seen .= \"L0-body,\"\n",
+        "} else {\n",
+        "    seen .= \"L0-else,\"\n",
+        "}\n",
+        "Loop 1 {\n",
+        "    seen .= \"L1-body,\"\n",
+        "} else {\n",
+        "    seen .= \"L1-else,\"\n",
+        "}\n",
+        "i := 0\n",
+        "While (i < 0) {\n",
+        "    seen .= \"W-body,\"\n",
+        "} else {\n",
+        "    seen .= \"W-else,\"\n",
+        "}\n",
+        "For x in [] {\n",
+        "    seen .= \"F-body,\"\n",
+        "} else {\n",
+        "    seen .= \"F-else,\"\n",
+        "}\n",
+        "Loop Files \"zzz-nothing-*.txt\" {\n",
+        "    seen .= \"LF-body,\"\n",
+        "} else {\n",
+        "    seen .= \"LF-else,\"\n",
+        "}\n",
+        "Loop Parse \"\" {\n",
+        "    seen .= \"P-body,\"\n",
+        "} else {\n",
+        "    seen .= \"P-else,\"\n",
+        "}\n",
+        "Loop 0\n",
+        "    seen .= \"S-body,\"\n",
+        "else\n",
+        "    seen .= \"S-else,\"\n",
+        "FileAppend seen, \"*\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["L0-else,L1-body,W-else,F-else,LF-else,P-else,S-else,"]
+    );
 }
 
 #[test]

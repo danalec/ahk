@@ -15,6 +15,7 @@ co06_switch	control	MATCH	K8=B\nK9=high	K8=B\nK9=high	K8=B\nK9=high
 co07_try_typed	control	MATCH	K10=ValueError|bad\nK11=TypeError\nK12=ERR ValueError: x	K10=ValueError|bad\nK11=TypeError\nK12=ERR ValueError: x	K10=ValueError|bad\nK11=TypeError\nK12=ERR ValueError: x	
 co08_for_in	control	MATCH	K13=10-20-30-\nK14=a=1;b=2;	K13=10-20-30-\nK14=a=1;b=2;	K13=10-20-30-\nK14=a=1;b=2;	
 co09_truthiness	control	MATCH	K15=1x	K15=1x	K15=1x	
+co10_loop_else	control	MATCH	LE=L0-else,L1-body,W-else,F-else,P-else,	LE=L0-else,L1-body,W-else,F-else,P-else,	LE=L0-else,L1-body,W-else,F-else,P-else,	
 er01_divzero	errors	KEYS-DIFFERS	R1=ZeroDivisionError|Divide by zero.|	R1=ZeroDivisionError|Right side operand of floating point division was 0.|	R1=ZeroDivisionError|Divide by zero.|	
 er02_index	errors	MATCH	R2=IndexError|Invalid index.|5	R2=IndexError|Invalid index.|5	R2=IndexError|Invalid index.|5	
 er03_map_missing	errors	MATCH	R3=UnsetItemError|Item has no value.|zz	R3=UnsetItemError|Item has no value.|zz	R3=UnsetItemError|Item has no value.|zz	

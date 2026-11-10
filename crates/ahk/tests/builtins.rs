@@ -5,7 +5,7 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
+    Clipboard, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native, Network,
     PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
@@ -27,6 +27,16 @@ struct Fake {
     writes: Vec<f64>,
     /// The text on the clipboard of the fake.
     clipboard: String,
+    /// Whether the caps lock of the fake is on.
+    lock_on: bool,
+    /// The turns of the lock keys that the script asked for.
+    locks: Vec<(String, bool)>,
+    /// The files the script recycled, in the order it asked for them.
+    recycled: Vec<String>,
+    /// Whether the trash of the fake was emptied.
+    trash_emptied: bool,
+    /// The texts the script sent to the debugger.
+    debugged: Vec<String>,
 }
 
 impl Desktop for Fake {}
@@ -100,6 +110,34 @@ impl Machine for Fake {
     // address of the loopback.
     fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
         Ok(vec!["172.26.48.1".into(), "192.168.0.45".into()])
+    }
+    fn output_debug(&mut self, text: &str) -> Result<(), String> {
+        self.debugged.push(text.to_string());
+        Ok(())
+    }
+    // The drive of the fake: the root of the machine is a fixed volume of the
+    // format ext4 with a serial and two sizes, and every other name is a
+    // path that is not there. The shapes are the ones measured on the binary
+    // of v2.0.19 on 2026-11-09.
+    fn drive(&mut self, path: &str) -> Result<Option<Drive>, String> {
+        if path == "/" {
+            return Ok(Some(Drive {
+                drive_type: "Fixed".into(),
+                filesystem: "ext4".into(),
+                label: String::new(),
+                serial: 42,
+                free_megabytes: 100,
+                capacity_megabytes: 200,
+                status: "Ready".into(),
+            }));
+        }
+        Err("(2) No such file or directory".to_string())
+    }
+    fn drive_type(&mut self, path: &str) -> Result<Option<String>, String> {
+        Ok((path == "/").then(|| "Fixed".to_string()))
+    }
+    fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
+        Ok((path == "/").then(|| "Ready".to_string()))
     }
 }
 impl Dialogs for Fake {
@@ -215,6 +253,20 @@ impl Files for Fake {
         ));
         Ok(bytes.len().to_string())
     }
+    // The trash of the fake: the files the script recycled are recorded, and
+    // a path that is not there is the failure "Failed", which is what the
+    // binary answers: measured on it on 2026-11-09.
+    fn recycle(&mut self, pattern: &str) -> Result<(), String> {
+        if pattern.contains("missing") {
+            return Err("Failed".to_string());
+        }
+        self.recycled.push(pattern.to_string());
+        Ok(())
+    }
+    fn empty_trash(&mut self, _drive: Option<&str>) -> Result<(), String> {
+        self.trash_emptied = true;
+        Ok(())
+    }
 }
 
 impl Clipboard for Fake {
@@ -245,6 +297,18 @@ impl Keyboard for Fake {
         }
         spelled.push_str(name);
         Ok(format!("pressed {spelled}"))
+    }
+    // The caps lock of the fake is a switch, and the turns of the keys that
+    // the script asked for are recorded: the state of a lock key is the state
+    // of the LED of the keyboard, and the shape is the one measured on the
+    // binary of v2.0.19 on 2026-11-09.
+    fn lock_is_on(&mut self, _lock: &str) -> Result<bool, String> {
+        Ok(self.lock_on)
+    }
+    fn set_lock(&mut self, lock: &str, on: bool) -> Result<(), String> {
+        self.locks.push((lock.to_string(), on));
+        self.lock_on = on;
+        Ok(())
     }
 }
 
@@ -991,6 +1055,24 @@ fn a_sysget_metric_of_windows_is_refused_with_the_reason() {
 }
 
 #[test]
+fn the_output_parameters_of_the_monitor_reads_want_a_reference() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the four output
+    // parameters of the two monitor reads are values of the kind VarRef, and
+    // a number there is refused with the name of the built-in in the `What`
+    // and the number in the `Extra`.
+    let report = run("MonitorGet(1, 9, 9, 9, 9)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of MonitorGet requires a VarRef, but received an Integer."
+    );
+    let report = run("MonitorGetWorkArea(1, 9, 9, 9, 9)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #2 of MonitorGetWorkArea requires a VarRef, but received an Integer."
+    );
+}
+
+#[test]
 fn the_monitors_are_asked_of_the_desktop() {
     // Measured on the binary of v2.0.19 on 2026-11-09: the rectangle of a
     // monitor is left, top, right and bottom, and the right and the bottom
@@ -1074,6 +1156,154 @@ fn the_addresses_of_the_machine_are_asked_of_the_desktop() {
     assert_eq!(int_of(&report, "c"), 2);
     assert_eq!(value_of(&report, "d"), Value::Text("172.26.48.1".into()));
     assert_eq!(value_of(&report, "e"), Value::Text("192.168.0.45".into()));
+}
+
+#[test]
+fn the_lock_keys_are_turned_where_the_state_is_not_what_was_asked_for() {
+    // Measured on the binary of v2.0.19 on 2026-11-09, with the conversion of
+    // the state read beside it: "On" and "1" turn the state on, "Off" and "0"
+    // turn it off, a word it does not know -- and the empty text, and a
+    // missing parameter -- leave the state alone and are not a failure, and
+    // every form answers the empty text.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := SetCapsLockState(\"On\")\n",
+            "b := SetNumLockState(\"Off\")\n",
+            "c := SetScrollLockState(1)\n",
+            "d := SetCapsLockState(0)\n",
+            "e := SetCapsLockState(\"Bogus\")\n",
+            "f := SetCapsLockState()\n",
+            "g := SetCapsLockState(\"AlwaysOn\")\n",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    for name in ["a", "b", "c", "d", "e", "f", "g"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()), "{name}");
+    }
+    // The turns of the keys are the ones the states asked for: the bogus word,
+    // the missing parameter and the "AlwaysOn" of a key that is on already
+    // leave the switch alone.
+    assert_eq!(
+        desktop.locks,
+        vec![
+            ("CapsLock".to_string(), true),
+            ("NumLock".to_string(), false),
+            ("ScrollLock".to_string(), true),
+            ("CapsLock".to_string(), false),
+            ("CapsLock".to_string(), true),
+        ]
+    );
+    assert_eq!(
+        failure_of(&run("a := SetCapsLockState(Map())")),
+        "Parameter #1 of SetCapsLockState requires a String, but received a Map."
+    );
+}
+
+#[test]
+fn the_debugger_gets_the_text_and_the_answer_is_nothing() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `OutputDebug` writes
+    // the text to the debugger and answers the empty text.
+    let mut desktop = Fake::default();
+    let report = run_on("a := OutputDebug(\"hello\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    assert_eq!(desktop.debugged, vec!["hello".to_string()]);
+    assert_eq!(
+        failure_of(&run("a := OutputDebug(Map())")),
+        "Parameter #1 of OutputDebug requires a String, but received a Map."
+    );
+}
+
+#[test]
+fn the_file_is_recycled_and_the_trash_is_emptied() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: a file that is there
+    // goes into the trash and the answer is the empty text, a plain path that
+    // is not there is the failure "Failed", a pattern that matches nothing is
+    // not a failure, and an empty path is "Parameter #1 of FileRecycle is
+    // invalid." with the empty text in the `Extra`.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := FileRecycle(\"notes.txt\")\n",
+            "b := FileRecycle(\"nothing-*.txt\")\n",
+            "c := FileRecycleEmpty()\n",
+            "d := FileRecycleEmpty(\"/\")\n",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    assert_eq!(
+        desktop.recycled,
+        vec!["notes.txt".to_string(), "nothing-*.txt".to_string()]
+    );
+    assert!(desktop.trash_emptied, "the trash was emptied");
+    assert_eq!(
+        failure_of(&run("a := FileRecycle(\"the-missing-one.txt\")")),
+        "Failed"
+    );
+    let report = run(concat!(
+        "try\n",
+        "    FileRecycle(\"\")\n",
+        "catch as e\n",
+        "    x := e.Message \"|\" e.Extra\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "x"),
+        Value::Text("Parameter #1 of FileRecycle is invalid.|empty string".into())
+    );
+}
+
+#[test]
+fn the_readings_of_a_drive_are_asked_of_the_desktop() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the capacity and the
+    // free space are counted in megabytes, the serial is a number, the
+    // filesystem and the label are texts, a drive that is not there is the
+    // empty text for the type and "Invalid" for the state, and the other
+    // readings of a drive that is not there are the failure of the machine.
+    let report = run(concat!(
+        "a := DriveGetType(\"/\")\n",
+        "b := DriveGetStatus(\"/\")\n",
+        "c := DriveGetFilesystem(\"/\")\n",
+        "d := DriveGetLabel(\"/\")\n",
+        "e := DriveGetSerial(\"/\")\n",
+        "f := DriveGetSpaceFree(\"/\")\n",
+        "g := DriveGetCapacity(\"/\")\n",
+        "h := DriveGetType(\"/no-such-path\")\n",
+        "i := DriveGetStatus(\"/no-such-path\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("Fixed".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text("Ready".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("ext4".into()));
+    assert_eq!(value_of(&report, "d"), Value::Text(String::new()));
+    assert_eq!(int_of(&report, "e"), 42);
+    assert_eq!(int_of(&report, "f"), 100);
+    assert_eq!(int_of(&report, "g"), 200);
+    // A path that is not a drive is not a failure for the type and the state.
+    assert_eq!(value_of(&report, "h"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "i"), Value::Text("Invalid".into()));
+    // The five readings that answer with the failure of the machine say it.
+    assert_eq!(
+        failure_of(&run("a := DriveGetFilesystem(\"/no-such-path\")")),
+        "(2) No such file or directory"
+    );
+    // A machine without drive letters has no list of them to answer: measured on
+    // the binary of v2.0.19 on 2026-11-09, `DriveGetList` answers the letters of
+    // the drives of Windows ("BCDEFX" on the machine of the binary), and the
+    // volumes of this machine are named by the paths they are mounted at. The
+    // name therefore stays a refusal of the table, with the reason of it.
+    assert_eq!(
+        failure_of(&run("a := DriveGetList()")),
+        "this is a name of Windows, and this desktop is not Windows."
+    );
+    assert_eq!(
+        failure_of(&run("a := DriveGetType(Map())")),
+        "Parameter #1 of DriveGetType requires a String, but received a Map."
+    );
 }
 
 #[test]

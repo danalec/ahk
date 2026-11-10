@@ -1103,6 +1103,33 @@ impl Keyboard for X11Desktop {
                 .to_string(),
         )
     }
+
+    fn lock_is_on(&mut self, lock: &str) -> Result<bool, String> {
+        // The state of a lock key is the state of the LED of the keyboard,
+        // whatever the display server is: the kernel publishes it, and the
+        // server writes it.
+        crate::locks::is_on(lock)
+    }
+
+    fn set_lock(&mut self, lock: &str, on: bool) -> Result<(), String> {
+        let now = crate::locks::is_on(lock)?;
+        if now == on {
+            return Ok(());
+        }
+        self.press_key(lock, &[])?;
+        // The server answers the key at the pace of its own frame, and the
+        // LED is what says that it did.
+        for _ in 0..50 {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            if crate::locks::is_on(lock)? == on {
+                return Ok(());
+            }
+        }
+        Err(format!(
+            "the X server did not change the state of the {lock}: the key was sent, and the LED of \
+             the key is still the one it was."
+        ))
+    }
 }
 
 impl Pointer for X11Desktop {
@@ -1426,7 +1453,14 @@ impl Processes for X11Desktop {
         crate::process::set_priority(priority, which)
     }
 }
-impl Files for X11Desktop {}
+impl Files for X11Desktop {
+    fn recycle(&mut self, pattern: &str) -> Result<(), String> {
+        crate::trash::recycle(pattern)
+    }
+    fn empty_trash(&mut self, _drive: Option<&str>) -> Result<(), String> {
+        crate::trash::empty()
+    }
+}
 impl Clipboard for X11Desktop {}
 impl Timers for X11Desktop {}
 impl Hotkeys for X11Desktop {}
@@ -1435,6 +1469,21 @@ impl Sound for X11Desktop {}
 impl Machine for X11Desktop {
     fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
         crate::network::ip_addresses()
+    }
+    fn output_debug(&mut self, text: &str) -> Result<(), String> {
+        // The debugger of the machine is the standard error of the process,
+        // and the report of the runner is the standard output.
+        eprintln!("{text}");
+        Ok(())
+    }
+    fn drive(&mut self, path: &str) -> Result<Option<ahk::desktop::Drive>, String> {
+        crate::drives::drive(path)
+    }
+    fn drive_type(&mut self, path: &str) -> Result<Option<String>, String> {
+        crate::drives::drive_type(path)
+    }
+    fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
+        crate::drives::drive_status(path)
     }
 }
 impl Dialogs for X11Desktop {}

@@ -644,6 +644,12 @@ pub enum Node {
     While {
         condition: Box<Node>,
         body: Vec<Node>,
+        /// The `Else` of the loop: the statements that run when the loop
+        /// took no turn at all.
+        ///
+        /// Measured on the binary of v2.0.19 on 2026-11-09: `while` may
+        /// carry an `else`, and it runs exactly when the body ran no turn.
+        otherwise: Option<Vec<Node>>,
         line: u32,
     },
     /// `Loop 3 { }`, `Loop Files "*.txt" { }`, `Loop Parse "a,b" { }`.
@@ -656,6 +662,13 @@ pub enum Node {
         arguments: Vec<Node>,
         body: Vec<Node>,
         until: Option<Box<Node>>,
+        /// The `Else` of the loop, run when the loop took no turn:
+        /// `Loop 0` and `Loop Files` of a pattern that names no file are the
+        /// two cases of the corpus.
+        ///
+        /// Measured on the binary of v2.0.19 on 2026-11-09: every kind of
+        /// `Loop` may carry an `else`.
+        otherwise: Option<Vec<Node>>,
         line: u32,
     },
     /// `#Requires AutoHotkey v2.0.19`: a directive.
@@ -851,6 +864,12 @@ pub enum Node {
         /// The condition of the `Until` that follows the body, when there is
         /// one: `for x in items { } until x > 2`.
         until: Option<Box<Node>>,
+        /// The `Else` of the `for`, run when the source held no value to
+        /// walk.
+        ///
+        /// Measured on the binary of v2.0.19 on 2026-11-09: `For x in []`
+        /// with an `else` runs the `else`.
+        otherwise: Option<Vec<Node>>,
         line: u32,
     },
     /// A label: `name:`.

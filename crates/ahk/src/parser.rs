@@ -747,8 +747,13 @@ fn collect_the_labels_of_a_scope(body: &[Node], labels: &mut Vec<(String, u32)>)
                     collect_the_labels_of_a_scope(&case.body, labels);
                 }
             }
-            Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+            Node::While { body, otherwise, .. }
+            | Node::Loop { body, otherwise, .. }
+            | Node::For { body, otherwise, .. } => {
                 collect_the_labels_of_a_scope(body, labels);
+                if let Some(otherwise) = otherwise {
+                    collect_the_labels_of_a_scope(otherwise, labels);
+                }
             }
             Node::Try {
                 body,
@@ -822,8 +827,13 @@ impl TheNamesOfTheScript {
                         self.collect_in_a_block(&case.body, chain, false);
                     }
                 }
-                Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+                Node::While { body, otherwise, .. }
+                | Node::Loop { body, otherwise, .. }
+                | Node::For { body, otherwise, .. } => {
                     self.collect_in_a_block(body, chain, false);
+                    if let Some(otherwise) = otherwise {
+                        self.collect_in_a_block(otherwise, chain, false);
+                    }
                 }
                 Node::Try {
                     body,
@@ -970,8 +980,13 @@ fn collect_the_gotos_of_a_scope(body: &[Node], gotos: &mut Vec<(String, u32)>) {
                     collect_the_gotos_of_a_scope(&case.body, gotos);
                 }
             }
-            Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+            Node::While { body, otherwise, .. }
+            | Node::Loop { body, otherwise, .. }
+            | Node::For { body, otherwise, .. } => {
                 collect_the_gotos_of_a_scope(body, gotos);
+                if let Some(otherwise) = otherwise {
+                    collect_the_gotos_of_a_scope(otherwise, gotos);
+                }
             }
             Node::Try {
                 body,
@@ -1179,8 +1194,13 @@ fn the_declarations_of_a_statement(
                 the_declarations_of_a_body_of(&case.body, declarations, dialect)?;
             }
         }
-        Node::While { body, .. } | Node::Loop { body, .. } | Node::For { body, .. } => {
+        Node::While { body, otherwise, .. }
+        | Node::Loop { body, otherwise, .. }
+        | Node::For { body, otherwise, .. } => {
             the_declarations_of_a_body_of(body, declarations, dialect)?;
+            if let Some(otherwise) = otherwise {
+                the_declarations_of_a_body_of(otherwise, declarations, dialect)?;
+            }
         }
         Node::Try {
             body,
@@ -8155,14 +8175,46 @@ impl Parser {
         };
         self.end_of_block()?;
         let body = self.the_body_of_a_loop("While", token.line)?;
+        let otherwise = self.the_else_of_a_loop()?;
         let Some(condition) = condition else {
             return Err(self.the_refusal_of_an_empty_parenthesis(&empty.unwrap()));
         };
         Ok(Node::While {
             condition: Box::new(condition),
             body,
+            otherwise,
             line: token.line,
         })
+    }
+
+    /// The `Else` of a loop, when the script writes one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: every loop of the v2
+    /// -- the counted one, the one without a count, `Parse`, `Files`, `Read`,
+    /// `while` and `for` -- may carry an `else`, and it runs exactly when the
+    /// loop took no turn. The word may be on the line of the closing brace of
+    /// the body or on the one that comes after it.
+    fn the_else_of_a_loop(&mut self) -> Result<Option<Vec<Node>>, SyntaxError> {
+        let mut at = self.position;
+        while self
+            .tokens
+            .get(at)
+            .map(|token| token.kind == TokenKind::Newline)
+            .unwrap_or(false)
+        {
+            at += 1;
+        }
+        let Some(token) = self.tokens.get(at).cloned() else {
+            return Ok(None);
+        };
+        if token.kind != TokenKind::Keyword || !token.value.eq_ignore_ascii_case("else") {
+            return Ok(None);
+        }
+        self.position = at;
+        self.next();
+        self.end_of_block()?;
+        let body = self.the_body_of_a_loop("Else", token.line)?;
+        Ok(Some(body))
     }
 
     /// A class: `class Name extends Base { }`.
@@ -9506,6 +9558,7 @@ impl Parser {
         // `until` of the v1 is the statement that comes right after the body
         // of the loop, and it is the condition that ends it.
         let until = self.the_until_of_the_loop()?;
+        let otherwise = self.the_else_of_a_loop()?;
         if let Some(closing) = empty {
             return Err(self.the_refusal_of_an_empty_parenthesis(&closing));
         }
@@ -9522,6 +9575,7 @@ impl Parser {
             arguments,
             body,
             until,
+            otherwise,
             line: token.line,
         })
     }
@@ -9991,11 +10045,13 @@ impl Parser {
         // takes the `Until` of the other loops, and its condition is read
         // after every turn.
         let until = self.the_until_of_the_loop()?;
+        let otherwise = self.the_else_of_a_loop()?;
         Ok(Node::For {
             variables,
             source: Box::new(source),
             body,
             until,
+            otherwise,
             line: token.line,
         })
     }

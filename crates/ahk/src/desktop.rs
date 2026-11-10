@@ -496,6 +496,25 @@ pub trait Files {
         Err("this desktop cannot read a file".to_string())
     }
 
+    /// Recycle a file or a folder, or the files that a pattern matches.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a file that is there
+    /// is recycled and the answer is nothing; a plain path that is not there
+    /// is the failure "Failed"; and a pattern that matches nothing is not a
+    /// failure. A desktop with no trash says so.
+    fn recycle(&mut self, _pattern: &str) -> Result<(), String> {
+        Err("this desktop has no trash to recycle a file into".to_string())
+    }
+
+    /// Empty the trash of the machine.
+    ///
+    /// The answer is nothing. A `drive` that is given names the trash to
+    /// empty, and the deskop that has one trash for the whole machine
+    /// empties it for any drive.
+    fn empty_trash(&mut self, _drive: Option<&str>) -> Result<(), String> {
+        Err("this desktop has no trash to empty".to_string())
+    }
+
     /// Write a file, replacing what was in it; return what was written.
     fn write_file(&mut self, _path: &str, _text: &str) -> Result<String, String> {
         Err("this desktop cannot write a file".to_string())
@@ -928,6 +947,66 @@ pub trait Machine {
     fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
         Err("this desktop cannot say the addresses of the machine".to_string())
     }
+
+    /// Write a text to the debugger of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `OutputDebug` writes
+    /// the text to the debugger and answers nothing. A machine whose debugger
+    /// is the standard error of the process writes it there.
+    fn output_debug(&mut self, _text: &str) -> Result<(), String> {
+        Err("this desktop has no debugger to write to".to_string())
+    }
+
+    /// The drive that a path is on, when the path is one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `DriveGetType` of a
+    /// drive that is not there answers the empty text, and `DriveGetStatus`
+    /// of one answers "Invalid"; the other readings of a drive that is not
+    /// there are the failure of the machine.
+    fn drive(&mut self, _path: &str) -> Result<Option<Drive>, String> {
+        Err("this desktop cannot say what a drive is".to_string())
+    }
+
+    /// The kind of the drive that a path is on.
+    ///
+    /// `None` is a path that is not a drive of this machine: the binary
+    /// answers the empty text for it.
+    fn drive_type(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot say what kind a drive is".to_string())
+    }
+
+    /// The state of the drive that a path is on.
+    ///
+    /// `None` is a path that is not a drive of this machine: the binary
+    /// answers "Invalid" for it.
+    fn drive_status(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot say what state a drive is in".to_string())
+    }
+}
+
+/// A drive of the machine, as the `DriveGet` family of v2 reads it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the filesystem is the
+/// name of the format of the volume ("NTFS"), the label is the name of it,
+/// the serial is a number, the free space and the capacity are counted in
+/// megabytes, and the state of a drive that is there is "Ready".
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Drive {
+    /// The kind of the drive: "Fixed", "Removable", "Network", "CDROM",
+    /// "RAMDisk" or "Unknown".
+    pub drive_type: String,
+    /// The name of the format of the volume.
+    pub filesystem: String,
+    /// The label of the volume, and the empty text when it has none.
+    pub label: String,
+    /// The number that identifies the volume.
+    pub serial: i64,
+    /// The free space, in megabytes.
+    pub free_megabytes: i64,
+    /// The capacity, in megabytes.
+    pub capacity_megabytes: i64,
+    /// The state of the drive: "Ready" and the like.
+    pub status: String,
 }
 
 /// The dialogs of the desktop.

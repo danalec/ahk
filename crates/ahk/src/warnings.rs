@@ -350,6 +350,18 @@ fn the_word_that_leaves_the_level(statement: &Node) -> Option<&'static str> {
 }
 
 /// The bodies of a statement: the levels of their own.
+/// The bodies of a loop: the body itself, and the body of its `Else`.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the `else` of a loop is a
+/// body of the loop statement, and the names that are read and written in it
+/// are the ones of the statement.
+fn the_bodies_of_a_loop<'a>(body: &'a [Node], otherwise: &'a Option<Vec<Node>>) -> Vec<&'a [Node]> {
+    match otherwise {
+        Some(otherwise) => vec![body, otherwise.as_slice()],
+        None => vec![body],
+    }
+}
+
 fn the_bodies_of(statement: &Node) -> Vec<&[Node]> {
     match statement {
         Node::Block { body, .. } => vec![body],
@@ -366,9 +378,15 @@ fn the_bodies_of(statement: &Node) -> Vec<&[Node]> {
             bodies
         }
         Node::Switch { cases, .. } => cases.iter().map(|case| case.body.as_slice()).collect(),
-        Node::While { body, .. } => vec![body],
-        Node::Loop { body, .. } => vec![body],
-        Node::For { body, .. } => vec![body],
+        Node::While {
+            body, otherwise, ..
+        } => the_bodies_of_a_loop(body, otherwise),
+        Node::Loop {
+            body, otherwise, ..
+        } => the_bodies_of_a_loop(body, otherwise),
+        Node::For {
+            body, otherwise, ..
+        } => the_bodies_of_a_loop(body, otherwise),
         Node::FunctionDef { body, .. } => vec![body],
         Node::Try {
             body,
@@ -1294,9 +1312,15 @@ fn the_bodies_of_the_level(statement: &Node) -> Vec<&[Node]> {
             bodies
         }
         Node::Switch { cases, .. } => cases.iter().map(|case| case.body.as_slice()).collect(),
-        Node::While { body, .. } => vec![body],
-        Node::Loop { body, .. } => vec![body],
-        Node::For { body, .. } => vec![body],
+        Node::While {
+            body, otherwise, ..
+        } => the_bodies_of_a_loop(body, otherwise),
+        Node::Loop {
+            body, otherwise, ..
+        } => the_bodies_of_a_loop(body, otherwise),
+        Node::For {
+            body, otherwise, ..
+        } => the_bodies_of_a_loop(body, otherwise),
         Node::Try {
             body,
             catches,

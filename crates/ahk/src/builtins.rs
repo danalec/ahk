@@ -1442,27 +1442,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get,
     },
     Builtin {
         name: "DriveGetFilesystem",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 2,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get,
     },
     Builtin {
         name: "DriveGetLabel",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 3,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get,
     },
     Builtin {
         name: "DriveGetList",
@@ -1478,27 +1478,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 4,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get,
     },
     Builtin {
         name: "DriveGetSpaceFree",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 5,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get,
     },
     Builtin {
         name: "DriveGetStatus",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 6,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get,
     },
     Builtin {
         name: "DriveGetStatusCD",
@@ -1514,9 +1514,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 7,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get,
     },
     Builtin {
         name: "DriveLock",
@@ -1649,18 +1649,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_recycle,
     },
     Builtin {
         name: "FileRecycleEmpty",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_recycle_empty,
     },
     Builtin {
         name: "GroupActivate",
@@ -1977,9 +1977,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: output_debug,
     },
     Builtin {
         name: "PostMessage",
@@ -2130,9 +2130,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: set_lock_state,
     },
     Builtin {
         name: "SetControlDelay",
@@ -2148,9 +2148,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 2,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: set_lock_state,
     },
     Builtin {
         name: "SetRegView",
@@ -2166,9 +2166,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 3,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: set_lock_state,
     },
     Builtin {
         name: "SetTitleMatchMode",
@@ -5383,16 +5383,13 @@ const THE_REFUSED: &[(&str, usize, Wants)] = &[
     ("MenuSelect", 9, Wants::Declared(TypeName::String)),
     ("MenuSelect", 10, Wants::Declared(TypeName::String)),
     ("MonitorGet", 0, Wants::Declared(TypeName::Number)),
-    ("MonitorGet", 1, Wants::Reference("a VarRef")),
-    ("MonitorGet", 2, Wants::Reference("a VarRef")),
-    ("MonitorGet", 3, Wants::Reference("a VarRef")),
-    ("MonitorGet", 4, Wants::Reference("a VarRef")),
+    // The four that follow are values of the kind VarRef in the table of the
+    // binary, and the kind is named by the match at the end of this function:
+    // a `Wants::Reference` here would say the same words but would put the
+    // empty text in the `What`, and the binary puts the name of the built-in
+    // there (measured on 2026-11-09).
     ("MonitorGetName", 0, Wants::Declared(TypeName::Number)),
     ("MonitorGetWorkArea", 0, Wants::Declared(TypeName::Number)),
-    ("MonitorGetWorkArea", 1, Wants::Reference("a VarRef")),
-    ("MonitorGetWorkArea", 2, Wants::Reference("a VarRef")),
-    ("MonitorGetWorkArea", 3, Wants::Reference("a VarRef")),
-    ("MonitorGetWorkArea", 4, Wants::Reference("a VarRef")),
     ("OnMessage", 0, Wants::Declared(TypeName::Number)),
     ("OutputDebug", 0, Wants::Declared(TypeName::String)),
     ("Pause", 0, Wants::Declared(TypeName::Number)),
@@ -5645,8 +5642,10 @@ pub fn wants(name: &str, index: usize) -> Wants {
         }
         // Measured on the binary of v2.0.19 on 2026-11-09: the last four
         // parameters of the two monitor commands are values of the kind
-        // `VarRef`, and v2 names the kind in the failure of another one.
-        ("MonitorGet" | "MonitorGetWorkArea", 1..=4) => Wants::Checked(TypeName::VarRef),
+        // `VarRef`, and v2 names the kind in the failure of another one with
+        // "requires a VarRef, but received ..." -- the wording of a declared
+        // kind, and the name of the built-in in the `What`.
+        ("MonitorGet" | "MonitorGetWorkArea", 1..=4) => Wants::Declared(TypeName::VarRef),
         _ => Wants::Value,
     }
 }
@@ -9909,6 +9908,214 @@ pub(crate) fn sys_get_ip_addresses(
         message: the_message_of(failure),
         line,
     })
+}
+
+// -- the keyboard, the debugger, the trash and the drives -------------------------
+
+/// `SetCapsLockState`, `SetNumLockState` and `SetScrollLockState`: a lock key
+/// on, off, or left as it is.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09, with `ConvertOnOffAlways`
+/// read beside it:
+///
+/// - "On", and the text "1", turn the state on; "Off", and the text "0", turn
+///   it off, without regard to the case of the word;
+/// - "AlwaysOn" and "AlwaysOff" turn it on and off too, and they ask a
+///   keyboard hook of Windows to keep it so: the tree carries no hook, and the
+///   state is the one that was asked for and not a state forced from then on;
+/// - nothing, the empty text, and any word that is not one of those leaves the
+///   state alone, and it is not a failure: `SetCapsLockState("Bogus")` answers
+///   the empty text and the state does not change;
+/// - "-1" is not one of the words, and it does not toggle anything.
+///
+/// The answer of every form is the empty text.
+pub(crate) fn set_lock_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let lock = match variant {
+        1 => "CapsLock",
+        2 => "NumLock",
+        _ => "ScrollLock",
+    };
+    let wanted = match values.first() {
+        None => None,
+        Some(value) => {
+            let text = value.to_text();
+            let lowered = text.to_ascii_lowercase();
+            match lowered.as_str() {
+                "on" | "alwayson" => Some(true),
+                "off" | "alwaysoff" => Some(false),
+                // The numbers are the words "1" and "0", and they are read as
+                // the texts they are: measured on the binary of v2.0.19 on
+                // 2026-11-09, `SetCapsLockState(1)` turns the state on.
+                "1" => Some(true),
+                "0" => Some(false),
+                _ => None,
+            }
+        }
+    };
+    if let Some(on) = wanted {
+        rt.desktop()
+            .set_lock(lock, on)
+            .map_err(|e| desktop_failure(e, line))?;
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `OutputDebug`: a text for the debugger of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the parameter is a text,
+/// and the answer is the empty text. A machine whose debugger is the standard
+/// error of the process writes the text there, and the report of the runner on
+/// the standard output is not touched.
+pub(crate) fn output_debug(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    rt.desktop()
+        .output_debug(&text)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `FileRecycle`: a file, a folder, or the files that a pattern matches.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the empty
+/// text, a plain path that is not there is the failure "Failed", a pattern
+/// that matches nothing is not a failure, and an empty path is "Parameter #1
+/// of FileRecycle is invalid." with the empty text in the `Extra`.
+pub(crate) fn file_recycle(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(value) = values.first() else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "FileRecycle"),
+            line,
+        });
+    };
+    let pattern = value.to_text();
+    if pattern.is_empty() {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "FileRecycle"),
+            line,
+        });
+    }
+    rt.desktop()
+        .recycle(&pattern)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `FileRecycleEmpty`: empty the trash of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the empty
+/// text, and the drive that is named is the trash that is emptied.
+pub(crate) fn file_recycle_empty(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let drive = values
+        .first()
+        .map(|value| value.to_text())
+        .filter(|text| !text.is_empty());
+    rt.desktop()
+        .empty_trash(drive.as_deref())
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// The name of the reading of a drive that a variant asks for.
+fn the_drive_reading(variant: u8) -> &'static str {
+    match variant {
+        1 => "DriveGetCapacity",
+        2 => "DriveGetFilesystem",
+        3 => "DriveGetLabel",
+        4 => "DriveGetSerial",
+        5 => "DriveGetSpaceFree",
+        6 => "DriveGetStatus",
+        _ => "DriveGetType",
+    }
+}
+
+/// `DriveGetCapacity`, `DriveGetFilesystem`, `DriveGetLabel`, `DriveGetSerial`,
+/// `DriveGetSpaceFree`, `DriveGetStatus` and `DriveGetType`: the readings of a
+/// drive.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the free space and the
+/// capacity are counted in megabytes, the serial is a number, the filesystem
+/// and the label are texts, a drive that is not there is the empty text for
+/// the type and "Invalid" for the state, and the other readings of a drive
+/// that is not there are the failure of the machine.
+///
+/// A machine has no drive letters: a drive is the path a volume is mounted at,
+/// and a text that names a drive the way Windows does is refused with the
+/// reason.
+pub(crate) fn drive_get(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let name = the_drive_reading(variant);
+    let Some(value) = values.first() else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, name),
+            line,
+        });
+    };
+    let path = value.to_text();
+    match variant {
+        6 => Ok(Value::Text(
+            match rt
+                .desktop()
+                .drive_status(&path)
+                .map_err(|e| desktop_failure(e, line))?
+            {
+                Some(status) => status,
+                None => "Invalid".to_string(),
+            },
+        )),
+        7 => Ok(Value::Text(
+            rt.desktop()
+                .drive_type(&path)
+                .map_err(|e| desktop_failure(e, line))?
+                .unwrap_or_default(),
+        )),
+        _ => {
+            let Some(drive) = rt
+                .desktop()
+                .drive(&path)
+                .map_err(|e| desktop_failure(e, line))?
+            else {
+                return Err(RuntimeError {
+                    message: format!("the drive of {path} is not there."),
+                    line,
+                });
+            };
+            Ok(match variant {
+                1 => Value::Int(drive.capacity_megabytes),
+                2 => Value::Text(drive.filesystem),
+                3 => Value::Text(drive.label),
+                4 => Value::Int(drive.serial),
+                5 => Value::Int(drive.free_megabytes),
+                _ => Value::Int(0),
+            })
+        }
+    }
 }
 
 // -- the rest -------------------------------------------------------------------

@@ -1,7 +1,7 @@
-cases: 95
+cases: 96
 
 verdict	count
-MATCH	83
+MATCH	84
 KEYS-DIFFERS	9
 RUST-DIFFERS	0
 BOTH-DIFFER	3
@@ -9,7 +9,7 @@ ERROR	0
 
 family	MATCH	KEYS-DIFFERS	RUST-DIFFERS	BOTH-DIFFER	ERROR	total
 classes	7	0	0	0	0	7
-control	9	0	0	0	0	9
+control	10	0	0	0	0	10
 errors	7	5	0	2	0	14
 expr	6	1	0	0	0	7
 fileio	8	0	0	0	0	8

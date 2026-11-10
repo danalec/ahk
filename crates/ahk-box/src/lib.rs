@@ -6,9 +6,11 @@
 //! is.
 
 pub mod desktop;
+pub mod drives;
 pub mod files;
 pub mod hotkeys;
 pub mod keyboard;
+pub mod locks;
 pub mod machine;
 pub mod native;
 pub mod network;
@@ -18,6 +20,7 @@ pub mod pointer;
 pub mod process;
 pub mod raven;
 pub mod sys;
+pub mod trash;
 pub mod wayland;
 
 /// The X11 desktop, on the two hosts whose display servers speak X11.

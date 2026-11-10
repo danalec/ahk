@@ -599,6 +599,21 @@ impl ahk::desktop::Files for LabDesktop {
             "took the key {key:?} of the section {section:?} away"
         ))
     }
+
+    fn recycle(&mut self, pattern: &str) -> Result<(), String> {
+        // The trash of the desk is the one of the XDG specification, and the
+        // reading of a pattern is the one of v2: measured on the binary of
+        // v2.0.19 on 2026-11-09, a file that is there goes away, a plain path
+        // that is not there is "Failed", and a pattern that matches nothing is
+        // not a failure.
+        crate::trash::recycle(pattern)
+    }
+
+    fn empty_trash(&mut self, _drive: Option<&str>) -> Result<(), String> {
+        // A Linux machine has one trash for the user, and not one for each
+        // volume: the drive of the call names nothing to empty here.
+        crate::trash::empty()
+    }
 }
 
 // -- the helpers -------------------------------------------------------------------

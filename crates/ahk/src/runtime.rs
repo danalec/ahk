@@ -360,6 +360,11 @@ pub fn accepts(kind: TypeName, value: &Value) -> bool {
         TypeName::String => matches!(value, Value::Text(_) | Value::Int(_) | Value::Float(_)),
         TypeName::Number | TypeName::Integer => value.to_number_strict().is_ok(),
         TypeName::Object => matches!(value, Value::Object(_)),
+        // Measured on the binary of v2.0.19 on 2026-11-09: a parameter that
+        // the table declares as a value of the kind `VarRef` takes a
+        // reference and nothing else -- `MonitorGet(1, 9)` is "Parameter #2
+        // of MonitorGet requires a VarRef, but received an Integer.".
+        TypeName::VarRef => matches!(value, Value::Reference(_)),
         // The tree carries no value of COM, and nothing is one.
         TypeName::ComValue => false,
         _ => true,
@@ -2815,9 +2820,10 @@ impl<'a> Runtime<'a> {
                 source,
                 body,
                 until,
+                otherwise,
                 line,
             } => {
-                self.for_loop(variables, source, body, until, *line)?;
+                self.for_loop(variables, source, body, until, otherwise, *line)?;
             }
             Node::MethodCall {
                 target,
@@ -2957,7 +2963,10 @@ impl<'a> Runtime<'a> {
                 let _ = (matched, line);
             }
             Node::While {
-                condition, body, ..
+                condition,
+                body,
+                otherwise,
+                ..
             } => {
                 // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-04:
                 // the v1 takes the body of the loop from the statement that
@@ -3002,6 +3011,13 @@ impl<'a> Runtime<'a> {
                             self.the_index_is_given_back(saved);
                             return Err(failure);
                         }
+                    }
+                }
+                // Measured on the binary of v2.0.19 on 2026-11-09: the `else`
+                // of a loop runs when the loop took no turn at all.
+                if iterations == 0 {
+                    if let Some(otherwise) = otherwise {
+                        self.run_block(otherwise)?;
                     }
                 }
                 self.the_index_is_given_back(saved);
@@ -3070,12 +3086,17 @@ impl<'a> Runtime<'a> {
                 arguments,
                 body,
                 until,
+                otherwise,
                 line,
             } => {
                 // Measured on the binary of v2.0.19 on 2026-11-01: every loop
                 // saves the value of `A_Index` when it starts and gives it
                 // back when it ends.
                 let saved = self.the_index_is_saved();
+                // How many turns the loop took: the `else` of the loop runs
+                // when there were none. Every branch of the match below that
+                // can take a turn assigns it.
+                let turns: usize;
                 match mode {
                     LoopKind::Count => {
                         match arguments.first() {
@@ -3097,6 +3118,7 @@ impl<'a> Runtime<'a> {
                                     }
                                 }
                                 let count = self.the_count_of_the_loop(node, *line)?;
+                                turns = count.max(0) as usize;
                                 // Measured on the binary of v2.0.19 on 2026-11-01:
                                 // the index of the turn is the value of
                                 // `A_Index`, and the body may write it: the
@@ -3142,8 +3164,12 @@ impl<'a> Runtime<'a> {
                                 // Measured on the binary of v2.0.19 on 2026-11-01:
                                 // the index of the turn is the number of it,
                                 // and the loop without a count counts as
-                                // well.
+                                // well. The loop always takes at least one
+                                // turn when it is entered, so its `else` runs
+                                // only if the body never ran -- which the
+                                // turn counter below says.
                                 let mut turn = 1i64;
+                                turns = 1;
                                 loop {
                                     self.steps_taken += 1;
                                     if self.steps_taken > Self::MAX_STEPS {
@@ -3218,6 +3244,7 @@ impl<'a> Runtime<'a> {
                                 })
                                 .collect()
                         };
+                        turns = pieces.len();
                         for (index, piece) in pieces.iter().enumerate() {
                             self.set_global("A_Index", Value::Int(index as i64 + 1));
                             self.set_global("A_LoopField", Value::Text(piece.clone()));
@@ -3288,6 +3315,7 @@ impl<'a> Runtime<'a> {
                                     line: *line,
                                 })
                             })?;
+                        turns = files.len();
                         for (index, file) in files.iter().enumerate() {
                             let name = the_name_of(file);
                             let extension = the_extension_of(name);
@@ -3346,6 +3374,7 @@ impl<'a> Runtime<'a> {
                             })
                         })?;
                         self.loop_output_files.push(output);
+                        turns = lines.len();
                         let mut failure = None;
                         for (index, line_text) in lines.iter().enumerate() {
                             self.set_global("A_Index", Value::Int(index as i64 + 1));
@@ -3376,6 +3405,15 @@ impl<'a> Runtime<'a> {
                                 .into(),
                             line: *line,
                         }));
+                    }
+                }
+                // Measured on the binary of v2.0.19 on 2026-11-09: the `else`
+                // of a `Loop` runs when the loop took no turn -- the counted
+                // zero, the parse of an empty text, the files of a pattern
+                // that names nothing, the read of an empty file.
+                if turns == 0 {
+                    if let Some(otherwise) = otherwise {
+                        self.run_block(otherwise)?;
                     }
                 }
                 self.the_index_is_given_back(saved);
@@ -3532,6 +3570,7 @@ impl<'a> Runtime<'a> {
         source: &Node,
         body: &[Node],
         until: &Option<Box<Node>>,
+        otherwise: &Option<Vec<Node>>,
         line: u32,
     ) -> Result<(), RuntimeFailure> {
         // v2 gives the loop two variables at most: the key and the
@@ -3626,6 +3665,13 @@ impl<'a> Runtime<'a> {
             self.restore_variable(&name, value);
         }
         self.the_index_is_given_back(saved_index);
+        // Measured on the binary of v2.0.19 on 2026-11-09: the `else` of a
+        // `for` runs when the source held no value to walk.
+        if outcome.is_ok() && turns == 0 {
+            if let Some(otherwise) = otherwise {
+                outcome = self.run_block(otherwise);
+            }
+        }
         outcome
     }
 
@@ -11341,6 +11387,20 @@ impl<'a> Runtime<'a> {
             {
                 continue;
             }
+            // A parameter that the table declares as a value of the kind
+            // `VarRef` takes exactly the reference that the guard holds: the
+            // kind check below judges it.
+            //
+            // Measured on the binary of v2.0.19 on 2026-11-09: the four
+            // output parameters of `MonitorGet` accept `&left`, and a value
+            // that is not a reference is refused with "requires a VarRef, but
+            // received an Integer.".
+            if matches!(
+                crate::builtins::wants(builtin.name, index),
+                crate::builtins::Wants::Declared(TypeName::VarRef)
+            ) {
+                continue;
+            }
             // A reference is a value of its own kind. Where the parameter
             // wants a text, a number or an object, the reference does not
             // fit and the built-in says so. Where the parameter takes any
@@ -12649,7 +12709,15 @@ impl<'a> Runtime<'a> {
                                 },
                             ));
                         };
-                        let answer = match &left_value {
+                        let answer = if self.class_name_of(&left_value).is_some() {
+                            // Measured on the binary of v2.0.19 on
+                            // 2026-11-09: a class is an Object and a Class,
+                            // and it is not an instance of itself -- `C is
+                            // Class` is 1, `C is Object` is 1, `C is C` is 0
+                            // -- and none of the classes is a Primitive.
+                            class == "class" || class == "object" || class == "any"
+                        } else {
+                            match &left_value {
                             Value::Object(object) => {
                                 let name = object.borrow().class.clone();
                                 // Every object is an Object: it is the root
@@ -12667,6 +12735,7 @@ impl<'a> Runtime<'a> {
                                 class == "any"
                                     || class == name
                                     || self.class_chain(&name).contains(&class)
+                            }
                             }
                         };
                         Value::Int(answer as i64)

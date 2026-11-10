@@ -593,6 +593,35 @@ impl ahk::desktop::Keyboard for LabDesktop {
     fn keys_down(&mut self) -> Result<Vec<String>, String> {
         crate::hotkeys::keys_down()
     }
+    fn lock_is_on(&mut self, lock: &str) -> Result<bool, String> {
+        crate::locks::is_on(lock)
+    }
+    fn set_lock(&mut self, lock: &str, on: bool) -> Result<(), String> {
+        // The state of a lock key is the LED of the keyboard, and the key is
+        // what turns it: measured on the box on 2026-11-09, the compositor
+        // writes the LED when the key goes through it. The key is sent only
+        // when the state is not the one that is wanted -- a keyboard that
+        // sends the key it already is in would turn the state away from the
+        // one that was asked for.
+        let now = crate::locks::is_on(lock)?;
+        if now == on {
+            return Ok(());
+        }
+        self.press_key(lock, &[])?;
+        // The compositor answers the key at the pace of its own frame, and
+        // the LED is what says that it did: the wait is bounded, and a state
+        // that did not arrive is the reason and not a silence.
+        for _ in 0..50 {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            if crate::locks::is_on(lock)? == on {
+                return Ok(());
+            }
+        }
+        Err(format!(
+            "the compositor did not change the state of the {lock}: the key was sent, and the LED \
+             of the key is still the one it was."
+        ))
+    }
 }
 
 impl ahk::desktop::Pointer for LabDesktop {
@@ -1161,6 +1190,22 @@ impl ahk::desktop::Machine for LabDesktop {
     }
     fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
         crate::network::ip_addresses()
+    }
+    fn output_debug(&mut self, text: &str) -> Result<(), String> {
+        // The debugger of the machine is the standard error of the process:
+        // the report of the runner is the standard output, and it is not
+        // touched.
+        eprintln!("{text}");
+        Ok(())
+    }
+    fn drive(&mut self, path: &str) -> Result<Option<ahk::desktop::Drive>, String> {
+        crate::drives::drive(path)
+    }
+    fn drive_type(&mut self, path: &str) -> Result<Option<String>, String> {
+        crate::drives::drive_type(path)
+    }
+    fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
+        crate::drives::drive_status(path)
     }
 }
 

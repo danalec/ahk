@@ -10046,3 +10046,92 @@ seven names are `value` in `--surface` now.
   the runtime's `increment` has an arm for `Node::DynamicName` that reads and
   writes through `the_name_of_the_pieces` and `write_a_dynamic_name`. The
   differential case is `pa02_dynamic_name`.
+## 252. The `Else` of a loop, and the kind of the output of a monitor read
+
+- **Every loop of v2 may carry an `else`, and it runs when the loop took no
+  turn.** Measured on the binary of v2.0.19 on 2026-11-09: `Loop 0`, a
+  `while` whose condition is false before the first turn, `for x in []`,
+  `Loop Files` of a pattern that names no file and `Loop Parse ""` all run
+  their `else`; a loop that took a turn -- even one that a `break` ended --
+  does not. The `else` may follow the brace of a block body or the one
+  statement of a single-line body, on the same line or on the next one. The
+  parser reads it in `the_else_of_a_loop`, the three loop nodes carry the
+  body in `otherwise`, and the three arms of the run count their turns
+  (`iterations` in the `while`, `turns` in the `Loop` and in `for_loop`).
+  The walkers of `warnings.rs` and of the parser treat the `else` body as a
+  body of the loop, so a label or a goto inside it belongs to the scope of
+  the loop. The differential case is `co10_loop_else`, and the case in
+  `tests/language.rs` is
+  `a_loop_may_carry_an_else_that_runs_when_it_took_no_turn`.
+- **The output parameters of the monitor reads are values of the kind
+  `VarRef` in the table of the binary.** Measured on 2026-11-09:
+  `MonitorGet(1, 9)` is "Parameter #2 of MonitorGet requires a VarRef, but
+  received an Integer." with "MonitorGet" in the `What` and the number in the
+  `Extra`, while a reference there is accepted; the output variable of
+  `RegExMatch` says "a variable reference" and carries the empty `What`. The
+  tree now has the kind in the table (`Parameter::VarRef`, and the kind check
+  of `runtime.rs` accepts a reference for it), so both wordings and both
+  `What`s are the ones of the binary. The case is
+  `the_output_parameters_of_the_monitor_reads_want_a_reference`.
+## 253. What the `is` of a class answers
+
+Measured on the binary of v2.0.19 on 2026-11-09: a class value is an `Object`
+and a `Class` -- `C is Class` is 1, `C is Object` is 1, `Map is Class` is 1 --
+and it is **not** an instance of itself: `C is C` is 0. A prototype is not an
+instance of its own class either: `C.Prototype is C` is 0 and
+`C.Prototype is Object` is 1. The tree answered `C is Class` zero and `C is C`
+one, because the class value fell into the arm of the objects and the chain of
+its own name contains the name. The arm for a class value is now its own: the
+`is` answers `class`, `object` or `any` and nothing else. The case is
+`a_class_is_a_class_and_an_object_and_not_an_instance_of_itself`.
+
+## 254. The lock keys, the trash, the drives and the debug output
+
+Measured on the binary of v2.0.19 on 2026-11-09 and implemented on the box;
+thirteen names moved from "this is a name of Windows" to a value.
+
+- **`SetCapsLockState`, `SetNumLockState`, `SetScrollLockState`**: `On` and
+  the text "1" turn the key on, `Off` and "0" turn it off, nothing turns it
+  over, and a word that is not known leaves the key alone and is not a
+  failure; every form answers the empty text. The box reads the LED the
+  kernel keeps for the key (`/sys/class/leds/input*::capslock/brightness`)
+  and sends the key through its own keyboard only when the LED differs,
+  re-reading it for up to a second. `AlwaysOn` and `AlwaysOff` set the state
+  now and do not force it: the hook of Windows that would is not carried.
+- **`OutputDebug`** writes the text to the stderr of the process and answers
+  nothing; the JSON report on stdout is untouched.
+- **`FileRecycle`** moves the file or the folder into the XDG trash of its
+  volume -- `$XDG_DATA_HOME/Trash` for the home, `$topdir/.Trash-<uid>` for
+  another volume -- and writes the `.trashinfo` record with the path and the
+  local time of the deletion. A plain path that is not there is the failure
+  "Failed" (measured, contrary to the guess that it would not be); a wildcard
+  that names nothing is not a failure. `FileRecycleEmpty` empties both.
+- **The `DriveGet*` readers** take a path or a mount point, because the box
+  has no drive letters -- the letter form is refused with the reason -- and
+  answer from `/proc/mounts`, `/sys/block` (fixed, removable, network, CD-ROM,
+  RAM disk), `/dev/disk/by-label` and `statvfs` (filesystem, label, serial as
+  `f_fsid`, free and capacity in megabytes, "Ready"). A path that is not
+  there answers the empty text for the type, "Invalid" for the status and the
+  failure of the machine for the rest. `DriveGetList` stays a refusal: a list
+  of drive letters is a notion of Windows that the box does not have.
+
+The modules are `crates/ahk-box/src/{locks,trash,drives}.rs`, and the
+capability methods with their defaults are in `crates/ahk/src/desktop.rs`.
+
+## 255. The Keysharp corpus runs its own assertions now
+
+The corpus scripts call the Keysharp test harness through `#Include <assert>`,
+and the triage used to strip that line, so every script failed at its first
+`AssertEq` with "This global variable has not been assigned a value." -- the
+harness was missing, not the tree. `egm-review/keysharp-audit/corpus/include/`
+now holds `assert.ahk` (a v2.0.19 reimplementation of the surface the scripts
+use: `Assert`, `AssertEq` with `unset`, `AssertError`, `Throws` with the class
+check, `Described`, `CallsPastCompilation`) and `testpaths.ahk`, and the
+triage stages them where the include is and copies the fixtures of the file
+tests. A failed assertion writes `Assertion failed: ...` before it throws,
+and the triage reads that marker as FAIL: the runner still reports an uncaught
+thrown error as "Unhandled exception." with no message, so the marker is what
+keeps an assertion failure apart from an engine failure. With the harness the
+corpus is **59 of 162 pure scripts (36.4 %)** passing, 15 failing their
+assertions and 88 stopped by the tree. `ThrowsMessage` is not in the library
+on purpose: its two uses are in a script that defines the function itself.
