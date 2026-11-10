@@ -2977,6 +2977,39 @@ honoured, and the name would then be answered rather than refused -- but that is
 different member from the one the reason describes, and mixing them would be the
 `Move`-place lie in another place.
 
+### Round 138 — 2026-11-09: the window family works too, and the bug was in the probe
+
+Round 137 said the refusals are true. This round asked the **window** cluster,
+the biggest at thirty-five, and the answer is that **most of it works**:
+
+```
+WinGetCount()          -> 1
+WinGetTitle()          -> "danalec@pod158c:~"
+WinGetClass("ahk")     -> "Target window not found."   (v2's own wording for no match)
+WinGetList()           -> an **Array**, which is what v2 answers
+```
+
+**And the last one is why the probe looked broken at first**: `out .= "[" WinGetList() "]"`
+answers *"Expected a String but got an Array."* -- because an `Array` cannot be
+concatenated to a text, **in this tree or in v2**. The array was there and correct;
+the test was wrong. Same lesson as round 118, where a test function named `G` beside
+a variable `g` produced a feature reverted for a defect in the probe.
+
+**So the window family is not a refusal cluster either.** `WinGetTitle`,
+`WinGetCount`, `WinGetClass`, `WinExist` and `WinActive` answer through the
+compositor, and `WinGetList` answers the array of the windows it lists.
+
+**What that means for the count of 143**: it is not a list of thirty-five window
+refusals plus others. It is a list that has **not been read**, and two attempts to
+read it by its names have now been wrong twice (the drives in 134-135, the windows
+here). The names that refuse are the ones to ask *individually* -- and the two
+clusters asked so far have been mostly working.
+
+**The next round should sample the refusal list properly**: dump the surface, take
+the names whose state is a refusal, run each in a loop in one script, and collect
+the messages. That is one script and one run for a hundred and forty names, and it
+is the only reading of that list that has not been wrong.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
