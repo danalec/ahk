@@ -3286,6 +3286,40 @@ instead of hanging**. That is the test round 147 could not pass.
 transport is what every `Gui` member rests on. It wants a round that can build,
 run the kill test, and keep it if it passes.
 
+### Round 152 — 2026-11-09: the hang is real, the bound catches it, and EditPaste stays refused
+
+`EditPaste` was built a second time, now that the transport has a bound, and the run
+answered in one line:
+
+```
+runner exit = 0
+the script:  ERR|the window helper stopped answering
+```
+
+**Three things are proven at once, and this is the best evidence the transport fix
+could have had:**
+
+1. **the hang is real** and it is `insert_at_cursor` on a `Gtk.Entry` called from
+   the helper's idle callback -- the helper stops answering, which is what round 147
+   saw and could not explain;
+2. **the bound works on a real hang**, not only on the easier broken-pipe case of
+   round 151 -- the wait gave up, the script got a reason, and **the runner exited 0
+   with a report** where round 147 had no report at all;
+3. **so `EditPaste` must stay refused**, and it is reverted again, and this time the
+   reason is measured: *the helper stops answering when it is asked to put a text at
+   the cursor of an entry*.
+
+**What the member needs, if it is ever done**: not `insert_at_cursor` -- the entry
+has a buffer that can be written without asking GTK to do the placing, and the
+cursor is a position that can be set after. That is a different operation from the
+one that hangs, and it is the thing to try next time.
+
+**And the arc is the session's best**: a one-line member hung (147), the hang was
+probed rather than written off (148), a structural bound was designed and built
+(149, 150), the bound was proven (151), and the same member was then used as the
+**test case for the bound** (152). **A reverted feature became the instrument that
+proved a fix under the whole family.**
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
