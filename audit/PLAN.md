@@ -3994,6 +3994,43 @@ asking:
 **The tree is clean, green on both platforms, nothing half-built, nothing unverified.**
 That is the state to hand over, and it matters more than the number.
 
+### Round 213 — 2026-11-09: the surface and the runtime give two different reasons
+
+The four `Win*Style` names were given a reason of their own, and then:
+
+```
+the surface:  WinGetStyle  command  refusal: this is a name of Windows, and this
+                                           desktop is not Windows.
+a script:     WinGetStyle("x")  ->  a window style is a number of Windows that says
+                                    how a window is decorated, and under this
+                                    compositor the decoration belongs to the
+                                    compositor and a client has no style number at all
+```
+
+**The surface prints `refusal_message(variant)` -- the row's DECLARATION -- and the
+runtime prints the message the HANDLER gives.** They are two different things, and
+after five narrowed refusals (rounds 187, 197, 211, 212 and this one) **they now
+disagree for those five**.
+
+**That is a finding about the catalogue, not about the tree**: `--surface` is a
+statement of what each name is, and the statement it makes about a reason is the
+**row's**, which is right for a name that was never looked at and **stale for one that
+was**. The script is told the truth; the catalogue still tells the family story.
+
+**What would make them agree**, and it is a decision: either the narrowed refusals get
+a variant of their own whose message is the narrow one -- which is the mechanism the
+surface already understands -- or the surface asks the handler, which it cannot do
+without running a script per name.
+
+**The first is the cheap one**, and it has a cost worth naming: a variant is shared by
+every name that carries it, so a **narrow** message needs a **variant per reason**, and
+that is a table that grows with the audit. That may well be right -- the reasons ARE
+individual now -- but it is a change to how the catalogue is built, and it is not a
+thing to do at the end of a round.
+
+**Recorded rather than done**, because the runtime is already telling the truth and the
+catalogue's disagreement is a **documentation defect**, not a behavioural one.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:

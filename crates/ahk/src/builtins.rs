@@ -2395,7 +2395,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinGetID",
@@ -2503,7 +2503,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinGetText",
@@ -2656,7 +2656,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinSetRegion",
@@ -2674,7 +2674,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinSetTitle",
@@ -10093,6 +10093,26 @@ pub(crate) fn win_trans_color(
 ) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
         message: "a transparency colour is a layered window of Windows, where one colour is made invisible; this tree sets an opacity for the whole window, which is WinSetTransparent and WinGetTransparent".to_string(),
+        line,
+    })
+}
+
+/// `WinGetStyle`, `WinSetStyle`, `WinGetExStyle` and `WinSetExStyle`: **refused, with a
+/// reason of their own.**
+///
+/// A window style is a number of Windows that says how a window is decorated and what
+/// it may do -- a thick frame, a system menu, a title bar. Under this compositor **the
+/// decoration belongs to the compositor and the client has no style number at all**:
+/// there is nothing to read and nothing to set, and the words of v2's style bits have
+/// no counterpart here.
+pub(crate) fn win_style(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "a window style is a number of Windows that says how a window is decorated, and under this compositor the decoration belongs to the compositor and a client has no style number at all".to_string(),
         line,
     })
 }
