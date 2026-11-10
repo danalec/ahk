@@ -4124,6 +4124,43 @@ command.
 the box's failure named the number. **A red box after a commit is not a lost round if the
 record says what happened.**
 
+### Round 222 — 2026-11-09: the last found window, a mechanism v2 has and this tree does not
+
+`WinGetIDLast` was measured with a window of the script's own shown and present:
+
+```
+WinGetIDLast()                          -> Target window not found.
+WinGetIDLast("no-such-window-zzz")      -> Target window not found.
+```
+
+**Even with the window on the screen and the script holding it.** The reason is not the
+window: it is that **`WinGetIDLast` asks about v2's "last found window"**, a piece of
+state that a `WinExist`, a `WinActivate` or any other `Win*` call sets as a side effect,
+and which later calls read when they name no window.
+
+**This tree has no such state.** Every `Win*` of this family takes its window by title
+and looks it up; there is no "the window the last call found". So:
+
+- `WinGetIDLast` cannot answer, and its refusal is now known to be about **state** and
+  not about the window;
+- **and the same is true of every name that would read that state** -- which is why the
+  handle names (`WinGetIDLast`, `WinGetControls` on a bare call, `MenuFromHandle`) are a
+  family of their own and not a list of unrelated refusals.
+
+**What it would take**: a field on the runtime that remembers the window a `Win*` call
+last found, set by the names that look one up and read by the names that name none.
+That is the same shape as the list of the windows (round 111) and the pointer table
+(round 203) -- **state that survives between statements** -- and it is a mechanism, not
+a capability.
+
+**Not built**: it is a change to every `Win*` handler's side effect as well as a new
+field, and the round that does it should do the whole family at once rather than one
+name.
+
+**The finding is worth the round**: the remaining refusals keep separating into
+**capabilities the tree lacks** and **mechanisms it does not carry**, and this is the
+third mechanism after the window list and the pointer table.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
