@@ -595,6 +595,14 @@ pub trait Windows {
         Err("this desktop cannot read a flag of a control of the script".to_string())
     }
 
+    /// Put the focus on a control of a window of the script.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `Focus` answers the empty
+    /// text and takes no parameters.
+    fn gui_focus(&mut self, _number: u64) -> Result<(), String> {
+        Err("this desktop cannot put the focus on a control of the script".to_string())
+    }
+
     /// Set the size of a control of a window of the script.
     ///
     /// The **size** and not the place: measured on 2026-11-09, the window this

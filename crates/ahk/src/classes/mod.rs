@@ -1658,6 +1658,22 @@ pub(crate) fn call(
             Err(reason) => Err(the_failure_with(&reason, "", line)),
         });
     }
+    // `Focus` of a control: it takes no parameters and answers the empty text.
+    // Measured on the binary of v2.0.19 on 2026-11-09.
+    if class.to_lowercase().starts_with("gui.") && method.eq_ignore_ascii_case("focus") {
+        if !arguments.is_empty() {
+            return Some(Err(the_failure_with(
+                "Too many parameters passed to function.",
+                "",
+                line,
+            )));
+        }
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_focus(number) {
+            Ok(()) => Ok(Value::Text(String::new())),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
     if method.eq_ignore_ascii_case("__item") {

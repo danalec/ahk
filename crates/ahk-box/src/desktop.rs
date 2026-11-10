@@ -1122,6 +1122,16 @@ impl ahk::desktop::Windows for LabDesktop {
             .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
     }
 
+    fn gui_focus(&mut self, number: u64) -> Result<(), String> {
+        let command = format!("{{\"op\": \"focus\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the focus did not move to the control: {answer}"))
+        }
+    }
+
     fn gui_size(&mut self, number: u64, width: i64, height: i64) -> Result<(), String> {
         let command = format!(
             "{{\"op\": \"size\", \"id\": {}, \"w\": {}, \"h\": {}}}",

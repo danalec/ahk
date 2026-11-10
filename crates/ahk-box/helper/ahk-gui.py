@@ -252,6 +252,20 @@ def the_size(number, width, height):
     answer({"ok": False, "error": "there is no control with the number %d" % number})
 
 
+def the_focus(number):
+    """Put the focus on a control of the window. `Focus` of v2, which answers nothing."""
+    for held, _kind, control in state["controls"]:
+        if held != number:
+            continue
+        window = state["window"]
+        if window is not None:
+            window.present()
+        control.grab_focus()
+        answer({"ok": True, "value": 1 if control.has_focus() else 0})
+        return
+    answer({"ok": False, "error": "there is no control with the number %d" % number})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -261,6 +275,8 @@ def handle(command):
     op = command.get("op", "")
     if op == "window":
         run_on_loop(lambda: the_window(command.get("title", "ahk-gui")))
+    elif op == "focus":
+        run_on_loop(lambda: the_focus(command.get("id", 0)))
     elif op == "size":
         run_on_loop(
             lambda: the_size(
