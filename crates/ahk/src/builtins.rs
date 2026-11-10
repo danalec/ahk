@@ -1539,7 +1539,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 0,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit,
     },
     Builtin {
         name: "EditGetCurrentCol",
@@ -10250,6 +10250,24 @@ pub(crate) fn file_create_shortcut(
         )
         .map_err(|reason| desktop_failure(reason, line))?;
     Ok(Value::Text(String::new()))
+}
+
+/// `Edit()`: **refused, with a reason of its own.**
+///
+/// The name takes no parameters -- measured on the binary of v2.0.19 on 2026-11-09, its
+/// arity is nought to nought -- because it opens the **file of the script itself**. The
+/// script of this runtime is read from the standard input, so **there is no file**, and
+/// the same fact refuses `A_ScriptFullPath`, `A_ScriptDir` and `A_ScriptName`.
+pub(crate) fn edit(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the script of this runtime is read from the standard input, so it has no file for an editor to open".to_string(),
+        line,
+    })
 }
 
 pub(crate) fn sleep(
