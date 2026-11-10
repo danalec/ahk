@@ -3966,18 +3966,27 @@ size it, focus it, close it -- and **answer an event in it with the control in h
 `Move`, `Focus`, `Show`, `Hide`, `Destroy`, `OnEvent`, and the `Win*` family that acts
 on the script's own window.
 
-**Where to go next, in order of value**:
+**Where to go next, in order of value** -- and this list was rewritten in round 243, because
+two of its four items had been finished while it still named them:
 
-1. **the `Control*` family that names a control of the script's own window** -- there
-   are about twenty, they are the same five steps, and `ControlGetFocus`,
-   `GetHwnd`, `GetClassNN`, `Hide`, `Show`, `SetEnabled`, `GetChecked` and
-   `SetChecked` have already shown the shape;
-2. **the `Edit*` remainder** -- `EditGetCurrentCol` and `GetLine` are done and the rest
-   are the same arm;
-3. **`ToolTip`, `SysGet`, `StrGet`** -- measurable, and no longer filed under Windows
-   now that the list has been read;
+1. **the ten names still closable**: `ToolTip`, `ControlSend`, `OnClipboardChange`,
+   `CallbackCreate`, `Edit`, `FileCreateShortcut`, `RunAs`, `SysGet`, `Shutdown`, and
+   `ControlGetPos` (refused for a measured reason). **The `Edit*` family is COMPLETE**
+   -- all seven answer -- and the `Control*` family has fourteen answering and the rest
+   waiting on a control the tree does not make (the list-shaped ones);
+2. **the ten mechanisms** that would unlock a family each: the **last-found window**
+   (round 222), the **window groups**, a **third event channel** for
+   `OnClipboardChange`, and the **array-returning** names that need nothing more;
+3. **the three unmeasurable** -- `FileGetShortcut`, `FileRecycle`, `FileGetVersion` --
+   which are **answers and not gaps**: the reference will not say what it does, so
+   there is nothing to match;
 4. and **the refusals that are true**: the registry, the COM objects, the image lists,
-   the styles, and the handle pairs. **They are answers, not gaps.**
+   the styles, and the handle pairs. **They are answers too.**
+
+**What has actually been finished**, so the list above is not read as aspirational:
+**all seven `Edit*` names**, **fourteen `Control*`**, **seventeen `Win*`**, the four
+**pointer** names, the `Gui` capability entire, and `DriveGet*`, `MonitorGet*`,
+`SysInputBox`'s family and `Persistent`.
 
 **The four questions that produced all of this**, and that a successor should keep
 asking:
