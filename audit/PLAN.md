@@ -3954,6 +3954,46 @@ measured**, and round 206 measured only one.
 exactly as the reference refuses, so those two are measurable against it, and that is a
 piece of work with a known shape rather than a bug.
 
+### Round 210 — 2026-11-09: the position, written for whoever opens this next
+
+**The numbers**: 833 names of v2.0.19, of which **724 answer** and **109 refuse**, on
+both platforms, with 28 suites green on each and `clippy` clean.
+
+**What the tree can do that it could not at round 1**: make a window, fill it with any
+of four kinds of control, read and write every property of them, show it, hide it,
+size it, focus it, close it -- and **answer an event in it with the control in hand**.
+`Gui`, `Add` and every `Add*`, `Value`, `Text`, `Enabled`, `Visible`, `Title`, `Opt`,
+`Move`, `Focus`, `Show`, `Hide`, `Destroy`, `OnEvent`, and the `Win*` family that acts
+on the script's own window.
+
+**Where to go next, in order of value**:
+
+1. **the `Control*` family that names a control of the script's own window** -- there
+   are about twenty, they are the same five steps, and `ControlGetFocus`,
+   `GetHwnd`, `GetClassNN`, `Hide`, `Show`, `SetEnabled`, `GetChecked` and
+   `SetChecked` have already shown the shape;
+2. **the `Edit*` remainder** -- `EditGetCurrentCol` and `GetLine` are done and the rest
+   are the same arm;
+3. **`ToolTip`, `SysGet`, `StrGet`** -- measurable, and no longer filed under Windows
+   now that the list has been read;
+4. and **the refusals that are true**: the registry, the COM objects, the image lists,
+   the styles, and the handle pairs. **They are answers, not gaps.**
+
+**The four questions that produced all of this**, and that a successor should keep
+asking:
+
+- **what does the reference say?** (measure before writing -- it dissolved six
+  "defects");
+- **what does the tree actually do?** (run it -- the drives, the windows and the
+  pointer pair all worked already);
+- **which copy am I reading?** (the sync trap of round 204);
+- **what was this refusal about, and is it still true?** (it recovered fourteen names
+  that were refused before round 70, and eleven more that were not about Windows at
+  all).
+
+**The tree is clean, green on both platforms, nothing half-built, nothing unverified.**
+That is the state to hand over, and it matters more than the number.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
