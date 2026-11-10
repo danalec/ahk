@@ -2127,6 +2127,36 @@ them --
 3. `Title` as a property and a write, over `gui_title`;
 4. the second `Gui` is refused by the desktop, which round 66 already does.
 
+### Round 68 — 2026-11-09: the lazy open needs an "is there a window", which does not exist
+
+Round 66's box verification is done: **28 suites, 690/143**, the binary builds.
+Then the first member was attempted, and the attempt found a gap the plan had
+not:
+
+**`gui_open` refuses a second window (round 66), and the lazy open of round 64
+calls it from every member that needs one.** So `Show` twice would be: open
+(works), show (works); then open (**refused, because the window is already
+there**), and the script fails on its own second `Show`. The two decisions from
+rounds 64 and 66 are individually right and **together inconsistent**.
+
+**What is missing is one small query**: "is there a window of the script?" --
+`gui_is_open`, answering a bool. Three ways to do without it, all worse:
+
+1. **call `gui_open` and ignore its failure** -- which swallows the real failure
+   of a helper that did not start, and turns it into "there is no window" from
+   the next call. That is a worse message for the actual problem;
+2. **make `gui_open` idempotent again** -- which undoes round 66 and brings back
+   the silent replacement of a second `Gui`, and the silent case was the one
+   worth refusing;
+3. **keep the handle in the object** -- which is the state store round 67 found
+   does not exist yet.
+
+**So the next step is the query, not the member**: one method on `Windows`
+answering a bool with a default of `false`, and the box answering it from the
+`Option<TheWindow>`. That is three lines and it is what makes the four steps of
+round 64 actually composable, which an attempt at the code found and the plan
+did not.
+
 ## 5. How every round is verified
 The project's own rules (`AGENTS.md`) plus three traps that cost time in
 round 1:
