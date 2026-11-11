@@ -6582,4 +6582,23 @@ fn closing_a_group_takes_it_away() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "x"), 0);
-}
+}
+
+#[test]
+fn the_styles_of_a_window_are_refused_with_the_reason_of_the_compositor() {
+    // The decoration of a window belongs to the compositor under every
+    // desktop of this tree, and the style number of Windows has no
+    // counterpart here: the branch refused them with these reasons of its
+    // own on 2026-11-10, and a refusal with a reason of its own is exactly
+    // the answer a case keeps honest.
+    let report = run("WinGetStyle(\"A\")");
+    assert_eq!(
+        failure_of(&report),
+        "a window style is a number of Windows that says how a window is decorated, and under this compositor the decoration belongs to the compositor and a client has no style number at all"
+    );
+    let report = run("WinGetTransColor(\"A\")");
+    assert_eq!(
+        failure_of(&report),
+        "a transparency colour is a layered window of Windows, where one colour is made invisible; this tree sets an opacity for the whole window, which is WinSetTransparent and WinGetTransparent"
+    );
+}

@@ -11945,3 +11945,23 @@ of the matrix.
 
 **The surface moves with the family: 763 answers with a value and 70 are
 refused become 767 and 66.**
+
+## 324. The styles of a window are refused with a reason of their own
+
+**The eighth family of the port is the six style names** -- `WinGetStyle`,
+`WinSetStyle`, `WinGetExStyle`, `WinSetExStyle`, `WinGetTransColor` and
+`WinSetTransColor`. They do not move the surface: the branch refuses them
+statically, the way this tree refuses a name it does not carry, and the
+port carries the same refusal now. What moves is the run: where this tree
+answered the blanket reason of the names of Windows, it answers the reason
+of the family -- measured on the box on 2026-11-11, `WinGetStyle("A")`
+fails with "a window style is a number of Windows that says how a window
+is decorated, and under this compositor the decoration belongs to the
+compositor and a client has no style number at all", and
+`WinSetTransColor` fails with the reason of the layered window of
+Windows, which this tree does not have: its opacity is the whole-window
+one, `WinSetTransparent` and `WinGetTransparent`.
+
+**The case that pins the two reasons is of this tree and not of the
+branch**: the branch carries no case for the family, and a refusal with a
+reason of its own is exactly the answer a case keeps honest.

@@ -234,11 +234,15 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 
 **What the port has moved so far: the surface goes from 684 answers with
 a value and 149 refusals to 767 and 66.** The branch answers 815 and
-refuses 18, so **48 names are still to come**: the COM objects (9), the
-registry (5), the tray (2, and a helper of their own), the styles (6) and
-the small ones (the callbacks, the messages, the lists of icons, the
-handles, `BlockInput`, `RunAs`, `Shutdown`, `FileGetVersion`,
-`OnClipboardChange`, `Edit`).
+refuses 18, so **48 names are still to come**: the COM objects and the
+pointers of them, the callbacks, the messages, the lists of icons, the
+handles of the guis and of the menus, the tray (2, and a helper of their
+own), the status bars, and the small ones (`BlockInput`, `RunAs`,
+`Shutdown`, `FileGetVersion`, `OnClipboardChange`, `Edit`) -- beside the
+variables and the methods the branch answers and this tree still refuses.
+The styles are not in that count: they are refused in the branch too, and
+the port carries the same refusal now, with the reason of the family at
+the run.
 
 **The sixth family is ported too (2026-11-11): the names of the sound
 devices.** `SoundGetName` asks the mixer of the session -- `pactl`, the
@@ -258,6 +262,15 @@ group answers `8388620`, the id of the xterm in the client list. And the
 VM asked for one hand merge more: `matching_windows`, the question a
 group activation makes, reads the client list of the X server now, where
 the branch and the master answered the reason of the compositor.
+
+**The eighth family is ported too (2026-11-11): the styles of a window.**
+The six names stay refused in the surface -- the branch refuses them
+statically as well -- but the run answers the reason of the family
+instead of the blanket reason of the names of Windows: measured on the
+box, `WinGetStyle("A")` fails with "a window style is a number of Windows
+that says how a window is decorated, and under this compositor the
+decoration belongs to the compositor and a client has no style number at
+all".
 
 **The fourth family is ported too (2026-11-11): the edit that has the
 focus.** The `Edit*` names take the *handle* of a control and read it
