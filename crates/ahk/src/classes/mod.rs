@@ -41,6 +41,7 @@ pub(crate) mod inputhook;
 pub(crate) mod map;
 pub(crate) mod regexmatchinfo;
 pub(crate) mod thread;
+pub(crate) mod timer;
 pub(crate) mod scriptprocess;
 pub(crate) mod propref;
 pub(crate) mod typed;
@@ -1435,6 +1436,7 @@ const THE_KS_SPELLINGS: &[(&str, &str)] = &[
     ("struct", "Struct"),
     ("thread", "Thread"),
     ("propref", "PropRef"),
+("timer", "Timer"),
 ("scriptprocess", "ScriptProcess"),
     ("argumenterror", "ArgumentError"),
     ("unsupportederror", "UnsupportedError"),
@@ -1825,6 +1827,7 @@ pub(crate) fn property(
         _ if rt.dialect().carries_the_class_of_the_extension(class) => {
             propref::property(class, name, this, line)
                 .or_else(|| scriptprocess::property(class, name, this, rt, line))
+                .or_else(|| timer::property(class, name, this, rt, line))
                 .or_else(|| typed::property(class, name, this, line))
         }
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {

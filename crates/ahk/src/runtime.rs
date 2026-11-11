@@ -1332,6 +1332,10 @@ struct Function {
 /// The timer names a function of the script, and it runs between the
 /// statements, not in a thread of its own.
 struct Timer {
+    /// The timers the script set, with the facts of each one.
+    ///
+    /// The name of the function it runs, the milliseconds between two runs,
+    /// and when it ran the last time.
     /// The name of the function the timer runs.
     name: String,
     /// The milliseconds between two runs.
@@ -3112,6 +3116,18 @@ impl<'a> Runtime<'a> {
     ///
     /// The steps of a timer are steps of the script, so the budget of a
     /// timer is the budget of the script.
+    pub(crate) fn the_timers(&self) -> Vec<(String, u64, u64)> {
+
+        self.timers
+
+            .iter()
+
+            .map(|timer| (timer.name.clone(), timer.period, timer.last))
+
+            .collect()
+
+    }
+
     fn run_timers(&mut self) -> Result<(), RuntimeFailure> {
         let now = self.now_ms();
         let due: Vec<String> = self

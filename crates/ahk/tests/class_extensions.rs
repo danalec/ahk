@@ -1072,3 +1072,17 @@ fn the_process_that_the_machine_does_not_know_is_refused_with_the_reason() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }
+
+#[test]
+fn the_timers_of_the_script_are_objects() {
+    // The timers the script set are an array of the objects of them, and
+    // each object says the function it runs and the period.
+    let report = run_ks(concat!(
+        "SetTimer(() => 0, 100)\n",
+        "MsgBox A_Timers.Length\n",
+        "MsgBox A_Timers[1].Period\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "100");
+}

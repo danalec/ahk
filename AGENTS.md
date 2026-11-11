@@ -11810,3 +11810,21 @@ pid".
 
 The arm of a class of the `ks` dialect goes where the arm of the `PropRef`
 is, and not inside it.
+
+## 321. The timers of the script, as objects of the `ks` dialect
+
+The `ks` dialect carries the accessor `A_Timers`: the array of the timers
+the script set, and each one of them is an object of the class `Timer`.
+The object says the function the timer runs (`Function`), the
+milliseconds between two runs (`Period`) and when it ran the last time
+(`Last`).
+
+**The object is made by the runtime, which holds the timers of the
+script; a script does not make one.** The array is the state of the
+runtime at the moment of the access: a timer that the script sets after
+the access is not in it.
+
+The facts of a timer are the ones the runtime has: the name of the
+function it runs, the period and the moment of the last run. The
+KeySharp reads the last one in the `Enabled` of the object, and this tree
+does not carry a timer that can be turned off and on.

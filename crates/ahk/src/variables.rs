@@ -40,6 +40,7 @@
 //! variable of the dialect at all: it is a variable of the script, and
 //! the runtime says that it has no value.
 
+use alloc::vec::Vec;
 use alloc::format;
 use alloc::string::ToString;
 
@@ -1136,6 +1137,21 @@ fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeErr
         .strip_prefix("a_")
         .unwrap_or(lowered.strip_prefix('a').unwrap_or(lowered.as_str()));
     match bare {
+        // The timers the script set: an array of the objects of them.
+        "timers" => {
+            let timers = rt.the_timers();
+            let mut items = Vec::new();
+            for (function, period, last) in timers {
+                items.push(crate::classes::timer::the_timer(&function, period, last));
+            }
+            match crate::classes::array::construct(&items, rt, 0) {
+                Ok(array) => Ok(array),
+                Err(failure) => Err(RuntimeError {
+                    message: crate::runtime::the_message_of(&failure),
+                    line: 0,
+                }),
+            }
+        }
         // The documentation of KeySharp writes the two clocks as the number
         // of v2 with the two digits of the fraction after it:
         // "YYYYMMDDHH24MISS.ff".
