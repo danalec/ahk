@@ -1147,6 +1147,45 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn menu_select_fails_on_a_window_that_is_not_there_and_on_a_menu_it_cannot_reach() {
+    // Measured on the binary of v2.0.19 on 2026-11-10, each shape in its own
+    // try: a window that is not there throws "Target window not found."; the
+    // menu of a window that IS there throws "Non-existent or unsupported
+    // menu." -- the reference avoids driving a menu from its own thread, and
+    // this desktop cannot reach the menus of a foreign window either.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    MenuSelect(\"no-such\", \"\", \"&File\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "seen"), Value::Text("Target window not found.".into()));
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    MenuSelect(\"first\", \"\", \"&File\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("Non-existent or unsupported menu.".into())
+    );
+}
+
+#[test]
 fn choosing_a_menu_item_calls_its_callback_with_the_name_the_position_and_the_menu() {
     // Documented on v2.0.19 on 2026-11-10: the callback of a menu item is
     // called with (ItemName, ItemPos, MyMenu) -- the name of the item, its

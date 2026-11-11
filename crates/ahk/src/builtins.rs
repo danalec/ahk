@@ -1753,9 +1753,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 11,
-        variant: 130,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: from_hwnd,
+        handler: menu_select,
     },
     Builtin {
         name: "MonitorGet",
@@ -11043,6 +11043,42 @@ pub(crate) fn group_close(
     let group = text_of(values, 0);
     rt.close_a_group(&group);
     Ok(Value::Text(String::new()))
+}
+
+/// `MenuSelect`: choose an item of the menu of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10, each shape in its own
+/// try: a window that is not there is a throw of "Target window not found.";
+/// the menu of a window that IS there -- the script's own, by position or by
+/// path, an item that does not exist, or a window without a menu at all --
+/// is a throw of "Non-existent or unsupported menu." (the reference avoids
+/// driving a menu from its own thread and fails the same way for every
+/// shape). This desktop cannot reach the menus of a foreign window either,
+/// so the second wording is the answer for every window that is found.
+pub(crate) fn menu_select(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The shape here is (WinTitle, Menu, SubMenu1, ...): the parameters after
+    // the first are the path of the item and not the exclusions of a WinGet,
+    // so the title alone is read from the first of them.
+    let title = text_of(values, 0);
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, crate::settings::title_match_mode())
+        .map_err(|e| desktop_failure(e, line))?;
+    if windows.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "Non-existent or unsupported menu.".to_string(),
+        line,
+    })
 }
 
 /// `GuiFromHwnd`, `GuiCtrlFromHwnd`, `MenuFromHandle` and `MenuSelect`:

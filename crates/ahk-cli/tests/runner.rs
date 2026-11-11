@@ -268,9 +268,11 @@ fn the_surface_flag_answers_with_json() {
     // answers, and the surface reads the variant.
     //
     // `CaretGetPos` is the latest: it answered the place of the caret on the
-    // binary through the focused widget of the helper (round 5).
-    assert_eq!(report.number("values"), 760);
-    assert_eq!(report.number("refusals"), 73);
+    // binary through the focused widget of the helper (round 5). `MenuSelect`
+    // followed it: the reference throws a wording of its own for the window
+    // that is not there and another for the menu of one that is (round 6).
+    assert_eq!(report.number("values"), 761);
+    assert_eq!(report.number("refusals"), 72);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
