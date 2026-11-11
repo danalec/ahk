@@ -44,7 +44,10 @@ emits `activate` on an item of the bar exactly as a click does, and the
 events file carries `menu:&File` (round 4). With the runtime side proven
 the round before, the whole chain from the bar to the callback is green;
 the one link outside our code is the compositor's hit-test of a physical
-click.
+click. **Round 5 moved `CaretGetPos` from the refusal to the value** --
+`b45c6b8`: the helper finds the focused widget, and an Entry carries its
+caret at the layout offset of the cursor position read through the pango
+layout; the count is now **760 values / 73 refusals** of 833.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
