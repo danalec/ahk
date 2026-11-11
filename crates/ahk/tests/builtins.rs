@@ -134,6 +134,20 @@ impl Network for Fake {
 }
 
 impl Sound for Fake {
+
+    fn sound_device_named(&mut self, device: &str) -> Result<Option<String>, String> {
+        self.calls.push(("sound-named".into(), device.into()));
+        Ok(if device == "Speakers" {
+            Some("Speakers".to_string())
+        } else {
+            None
+        })
+    }
+
+    fn sound_device_names(&mut self) -> Result<(String, String), String> {
+        self.calls.push(("sound-names".into(), String::new()));
+        Ok(("Speakers".to_string(), "Microphone".to_string()))
+    }
     fn sound_volume(&mut self, device: &str) -> Result<f64, String> {
         self.calls.push(("volume".into(), device.into()));
         Ok(50.0)
@@ -1481,14 +1495,6 @@ fn a_sound_that_the_desktop_cannot_answer_fails_the_script() {
     assert!(failure.contains("cannot"), "{failure}");
 }
 
-#[test]
-fn the_names_of_the_sound_that_are_windows_fail_with_the_reason() {
-    let report = run("SoundGetName()");
-    assert_eq!(
-        failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
-    );
-}
 
 #[test]
 fn a_string_in_title_case_has_the_first_letter_of_each_word_up() {
@@ -6476,4 +6482,72 @@ fn drive_get_type_of_a_drive_that_is_not_there_is_empty() {
     let report = run("x := DriveGetType(\"/nowhere\")");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn the_name_of_a_sound_device_is_the_name_the_machine_gives_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `SoundGetName` with no
+    // component answers the name of the device that plays, and with the
+    // component one the name of the one that records; the component two
+    // answers the empty text, and a component that is not there throws
+    // "Component not found.".
+    // `SoundGetInterface` wants the identifier of an interface -- a GUID --
+    // and anything else throws "Parameter #1 of SoundGetInterface is
+    // invalid."; a GUID that the machine does not carry the interface of
+    // answers zero.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "plays := SoundGetName()",
+            "\nrecords := SoundGetName(1)",
+            "\nsecond := SoundGetName(2)",
+            "\ntry\n{",
+            "\n    SoundGetName(0)",
+            "\n}\ncatch as err\n{",
+            "\n    missing := err.Message",
+            "\n}",
+            "\tinterface := SoundGetInterface(\"{C02216F6-8C67-4B5B-9D00-D008E73E0064}\")",
+            "\ntry\n{",
+            "\n    SoundGetInterface(\"x\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The names are the names of the machine.
+    assert_eq!(value_of(&report, "plays"), Value::Text("Speakers".into()));
+    assert_eq!(value_of(&report, "records"), Value::Text("Microphone".into()));
+    // The second component has no name.
+    assert_eq!(value_of(&report, "second"), Value::Text(String::new()));
+    // A component that is not there is the failure of the target.
+    assert_eq!(
+        value_of(&report, "missing"),
+        Value::Text("Component not found".into())
+    );
+    // An identifier of an interface is a GUID, and there is no interface of
+    // the sound of this platform.
+    assert_eq!(value_of(&report, "interface"), Value::Int(0));
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #1 of SoundGetInterface is invalid.".into())
+    );
+}
+
+#[test]
+fn the_names_of_the_sound_that_are_windows_fail_with_the_reason() {
+    // `SoundGetName` answered the blanket reason until round 211 gave it one of its
+    // own: the name of an audio device belongs to the system that runs it, and this
+    // runtime answers the volume and the mute of the default device, which
+    // `SoundGetMute` shows, and not the names the system gives them.
+    //
+    // The refusal was given up on 2026-11-11: the mixer of the session
+    // publishes the names of the devices, and the runtime asks it for them
+    // the way it already asks it for the volume -- so `SoundGetName` answers
+    // the name of the device that plays and the name of the one that
+    // records, as the binary of v2.0.19 does.
+    let report = run("name := SoundGetName()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "name"), Value::Text("Speakers".into()));
 }

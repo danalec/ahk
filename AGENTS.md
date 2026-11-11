@@ -11884,3 +11884,31 @@ old shape; the merge keeps the master's reach with the branch's answers.
 refused become 761 and 72.** The tools the family needs are in the list
 of the services of the matrix: `df` and `lsblk` are of `util-linux`,
 `eject` too, and `udisksctl` is of `udisks2`.
+
+## 322. The names of the sound devices are the mixer's
+
+**The sixth family of the port is the two names that ask the mixer which
+device plays and which one records** (`SoundGetName`, `SoundGetInterface`).
+Until 2026-11-11 they carried the blanket reason of the names of Windows;
+the branch gave them the mixer of the session, and the port carries it:
+`pactl`, the same tool the volume and the mute of the family before it
+already ask.
+
+**Measured on the box on 2026-11-11** (COSMIC, pipewire): `SoundGetName()`
+answers "Radeon High Definition Audio Controller Digital Stereo (HDMI)
+[ASUS VP278]" -- the long description the mixer publishes, the shape of
+the name of a device of Windows in v2 -- and `SoundGetName(1)` answers
+"Monitor of Radeon High Definition Audio Controller Digital Stereo
+(HDMI) [ASUS VP278]", the device that records. `SoundGetName(2)` answers
+the empty text, `SoundGetInterface` of a GUID answers 0, and one that is
+not a GUID fails with "Parameter #1 of SoundGetInterface is invalid.",
+the wording of the binary.
+
+**Measured on the VM of the matrix on the same day, without a mixer:**
+the name fails with "the mixer refused: sh: line 1: pactl: command not
+found" -- the reason of a machine with no mixer, and not a wrong name.
+A VM that is to answer the family carries `pipewire` and
+`pipewire-pulse`, which put `pactl` in the path of the session.
+
+**The surface moves with the family: 761 answers with a value and 72 are
+refused become 763 and 70.**

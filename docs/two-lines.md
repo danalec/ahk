@@ -233,10 +233,21 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 761 and 72.** The branch answers 815 and
-refuses 18, so **54 names are still to come**: the COM objects (9), the
-registry (5), the tray (3), the groups (4), the sound devices (2) and the
-small ones (the lock lights, the cursor, the trash, the IPs, the notify).
+a value and 149 refusals to 763 and 70.** The branch answers 815 and
+refuses 18, so **52 names are still to come**: the COM objects (9), the
+registry (5), the tray (2, and a helper of their own), the groups (4),
+the styles (6) and the small ones (the callbacks, the messages, the
+lists of icons, the handles, `BlockInput`, `RunAs`, `Shutdown`,
+`FileGetVersion`, `OnClipboardChange`, `Edit`).
+
+**The sixth family is ported too (2026-11-11): the names of the sound
+devices.** `SoundGetName` asks the mixer of the session -- `pactl`, the
+same tool the volume and the mute already ask -- and `SoundGetInterface`
+reads the identifier of an interface the way the binary spells it.
+Measured on the box: the playback device answers "Radeon High Definition
+Audio Controller Digital Stereo (HDMI) [ASUS VP278]" and the recording
+one the monitor of it; measured on the VM without a mixer: the reason of
+a machine with no `pactl`, and not a wrong name.
 
 **The fourth family is ported too (2026-11-11): the edit that has the
 focus.** The `Edit*` names take the *handle* of a control and read it

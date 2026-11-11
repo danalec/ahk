@@ -118,6 +118,7 @@ and the *window of the script* need:
 | a bridge of AT-SPI for o Chromium | `chromium` ✔ with `--force-renderer-accessibility` | the Chromium does not expose its controls unless it is told to |
 | o cliente de X11 | `libx11` ✔ | the X path of the tree |
 | as ferramentas do X | `xorg-xprop` ✔, `xorg-xwininfo` ✔ | the client list, the active window and the state are `xprop`; the place and the size are `xwininfo`. Without them the X11 family answers "Target window not found." |
+| o mixer da sessão | `pipewire` + `pipewire-pulse` (which puts `pactl` in the path) | the family of the sound devices reads the names of the devices through `pactl`, the way the volume and the mute already do. Without a mixer the names fail with the reason of the machine |
 | o compositor do COSMIC | `cosmic-comp` (AUR) | a referência |
 | o utilitário do bus | `systemd` ✔ (`busctl` ✔) | o `atspi.rs` fala com o bus por `busctl` |
 

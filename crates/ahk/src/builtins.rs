@@ -2211,9 +2211,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sound_get_interface,
     },
     Builtin {
         name: "SoundGetMute",
@@ -2229,9 +2229,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 0,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sound_get_name,
     },
     Builtin {
         name: "SoundGetVolume",
@@ -14267,4 +14267,102 @@ fn the_drive_of(
             line,
         }),
     }
+}
+
+/// `SoundGetName(Component, Device)`: the name of a sound device.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `SoundGetName Component, Device`; with no component the answer is the
+/// name of the device that plays -- "Speakers (Fosi Audio K5 Pro)" on the
+/// machine of that day -- and with the component one the name of the one
+/// that records -- "Microphone". The component two answers the **empty
+/// text**, and a component that is not there throws **"Component not
+/// found."**.
+///
+/// The name is the name of the machine: the mixer of the session publishes
+/// it, and this runtime answers the volume and the mute of the same
+/// device already.
+pub(crate) fn sound_get_name(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let component = text_of(values, 0).trim().to_string();
+    let device = text_of(values, 1).trim().to_string();
+    let (plays, records) = rt
+        .desktop()
+        .sound_device_names()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    // A device that is named is the one that is asked for.
+    if !device.is_empty() {
+        return match rt
+            .desktop()
+            .sound_device_named(&device)
+            .map_err(|reason| desktop_failure(reason, line))?
+        {
+            Some(name) => Ok(Value::Text(name)),
+            None => Err(RuntimeError {
+                message: "Component not found".to_string(),
+                line,
+            }),
+        };
+    }
+    match component.as_str() {
+        // The device that plays, and the one that records.
+        "" => Ok(Value::Text(plays)),
+        "1" => Ok(Value::Text(records)),
+        // The second component of the device is there and it has no name.
+        "2" => Ok(Value::Text(String::new())),
+        _ => Err(RuntimeError {
+            message: "Component not found".to_string(),
+            line,
+        }),
+    }
+}
+
+/// `SoundGetInterface(IID, Component, Device)`: an interface of a sound device.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter is
+/// the **identifier of the interface** -- a GUID in the form
+/// "{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}" -- and anything else throws
+/// "Parameter #1 of SoundGetInterface is invalid.". A GUID that the machine
+/// does not carry the interface of answers **zero**.
+///
+/// The interfaces of the sound of Windows are COM objects of Windows, and
+/// this platform has no COM: every GUID that is a GUID answers zero, the
+/// way the binary answers for the interfaces it does not support.
+pub(crate) fn sound_get_interface(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let iid = text_of(values, 0).trim().to_string();
+    if !is_the_identifier_of_an_interface(&iid) {
+        return Err(RuntimeError {
+            message: "Parameter #1 of SoundGetInterface is invalid.".to_string(),
+            line,
+        });
+    }
+    Ok(Value::Int(0))
+}
+
+/// Whether a text is the identifier of an interface.
+///
+/// The form is the one of the binary of v2.0.19, measured on 2026-11-11:
+/// the braces, and eight hexadecimal numbers, four, four, four and twelve.
+fn is_the_identifier_of_an_interface(text: &str) -> bool {
+    let Some(inner) = text.strip_prefix('{').and_then(|rest| rest.strip_suffix('}')) else {
+        return false;
+    };
+    let parts: Vec<&str> = inner.split('-').collect();
+    if parts.len() != 5 {
+        return false;
+    }
+    let widths = [8, 4, 4, 4, 12];
+    parts
+        .iter()
+        .zip(widths)
+        .all(|(part, width)| part.len() == width && part.chars().all(|c| c.is_ascii_hexdigit()))
 }

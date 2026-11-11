@@ -1604,6 +1604,26 @@ pub enum ImageSearch {
 /// with the name of the device, or with `#` and its number -- `#1` is
 /// the first device -- and the empty name is the device of the system.
 pub trait Sound {
+
+    /// The name of the sound device of this name, if the machine has one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `SoundGetName` with
+    /// a device that the machine does not have throws "Component not
+    /// found.".
+    fn sound_device_named(&mut self, _device: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the names of the sound devices".to_string())
+    }
+
+    /// The names of the sound devices of the machine: the one that plays
+    /// and the one that records.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `SoundGetName` with
+    /// no component answers the name of the device that plays -- "Speakers
+    /// (Fosi Audio K5 Pro)" on the machine of that day -- and with the
+    /// component one the name of the one that records -- "Microphone".
+    fn sound_device_names(&mut self) -> Result<(String, String), String> {
+        Err("this desktop cannot tell the names of the sound devices".to_string())
+    }
     /// The volume of a device, as a number between 0 and 100.
     fn sound_volume(&mut self, _device: &str) -> Result<f64, String> {
         Err("this desktop cannot say the volume of a device".to_string())

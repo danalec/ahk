@@ -216,6 +216,36 @@ impl LabDesktop {
     }
 
     // ---- gui_title_is
+
+    /// The long name of the device that the mixer chose for a kind.
+    ///
+    /// The mixer publishes the name of every device and a description that
+    /// is longer; the description is the one that v2 would answer for the
+    /// device of Windows.
+    fn the_description_of(&mut self, kind: &str, which: &str) -> Result<String, String> {
+        let chosen = self.pactl(&[which])?.trim().to_string();
+        if chosen.is_empty() {
+            return Ok(String::new());
+        }
+        let listing = self.pactl(&["list", kind])?;
+        // The mixer lists the name of a device and its description, and the
+        // description comes after the name: the answer is the description of
+        // the device whose name is the one that was chosen.
+        let mut matched = false;
+        for line in listing.lines() {
+            let Some((key, value)) = line.split_once(':') else {
+                continue;
+            };
+            match key.trim() {
+                "Name" => matched = value.trim() == chosen,
+                "Description" if matched => {
+                    return Ok(value.trim().to_string());
+                }
+                _ => {}
+            }
+        }
+        Ok(chosen)
+    }
     /// Whether the title names the window the script made.
     fn gui_title_is(&mut self, title: &str) -> bool {
         if title.is_empty() {
@@ -2054,6 +2084,37 @@ impl ahk::desktop::Windows for LabDesktop {
 }
 
 impl ahk::desktop::Sound for LabDesktop {
+
+    fn sound_device_named(&mut self, device: &str) -> Result<Option<String>, String> {
+        for kind in ["sinks", "sources"] {
+            let listing = self.pactl(&["list", kind])?;
+            // The description of a device comes after its name.
+            let mut matched = false;
+            for line in listing.lines() {
+                let Some((key, value)) = line.split_once(':') else {
+                    continue;
+                };
+                match key.trim() {
+                    "Name" => matched = value.trim() == device,
+                    "Description" if matched => {
+                        return Ok(Some(value.trim().to_string()));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    fn sound_device_names(&mut self) -> Result<(String, String), String> {
+        // The mixer of the session knows the device that plays and the one
+        // that records, and the name it publishes for them is the long one
+        // -- "Radeon High Definition Audio Controller Digital Stereo (HDMI)"
+        // -- the way v2 names the device of Windows.
+        let plays = self.the_description_of("sinks", "get-default-sink")?;
+        let records = self.the_description_of("sources", "get-default-source")?;
+        Ok((plays, records))
+    }
     fn sound_volume(&mut self, device: &str) -> Result<f64, String> {
         let sink = self.sink(device)?;
         let output = self.pactl(&["get-sink-volume", &sink])?;
