@@ -208,6 +208,21 @@ tem resposta para casar, e a chamada dá a razão do tree. The count is
 refusal: the styles of Windows, the threads, the cursor of the machine,
 the window of a script, the sound of Windows and its COM objects.
 
+**Round 28 asked the raven** (`b7d8a7b`): the `DllCall` already spoke to
+the emulator of Windows of the box, and it emulates the whole of Windows --
+the registry, the windows, the input, the threads. The refusal of
+`A_WinDir` and `A_ProgramFiles` ("this is a name of Windows, and this
+desktop is not Windows") did not hold: the box has no Windows of its own,
+and the **raven** is one. The desktop asks it now for the directory of the
+system and for the directory of the programs, with a block of memory that
+goes to the guest and comes back with what the callee wrote in it -- and
+the box answers "C:\Windows" and "C:\Program Files", the Windows of the
+emulated machine. (Measured on the binary of v2.0.19: the **binary
+hangs** when the script writes the name without the prefix `A_` -- the
+spelling the table of the surface carries -- and `A_ProgramFilesCommon`
+hangs too.) The count is **815 values / 18 refusals** for the v2, and
+**308** for the v1, which has the same names.
+
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
 spelling (`Add` and every `Add*`), read and write its `Value`, `Text`, `Enabled`
