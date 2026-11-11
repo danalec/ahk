@@ -71,6 +71,8 @@ struct Fake {
     drive_label: Option<String>,
     /// The state of the three lock lights of the fake.
     lock_lights: [bool; 3],
+    /// The registry of the fake: the key, and the values of it.
+    registry: std::collections::BTreeMap<String, Vec<(String, String, String)>>,
 }
 
 impl Desktop for Fake {}
@@ -152,6 +154,55 @@ impl Machine for Fake {
         } else {
             None
         })
+    }
+    fn registry_value(&mut self, key: &str, name: &str) -> Result<Option<(String, String)>, String> {
+        self.calls.push(("registry-value".into(), format!("{key}|{name}")));
+        let values = self.registry.get(key);
+        Ok(values.and_then(|held| {
+            held.iter()
+                .find(|(_, held, _)| held.eq_ignore_ascii_case(name))
+                .map(|(kind, _, value)| (kind.clone(), value.clone()))
+        }))
+    }
+    fn registry_write(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        self.calls
+            .push(("registry-write".into(), format!("{key}|{name}|{kind}|{value}")));
+        let values = self.registry.entry(key.to_string()).or_default();
+        match values
+            .iter_mut()
+            .find(|(_, held, _)| held.eq_ignore_ascii_case(name))
+        {
+            Some(held) => {
+                held.0 = kind.to_string();
+                held.2 = value.to_string();
+            }
+            None => values.push((kind.to_string(), name.to_string(), value.to_string())),
+        }
+        Ok(())
+    }
+    fn registry_delete(&mut self, key: &str, name: &str) -> Result<(), String> {
+        self.calls
+            .push(("registry-delete".into(), format!("{key}|{name}")));
+        if let Some(values) = self.registry.get_mut(key) {
+            values.retain(|(_, held, _)| !held.eq_ignore_ascii_case(name));
+        }
+        Ok(())
+    }
+    fn registry_delete_key(&mut self, key: &str) -> Result<(), String> {
+        self.calls.push(("registry-delete-key".into(), key.to_string()));
+        self.registry.remove(key);
+        Ok(())
+    }
+    fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
+        self.calls.push(("registry-create-key".into(), key.to_string()));
+        self.registry.entry(key.to_string()).or_default();
+        Ok(())
     }
     fn drive_label(&mut self, path: &str) -> Result<Option<String>, String> {
         self.calls.push(("drive-label".into(), path.to_string()));
@@ -1216,6 +1267,88 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_registry_of_the_machine_answers_the_shapes_the_binary_carries() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: RegWrite takes
+    // (Value, ValueType, KeyName, ValueName) -- the value comes first and
+    // the type is the second -- and answers the empty text; RegRead takes
+    // (KeyName, ValueName, Default) and answers "(2) The system cannot find
+    // the file specified." for a value that is not there, unless a default is
+    // given; a kind that is not one of the five throws "Parameter #2 of
+    // RegWrite is invalid."; and a key with no hive throws "Parameter #1 of
+    // RegCreateKey is invalid.".
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := RegCreateKey(\"HKCU\\Software\\AhkProbe\")",
+            "\nb := RegWrite(\"Value\", \"REG_SZ\", \"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nc := RegRead(\"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nd := RegWrite(42, \"REG_DWORD\", \"HKCU\\Software\\AhkProbe\", \"Num\")",
+            "\ne := RegRead(\"HKCU\\Software\\AhkProbe\", \"Num\")",
+            "\nf := RegRead(\"HKCU\\Software\\AhkProbe\", \"NoSuch\", \"fallback\")",
+            "\ng := RegDelete(\"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nh := RegDeleteKey(\"HKCU\\Software\\AhkProbe\")",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The calls that make and remove answer the empty text.
+    for name in ["a", "b", "g", "h"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()));
+    }
+    assert_eq!(value_of(&report, "c"), Value::Text("Value".into()));
+    // A value of REG_DWORD is a number.
+    assert_eq!(value_of(&report, "e"), Value::Int(42));
+    // A value that is not there is the default when there is one.
+    assert_eq!(value_of(&report, "f"), Value::Text("fallback".into()));
+
+    // A value that is not there and no default: the machine's failure.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "RegCreateKey(\"HKCU\\Software\\AhkProbe\")",
+            "\ntry\n{",
+            "\n    RegRead(\"HKCU\\Software\\AhkProbe\", \"NoSuch\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(2) The system cannot find the file specified.".into())
+    );
+
+    // A kind that is not one of the five, and a key with no hive.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    RegWrite(\"V\", \"BOGUS\", \"HKCU\\Software\\X\", \"N\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    RegCreateKey(\"Software\\X\")",
+            "\n}\ncatch as err\n{",
+            "\n    hive := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #2 of RegWrite is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "hive"),
+        Value::Text("Parameter #1 of RegCreateKey is invalid.".into())
+    );
+}
+
+#[test]
 fn the_lock_lights_answer_the_state_that_the_program_set() {
     // Measured on the binary of v2.0.19 on 2026-11-11: "On" turns the light
     // on and "Off" turns it out, and GetKeyState(<lock>, "T") reads the
@@ -1860,12 +1993,15 @@ fn a_drag_goes_down_in_one_place_and_comes_up_in_another() {
 fn a_name_of_windows_fails_with_the_reason() {
     // `StrGet` used to be the example of the blanket reason. On 2026-11-10 it
     // was given a reason of its own: the reference hangs on it, so there is no
-    // answer for this runtime to match. `RegRead` is a name of Windows in the
-    // plain sense, and it still says so.
-    let report = run("RegRead(\"HKLM\", \"Software\")");
+    // answer for this runtime to match. `RegRead` used to be the example of
+    // the blanket reason too, and it was carried on 2026-11-11: the registry
+    // is a thing of Windows, and this runtime keeps one of its own -- the
+    // hives are folders and the keys are files -- so the call answers the
+    // machine's failure when the key is not there.
+    let report = run("RegRead(\"HKLM\\Software\\NoSuchKey\", \"X\")");
     assert_eq!(
         failure_of(&report),
-        "the registry is a thing of Windows, and this runtime does not carry it."
+        "(2) The system cannot find the file specified."
     );
 }
 

@@ -2454,6 +2454,27 @@ impl ahk::desktop::Machine for LabDesktop {
             ))
         }
     }
+    fn registry_value(&mut self, key: &str, name: &str) -> Result<Option<(String, String)>, String> {
+        crate::registry::value_of(key, name)
+    }
+    fn registry_write(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        crate::registry::write(key, name, kind, value)
+    }
+    fn registry_delete(&mut self, key: &str, name: &str) -> Result<(), String> {
+        crate::registry::delete(key, name)
+    }
+    fn registry_delete_key(&mut self, key: &str) -> Result<(), String> {
+        crate::registry::delete_key(key)
+    }
+    fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
+        crate::registry::create_key(key)
+    }
     fn user_name(&mut self) -> Result<String, String> {
         crate::machine::user_name()
     }

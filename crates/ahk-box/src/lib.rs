@@ -18,6 +18,7 @@ pub mod picture;
 pub mod pictures;
 pub mod pointer;
 pub mod raven;
+pub mod registry;
 pub mod sys;
 pub mod wayland;
 

@@ -1637,6 +1637,45 @@ pub trait Machine {
         Err("this desktop cannot tell the space of a drive".to_string())
     }
 
+    /// The value of the registry of the machine, and its kind.
+    ///
+    /// `None` is a value that is not there; a key that is not there is a
+    /// failure with the reason of the machine. Measured on the binary of
+    /// v2.0.19 on 2026-11-11: `RegRead` of a value that is not there
+    /// throws "(2) The system cannot find the file specified.".
+    fn registry_value(&mut self, _key: &str, _name: &str) -> Result<Option<(String, String)>, String> {
+        Err("this desktop cannot read the registry of the machine".to_string())
+    }
+
+    /// Write a value into the registry of the machine.
+    ///
+    /// The key is made when it is not there, with its ancestors: measured
+    /// on the binary of v2.0.19 on 2026-11-11.
+    fn registry_write(
+        &mut self,
+        _key: &str,
+        _name: &str,
+        _kind: &str,
+        _value: &str,
+    ) -> Result<(), String> {
+        Err("this desktop cannot write the registry of the machine".to_string())
+    }
+
+    /// Remove a value of the registry of the machine.
+    fn registry_delete(&mut self, _key: &str, _name: &str) -> Result<(), String> {
+        Err("this desktop cannot remove a value of the registry".to_string())
+    }
+
+    /// Remove a key of the registry of the machine.
+    fn registry_delete_key(&mut self, _key: &str) -> Result<(), String> {
+        Err("this desktop cannot remove a key of the registry".to_string())
+    }
+
+    /// Make a key of the registry of the machine.
+    fn registry_create_key(&mut self, _key: &str) -> Result<(), String> {
+        Err("this desktop cannot make a key of the registry".to_string())
+    }
+
     /// The label of the drive that a path is on.
     ///
     /// `None` is a drive that is not there. Measured on the binary of
