@@ -1194,6 +1194,55 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_hwnd_of_a_window_and_of_a_control_round_trip_through_the_lookup() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: g.Hwnd and e.Hwnd
+    // answer numbers, GuiFromHwnd(g.Hwnd) gives the SAME Gui object back,
+    // GuiCtrlFromHwnd(e.Hwnd) gives the same control object back, and a
+    // handle that no window owns answers the empty text -- not a failure.
+    // On this platform a handle is the number this runtime mints for the
+    // object, so the inverse is the same table ObjPtr reads.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "g := Gui()",
+            "\ne := g.Add(\"Edit\", \"w150\", \"x\")",
+            "\nh := g.Hwnd",
+            "\nch := e.Hwnd",
+            "\ng2 := GuiFromHwnd(h)",
+            "\nclass1 := Type(g2)",
+            "\nsame1 := g2 = g",
+            "\ne2 := GuiCtrlFromHwnd(ch)",
+            "\nclass2 := Type(e2)",
+            "\nsame2 := e2 = e",
+            "\nnothing := GuiFromHwnd(999999)",
+            "\nnothingClass := Type(nothing)",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    let value = |name: &str| {
+        report
+            .variables
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| panic!("{name} has no value"))
+    };
+    // Handles are numbers this runtime mints.
+    assert!(matches!(value("h"), Value::Int(_)));
+    assert!(matches!(value("ch"), Value::Int(_)));
+    assert_eq!(value("class1"), Value::Text("Gui".into()));
+    assert_eq!(value("same1"), Value::Int(1));
+    // A control object is named after its kind, the way the binary names it.
+    assert_eq!(value("class2"), Value::Text("Gui.Edit".into()));
+    assert_eq!(value("same2"), Value::Int(1));
+    assert_eq!(value("nothingclass"), Value::Text("String".into()));
+    assert_eq!(value("nothing"), Value::Text(String::new()));
+}
+
+#[test]
 fn win_activate_bottom_activates_the_window_of_the_script_and_shutdown_takes_a_number() {
     // Measured on the binary of v2.0.19 on 2026-11-10: WinActivateBottom with
     // two windows of the script matching one title activated the BOTTOM one

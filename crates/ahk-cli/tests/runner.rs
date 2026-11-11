@@ -280,8 +280,11 @@ fn the_surface_flag_answers_with_json() {
     // the binary takes and leaves the session alone. The tray variables came
     // after that (round 10): A_IconFile answers the empty text, A_IconNumber
     // zero, and A_TrayMenu one Menu object the script keeps for its life.
-    assert_eq!(report.number("values"), 774);
-    assert_eq!(report.number("refusals"), 59);
+    // `GuiFromHwnd` and `GuiCtrlFromHwnd` are the latest (round 11): the
+    // handle of a window or a control is a number this runtime mints, and
+    // the inverse is the same table read backwards.
+    assert_eq!(report.number("values"), 777);
+    assert_eq!(report.number("refusals"), 56);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");

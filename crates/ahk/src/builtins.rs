@@ -1690,18 +1690,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 130,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: from_hwnd,
+        handler: gui_ctrl_from_hwnd,
     },
     Builtin {
         name: "GuiFromHwnd",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 130,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: from_hwnd,
+        handler: gui_from_hwnd,
     },
     Builtin {
         name: "IL_Add",
@@ -1744,9 +1744,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 130,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: from_hwnd,
+        handler: menu_from_handle,
     },
     Builtin {
         name: "MenuSelect",
@@ -11097,15 +11097,12 @@ pub(crate) fn shutdown(
     Ok(Value::Text(String::new()))
 }
 
-/// `FileRecycle` and `FileGetVersion`: **refused, each with a reason of its own.**
-///
-/// `FileRecycle` was measured on 2026-11-09: the reference answers `Failed` for a
-/// file that exists. `FileGetVersion` was measured on 2026-11-09 and again on
-/// 2026-11-10: the reference hangs on it. **Neither has an answer to match**, so
-/// the honest answer is that there is nothing to match -- not a name of Windows.
-/// `FileRecycle`: **refused, with a reason of its own.** Measured on 2026-11-09:
-/// the reference answers `Failed` for a file that exists, so there is no success
-/// to match. This has nothing to do with Windows: the tree has a trash, but it
+/// `FileGetVersion`: **refused, with a reason of its own.** Re-measured on
+/// 2026-11-10: the reference answers `2.0.19.0` for a real PE and does NOT hang
+/// -- the earlier hang was a path that was not there. An ELF has no version
+/// resource to read, so an empty text or a made-up number would be a lie.
+/// `FileRecycle`: **carried since 2026-11-10** -- the trash is the freedesktop
+/// one, and `gio trash` is the tool that both fills it and empties it.
 /// `FileRecycle(Path)`: put one file in the trash of the machine.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty text
@@ -11326,19 +11323,107 @@ pub(crate) fn menu_select(
     })
 }
 
-/// `GuiFromHwnd`, `GuiCtrlFromHwnd`, `MenuFromHandle` and `MenuSelect`:
-/// **refused, with a reason of their own.** These take a Win32 HWND and give
-/// back the object that owns it. This runtime has no HWND table: the windows
-/// are identified by the text the compositor gives (`WinGetID`), so there is
-/// no number to look an object up by.
-pub(crate) fn from_hwnd(
+/// `GuiFromHwnd` and `GuiCtrlFromHwnd`: the object that a handle names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `GuiFromHwnd(g.Hwnd)`
+/// gives the SAME Gui object back, `GuiCtrlFromHwnd(e.Hwnd)` gives the same
+/// control object back, and a handle that no window owns answers the EMPTY
+/// TEXT -- not a failure. On this platform a handle is the number this
+/// runtime mints for the object (the same table `ObjPtr` reads), so the
+/// inverse is the same table read backwards.
+fn the_gui_object_of_a_handle(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, name)? as i64;
+    match rt.the_object_of(number) {
+        Some(object) => Ok(object),
+        None => Ok(Value::Text(String::new())),
+    }
+}
+
+/// `GuiFromHwnd`: the Gui object that a handle names.
+pub(crate) fn gui_from_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let object = the_gui_object_of_a_handle(rt, values, line, "GuiFromHwnd")?;
+    let is_gui = match &object {
+        Value::Object(o) => o.borrow().class.eq_ignore_ascii_case("gui"),
+        _ => false,
+    };
+    if is_gui {
+        Ok(object)
+    } else {
+        Ok(Value::Text(String::new()))
+    }
+}
+
+/// `GuiCtrlFromHwnd`: the control object that a handle names.
+///
+/// A control's handle lives in two tables on this platform: the identity
+/// table that `Hwnd` mints through, and the number the helper gave the
+/// control when it was added -- the one the `Control*` family reads. The
+/// inverse walks both, and answers the empty text when neither names a
+/// control.
+pub(crate) fn gui_ctrl_from_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, "GuiCtrlFromHwnd")? as i64;
+    // First the identity table: the number `Hwnd` mints today.
+    if let Some(object) = rt.the_object_of(number) {
+        let is_control = match &object {
+            Value::Object(o) => o.borrow().class.to_lowercase().starts_with("gui."),
+            _ => false,
+        };
+        if is_control {
+            return Ok(object);
+        }
+    }
+    // Then the numbers the helper handed out when the controls were added.
+    for gui in rt.the_guis() {
+        let Value::Object(window) = gui else {
+            continue;
+        };
+        for (key, property) in window.borrow().properties.iter() {
+            if !key.starts_with("control:") {
+                continue;
+            }
+            let Value::Object(control) = &property.value else {
+                continue;
+            };
+            let stored = control
+                .borrow()
+                .value_of("hwnd")
+                .map(|value| value.to_text().parse::<i64>().unwrap_or(-1));
+            if stored == Some(number) {
+                return Ok(property.value.clone());
+            }
+        }
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `MenuFromHandle`: **refused, with a reason of its own.**
+///
+/// The other two names take a number this runtime mints, and this one takes
+/// a Win32 HMENU: this runtime has no handle of a menu, because the menus
+/// are objects the script holds and the helper draws.
+pub(crate) fn menu_from_handle(
     _rt: &mut Runtime<'_>,
     _values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
-        message: "this runtime has no HWND table: the windows are identified by the text the compositor gives, so there is no number to look an object up by".to_string(),
+        message: "a menu handle is a Win32 HMENU, and this runtime has no handle of a menu: the menus are objects the script holds and the helper draws".to_string(),
         line,
     })
 }

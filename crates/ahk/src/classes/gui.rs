@@ -598,10 +598,18 @@ pub(crate) fn call(
 pub(crate) fn property(
     class: &str,
     name: &str,
-    _this: &Value,
-    _rt: &mut Runtime,
+    this: &Value,
+    rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // The handle of the window and of a control: a number of this runtime
+    // that names the object, stable for the life of the run. Measured on the
+    // binary of v2.0.19 on 2026-11-10: `GuiFromHwnd(g.Hwnd)` gives the same
+    // object back, so the number has to be one the runtime can invert -- and
+    // the identity table of `ObjPtr` already is that table.
+    if name.eq_ignore_ascii_case("hwnd") {
+        return Some(Ok(Value::Int(rt.the_pointer_of(this))));
+    }
     Some(Err(refused(class, name, line)?))
 }
 
