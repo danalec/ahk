@@ -6602,3 +6602,107 @@ fn the_styles_of_a_window_are_refused_with_the_reason_of_the_compositor() {
         "a transparency colour is a layered window of Windows, where one colour is made invisible; this tree sets an opacity for the whole window, which is WinSetTransparent and WinGetTransparent"
     );
 }
+
+
+#[test]
+fn the_messages_of_a_window_procedure_are_registered_and_the_rest_is_not_carried() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: OnMessage takes
+    // (MsgNumber, Callback, MaxThreads) -- the callback is required -- and
+    // answers the empty text; a message number that is not a number throws
+    // "Parameter #1 of OnMessage requires a Number, but received a
+    // String.". PostMessage and SendMessage take the NUMBER of a window and
+    // throw "Target window not found." for every one of them -- the window of
+    // the script included -- and WinSetRegion throws the same.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "Handler(Msg)\n{\n    global seen\n    seen := Msg\n}",
+            "\na := OnMessage(0x0100, Handler)",
+            "\ntry\n{",
+            "\n    PostMessage(1234, 0x0100, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    post := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    SendMessage(1234, 0x0100, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    sent := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    WinSetRegion(1234, 0, 0, 0, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    region := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    OnMessage(\"x\", Handler)",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    for name in ["post", "sent", "region"] {
+        assert_eq!(
+            value_of(&report, name),
+            Value::Text("Target window not found.".into()),
+            "{name}"
+        );
+    }
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text(
+            "Parameter #1 of OnMessage requires a Number, but received a String.".into()
+        )
+    );
+}
+
+#[test]
+fn the_hwnd_of_a_window_and_of_a_control_round_trip_through_the_lookup() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: g.Hwnd and e.Hwnd
+    // answer numbers, GuiFromHwnd(g.Hwnd) gives the SAME Gui object back,
+    // GuiCtrlFromHwnd(e.Hwnd) gives the same control object back, and a
+    // handle that no window owns answers the empty text -- not a failure.
+    // On this platform a handle is the number this runtime mints for the
+    // object, so the inverse is the same table ObjPtr reads.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "g := Gui()",
+            "\ne := g.Add(\"Edit\", \"w150\", \"x\")",
+            "\nh := g.Hwnd",
+            "\nch := e.Hwnd",
+            "\ng2 := GuiFromHwnd(h)",
+            "\nclass1 := Type(g2)",
+            "\nsame1 := g2 = g",
+            "\ne2 := GuiCtrlFromHwnd(ch)",
+            "\nclass2 := Type(e2)",
+            "\nsame2 := e2 = e",
+            "\nnothing := GuiFromHwnd(999999)",
+            "\nnothingClass := Type(nothing)",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    let value = |name: &str| {
+        report
+            .variables
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| panic!("{name} has no value"))
+    };
+    // Handles are numbers this runtime mints.
+    assert!(matches!(value("h"), Value::Int(_)));
+    assert!(matches!(value("ch"), Value::Int(_)));
+    assert_eq!(value("class1"), Value::Text("Gui".into()));
+    assert_eq!(value("same1"), Value::Int(1));
+    // A control object is named after its kind, the way the binary names it.
+    assert_eq!(value("class2"), Value::Text("Gui.Edit".into()));
+    assert_eq!(value("same2"), Value::Int(1));
+    assert_eq!(value("nothingclass"), Value::Text("String".into()));
+    assert_eq!(value("nothing"), Value::Text(String::new()));
+}

@@ -1010,18 +1010,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: callback_create,
     },
     Builtin {
         name: "CallbackFree",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: callback_free,
     },
     Builtin {
         name: "CaretGetPos",
@@ -1703,18 +1703,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: gui_ctrl_from_hwnd,
     },
     Builtin {
         name: "GuiFromHwnd",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: gui_from_hwnd,
     },
     Builtin {
         name: "IL_Add",
@@ -1757,9 +1757,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: menu_from_handle,
     },
     Builtin {
         name: "MenuSelect",
@@ -1968,9 +1968,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: on_message,
     },
     Builtin {
         name: "OutputDebug",
@@ -1986,9 +1986,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: post_message,
     },
     Builtin {
         name: "ProcessClose",
@@ -2121,9 +2121,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: send_message,
     },
     Builtin {
         name: "SetCapsLockState",
@@ -14437,4 +14437,240 @@ pub(crate) fn group_close(
     let group = text_of(values, 0);
     rt.close_a_group(&group);
     Ok(Value::Text(String::new()))
+}
+
+/// `GuiFromHwnd` and `GuiCtrlFromHwnd`: the object that a handle names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `GuiFromHwnd(g.Hwnd)`
+/// gives the SAME Gui object back, `GuiCtrlFromHwnd(e.Hwnd)` gives the same
+/// control object back, and a handle that no window owns answers the EMPTY
+/// TEXT -- not a failure. On this platform a handle is the number this
+/// runtime mints for the object (the same table `ObjPtr` reads), so the
+/// inverse is the same table read backwards.
+fn the_gui_object_of_a_handle(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, name)? as i64;
+    match rt.the_object_of(number) {
+        Some(object) => Ok(object),
+        None => Ok(Value::Text(String::new())),
+    }
+}
+
+/// `GuiFromHwnd`: the Gui object that a handle names.
+pub(crate) fn gui_from_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let object = the_gui_object_of_a_handle(rt, values, line, "GuiFromHwnd")?;
+    let is_gui = match &object {
+        Value::Object(o) => o.borrow().class.eq_ignore_ascii_case("gui"),
+        _ => false,
+    };
+    if is_gui {
+        Ok(object)
+    } else {
+        Ok(Value::Text(String::new()))
+    }
+}
+
+/// `GuiCtrlFromHwnd`: the control object that a handle names.
+///
+/// A control's handle lives in two tables on this platform: the identity
+/// table that `Hwnd` mints through, and the number the helper gave the
+/// control when it was added -- the one the `Control*` family reads. The
+/// inverse walks both, and answers the empty text when neither names a
+/// control.
+pub(crate) fn gui_ctrl_from_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, "GuiCtrlFromHwnd")? as i64;
+    // First the identity table: the number `Hwnd` mints today.
+    if let Some(object) = rt.the_object_of(number) {
+        let is_control = match &object {
+            Value::Object(o) => o.borrow().class.to_lowercase().starts_with("gui."),
+            _ => false,
+        };
+        if is_control {
+            return Ok(object);
+        }
+    }
+    // Then the numbers the helper handed out when the controls were added.
+    for gui in rt.the_guis() {
+        let Value::Object(window) = gui else {
+            continue;
+        };
+        for (key, property) in window.borrow().properties.iter() {
+            if !key.starts_with("control:") {
+                continue;
+            }
+            let Value::Object(control) = &property.value else {
+                continue;
+            };
+            let stored = control
+                .borrow()
+                .value_of("hwnd")
+                .map(|value| value.to_text().parse::<i64>().unwrap_or(-1));
+            if stored == Some(number) {
+                return Ok(property.value.clone());
+            }
+        }
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `MenuFromHandle`: **refused, with a reason of its own.**
+///
+/// The other two names take a number this runtime mints, and this one takes
+/// a Win32 HMENU: this runtime has no handle of a menu, because the menus
+/// are objects the script holds and the helper draws.
+pub(crate) fn menu_from_handle(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "a menu handle is a Win32 HMENU, and this runtime has no handle of a menu: the menus are objects the script holds and the helper draws".to_string(),
+        line,
+    })
+}
+
+/// `CallbackCreate(Func)`: answer a number that names the function.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers an Integer, the
+/// address of a native thunk. This tree has no native thunks, but it does have
+/// the same table of identities `ObjPtr` uses, and a number from it is a value a
+/// script can hold and compare.
+pub(crate) fn callback_create(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            })
+        }
+    };
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+/// `CallbackFree(Callback)`: let a callback of the machine go.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter
+/// wants a number, and a text throws "Parameter #1 of CallbackFree requires
+/// a Number, but received a String."; and every number throws "Parameter #1
+/// of CallbackFree is invalid.", because the only callback it would let go
+/// is one that it made itself.
+///
+/// This runtime makes no callback for the machine, so every number is the
+/// invalid one.
+pub(crate) fn callback_free(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "CallbackFree", TypeName::Number, &first),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "Parameter #1 of CallbackFree is invalid.".to_string(),
+        line,
+    })
+}
+
+/// `OnMessage`: register a handler for the messages of a number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `OnMessage MsgNumber, Callback, MaxThreads` -- the callback is **required**
+/// and a call with one parameter is refused at the load -- and the call
+/// answers the empty text. A message number that is not a number throws
+/// "Parameter #1 of OnMessage requires a Number, but received a String.".
+///
+/// The messages are the ones of a window procedure, and a script is not
+/// one: the handler of the reference fires for the messages of the windows
+/// of other programs. This runtime keeps the registry of the handlers, and
+/// the drain of the events answers a `message:<number>` event of the helper
+/// with the handler that is registered for it.
+pub(crate) fn on_message(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, "OnMessage")? as i64;
+    let Some(callback) = values.get(1) else {
+        return Err(RuntimeError {
+            message: "Parameter #2 of OnMessage must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    };
+    let Value::Object(function) = callback else {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(2, "OnMessage", TypeName::Object, callback),
+            line,
+        });
+    };
+    let name = function
+        .borrow()
+        .properties
+        .get("name")
+        .map(|held| held.value.to_text())
+        .unwrap_or_default();
+    rt.remember_a_message_handler(number, name);
+    Ok(Value::Text(String::new()))
+}
+
+/// `PostMessage` and `SendMessage`: send a message to the window of a number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter is
+/// the **number** of a window -- a text throws "Parameter #1 of PostMessage
+/// requires a Number, but received a String." -- and every number throws
+/// "Target window not found.", the window of the script included: the
+/// messages go to the windows of other programs, and this runtime has no
+/// window procedure to receive them.
+pub(crate) fn post_message(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    number_argument(values, 0, line, "PostMessage")?;
+    Err(RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    })
+}
+
+/// `SendMessage`: the same as `PostMessage`, and the answer is the same.
+pub(crate) fn send_message(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    number_argument(values, 0, line, "SendMessage")?;
+    Err(RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    })
 }

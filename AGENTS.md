@@ -11965,3 +11965,45 @@ one, `WinSetTransparent` and `WinGetTransparent`.
 **The case that pins the two reasons is of this tree and not of the
 branch**: the branch carries no case for the family, and a refusal with a
 reason of its own is exactly the answer a case keeps honest.
+
+## 325. The handles are identities of the runtime, and the messages are the helper's
+
+**The ninth family of the port is eight names**: the handles
+(`GuiFromHwnd`, `GuiCtrlFromHwnd`, `MenuFromHandle`), the messages
+(`OnMessage`, `PostMessage`, `SendMessage`) and the callbacks
+(`CallbackCreate`, `CallbackFree`).
+
+**A handle on this platform is the identity number the runtime mints** --
+the `0x1000 + index` of the pointers table, the same one `ObjPtr` reads.
+`GuiFromHwnd` and `GuiCtrlFromHwnd` are the inverse of `Hwnd`: they look
+the number up in that table (and the control lookup also walks the
+controls the helper drew, by the number the helper gave each one), and a
+number that no object owns answers **the empty text**, not a failure.
+`MenuFromHandle` is refused with a reason of its own: a menu handle is a
+Win32 HMENU, and this runtime has none -- the menus are objects the
+script holds and the helper draws.
+
+**`OnMessage` registers, and the drain of the events answers.** Measured
+on the binary of v2.0.19 on 2026-11-11 (the branch's measurement): it
+answers the empty text, and the handler is kept in the runtime under the
+number of the message; the gui event pump answers a `message:<number>`
+event of the helper by calling the handler that is registered.
+`PostMessage` and `SendMessage` take the number of a window and throw
+"Target window not found." for **every** number, the window of the script
+included: the messages go to the windows of other programs, and this
+runtime has no window procedure to receive them.
+
+**`CallbackCreate` mints the identity of a value and `CallbackFree`
+refuses**: a callback of v2 is a native function pointer, and this
+runtime does not hand out executable addresses -- it hands out the same
+identity number the handles use. Measured on the box on 2026-11-11:
+`CallbackCreate(Handler)` answers 4096 (the first minted identity,
+0x1000), `CallbackFree("x")` answers "Parameter #1 of CallbackFree
+requires a Number, but received a String.", `OnMessage(0x0100, Handler)`
+answers the empty text, `PostMessage`/`SendMessage` throw "Target window
+not found.", `MenuFromHandle(5)` throws the reason of the HMENU,
+`GuiFromHwnd(g.Hwnd)` gives the same Gui object back and
+`GuiFromHwnd(999999)` answers the empty text.
+
+**The surface moves with the family: 767 answers with a value and 66 are
+refused become 775 and 58.**

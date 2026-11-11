@@ -233,16 +233,15 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 767 and 66.** The branch answers 815 and
-refuses 18, so **48 names are still to come**: the COM objects and the
-pointers of them, the callbacks, the messages, the lists of icons, the
-handles of the guis and of the menus, the tray (2, and a helper of their
-own), the status bars, and the small ones (`BlockInput`, `RunAs`,
-`Shutdown`, `FileGetVersion`, `OnClipboardChange`, `Edit`) -- beside the
-variables and the methods the branch answers and this tree still refuses.
-The styles are not in that count: they are refused in the branch too, and
-the port carries the same refusal now, with the reason of the family at
-the run.
+a value and 149 refusals to 775 and 58.** The branch answers 815 and
+refuses 18, so **40 names are still to come**: the COM objects and the
+pointers of them (14), the lists of icons and the list controls (6), the
+tray (2, and a helper of their own), and the small ones (`BlockInput`,
+`RunAs`, `Shutdown`, `FileGetVersion`, `OnClipboardChange`, `Edit`,
+`MenuSelect`) -- beside the variables and the methods the branch answers
+and this tree still refuses. The styles are not in that count: they are
+refused in the branch too, and the port carries the same refusal now,
+with the reason of the family at the run.
 
 **The sixth family is ported too (2026-11-11): the names of the sound
 devices.** `SoundGetName` asks the mixer of the session -- `pactl`, the
@@ -262,6 +261,17 @@ group answers `8388620`, the id of the xterm in the client list. And the
 VM asked for one hand merge more: `matching_windows`, the question a
 group activation makes, reads the client list of the X server now, where
 the branch and the master answered the reason of the compositor.
+
+**The ninth family is ported too (2026-11-11): the handles, the messages
+and the callbacks.** `GuiFromHwnd` and `GuiCtrlFromHwnd` are the inverse
+of `Hwnd` through the identity table of the runtime; `OnMessage`
+registers the handler of a message number and the drain of the gui
+events answers it; `PostMessage` and `SendMessage` refuse every window
+with "Target window not found."; `MenuFromHandle` and `CallbackFree`
+refuse with reasons of their own; `CallbackCreate` mints the identity of
+a value. Measured on the box: the round trip of `g.Hwnd` gives the same
+Gui object back, an unknown handle answers the empty text, and the first
+minted callback is 4096.
 
 **The eighth family is ported too (2026-11-11): the styles of a window.**
 The six names stay refused in the surface -- the branch refuses them

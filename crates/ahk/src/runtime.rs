@@ -1651,6 +1651,15 @@ pub struct Runtime<'a> {
     /// binary of v2.0.19 on 2026-11-10: Add, Deactivate and Close answer the
     /// empty text, and Activate answers a whole number.
     groups: Vec<(String, Vec<String>)>,
+    /// The handlers of the messages, by the number of the message.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `OnMessage` answers
+    /// the empty text and registers the handler of a message. The messages
+    /// are the ones of a window procedure, and a script is not one: the
+    /// handler of the reference fires for the windows of other programs. The
+    /// drain of the events answers a `message:<number>` event of the helper
+    /// with the handler that is registered here.
+    message_handlers: BTreeMap<i64, String>,
     last_window: Option<String>,
 }
 
@@ -1744,6 +1753,7 @@ impl<'a> Runtime<'a> {
             groups: Vec::new(),
             guis: Vec::new(),
             pointers: Vec::new(),
+            message_handlers: BTreeMap::new(),
             error_callbacks: Vec::new(),
             try_active: 0,
             failure_hidden: false,
@@ -1825,6 +1835,7 @@ impl<'a> Runtime<'a> {
             groups: Vec::new(),
             guis: Vec::new(),
             pointers: Vec::new(),
+            message_handlers: BTreeMap::new(),
             error_callbacks: Vec::new(),
             try_active: 0,
             failure_hidden: false,
@@ -15276,6 +15287,34 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    /// The object that a number names, if the number is one of them.
+    pub fn the_object_of(&self, number: i64) -> Option<Value> {
+        let index = number - 0x1000;
+        if index < 0 {
+            return None;
+        }
+        self.pointers.get(index as usize).map(|held| held.0.clone())
+    }
+
+    /// Register the handler of a message, the way `OnMessage` does.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `OnMessage` answers
+    /// the empty text and the handler stays registered for the life of the
+    /// script. A message that is already registered is registered again: the
+    /// last handler wins, which is what the reference does when a script
+    /// registers a second handler for a message.
+    pub fn remember_a_message_handler(&mut self, number: i64, function: String) {
+        if function.is_empty() {
+            return;
+        }
+        self.message_handlers.insert(number, function);
+    }
+
+    /// The handler of a message, if one is registered for it.
+    pub fn the_message_handler(&self, number: i64) -> Option<&String> {
+        self.message_handlers.get(&number)
+    }
+
     /// The windows of the script that have been remembered.
     pub fn the_guis(&self) -> &[Value] {
         &self.guis
@@ -15300,6 +15339,19 @@ impl<'a> Runtime<'a> {
             let name = pieces.next().unwrap_or("").to_lowercase();
             let number = pieces.next().map(str::to_string);
             if name.is_empty() {
+                continue;
+            }
+            // A message event carries the number of the message: the handler
+            // that `OnMessage` registered for it is called with it.
+            if name == "message" {
+                let Some(item) = &number else { continue };
+                let Ok(number) = item.parse::<i64>() else {
+                    continue;
+                };
+                let Some(function) = self.the_message_handler(number).cloned() else {
+                    continue;
+                };
+                pending.push((Value::Text(function), vec![Value::Int(number)]));
                 continue;
             }
             // A menu event carries the name of the item that was chosen: the
