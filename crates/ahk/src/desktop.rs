@@ -326,6 +326,51 @@ pub trait Windows {
     fn windows(&mut self) -> Result<Vec<WindowInfo>, String> {
         Err("this desktop cannot list the windows".to_string())
     }
+    /// Whether a window is above the others, when the machine knows.
+    ///
+    /// `Ok(None)` is the answer of a machine that cannot say: it is not
+    /// `false`, and the caller refuses with the reason. A question that
+    /// cannot be answered does not answer `false` in this tree.
+    fn always_on_top(&mut self, _window: &WindowInfo) -> Result<Option<bool>, String> {
+        Err("this desktop cannot say whether a window is above the others".to_string())
+    }
+
+    /// Put a window above the others, or take it from there.
+    ///
+    /// The answer is a failure with the reason when the machine cannot do
+    /// it: a change that did not happen is never reported as a change that
+    /// did.
+    fn set_always_on_top(&mut self, _window: &WindowInfo, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot put a window above the others".to_string())
+    }
+
+    /// Whether a window is enabled, when the machine knows.
+    ///
+    /// This is the state of the window itself. On a session of X11 it is
+    /// the state of the window of the machine; on a native Wayland session
+    /// it is mapped and not minimized, because the compositor publishes no
+    /// more than that.
+    fn window_enabled(&mut self, _window: &WindowInfo) -> Result<Option<bool>, String> {
+        Err("this desktop cannot say whether a window is enabled".to_string())
+    }
+
+    /// Whether the control of a window is enabled, when the machine can say.
+    ///
+    /// This is the state of a widget, and it needs the accessibility tree
+    /// (AT-SPI). A machine without it cannot say.
+    fn control_enabled(&mut self, _window: &WindowInfo) -> Result<Option<bool>, String> {
+        Err("this desktop cannot say whether a control is enabled".to_string())
+    }
+
+    /// The capabilities of the windows of this desktop.
+    ///
+    /// The names are the ones of `WinGetCapability`: `AlwaysOnTopGet`,
+    /// `AlwaysOnTopSet`, `WindowEnabledGet`, `ControlEnabledGet`,
+    /// `WindowList`, `WindowActivate`, `WindowMinimize` and `WindowClose`.
+    /// Only a capability the machine can really answer is here.
+    fn window_capabilities(&mut self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// A window of the session, as the window family of v2 reads it.

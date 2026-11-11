@@ -71,7 +71,143 @@ impl Screen for Fake {
 }
 impl Sound for Fake {}
 impl Timers for Fake {}
-impl Windows for Fake {}
+impl Windows for Fake {
+    fn windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
+        Ok(vec![
+            ahk::desktop::WindowInfo {
+                id: 1,
+                title: "Above".to_string(),
+                class: "Window".to_string(),
+                active: false,
+            },
+            ahk::desktop::WindowInfo {
+                id: 2,
+                title: "Plain".to_string(),
+                class: "Window".to_string(),
+                active: false,
+            },
+            ahk::desktop::WindowInfo {
+                id: 3,
+                title: "Unknown".to_string(),
+                class: "Window".to_string(),
+                active: false,
+            },
+        ])
+    }
+    fn always_on_top(&mut self, window: &ahk::desktop::WindowInfo) -> Result<Option<bool>, String> {
+        match window.id {
+            1 => Ok(Some(true)),
+            2 => Ok(Some(false)),
+            _ => Ok(None),
+        }
+    }
+    fn set_always_on_top(
+        &mut self,
+        _window: &ahk::desktop::WindowInfo,
+        _on: bool,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+    fn window_enabled(&mut self, window: &ahk::desktop::WindowInfo) -> Result<Option<bool>, String> {
+        match window.id {
+            3 => Ok(None),
+            _ => Ok(Some(true)),
+        }
+    }
+    fn control_enabled(
+        &mut self,
+        _window: &ahk::desktop::WindowInfo,
+    ) -> Result<Option<bool>, String> {
+        Ok(Some(false))
+    }
+    fn window_capabilities(&mut self) -> Vec<String> {
+        vec![
+            "AlwaysOnTopGet".to_string(),
+            "AlwaysOnTopSet".to_string(),
+            "WindowEnabledGet".to_string(),
+            "ControlEnabledGet".to_string(),
+        ]
+    }
+}
+
+#[test]
+fn the_window_state_answers_what_the_machine_says() {
+    // The machine that knows says one or zero, and the machine that cannot
+    // say is refused with the reason.
+    let report = run_ks(concat!(
+        "MsgBox WinGetAlwaysOnTop(\"Above\")\n",
+        "MsgBox WinGetAlwaysOnTop(\"Plain\")\n",
+        "MsgBox WinGetEnabled(\"Above\")\n",
+        "MsgBox WinGetCapability(\"AlwaysOnTopGet\")\n",
+        "MsgBox WinGetCapability(\"WindowList\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "0");
+    assert_eq!(line(&report, 2), "1");
+    assert_eq!(line(&report, 3), "1");
+    // The capability that the desktop does not have is zero, and not a
+    // failure.
+    assert_eq!(line(&report, 4), "0");
+}
+
+#[test]
+fn the_machine_that_cannot_say_is_refused_with_the_reason() {
+    // The tree does not answer zero for a state it does not know.
+    let report = run_ks("MsgBox WinGetAlwaysOnTop(\"Unknown\")\n");
+    assert!(!report.ok);
+    let error = report.error.unwrap();
+    assert!(
+        error.contains("cannot say whether the window is above the others"),
+        "{}",
+        error
+    );
+}
+
+#[test]
+fn the_setter_of_the_state_takes_the_numbers_of_the_v2() {
+    // `1` enables, `0` disables and `-1` toggles. The shape of the v2.0.19
+    // says that the first parameter is a number, and the words Toggle, On
+    // and Off are refused by it before the handler is called.
+    let report = run_ks(concat!(
+        "WinSetAlwaysOnTop(1, \"Plain\")\n",
+        "WinSetAlwaysOnTop(0, \"Plain\")\n",
+        "WinSetAlwaysOnTop(-1, \"Plain\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn the_state_that_is_not_a_number_is_refused_by_the_shape_of_the_v2() {
+    // The shape is the one the binary of the v2.0.19 was measured with, and
+    // it refuses the words before the handler of the command is called.
+    let report = run_ks("WinSetAlwaysOnTop(\"Toggle\", \"Plain\")\n");
+    assert!(!report.ok);
+    let error = report.error.unwrap();
+    assert!(error.contains("requires a Number"), "{}", error);
+}
+
+#[test]
+fn the_capability_that_the_tree_does_not_know_is_refused() {
+    let report = run_ks("MsgBox WinGetCapability(\"Nonsense\")\n");
+    assert!(!report.ok);
+    let error = report.error.unwrap();
+    assert!(
+        error.contains("is not one of the capabilities of the tree"),
+        "{}",
+        error
+    );
+}
+
+#[test]
+fn the_names_of_the_window_state_are_not_in_the_v2() {
+    // The surface of the v2.0.19 stays pure: the names are behind the gate
+    // of the ks dialect.
+    let mut desktop = Fake;
+    let statements = ahk::parse("MsgBox WinGetCapability(\"AlwaysOnTopGet\")\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}
 
 /// A script in the dialect of KeySharp, and the report of it.
 fn run_ks(source: &str) -> Report {

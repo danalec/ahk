@@ -70,7 +70,7 @@ echo '' | ahk --surface --dialect=v1 --json
 
 ```json
 ; the summary of the two dialects, measured with the two commands
-{"dialect": "v2", "total": 833, "values": 684, "refusals": 149, "pending": 0}
+{"dialect": "v2", "total": 833, "values": 685, "refusals": 148, "pending": 0}
 {"dialect": "v1", "total": 408, "values": 302, "refusals": 106, "pending": 0}
 ```
 

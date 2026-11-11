@@ -934,6 +934,17 @@ impl ahk::desktop::Windows for LabDesktop {
              the list of the windows."
             .to_string())
     }
+    fn window_capabilities(&mut self) -> Vec<String> {
+        // What this desktop can really answer: the windows of the
+        // compositor and the focus of it. The state of the window manager
+        // (the always on top, the enabled) is not carried yet, and a
+        // capability that the desktop cannot answer is not listed.
+        vec![
+            "WindowList".to_string(),
+            "WindowActivate".to_string(),
+        ]
+    }
+
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.

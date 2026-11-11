@@ -253,8 +253,8 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 684);
-    assert_eq!(report.number("refusals"), 149);
+    assert_eq!(report.number("values"), 685);
+    assert_eq!(report.number("refusals"), 148);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");

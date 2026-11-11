@@ -11664,3 +11664,38 @@ script into another language.
 
 The `Errors` of the answer carry the line and the column, the way the
 errors of `ValidateScript` do.
+
+## 316. The state of a window, and what the machine may say
+
+The `ks` dialect carries `WinGetAlwaysOnTop(WindowTitle)` and
+`WinGetEnabled(WindowTitle)`, and this tree adds `WinGetCapability(Name)`
+beside them. The names of the capabilities are `AlwaysOnTopGet`,
+`AlwaysOnTopSet`, `WindowEnabledGet`, `ControlEnabledGet`, `WindowList`,
+`WindowActivate`, `WindowMinimize` and `WindowClose`.
+
+**A question about the state of a window is answered with a value or with
+the reason, and never with a `false` that is not true.** The machine that
+cannot say whether a window is above the others answers `Ok(None)`, and the
+name refuses with "the desktop of this run cannot say whether the window is
+above the others." The same is true of the enabled state, and of the
+control that a machine without an accessibility tree cannot answer.
+
+**The contract with the machine is five methods of the `Windows` trait**:
+`always_on_top`, `set_always_on_top`, `window_enabled`, `control_enabled`
+and `window_capabilities`. Every one of them has a default that refuses
+with a reason, so a desktop that does not carry them still compiles.
+
+**`WinSetAlwaysOnTop` is a name of the v2.0.19, and not of the KeySharp**:
+it is a command, the state comes first and the title of the window second,
+and the tree refused it as a name of Windows. It is carried now: `1`
+enables, `0` disables and `-1` toggles, and the shape of the v2.0.19 --
+measured on the binary, and it says that the first parameter is a number
+-- refuses the words `Toggle`, `On` and `Off` before the handler is
+called. The surface of the v2.0.19 moves: 833 entries, 685 of them answer
+with a value and 148 are refused.
+
+**What the machine of this tree can answer today**: the windows of the
+compositor and the focus of it. The state of the window manager (the
+always on top, the enabled) is not carried by the machine yet, and the
+capability list says so: a capability that the desktop cannot answer is
+not listed.

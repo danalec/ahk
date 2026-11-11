@@ -1423,7 +1423,7 @@ of a number (`crates/ahk/src/ast.rs`), the coercion of a text
 
 The surface of the v1 has **408** entries: **302** answer with a value,
 **106** are refused and none is pending. The surface of the v2 moved with
-the `ObjBindMethod`: **833** entries, **684** values, **149** refusals and
+the `ObjBindMethod`: **833** entries, **685** values, **148** refusals and
 no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an

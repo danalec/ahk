@@ -2652,9 +2652,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_always_on_top,
     },
     Builtin {
         name: "WinSetEnabled",
@@ -11902,6 +11902,251 @@ pub(crate) fn ks_validate_script(
 /// the input, and the capability of the screen is the one of the capture:
 /// both are there, and both are granted. The names that the tree does
 /// not know are unsupported.
+/// The names of the capabilities of the windows of a desktop.
+///
+/// They are the names of `WinGetCapability`, and they are the ones the
+/// documentation of the tree carries.
+pub(crate) const THE_WINDOW_CAPABILITIES: [&str; 8] = [
+    "AlwaysOnTopGet",
+    "AlwaysOnTopSet",
+    "WindowEnabledGet",
+    "ControlEnabledGet",
+    "WindowList",
+    "WindowActivate",
+    "WindowMinimize",
+    "WindowClose",
+];
+
+/// The window that a window function of the ks dialect asks about.
+///
+/// The window that is not there is refused with the reason of v2, and the
+/// desktop that cannot list the windows is refused with its own.
+fn ks_the_window_of(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+) -> Result<crate::desktop::WindowInfo, RuntimeError> {
+    let windows = rt
+        .desktop()
+        .windows()
+        .map_err(|e| desktop_failure(e, line))?;
+    match the_window_in(&windows, values.first())? {
+        Some(window) => Ok(window),
+        None => Err(no_window(line)),
+    }
+}
+
+/// `WinGetAlwaysOnTop`: whether a window is above the others.
+///
+/// The machine that cannot say is refused with the reason: the tree does
+/// not answer `0` for a state it does not know.
+pub(crate) fn ks_win_get_always_on_top(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let window = ks_the_window_of(rt, values, line)?;
+    let answer = rt
+        .desktop()
+        .always_on_top(&window)
+        .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        Some(true) => Ok(Value::Int(1)),
+        Some(false) => Ok(Value::Int(0)),
+        None => Err(RuntimeError {
+            message: "the desktop of this run cannot say whether the window is above the others."
+                .into(),
+            line,
+        }),
+    }
+}
+
+/// `WinSetAlwaysOnTop`: put a window above the others, or take it from there.
+///
+/// The second parameter is the way of AHK: `1` enables, `0` disables, `-1`
+/// toggles, and the texts `Toggle`, `On` and `Off` are the same three.
+pub(crate) fn ks_win_set_always_on_top(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let window = ks_the_window_of(rt, values, line)?;
+    let asked = match values.get(1) {
+        Some(value) => value.to_text(),
+        None => String::new(),
+    };
+    let wanted = match asked.trim().to_lowercase().as_str() {
+        "1" | "on" | "true" => Some(true),
+        "0" | "off" | "false" => Some(false),
+        "-1" | "toggle" => None,
+        other => {
+            return Err(RuntimeError {
+                message: format!(
+                    "WinSetAlwaysOnTop: the second parameter is not one of 1, 0, -1, Toggle, On or Off: {other}"
+                ),
+                line,
+            })
+        }
+    };
+    let on = match wanted {
+        Some(on) => on,
+        // The toggle is the reading of the state and the opposite of it, and
+        // a machine that cannot say cannot toggle either.
+        None => match rt
+            .desktop()
+            .always_on_top(&window)
+            .map_err(|e| desktop_failure(e, line))?
+        {
+            Some(current) => !current,
+            None => {
+                return Err(RuntimeError {
+                    message:
+                        "the desktop of this run cannot say whether the window is above the others, so it cannot toggle it."
+                            .into(),
+                    line,
+                })
+            }
+        },
+    };
+    rt.desktop()
+        .set_always_on_top(&window, on)
+        .map_err(|e| desktop_failure(e, line))?;
+    // The answer of a setter that answers nothing is the empty text.
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinGetEnabled`: whether a window is enabled.
+///
+/// The machine that cannot say is refused with the reason.
+pub(crate) fn ks_win_get_enabled(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let window = ks_the_window_of(rt, values, line)?;
+    let answer = rt
+        .desktop()
+        .window_enabled(&window)
+        .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        Some(true) => Ok(Value::Int(1)),
+        Some(false) => Ok(Value::Int(0)),
+        None => Err(RuntimeError {
+            message: "the desktop of this run cannot say whether the window is enabled.".into(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetCapability`: whether this desktop has a capability.
+///
+/// The name that is not one of the capabilities of the tree is refused with
+/// the reason.
+/// `WinSetAlwaysOnTop`: put a window above the others, or take it from there.
+///
+/// The first parameter is the state, the way v2 writes it: `1` enables, `0`
+/// disables, `-1` toggles, and the texts `Toggle`, `On` and `Off` are the
+/// same three. The second is the title of the window, and the empty one
+/// asks about the active window.
+///
+/// The machine that cannot say whether the window is above the others cannot
+/// toggle it either, and the machine that cannot do the change says so: a
+/// change that did not happen is never reported as a change that did.
+pub(crate) fn win_set_always_on_top(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The other parameters of v2 are the text of the window and the two
+    // exclusions, and the desktop of the box has none of them.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let asked = match values.first() {
+        Some(value) => value.to_text(),
+        None => String::new(),
+    };
+    // The state that is not given is the toggle, the way v1 wrote it.
+    let wanted = match asked.trim().to_lowercase().as_str() {
+        "1" | "on" | "true" => Some(true),
+        "0" | "off" | "false" => Some(false),
+        "-1" | "toggle" | "" => None,
+        other => {
+            return Err(RuntimeError {
+                message: format!(
+                    "the first parameter of WinSetAlwaysOnTop is not one of 1, 0, -1, Toggle, On or Off: {other}"
+                ),
+                line,
+            })
+        }
+    };
+    let windows = rt
+        .desktop()
+        .windows()
+        .map_err(|e| desktop_failure(e, line))?;
+    let Some(window) = the_window_in(&windows, values.get(1))? else {
+        return Err(no_window(line));
+    };
+    let on = match wanted {
+        Some(on) => on,
+        None => match rt
+            .desktop()
+            .always_on_top(&window)
+            .map_err(|e| desktop_failure(e, line))?
+        {
+            Some(current) => !current,
+            None => {
+                return Err(RuntimeError {
+                    message:
+                        "the desktop of this run cannot say whether the window is above the others, so it cannot toggle it."
+                            .into(),
+                    line,
+                })
+            }
+        },
+    };
+    rt.desktop()
+        .set_always_on_top(&window, on)
+        .map_err(|e| desktop_failure(e, line))?;
+    // The answer of a command that answers nothing is the empty text.
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn ks_win_get_capability(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let asked = match values.first() {
+        Some(value) => value.to_text(),
+        None => String::new(),
+    };
+    if !THE_WINDOW_CAPABILITIES
+        .iter()
+        .any(|name| name.eq_ignore_ascii_case(asked.trim()))
+    {
+        return Err(RuntimeError {
+            message: format!(
+                "WinGetCapability: {asked} is not one of the capabilities of the tree."
+            ),
+            line,
+        });
+    }
+    let capabilities = rt.desktop().window_capabilities();
+    let answer = capabilities
+        .iter()
+        .any(|name| name.eq_ignore_ascii_case(asked.trim()));
+    Ok(Value::Int(if answer { 1 } else { 0 }))
+}
+
 pub(crate) fn ks_request_capabilities(
     rt: &mut Runtime<'_>,
     values: &[Value],
