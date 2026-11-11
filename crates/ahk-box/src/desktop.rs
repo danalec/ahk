@@ -46,6 +46,9 @@ use ahk::desktop::{
     FileAnswer, FileOptions, Folders, Idle, InputAnswer, InputOptions, Processes, WindowAnswer,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult};
+// The raven is a Linux thing: the types of its calls are only used there.
+#[cfg(target_os = "linux")]
+use ahk::dll::{Convention, NativeArg, NativeType, NativeValue};
 use ahk::keys::{MODIFIERS, resolve_name};
 
 use crate::keyboard::{ENUMERATION_WAIT, Keyboard, KeyboardError};
@@ -327,6 +330,99 @@ impl LabDesktop {
             self.notes.push(note);
         }
         answer
+    }
+
+    /// A path of the Windows of the raven.
+    ///
+    /// The raven has a file system of its own, and the paths of it are
+    /// the ones that its Windows says -- "C:\Windows" for the directory of
+    /// the system, and "C:\Program Files" for the programs of the user.
+    /// The block of the path is given to the callee and comes back with
+    /// what the callee wrote in it.
+    #[cfg(target_os = "linux")]
+    fn a_path_of_the_windows(
+        &mut self,
+        library: &str,
+        function: &str,
+        arguments: Vec<NativeArg>,
+        block: usize,
+    ) -> Result<String, String> {
+        let mut call = NativeCall {
+            library: library.to_string(),
+            function: function.to_string(),
+            convention: Convention::Standard,
+            returns: NativeType::Int,
+            arguments,
+        };
+        self.windows(&mut call)
+            .map_err(|failure| failure.reason)?;
+        // The block of the argument is the path that came back.
+        let text = match &call.arguments[block].value {
+            NativeValue::Bytes(bytes) => {
+                let end = bytes.iter().position(|byte| *byte == 0).unwrap_or(bytes.len());
+                String::from_utf8_lossy(&bytes[..end]).into_owned()
+            }
+            _ => String::new(),
+        };
+        if text.is_empty() {
+            return Err(format!("the raven said no path for {function}."));
+        }
+        Ok(text)
+    }
+
+    /// The directory of the Windows of the raven.
+    #[cfg(target_os = "linux")]
+    fn windows_directory(&mut self) -> Result<String, String> {
+        self.a_path_of_the_windows(
+            "kernel32",
+            "GetWindowsDirectoryA",
+            vec![
+                NativeArg {
+                    kind: NativeType::AStr,
+                    address: true,
+                    value: NativeValue::Bytes(vec![0u8; 260]),
+                },
+                NativeArg {
+                    kind: NativeType::Int,
+                    address: false,
+                    value: NativeValue::Integer(260),
+                },
+            ],
+            0,
+        )
+    }
+
+    /// The directory of the programs of the user, in the Windows of the raven.
+    ///
+    /// The shell of the Windows of the raven does not answer with the path
+    /// of the folder of the programs (measured on the box on 2026-11-11:
+    /// `SHGetFolderPathA` leaves the block empty), and the environment of
+    /// the emulated system does: the program of the environment answers
+    /// with the path of the folder of the programs.
+    #[cfg(target_os = "linux")]
+    fn program_files(&mut self) -> Result<String, String> {
+        self.a_path_of_the_windows(
+            "kernel32",
+            "GetEnvironmentVariableA",
+            vec![
+                NativeArg {
+                    kind: NativeType::AStr,
+                    address: false,
+                    value: NativeValue::Bytes(b"ProgramFiles\0".to_vec()),
+                },
+                NativeArg {
+                    kind: NativeType::AStr,
+                    address: true,
+                    value: NativeValue::Bytes(vec![0u8; 260]),
+                },
+                NativeArg {
+                    kind: NativeType::Int,
+                    address: false,
+                    value: NativeValue::Integer(260),
+                },
+            ],
+            1,
+        )
     }
 }
 
@@ -2504,6 +2600,30 @@ impl ahk::desktop::Machine for LabDesktop {
     }
     fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
         crate::registry::create_key(key)
+    }
+    fn windows_directory(&mut self) -> Result<String, String> {
+        #[cfg(target_os = "linux")]
+        {
+            self.windows_directory()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            // The machine is a Windows of its own, and it says where its
+            // system is.
+            std::env::var("SystemRoot").map_err(|error| error.to_string())
+        }
+    }
+    fn program_files(&mut self) -> Result<String, String> {
+        #[cfg(target_os = "linux")]
+        {
+            self.program_files()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            // The machine is a Windows of its own, and it says where the
+            // programs of the user are.
+            std::env::var("ProgramFiles").map_err(|error| error.to_string())
+        }
     }
     fn user_name(&mut self) -> Result<String, String> {
         crate::machine::user_name()

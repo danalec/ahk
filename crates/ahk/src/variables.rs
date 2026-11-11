@@ -83,12 +83,6 @@ pub const THE_RUNTIME_OWNS: &[&str] = &[
 /// The version of the dialect this runtime carries.
 pub const AHK_VERSION: &str = "2.0.19";
 
-/// The reason the names of Windows are not answered.
-///
-/// The two names are about the folders of Windows, and the desktop of the
-/// tree is not the one of Windows.
-const NOT_WINDOWS: &str = "this is a name of Windows, and this desktop is not Windows.";
-
 /// The reason the short names of the files are not answered.
 ///
 /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
@@ -697,6 +691,18 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         // directory of the script is the directory where the run started,
         // and the name and the path are an asterisk.
         "scriptname" | "scriptfullpath" | "icontip" => Ok(Value::Text("*".to_string())),
+        // The directory of the Windows of the machine, and the directory
+        // of the programs of the user.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-11: `A_WinDir`
+        // answers "C:\WINDOWS" and `A_ProgramFiles` answers "C:\Program
+        // Files" on a machine of Windows.
+        //
+        // The box has no Windows of its own, and the **raven** is one: it
+        // emulates a Windows on the box, and the paths of its file system
+        // are the ones it says.
+        "windir" => text(rt.desktop().windows_directory()),
+        "programfiles" => text(rt.desktop().program_files()),
         "appdata" | "appdatacommon" | "desktop" | "desktopcommon" | "startmenu"
         | "startmenucommon" | "programs" | "programscommon" | "startup" | "startupcommon"
         | "mydocuments" | "temp" => folder(rt, name),
@@ -746,7 +752,6 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
 /// the name.
 fn machine_refusal(name: &str) -> Option<&'static str> {
     Some(match name {
-        "windir" | "programfiles" => NOT_WINDOWS,
         "scripthwnd" => NO_SCRIPT_HWND,
         "screendpi" => NO_SCREEN_DPI,
         _ => return None,

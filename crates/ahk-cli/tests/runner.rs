@@ -289,8 +289,8 @@ fn the_surface_flag_answers_with_json() {
     // The lock lights are the latest (round 16): the three Set*LockState
     // names answer, and the state they set is read back by
     // GetKeyState(<lock>, "T").
-    assert_eq!(report.number("values"), 813);
-    assert_eq!(report.number("refusals"), 20);
+    assert_eq!(report.number("values"), 815);
+    assert_eq!(report.number("refusals"), 18);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -327,7 +327,7 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     // moved with the one of the v2. The tray variables of the v1 -- A_IconFile,
     // A_IconNumber and A_TrayMenu -- followed in round 10, with the same
     // answers the v2 gives.
-    assert_eq!(report.number("values"), 305);
+    assert_eq!(report.number("values"), 308);
     assert_eq!(report.number("pending"), 0);
     let entries = report.array("entries");
     let is_set = entries

@@ -1705,6 +1705,22 @@ pub trait Machine {
         Err("this desktop cannot make a key of the registry".to_string())
     }
 
+    /// The directory of the Windows of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `A_WinDir` answers
+    /// "C:\WINDOWS" on a machine of Windows.
+    fn windows_directory(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the directory of the Windows of the machine".to_string())
+    }
+
+    /// The directory of the programs of the user, in the Windows of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `A_ProgramFiles`
+    /// answers "C:\Program Files" on a machine of Windows.
+    fn program_files(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the directory of the programs of the machine".to_string())
+    }
+
     /// The label of the drive that a path is on.
     ///
     /// `None` is a drive that is not there. Measured on the binary of
