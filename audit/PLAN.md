@@ -98,7 +98,18 @@ draws with GTK 3, which carries it -- `WinMinimizeAll` and
 carried for the window of the script alone, and the `Shutdown` row, which
 still carried variant 100 from before its handler answered, so the
 surface counted it as a refusal while the runtime answered it. The count
-is **788 values / 45 refusals**.
+is **788 values / 45 refusals**. **Rounds 14 to 16 answered the lock
+lights of the keyboard** (`5bef1a0`): `SetCapsLockState("On")` turns the
+lamp on and `"Off"` turns it out, and `GetKeyState("CapsLock", "T")`
+reads the state back -- every other word, `"Toggle"` included, leaves it
+as it was, and no word is a failure. The measurement also **corrected a
+note of the tree**: the binary carries the second parameter of
+`GetKeyState` and only "T" and "P" are right in it, while the tree
+refused every second parameter -- a wrong answer for a valid call. The
+lamp of the physical keyboard of the box needs the root to be written
+and the kernel makes no class entry for the lamps of our own device, so
+the state a script reads back is the state it set. The count is **791
+values / 42 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
