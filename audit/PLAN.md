@@ -195,7 +195,18 @@ asks it for the volume, so the name is the name of the machine.
 `SoundGetInterface` came with it: it wants the identifier of the
 interface (a GUID) and this platform has no COM, so every GUID answers
 zero -- the way the binary answers for the interfaces it does not
-support. The count is **811 values / 22 refusals**.
+support. The count is **811 values / 22 refusals**. **Round 27 carried
+the two last names of COM** (`120eaf1`): `ComCall(Method, Object,
+RetType)` -- the type of the return is looked at **first** ("Invalid
+return type." for a type the dialect does not know, and the ones it
+knows are the types of a native call), and the object after it ("Parameter
+#2 of ComCall is invalid." for anything that is not a COM object);
+`ComObjFromPtr(Ptr)` wants a number and refuses the null pointer, and a
+pointer that is not the null one makes the **binary hang** -- o que não
+tem resposta para casar, e a chamada dá a razão do tree. The count is
+**813 values / 20 refusals**, and every one of the twenty is an honest
+refusal: the styles of Windows, the threads, the cursor of the machine,
+the window of a script, the sound of Windows and its COM objects.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
