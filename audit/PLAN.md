@@ -155,7 +155,17 @@ table of the sections, the table of the resources (where the version is
 the resource of the kind sixteen) and the `VS_FIXEDFILEINFO` -- proved by
 a program of Windows made by the test and by the real one, which answers
 the same number on the Windows host and on the box. The count is
-**803 values / 30 refusals**.
+**803 values / 30 refusals**. **Round 23 carried the move of a control**
+(`31c3f1e`): the shape is `ControlMove X, Y, W, H, Control, WinTitle` --
+the **control is the fifth parameter** -- and a call that leaves it out
+is refused with "Parameter #5 of ControlMove must not be omitted in
+this case."; the first parameter is a number; and a control or a window
+that is not there is "Target window not found.". A call that names a
+control that IS there **hangs the binary** (killed after ten seconds),
+so there is no answer of it to match and that call answers the reason
+of this tree. The note of 2026-11-09 in the tree -- that the four
+numbers were all required -- was wrong: the fifth parameter is the
+control. The count is **804 values / 29 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
