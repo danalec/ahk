@@ -11761,3 +11761,28 @@ to keep the children it launched, and `waitpid(pid, WNOHANG)` is what
 says whether the process has exited and with which code. The streams
 are the other half: the launch has to keep the pipes, and a `File` over
 a pipe is a file the tree does not have yet.
+
+## 319. The `ScriptProcess` class, and where its construction is lost
+
+The `ks` dialect carries the class `ScriptProcess` and its seven members
+(`HasExited`, `ExitCode`, `ExitTime`, `Kill`, `StdOut`, `StdErr` and
+`StdIn`), and the tree makes the object of it with the pid of the process:
+`ScriptProcess(Pid)`. The state of the process is asked of the machine
+through two methods of the `Processes` trait --
+`the_state_of_a_process(pid)` and `kill_a_process(pid)` -- and the machine
+that cannot say is refused with the reason.
+
+**The block was written and it was reverted.** The tables of the `ks`
+carried the class and its seven members -- and the scorecard counted the
+eight names -- but the runtime did not answer them: the read of a member
+of the object was refused with "This value of type \"ScriptProcess\" has no
+property named \"HasExited\".", which means that the construction of the
+class did not reach the module of it, or that the property of it did not
+reach the module of it.
+
+The tree does not keep a surface that the runtime does not answer, so the
+block was taken back and the tree is at the 114 of 138 it was. The round
+that carries it has to find the dispatch: the construction of a class of
+the `ks` dialect goes through `classes::construct`, and the arm of the
+module of the class has to be reached before the generic one that makes
+the object of the class with nothing in it.
