@@ -165,7 +165,16 @@ control that IS there **hangs the binary** (killed after ten seconds),
 so there is no answer of it to match and that call answers the reason
 of this tree. The note of 2026-11-09 in the tree -- that the four
 numbers were all required -- was wrong: the fifth parameter is the
-control. The count is **804 values / 29 refusals**.
+control. The count is **804 values / 29 refusals**. **Round 24 carried
+the lists of images** (`23eab0f`): `IL_Create` answers the number that
+names the list, `IL_Add` answers the place of the image in it -- one for
+the first -- and **zero** when the image could not be loaded, and
+`IL_Destroy` answers one when the list was there and zero when it was
+not. The list is looked at before the image, and the null handle is
+refused. The image is the one of the machine -- the same path that
+`LoadPicture` takes -- and the tree loads the icons of a program of
+Windows already, so an `IL_Add` of the shell32.dll answers 1 here, as
+the binary does. The count is **807 values / 26 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
