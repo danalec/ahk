@@ -1188,6 +1188,15 @@ pub struct Runtime<'a> {
     /// runtime has no watcher of another program's clipboard, but its own
     /// writes are a change it can see, so the callback is called for them.
     clipboard_watcher: Option<String>,
+    /// The handlers of the messages, by the number of the message.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `OnMessage` answers
+    /// the empty text and registers the handler of a message. The messages
+    /// are the ones of a window procedure, and a script is not one: the
+    /// handler of the reference fires for the windows of other programs. The
+    /// drain of the events answers a `message:<number>` event of the helper
+    /// with the handler that is registered here.
+    message_handlers: BTreeMap<i64, String>,
     /// The menu of the tray icon, made the first time a script asks for it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
@@ -1390,6 +1399,7 @@ impl<'a> Runtime<'a> {
             groups: Vec::new(),
             last_window: None,
             clipboard_watcher: None,
+            message_handlers: BTreeMap::new(),
             tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
@@ -1461,6 +1471,7 @@ impl<'a> Runtime<'a> {
             groups: Vec::new(),
             last_window: None,
             clipboard_watcher: None,
+            message_handlers: BTreeMap::new(),
             tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
@@ -2156,6 +2167,19 @@ impl<'a> Runtime<'a> {
                 }
                 continue;
             }
+            // A message event carries the number of the message: the handler
+            // that `OnMessage` registered for it is called with it.
+            if name == "message" {
+                let Some(item) = &number else { continue };
+                let Ok(number) = item.parse::<i64>() else {
+                    continue;
+                };
+                let Some(function) = self.the_message_handler(number).cloned() else {
+                    continue;
+                };
+                pending.push((function, vec![Value::Int(number)]));
+                continue;
+            }
             let key = format!("on:{name}");
             let found = self.the_guis().iter().find_map(|gui| {
                 let Value::Object(window) = gui else {
@@ -2233,6 +2257,25 @@ impl<'a> Runtime<'a> {
     /// The windows of the script that have been remembered.
     pub fn the_guis(&self) -> &[Value] {
         &self.guis
+    }
+
+    /// Register the handler of a message, the way `OnMessage` does.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `OnMessage` answers
+    /// the empty text and the handler stays registered for the life of the
+    /// script. A message that is already registered is registered again: the
+    /// last handler wins, which is what the reference does when a script
+    /// registers a second handler for a message.
+    pub fn remember_a_message_handler(&mut self, number: i64, function: String) {
+        if function.is_empty() {
+            return;
+        }
+        self.message_handlers.insert(number, function);
+    }
+
+    /// The handler of a message, if one is registered for it.
+    pub fn the_message_handler(&self, number: i64) -> Option<&String> {
+        self.message_handlers.get(&number)
     }
 
     /// Put a window title into a group that outlives the statement.

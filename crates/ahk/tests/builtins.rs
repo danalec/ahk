@@ -1267,6 +1267,60 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_messages_of_a_window_procedure_are_registered_and_the_rest_is_not_carried() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: OnMessage takes
+    // (MsgNumber, Callback, MaxThreads) -- the callback is required -- and
+    // answers the empty text; a message number that is not a number throws
+    // "Parameter #1 of OnMessage requires a Number, but received a
+    // String.". PostMessage and SendMessage take the NUMBER of a window and
+    // throw "Target window not found." for every one of them -- the window of
+    // the script included -- and WinSetRegion throws the same.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "Handler(Msg)\n{\n    global seen\n    seen := Msg\n}",
+            "\na := OnMessage(0x0100, Handler)",
+            "\ntry\n{",
+            "\n    PostMessage(1234, 0x0100, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    post := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    SendMessage(1234, 0x0100, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    sent := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    WinSetRegion(1234, 0, 0, 0, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    region := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    OnMessage(\"x\", Handler)",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    for name in ["post", "sent", "region"] {
+        assert_eq!(
+            value_of(&report, name),
+            Value::Text("Target window not found.".into()),
+            "{name}"
+        );
+    }
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text(
+            "Parameter #1 of OnMessage requires a Number, but received a String.".into()
+        )
+    );
+}
+
+#[test]
 fn the_registry_of_the_machine_answers_the_shapes_the_binary_carries() {
     // Measured on the binary of v2.0.19 on 2026-11-11: RegWrite takes
     // (Value, ValueType, KeyName, ValueName) -- the value comes first and

@@ -1943,7 +1943,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: on_message,
     },
@@ -1961,9 +1961,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 8,
-        variant: 126,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: post_message,
     },
     Builtin {
         name: "ProcessClose",
@@ -2096,9 +2096,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 9,
-        variant: 126,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: send_message,
     },
     Builtin {
         name: "SetCapsLockState",
@@ -2672,9 +2672,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 126,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_region,
     },
     Builtin {
         name: "WinSetStyle",
@@ -11664,16 +11664,97 @@ pub(crate) fn control_get_pos(
     Ok(Value::Text(String::new()))
 }
 
-/// `OnMessage`: **refused, with a reason of its own.** The messages are the ones
-/// of a Win32 window procedure, which this runtime does not have.
+/// `OnMessage`: register a handler for the messages of a number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `OnMessage MsgNumber, Callback, MaxThreads` -- the callback is **required**
+/// and a call with one parameter is refused at the load -- and the call
+/// answers the empty text. A message number that is not a number throws
+/// "Parameter #1 of OnMessage requires a Number, but received a String.".
+///
+/// The messages are the ones of a window procedure, and a script is not
+/// one: the handler of the reference fires for the messages of the windows
+/// of other programs. This runtime keeps the registry of the handlers, and
+/// the drain of the events answers a `message:<number>` event of the helper
+/// with the handler that is registered for it.
 pub(crate) fn on_message(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, "OnMessage")? as i64;
+    let Some(callback) = values.get(1) else {
+        return Err(RuntimeError {
+            message: "Parameter #2 of OnMessage must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    };
+    let Value::Object(function) = callback else {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(2, "OnMessage", TypeName::Object, callback),
+            line,
+        });
+    };
+    let name = function
+        .borrow()
+        .properties
+        .get("name")
+        .map(|held| held.value.to_text())
+        .unwrap_or_default();
+    rt.remember_a_message_handler(number, name);
+    Ok(Value::Text(String::new()))
+}
+
+/// `PostMessage` and `SendMessage`: send a message to the window of a number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter is
+/// the **number** of a window -- a text throws "Parameter #1 of PostMessage
+/// requires a Number, but received a String." -- and every number throws
+/// "Target window not found.", the window of the script included: the
+/// messages go to the windows of other programs, and this runtime has no
+/// window procedure to receive them.
+pub(crate) fn post_message(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    number_argument(values, 0, line, "PostMessage")?;
+    Err(RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    })
+}
+
+/// `SendMessage`: the same as `PostMessage`, and the answer is the same.
+pub(crate) fn send_message(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    number_argument(values, 0, line, "SendMessage")?;
+    Err(RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    })
+}
+
+/// `WinSetRegion`: the shape of a window, cut out of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: every target throws
+/// "Target window not found." -- the window of the script included -- because
+/// a region is a shape of Windows that this platform's windows do not have.
+pub(crate) fn win_set_region(
     _rt: &mut Runtime<'_>,
     _values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     Err(RuntimeError {
-        message: "the messages are those of a Win32 window procedure, and this runtime has no such loop".to_string(),
+        message: "Target window not found.".to_string(),
         line,
     })
 }
