@@ -2310,6 +2310,7 @@ impl Dialect for V2 {
                 || name.eq_ignore_ascii_case("argumenterror")
                 || name.eq_ignore_ascii_case("scriptprocess")
                 || name.eq_ignore_ascii_case("timer")
+                || name.eq_ignore_ascii_case("keyinfo")
                 || name.eq_ignore_ascii_case("unsupportederror")
                 || crate::classes::typed::is_a_class(name))
     }

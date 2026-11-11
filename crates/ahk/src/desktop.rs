@@ -456,17 +456,6 @@ pub trait Processes {
     /// warning of the environment is given when the variable is there, and the
     /// name that the environment does not have is a name that has no value.
     fn env_get(&mut self, _name: &str) -> Result<Option<String>, String> {
-    /// The state of a process, when the machine knows it.
-    ///
-    /// The answer is `None` when the machine does not know the process: it
-    /// is not one of its children and it does not know it. The code and
-    /// the moment are there when the process has exited, and they are not
-    /// while it runs.
-
-    /// Kill a process.
-    ///
-    /// The answer is a failure with the reason when the machine cannot do
-    /// it: a process that is not killed is never reported as killed.
         Err("this desktop cannot read the environment".to_string())
     }
 

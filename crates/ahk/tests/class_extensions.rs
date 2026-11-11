@@ -1113,3 +1113,82 @@ fn the_script_that_set_no_condition_has_no_hotif() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "");
 }
+
+#[test]
+fn the_info_of_a_key_is_what_the_tree_knows_of_it() {
+    // The resolution is the one of GetKeyName, GetKeyVK and GetKeySC: the
+    // four builtins agree, and the name is the name v2 gives the key --
+    // "Esc" is the alias and "Escape" is the name.
+    let report = run_ks(concat!(
+        "k := GetKeyInfo(\"Enter\")\n",
+        "MsgBox k.VK\n",
+        "MsgBox k.SC\n",
+        "MsgBox k.Name\n",
+        "MsgBox k.Name = GetKeyName(\"Enter\")\n",
+        "MsgBox GetKeyInfo(\"Esc\").Name\n",
+        "MsgBox GetKeyInfo(\"NoSuchKey\")\n",
+        "MsgBox GetKeyInfo(\"^\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "13");
+    assert_eq!(line(&report, 1), "28");
+    assert_eq!(line(&report, 2), "Enter");
+    assert_eq!(line(&report, 3), "1");
+    assert_eq!(line(&report, 4), "Escape");
+    assert_eq!(line(&report, 5), "0");
+    assert_eq!(line(&report, 6), "0");
+}
+
+#[test]
+fn the_modifiers_of_a_key_are_the_symbols_it_carries() {
+    // The mask is the one of KeySharp: the alt is one, the control two,
+    // the shift four and the windows key eight. The prefix is built in the
+    // order of KeySharp -- the control, the shift, the alt, the windows
+    // key -- and a side appears in it when the symbol carried one.
+    let report = run_ks(concat!(
+        "k := GetKeyInfo(\"^a\")\n",
+        "MsgBox k.VK\n",
+        "MsgBox k.Modifiers\n",
+        "MsgBox k.Prefix\n",
+        "j := GetKeyInfo(\"<+!f\")\n",
+        "MsgBox j.VK\n",
+        "MsgBox j.Modifiers\n",
+        "MsgBox j.Prefix\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "65");
+    assert_eq!(line(&report, 1), "2");
+    assert_eq!(line(&report, 2), "^");
+    assert_eq!(line(&report, 3), "70");
+    assert_eq!(line(&report, 4), "5");
+    assert_eq!(line(&report, 5), "<+!");
+}
+
+#[test]
+fn the_property_reference_keeps_its_own_name() {
+    // The chain of the extension classes asks every module, and before the
+    // guard the PropRef answered the "Name" of every class of the chain
+    // with the unset value: the name of a PropRef is the name of the
+    // property it points at, and the name of a KeyInfo is the name of the
+    // key. Each module answers only for its own class.
+    let report = run_ks(concat!(
+        "class Thing {\n",
+        "    x := 1\n",
+        "}\n",
+        "p := PropRef(Thing(), \"x\")\n",
+        "MsgBox p.Name\n",
+        "MsgBox GetKeyInfo(\"Enter\").Name\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "x");
+    assert_eq!(line(&report, 1), "Enter");
+}
+
+#[test]
+fn the_layout_of_the_key_info_is_refused_with_the_reason() {
+    // The tree has one keyboard layout: a layout the script names is a
+    // parameter the tree cannot honour, and it says so instead of
+    // answering as if it had one.
+    let report = run_ks("MsgBox GetKeyInfo(\"Enter\", \"00000409\")\n");
+    assert!(!report.ok);
+}

@@ -11890,6 +11890,49 @@ pub(crate) fn ks_validate_script(
     Ok(Value::Object(object))
 }
 
+/// `GetKeyInfo`: what the tree knows of a key.
+///
+/// The answer is an object with the virtual key, the scan code, the name,
+/// the modifiers and the prefix of the key -- and the number zero when the
+/// name does not resolve, the way KeySharp answers it. The resolution is
+/// the one of `GetKeyName`, `GetKeyVK` and `GetKeySC`, so the four agree:
+/// the name is the name v2 gives the key, the virtual key is the one of
+/// Windows and the scan code is the one of the Linux input event.
+///
+/// The modifier symbols at the front of the name go into the modifiers
+/// and the prefix, the way KeySharp reads them. The layout parameter is
+/// refused with the reason: the tree has one keyboard layout, and a
+/// parameter it cannot honour is never ignored.
+pub(crate) fn ks_get_key_info(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 1 && !matches!(values[1], Value::Unset) {
+        return Err(RuntimeError {
+            message: "this tree has one keyboard layout, and the layout parameter of GetKeyInfo is not carried".to_string(),
+            line,
+        });
+    }
+    let text = match values.first() {
+        Some(value) => value.to_text(),
+        None => String::new(),
+    };
+    let (prefix, modifiers, rest) = crate::keys::the_modifier_prefix_of(&text);
+    let vk = crate::settings::key_code(rest);
+    let sc = crate::settings::key_event(rest) as u32;
+    let name = crate::settings::key_name(rest);
+    // KeySharp answers the number zero when the name does not resolve, and
+    // a key with no code and no name is not a key.
+    if (vk == 0 && sc == 0) || name.is_empty() {
+        return Ok(Value::Int(0));
+    }
+    Ok(crate::classes::keyinfo::the_key_info(
+        vk, sc, &name, modifiers, &prefix,
+    ))
+}
+
 /// `RequestCapabilities(Capabilities...)`: what the machine can do.
 ///
 /// The documentation of KeySharp: the answer is an object with a property

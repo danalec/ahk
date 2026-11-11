@@ -3134,23 +3134,13 @@ impl<'a> Runtime<'a> {
     /// The steps of a timer are steps of the script, so the budget of a
     /// timer is the budget of the script.
     pub(crate) fn the_timers(&self) -> Vec<(String, u64, u64)> {
-
         self.timers
-
             .iter()
-
             .map(|timer| (timer.name.clone(), timer.period, timer.last))
-
             .collect()
-
     }
 
     fn run_timers(&mut self) -> Result<(), RuntimeFailure> {
-    /// The condition that the script set with `HotIf`, as the text of it.
-    ///
-    /// The condition of a hotkey is one of the five forms the tree
-    /// understands, and the text is the way AHK writes it. The answer is
-    /// nothing when the script set no condition.
         let now = self.now_ms();
         let due: Vec<String> = self
             .timers

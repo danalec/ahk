@@ -61,6 +61,12 @@ pub(crate) fn property(
     this: &Value,
     _line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // The chain of the extension classes asks every module, and a
+    // module that answers the members of another class takes them
+    // with the unset value: the guard keeps the class its own.
+    if !_class.eq_ignore_ascii_case("propref") {
+        return None;
+    }
     let Value::Object(object) = this else {
         return None;
     };

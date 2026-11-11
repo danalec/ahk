@@ -11863,3 +11863,49 @@ The block was written and it was taken back: the call of the function
 answered "Missing a required parameter.", which is the message of a
 method of a class and not of a built-in, and the tree does not keep a
 name that it answers wrongly.
+
+## 324. `GetKeyInfo` lands, and the chain of the extension classes guards on the class
+
+The `ks` dialect carries `GetKeyInfo(KeyName)`: an object with `VK`, `SC`,
+`Name`, `Modifiers` and `Prefix`, and the number zero when the name does
+not resolve -- the answer of KeySharp, read in its source
+(`Keysharp.Core/Builtins/Keyboard.cs`, `GetKeyInfo`/`MakeKeyInfo`, on
+2026-11-11).
+
+Three decisions make it honest:
+
+- **The resolution is the tree's own.** `VK`, `SC` and `Name` come from
+  `key_code`, `key_event` and `key_name` in `settings.rs` -- the same
+  resolvers that `GetKeyVK`, `GetKeySC` and `GetKeyName` use, with the v2
+  names, the aliases and the characters. The four builtins agree:
+  `GetKeyInfo("Esc").Name` is "Escape", the name v2 gives the key, and
+  not the echo of the input. Round 63 read the raw tables of `keys.rs`
+  instead and answered the echo; that block was taken back.
+- **The modifier symbols are read the way KeySharp reads them.** `^`, `+`,
+  `!` and `#` at the front of the name, each with an optional `<` or `>`
+  side, go into `Modifiers` -- the mask of KeySharp: alt 1, control 2,
+  shift 4, win 8 -- and into `Prefix`, built in the order of KeySharp
+  (control, shift, alt, win) with the side the symbol carried:
+  `GetKeyInfo("<+!f")` answers 5 and "<+!".
+- **The layout parameter is refused with the reason.** KeySharp resolves
+  the key against the layout the script names; the tree has one keyboard
+  layout. A parameter the tree cannot honour fails, and it is never
+  ignored.
+
+**The bug the round found is bigger than the function.** The property of
+an object of an extension class goes through a chain --
+`propref::property(...).or_else(|| typed::property(...)).or_else(...)` --
+and `propref::property` matched the names "target", "name" and "args"
+**without looking at the class**: it answered the `Name` of every other
+class in the chain with the unset value of its own empty key.
+`GetKeyInfo("Enter").Name` was the unset value, and `Type()` of it failed
+with "Missing a required parameter." -- a message that names no culprit.
+Every module of the chain now guards on its own class first, and the case
+`the_property_reference_keeps_its_own_name` pins the two sides: the
+`Name` of a `PropRef` is the property it points at, and the `Name` of a
+`KeyInfo` is the key.
+
+The stranded doc comments of rounds 60 and 62 (inside `env_get` and
+`run_timers`, where the move scripts left them) went away with this
+round: rustc names them "unused doc comment", and they are the mark of a
+move that extracted a body and left the doc behind.

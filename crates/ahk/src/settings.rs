@@ -1490,7 +1490,7 @@ const MODIFIERS: &[(&str, &str, &str, u32)] = &[
 ///
 /// A name the tree does not know is the empty string, the way v2 answers
 /// a name it does not know.
-fn key_name(name: &str) -> String {
+pub(crate) fn key_name(name: &str) -> String {
     match find_key(name) {
         Some(key) => key.name,
         None => String::new(),
@@ -1500,7 +1500,7 @@ fn key_name(name: &str) -> String {
 /// The code of the Linux input event of the key of this name.
 ///
 /// A name the tree does not know is the zero, the way v2 answers it.
-fn key_event(name: &str) -> u16 {
+pub(crate) fn key_event(name: &str) -> u16 {
     match find_key(name) {
         Some(key) => key.event,
         None => 0,
@@ -1510,7 +1510,7 @@ fn key_event(name: &str) -> u16 {
 /// The virtual key code of Windows of the key of this name.
 ///
 /// A name the tree does not know is the zero, the way v2 answers it.
-fn key_code(name: &str) -> u32 {
+pub(crate) fn key_code(name: &str) -> u32 {
     match find_key(name) {
         Some(key) => key.code,
         None => 0,

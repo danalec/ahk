@@ -1060,3 +1060,73 @@ mod tests {
         assert_eq!(strokes[0].modifiers, vec!["lwin"]);
     }
 }
+
+/// The modifier symbols at the front of a key name.
+///
+/// KeySharp's `TextToVKandSC` reads the modifier symbols of AHK at the
+/// front of the name -- `^` for the control, `+` for the shift, `!` for
+/// the alt and `#` for the windows key, each with an optional `<` or `>`
+/// side in front of it -- and answers with the rest of the name and the
+/// modifiers the symbols carry. The mask is the one of KeySharp: the alt
+/// is one, the control two, the shift four and the windows key eight. The
+/// prefix is built in the order of KeySharp -- the control, the shift,
+/// the alt, the windows key -- and a side appears in it when the symbol
+/// carried one; a symbol with no side is both sides.
+pub(crate) fn the_modifier_prefix_of(text: &str) -> (String, u32, &str) {
+    let bytes = text.as_bytes();
+    let mut index = 0;
+    // The sides of each modifier: the left and the right.
+    let mut ctrl = (false, false);
+    let mut shift = (false, false);
+    let mut alt = (false, false);
+    let mut win = (false, false);
+    loop {
+        let mut peek = index;
+        let mut side = b'\0';
+        if peek < bytes.len() && (bytes[peek] == b'<' || bytes[peek] == b'>') {
+            side = bytes[peek];
+            peek += 1;
+        }
+        if peek >= bytes.len() {
+            break;
+        }
+        let slot = match bytes[peek] {
+            b'^' => &mut ctrl,
+            b'+' => &mut shift,
+            b'!' => &mut alt,
+            b'#' => &mut win,
+            _ => break,
+        };
+        match side {
+            b'<' => slot.0 = true,
+            b'>' => slot.1 = true,
+            _ => {
+                // A symbol with no side is the two sides: the hotkey fires
+                // with either of them.
+                slot.0 = true;
+                slot.1 = true;
+            }
+        }
+        index = peek + 1;
+    }
+    let mut mask = 0;
+    let mut prefix = String::new();
+    for (slot, bit, symbol) in [
+        (ctrl, 2u32, '^'),
+        (shift, 4u32, '+'),
+        (alt, 1u32, '!'),
+        (win, 8u32, '#'),
+    ] {
+        if !slot.0 && !slot.1 {
+            continue;
+        }
+        mask |= bit;
+        if slot.0 && !slot.1 {
+            prefix.push('<');
+        } else if slot.1 && !slot.0 {
+            prefix.push('>');
+        }
+        prefix.push(symbol);
+    }
+    (prefix, mask, &text[index..])
+}
