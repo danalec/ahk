@@ -136,6 +136,14 @@ address that names nothing answers the empty text, where the tree used to
 refuse it: the answer the binary gives is the empty one. The copy is a
 buffer of the runtime and the address is the one of its storage, the same
 one `Buffer.Ptr` answers. The count is **801 values / 32 refusals**.
+**Round 21 carried the log of the lines** (`88b151c`): `ListLines(Setting)`
+answers the **previous** setting, and the state was already kept by the
+tree -- the command was the part that was refused. The same measurement
+corrected the address of a text: two calls of `StrPtr` with the same text
+give two addresses, and the address of the storage of a buffer is the
+address of the memory of the runtime, which the allocator gives twice --
+so the address of a text is minted now, apart from the addresses of the
+objects. The count is **802 values / 31 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
