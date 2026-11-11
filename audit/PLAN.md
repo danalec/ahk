@@ -69,7 +69,15 @@ would be a wrong value, which is the worst outcome -- while
 `WinActivateBottom` is the activation the window of the script already
 answers, and `Shutdown` takes the number the binary takes and throws its
 wording for a text, with the session of the machine deliberately left
-alone. The count is **771 values / 62 refusals**.
+alone. The count is **771 values / 62 refusals**. **Round 10 answered the
+three tray variables** (`f6a569f`): measured on the binary, `A_IconFile`
+of a script that set no icon is empty, `A_IconNumber` is **zero** -- not
+one -- and `A_TrayMenu` is a Menu object, the same one for the life of the
+script, whose `Default` is "&Open" before any item is added. The runtime
+makes the menu once and keeps it. The count is **774 values / 59
+refusals**, in both dialects. The tray VISUAL -- an icon in the tray of
+the desktop, which AHK_X11 does not have -- is the next piece of this
+group, through StatusNotifierItem.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
