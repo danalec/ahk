@@ -11799,3 +11799,153 @@ pub(crate) fn ks_props(
         crate::classes::enumerator::Alone::TheKey,
     ))
 }
+
+/// `IsComponentAvailable(Capability)`: whether the unit of the dialect is
+/// there.
+///
+/// The documentation of KeySharp: the unit is the `parser` or the
+/// `compiler` of the first party, and the aliases `parsing` and
+/// `compilation` are accepted. This tree has the parser -- it reads the
+/// scripts -- and it has no compiler: it runs what it reads, and it never
+/// turns a script into another language. A name that is not one of them
+/// is refused, the way KeySharp refuses it.
+pub(crate) fn ks_is_component_available(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let name = text_of(values, 0).to_lowercase();
+    let answer = match name.as_str() {
+        "parser" | "parsing" => 1,
+        "compiler" | "compilation" => 0,
+        _ => {
+            return Err(RuntimeError {
+                message: format!("Unknown capability \"{name}\"."),
+                line,
+            })
+        }
+    };
+    Ok(Value::Int(answer))
+}
+
+/// `ValidateScript(Code)`: check a script without running it.
+///
+/// The documentation of KeySharp: the code is the path of a script file
+/// when a file of that name is there, and the source of a script
+/// otherwise; the answer is an object with `IsValid`, `Errors` and
+/// `Warnings`, and the errors carry the file, the line and the column.
+///
+/// The tree has a parser, and it reads the script with the parser of the
+/// dialect that runs: the script is checked, and it is not run.
+pub(crate) fn ks_validate_script(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let code = text_of(values, 0);
+    // A file of that name, when the machine has one, and the source
+    // otherwise.
+    let (source, file) = match rt.desktop().read_file(&code) {
+        Ok(lines) => (lines.join("\n"), Some(code.clone())),
+        Err(_) => (code.clone(), None),
+    };
+    let parsed = crate::parser::parse_with(&source, rt.dialect());
+    let mut errors: Vec<Value> = Vec::new();
+    let valid = match parsed {
+        Ok(_) => 1,
+        Err(failure) => {
+            let place = match &file {
+                Some(file) => format!("{file}:{}:{}", failure.line, failure.column),
+                None => format!("{}:{}", failure.line, failure.column),
+            };
+            errors.push(Value::Text(format!("{place}: {}", failure.message)));
+            0
+        }
+    };
+    let object = crate::classes::object("object");
+    let Value::Object(object) = object else {
+        return Err(RuntimeError {
+            message: "this runtime cannot make an object".to_string(),
+            line: _line,
+        });
+    };
+    object.borrow_mut().put("IsValid", Value::Int(valid));
+    object.borrow_mut().put(
+        "Errors",
+        crate::classes::array::construct(&errors, rt, _line).map_err(|failure| RuntimeError {
+            message: crate::runtime::the_message_of(&failure),
+            line: _line,
+        })?,
+    );
+    object
+        .borrow_mut()
+        .put("Warnings", crate::classes::array::construct(&[], rt, _line).map_err(
+            |failure| RuntimeError {
+                message: crate::runtime::the_message_of(&failure),
+                line: _line,
+            },
+        )?);
+    Ok(Value::Object(object))
+}
+
+/// `RequestCapabilities(Capabilities...)`: what the machine can do.
+///
+/// The documentation of KeySharp: the answer is an object with a property
+/// for every capability -- `Granted`, `Denied`, `NotApplicable` or
+/// `Unsupported` -- and an `IsGranted` that says whether every capability
+/// that was asked for is granted.
+///
+/// The tree has no store of permissions: what it answers is what it can
+/// do. The capability of the keyboard and of the pointer is the one of
+/// the input, and the capability of the screen is the one of the capture:
+/// both are there, and both are granted. The names that the tree does
+/// not know are unsupported.
+pub(crate) fn ks_request_capabilities(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let mut asked: Vec<String> = Vec::new();
+    for value in values {
+        for part in value
+            .to_text()
+            .split(|character: char| character == ',' || character.is_whitespace())
+        {
+            if !part.is_empty() {
+                asked.push(part.to_lowercase());
+            }
+        }
+    }
+    if asked.is_empty() {
+        asked.push("inputmonitoring".to_string());
+        asked.push("screencapture".to_string());
+    }
+    let mut granted = true;
+    let object = crate::classes::object("object");
+    let Value::Object(object) = object else {
+        return Err(RuntimeError {
+            message: "this runtime cannot make an object".to_string(),
+            line,
+        });
+    };
+    for name in asked {
+        let answer = match name.as_str() {
+            "inputmonitoring" | "screencapture" => "Granted",
+            _ => "Unsupported",
+        };
+        if answer != "Granted" {
+            granted = false;
+        }
+        object
+            .borrow_mut()
+            .put(&name, Value::Text(answer.to_string()));
+    }
+    object
+        .borrow_mut()
+        .put("IsGranted", Value::Int(if granted { 1 } else { 0 }));
+    let _ = rt;
+    Ok(Value::Object(object))
+}

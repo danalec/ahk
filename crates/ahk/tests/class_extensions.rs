@@ -777,3 +777,55 @@ fn the_input_hook_of_the_ks_carries_its_settings() {
     assert_eq!(line(&report, 2), "1");
     assert_eq!(line(&report, 3), "1");
 }
+#[test]
+fn the_tree_has_the_parser_and_not_the_compiler() {
+    // The documentation of KeySharp: the unit is the parser or the
+    // compiler, and the aliases are accepted. The tree reads the scripts
+    // and never turns them into another language.
+    let report = run_ks(concat!(
+        "MsgBox IsComponentAvailable(\"parser\")\n",
+        "MsgBox IsComponentAvailable(\"parsing\")\n",
+        "MsgBox IsComponentAvailable(\"compiler\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "0");
+}
+
+#[test]
+fn a_script_is_validated_without_being_run() {
+    let report = run_ks(concat!(
+        "good := ValidateScript(\"x := 1\")\n",
+        "MsgBox good.IsValid\n",
+        "MsgBox good.Errors.Length\n",
+        "bad := ValidateScript(\"x := )\")\n",
+        "MsgBox bad.IsValid\n",
+        "MsgBox bad.Errors.Length\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "0");
+    assert_eq!(line(&report, 2), "0");
+    assert_eq!(line(&report, 3), "1");
+}
+
+#[test]
+fn the_capabilities_of_the_machine_are_answered() {
+    // The tree has no store of permissions: what it answers is what it
+    // can do. The input and the capture are there, and a name it does not
+    // know is unsupported.
+    let report = run_ks(concat!(
+        "c := RequestCapabilities(\"InputMonitoring\")\n",
+        "MsgBox c.IsGranted\n",
+        "MsgBox c.InputMonitoring\n",
+        "d := RequestCapabilities(\"Nonsense\")\n",
+        "MsgBox d.Nonsense\n",
+        "MsgBox d.IsGranted\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "Granted");
+    assert_eq!(line(&report, 2), "Unsupported");
+    assert_eq!(line(&report, 3), "0");
+}

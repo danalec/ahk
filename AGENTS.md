@@ -11526,3 +11526,36 @@ dialect alone.
 Verified on 2026-11-11 with a case of its own. The scorecard moves:
 106 of 138 = 76.8 % of the platform-neutral Keysharp surface, from
 71.0 %.
+
+## 310. The three globals of the Ks that the tree answers without a machine
+
+The tenth block of the dialect of KeySharp carries the three globals that
+the tree can answer on every machine.
+
+`IsComponentAvailable(Capability)` asks whether a unit of the dialect is
+there. The units are the `parser` and the `compiler` of KeySharp, and
+the aliases `parsing` and `compilation` are accepted. The tree has the
+parser -- it reads the scripts -- and it has no compiler: it runs what it
+reads, and it never turns a script into another language. A name that is
+not one of them is refused, the way KeySharp refuses it.
+
+`ValidateScript(Code)` checks a script without running it. The code is
+the path of a script file when the machine has a file of that name, and
+the source of a script otherwise; the answer is an object with
+`IsValid`, `Errors` and `Warnings`, and every error carries the line and
+the column. The tree reads the script with the parser of the dialect that
+runs, and it does not run it.
+
+`RequestCapabilities(Capabilities...)` says what the machine can do: an
+object with a property for every capability -- `Granted`, `Denied`,
+`NotApplicable` or `Unsupported` -- and an `IsGranted` that says whether
+every capability that was asked for is granted. **The tree has no store
+of permissions, and what it answers is what it can do**: the keyboard and
+the pointer are the capability of the input, and the screen is the
+capability of the capture, and both are there. A name the tree does not
+know is unsupported, and the `IsGranted` of a set that has one is zero.
+
+Verified on 2026-11-11 with three cases of its own
+(`tests/class_extensions.rs` now carries 53). The scorecard moves:
+109 of 138 = 79.0 % of the platform-neutral Keysharp surface, from
+76.8 %.
