@@ -63,6 +63,7 @@ mod abi {
     pub const EV_KEY: u16 = 0x01;
     pub const EV_REL: u16 = 0x02;
     pub const EV_MSC: u16 = 0x04;
+    pub const EV_LED: u16 = 0x11;
     pub const SYN_REPORT: u16 = 0x00;
 
     pub const REL_X: u16 = 0x00;
@@ -72,14 +73,22 @@ mod abi {
 
     pub const MSC_TIMESTAMP: u16 = 0x01;
     pub const MSC_SCAN: u16 = 0x04;
+
+    /// The lamps of the three locks, as the kernel names them.
+    pub const LED_NUML: u16 = 0x00;
+    pub const LED_CAPSL: u16 = 0x01;
+    pub const LED_SCROLLL: u16 = 0x02;
 }
 
 #[allow(unused_imports)]
 use abi::{
-    EV_KEY, EV_MSC, EV_REL, EV_SYN, MSC_SCAN, MSC_TIMESTAMP, REL_DIAL, REL_RY, REL_X, REL_Y,
-    SYN_REPORT, UI_DEV_CREATE, UI_DEV_SETUP, UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_MSCBIT,
+    EV_KEY, EV_LED, EV_MSC, EV_REL, EV_SYN, MSC_SCAN, MSC_TIMESTAMP, REL_DIAL, REL_RY, REL_X,
+    REL_Y, SYN_REPORT, UI_DEV_CREATE, UI_DEV_SETUP, UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_MSCBIT,
     UI_SET_RELBIT,
 };
+
+/// The lamps of the three locks, for the desktop that owns the device.
+pub use abi::{LED_CAPSL, LED_NUML, LED_SCROLLL};
 
 /// How long a key stays down.
 ///
@@ -216,6 +225,22 @@ impl Keyboard {
         self.emit(EV_SYN, SYN_REPORT, 0)
     }
 
+    /// Light a lamp of this keyboard, or put it out.
+    ///
+    /// The lamp is the one of the device this runtime owns, and the event
+    /// carries it to the compositor, which shows it the way it shows the
+    /// lamp of any keyboard.
+    ///
+    /// The kernel of the box does not make a class entry for the lamps of
+    /// this device (measured on 2026-11-11: `/sys/class/leds` carries the
+    /// three lamps of the physical keyboard and none of ours), and the lamp
+    /// of the PHYSICAL keyboard cannot be written at all -- writing it
+    /// needs the privileges of the root. So the state a script reads back
+    /// is the state it set, and that is what the runtime answers.
+    pub fn set_led(&mut self, code: u16, on: bool) -> Result<(), KeyboardError> {
+        self.emit(EV_LED, code, if on { 1 } else { 0 })
+    }
+
     fn emit(&mut self, event_type: u16, code: u16, value: i32) -> Result<(), KeyboardError> {
         self.write(event_type, code, value)?;
         // The frame has to be closed. Without the SYN_REPORT the event
@@ -253,6 +278,9 @@ impl Keyboard {
         self.ioctl(UI_SET_EVBIT, EV_REL as crate::sys::Int)?;
         self.ioctl(UI_SET_EVBIT, EV_MSC as crate::sys::Int)?;
         self.ioctl(UI_SET_EVBIT, EV_SYN as crate::sys::Int)?;
+        // The lamps of the locks: a device that announces no lamp is a device
+        // whose lamps the compositor never shows.
+        self.ioctl(UI_SET_EVBIT, EV_LED as crate::sys::Int)?;
         for code in &self.codes {
             self.ioctl(UI_SET_KEYBIT, *code as crate::sys::Int)?;
         }

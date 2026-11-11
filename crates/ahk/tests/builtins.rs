@@ -69,6 +69,8 @@ struct Fake {
     caret: Option<(i64, i64)>,
     /// The label of the one drive the fake carries, when there is one.
     drive_label: Option<String>,
+    /// The state of the three lock lights of the fake.
+    lock_lights: [bool; 3],
 }
 
 impl Desktop for Fake {}
@@ -886,6 +888,26 @@ impl Keyboard for Fake {
         spelled.push_str(name);
         Ok(format!("pressed {spelled}"))
     }
+    fn lock_light(&mut self, name: &str) -> Result<Option<bool>, String> {
+        Ok(the_lock_of(name).map(|index| self.lock_lights[index]))
+    }
+    fn set_lock_light(&mut self, name: &str, on: bool) -> Result<bool, String> {
+        let Some(index) = the_lock_of(name) else {
+            return Ok(false);
+        };
+        self.lock_lights[index] = on;
+        Ok(on)
+    }
+}
+
+/// The lock a name is one of, and the place of it in the table of the three.
+fn the_lock_of(name: &str) -> Option<usize> {
+    match name.trim().to_lowercase().as_str() {
+        "capslock" => Some(0),
+        "numlock" => Some(1),
+        "scrolllock" => Some(2),
+        _ => None,
+    }
 }
 
 impl Pointer for Fake {
@@ -1191,6 +1213,47 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
     // The variables stay as they were.
     assert_eq!(int_of(&report, "x"), -1);
     assert_eq!(int_of(&report, "y"), -1);
+}
+
+#[test]
+fn the_lock_lights_answer_the_state_that_the_program_set() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: "On" turns the light
+    // on and "Off" turns it out, and GetKeyState(<lock>, "T") reads the
+    // state back -- one for the light that is on. Every other word, "Toggle"
+    // included, leaves the state as it was, and no word is a failure. The
+    // three locks are one each, and a lock key is never down.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "before := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetCapsLockState(\"On\")",
+            "\non := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetCapsLockState(\"Off\")",
+            "\noff := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetCapsLockState(\"On\")",
+            "\nSetCapsLockState(\"Toggle\")",
+            "\ntog := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetCapsLockState(\"Bogus\")",
+            "\nbogus := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetNumLockState(\"On\")",
+            "\nnum := GetKeyState(\"NumLock\", \"T\")",
+            "\ncap := GetKeyState(\"CapsLock\", \"T\")",
+            "\ndown := GetKeyState(\"CapsLock\")",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "before"), 0);
+    assert_eq!(int_of(&report, "on"), 1);
+    assert_eq!(int_of(&report, "off"), 0);
+    // "Toggle" leaves the state as it was.
+    assert_eq!(int_of(&report, "tog"), 1);
+    assert_eq!(int_of(&report, "bogus"), 1);
+    // The three locks are one each.
+    assert_eq!(int_of(&report, "num"), 1);
+    assert_eq!(int_of(&report, "cap"), 1);
+    // A lock key is never down.
+    assert_eq!(int_of(&report, "down"), 0);
 }
 
 #[test]

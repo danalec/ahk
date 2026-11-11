@@ -147,6 +147,16 @@ pub struct LabDesktop {
     /// connection to the compositor is worth keeping.
     #[cfg(target_os = "linux")]
     wayland: Option<crate::wayland::Client>,
+    /// The state of the three lock lights, as the program set them.
+    ///
+    /// The lamp of the PHYSICAL keyboard of the machine cannot be written
+    /// without the privileges of the root -- `/sys/class/leds/input1::capslock/
+    /// brightness` is root-only (measured on the box on 2026-11-11) -- and the
+    /// kernel makes no class entry for the lamps of our own device either
+    /// (measured the same day). So the state a script reads back is the
+    /// state it set, and the lamp of our device is the compositor's
+    /// business.
+    lock_lights: [bool; 3],
 }
 
 impl Default for LabDesktop {
@@ -175,6 +185,7 @@ impl LabDesktop {
             raven: None,
             #[cfg(target_os = "linux")]
             wayland: None,
+            lock_lights: [false; 3],
         }
     }
 
@@ -617,6 +628,41 @@ impl ahk::desktop::Keyboard for LabDesktop {
     }
     fn keys_down(&mut self) -> Result<Vec<String>, String> {
         crate::hotkeys::keys_down()
+    }
+    fn lock_light(&mut self, name: &str) -> Result<Option<bool>, String> {
+        Ok(the_lock_of(name).map(|index| self.lock_lights[index]))
+    }
+    fn set_lock_light(&mut self, name: &str, on: bool) -> Result<bool, String> {
+        let Some(index) = the_lock_of(name) else {
+            return Ok(false);
+        };
+        self.lock_lights[index] = on;
+        // The lamp of OUR keyboard goes with the state: the compositor shows
+        // it the way it shows the lamp of any keyboard. The lamp of the
+        // physical keyboard of the machine is another thing, and writing it
+        // needs the privileges of the root.
+        if let Some(keyboard) = self.keyboard.as_mut() {
+            let lamp = match index {
+                0 => crate::keyboard::LED_CAPSL,
+                1 => crate::keyboard::LED_NUML,
+                _ => crate::keyboard::LED_SCROLLL,
+            };
+            let _ = keyboard.set_led(lamp, on);
+        }
+        Ok(on)
+    }
+}
+
+/// The lock a name is one of, and the place of it in the table of the three.
+///
+/// The names are the ones of the keys of a keyboard, and they are matched
+/// without the case, the way the keys themselves are.
+fn the_lock_of(name: &str) -> Option<usize> {
+    match name.trim().to_lowercase().as_str() {
+        "capslock" => Some(0),
+        "numlock" => Some(1),
+        "scrolllock" => Some(2),
+        _ => None,
     }
 }
 

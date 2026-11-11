@@ -286,8 +286,11 @@ fn the_surface_flag_answers_with_json() {
     // (round 12): seven of the nine names answer the wordings the binary
     // throws shape by shape, and the two without a measured shape --
     // ComObjFromPtr, which hangs on the binary, and ComCall -- stay refused.
-    assert_eq!(report.number("values"), 788);
-    assert_eq!(report.number("refusals"), 45);
+    // The lock lights are the latest (round 16): the three Set*LockState
+    // names answer, and the state they set is read back by
+    // GetKeyState(<lock>, "T").
+    assert_eq!(report.number("values"), 791);
+    assert_eq!(report.number("refusals"), 42);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");

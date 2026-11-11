@@ -860,16 +860,36 @@ pub fn hotif_window(
 
 /// The `GetKeyState` command.
 ///
-/// The command says whether a key is down right now. v2.0.19 takes one
-/// parameter only: the second one is "Parameter #2 of GetKeyState is
-/// invalid.".
+/// The command says whether a key is down right now, and it takes the mode
+/// of the state as its second parameter: "T" is the state of the toggle and
+/// "P" the one of the key being down.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: `GetKeyState("A")` and
+/// `GetKeyState("A", "T")` and `GetKeyState("A", "P")` all answer 0, and a
+/// mode that is neither "T" nor "P" throws "Parameter #2 of GetKeyState is
+/// invalid." -- so the second parameter is carried, and only these two
+/// words are right in it.
+///
+/// The three locks of a keyboard are the one case where the mode says
+/// something new: `GetKeyState("CapsLock", "T")` answers the state of the
+/// lamp -- one when the program turned it on with `SetCapsLockState("On")`
+/// -- and `GetKeyState("CapsLock")` answers zero, because a lock key is
+/// never down.
 pub fn get_key_state(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    if values.len() > 1 {
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "Parameter #2 of GetKeyState is invalid.".to_string(),
+            line,
+        });
+    }
+    let mode = values.get(1).map(|value| value.to_text()).unwrap_or_default();
+    let mode = mode.trim();
+    if !mode.is_empty() && !mode.eq_ignore_ascii_case("T") && !mode.eq_ignore_ascii_case("P") {
         return Err(RuntimeError {
             message: "Parameter #2 of GetKeyState is invalid.".to_string(),
             line,
@@ -886,12 +906,37 @@ pub fn get_key_state(
             line,
         });
     }
+    // A lock: the lamp carries the state, and the key is never down.
+    if let Some(lock) = the_lock_of(&name) {
+        if mode.eq_ignore_ascii_case("T") {
+            return match rt.desktop().lock_light(lock) {
+                Ok(Some(on)) => Ok(Value::Int(on as i64)),
+                // A desktop that does not know the lock leaves the state open.
+                Ok(None) => Ok(Value::Int(0)),
+                Err(reason) => Err(RuntimeError {
+                    message: reason,
+                    line,
+                }),
+            };
+        }
+        return Ok(Value::Int(0));
+    }
     match rt.desktop().key_is_down(&name) {
         Ok(down) => Ok(Value::Int(down as i64)),
         Err(reason) => Err(RuntimeError {
             message: reason,
             line,
         }),
+    }
+}
+
+/// The three locks of a keyboard, and the name of each of them.
+fn the_lock_of(name: &str) -> Option<&'static str> {
+    match name.trim().to_lowercase().as_str() {
+        "capslock" => Some("CapsLock"),
+        "numlock" => Some("NumLock"),
+        "scrolllock" => Some("ScrollLock"),
+        _ => None,
     }
 }
 

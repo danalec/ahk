@@ -2105,9 +2105,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 131,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: set_caps_lock_state,
     },
     Builtin {
         name: "SetControlDelay",
@@ -2123,9 +2123,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 131,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: set_num_lock_state,
     },
     Builtin {
         name: "SetRegView",
@@ -2141,9 +2141,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 131,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: set_scroll_lock_state,
     },
     Builtin {
         name: "SetTitleMatchMode",
@@ -4696,6 +4696,67 @@ pub(crate) fn is_set(
 }
 
 // -- the keys ----------------------------------------------------------------------
+
+/// `SetCapsLockState`, `SetNumLockState` and `SetScrollLockState`: the state
+/// of a lock light of the keyboard.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: "On" turns the light on
+/// and "Off" turns it out -- and `GetKeyState(<lock>, "T")` reads the state
+/// back, one for the light that is on. Every other word, "Toggle" included,
+/// leaves the state as it was, and no word is a failure.
+///
+/// The "Toggle" of the documentation presses the key of the lock, which
+/// turns the lamp of the physical keyboard; the state that `GetKeyState`
+/// reads is the one the program set, and it does not move.
+fn set_lock_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    lock: &str,
+) -> Result<Value, RuntimeError> {
+    let word = text_of(values, 0).trim().to_lowercase();
+    let wanted = match word.as_str() {
+        "on" => Some(true),
+        "off" => Some(false),
+        _ => None,
+    };
+    if let Some(on) = wanted {
+        rt.desktop()
+            .set_lock_light(lock, on)
+            .map_err(|reason| desktop_failure(reason, line))?;
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `SetCapsLockState`: the state of the lamp of the Caps Lock.
+pub(crate) fn set_caps_lock_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    set_lock_state(rt, values, line, "CapsLock")
+}
+
+/// `SetNumLockState`: the state of the lamp of the Num Lock.
+pub(crate) fn set_num_lock_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    set_lock_state(rt, values, line, "NumLock")
+}
+
+/// `SetScrollLockState`: the state of the lamp of the Scroll Lock.
+pub(crate) fn set_scroll_lock_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    set_lock_state(rt, values, line, "ScrollLock")
+}
 
 /// `SendMode`: how the keys are sent.
 ///

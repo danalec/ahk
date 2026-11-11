@@ -484,7 +484,15 @@ pub(crate) fn get_key_state(
     } else {
         values.first()
     };
-    let answer = match (is_the_command, the_state_of_a_key(rt, name, line)?) {
+    // The mode is the parameter after the name, and it says what the state
+    // that is asked for is: "T" is the state of the toggle and "P" the one
+    // of the key being down.
+    let mode = if is_the_command {
+        values.get(2)
+    } else {
+        values.get(1)
+    };
+    let answer = match (is_the_command, the_state_of_a_key(rt, name, mode, line)?) {
         // The command writes the letter D or U.
         (true, Some(true)) => Value::Text("D".to_string()),
         (true, Some(false)) => Value::Text("U".to_string()),
@@ -500,17 +508,50 @@ pub(crate) fn get_key_state(
     Ok(answer)
 }
 
+/// The three locks of a keyboard, and the name of each of them.
+fn the_lock_of(name: &str) -> Option<&'static str> {
+    match name.trim().to_lowercase().as_str() {
+        "capslock" => Some("CapsLock"),
+        "numlock" => Some("NumLock"),
+        "scrolllock" => Some("ScrollLock"),
+        _ => None,
+    }
+}
+
 /// The state of the key of this name.
 ///
 /// The answer is `None` when the name is not a key of the v1, and it is
 /// the state of the key when it is one.
+///
+/// The three locks of a keyboard are the one case where the mode decides:
+/// measured on the binary of v2.0.19 on 2026-11-11, `GetKeyState("CapsLock",
+/// "T")` answers the state of the lamp -- one when the program turned it
+/// on with `SetCapsLockState("On")` -- and `GetKeyState("CapsLock")` answers
+/// zero, because a lock key is never down.
 fn the_state_of_a_key(
     rt: &mut Runtime<'_>,
     name: Option<&Value>,
+    mode: Option<&Value>,
     line: u32,
 ) -> Result<Option<bool>, RuntimeError> {
     let name = name.map(|value| value.to_text()).unwrap_or_default();
     let name = name.trim();
+    let mode = mode.map(|value| value.to_text()).unwrap_or_default();
+    if let Some(lock) = the_lock_of(name) {
+        if !mode.trim().eq_ignore_ascii_case("T") {
+            // A lock key is not a key that is down.
+            return Ok(Some(false));
+        }
+        return match rt.desktop().lock_light(lock) {
+            Ok(Some(on)) => Ok(Some(on)),
+            // A desktop that does not know the lock leaves the state open.
+            Ok(None) => Ok(None),
+            Err(reason) => Err(RuntimeError {
+                message: reason,
+                line,
+            }),
+        };
+    }
     if !keys::is_the_name_of_a_key(name) {
         return Ok(None);
     }

@@ -61,6 +61,24 @@ pub trait Keyboard {
     fn keys_down(&mut self) -> Result<Vec<String>, String> {
         Err("this desktop cannot tell which keys are down".to_string())
     }
+
+    /// The state of a lock light of the keyboard.
+    ///
+    /// The three locks of a keyboard are CapsLock, NumLock and ScrollLock.
+    /// `None` is a name that is not a lock of a keyboard.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `SetCapsLockState
+    /// ("On")` makes `GetKeyState("CapsLock", "T")` answer 1, and "Off"
+    /// makes it answer 0 -- the state a program sets is the state it reads
+    /// back.
+    fn lock_light(&mut self, _name: &str) -> Result<Option<bool>, String> {
+        Err("this desktop cannot tell the state of a lock light".to_string())
+    }
+
+    /// Set a lock light of the keyboard, and say whether it is on now.
+    fn set_lock_light(&mut self, _name: &str, _on: bool) -> Result<bool, String> {
+        Err("this desktop cannot set a lock light".to_string())
+    }
 }
 
 /// The pointer of the desktop.
