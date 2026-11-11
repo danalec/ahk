@@ -32,7 +32,7 @@ impl Keyboard for Fake {
         Ok(String::new())
     }
 }
-impl Machine for Fake {}
+impl Machine for Fake {    fn executable(&mut self) -> Result<String, String> {        Ok("/usr/bin/ahk".to_string())    }}
 impl Native for Fake {}
 impl Network for Fake {}
 impl Pictures for Fake {}
@@ -380,6 +380,111 @@ fn the_dialect_of_the_v2_does_not_have_the_functions() {
     // v2, and the tree says so.
     let mut desktop = Fake;
     let statements = ahk::parse("x := ATan2(0.5, 1)\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}
+
+#[test]
+fn the_defaults_of_the_hotstrings_are_the_ones_keysharp_starts_with() {
+    // The defaults were read out of the HotstringManager of KeySharp on
+    // 2026-11-11: the case counts for nothing, the case conforms, the
+    // backspacing happens, and the ending characters are the punctuation
+    // of AHK.
+    let report = run_ks(concat!(
+        "MsgBox A_DefaultHotstringCaseSensitive\n",
+        "MsgBox A_DefaultHotstringConformToCase\n",
+        "MsgBox A_DefaultHotstringDoBackspace\n",
+        "MsgBox A_DefaultHotstringEndChars\n",
+        "MsgBox A_DefaultHotstringSendMode\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "1");
+    assert_eq!(line(&report, 3), "-()[]{}:;'\"/\\,.?!\r\n \t");
+    assert_eq!(line(&report, 4), "Input");
+}
+
+#[test]
+fn the_settings_of_the_hotkeys_are_the_ones_keysharp_starts_with() {
+    // The defaults were read out of the AccessorData of KeySharp on
+    // 2026-11-11: the clipboard waits a second, the criterion of a #HotIf
+    // has a quarter of a second, and ten threads run at once.
+    let report = run_ks(concat!(
+        "MsgBox A_ClipboardTimeout\n",
+        "MsgBox A_HotIfTimeout\n",
+        "MsgBox A_MaxThreads\n",
+        "MsgBox A_MaxThreadsBuffer\n",
+        "MsgBox A_MaxThreadsPerHotkey\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1000");
+    assert_eq!(line(&report, 1), "250");
+    assert_eq!(line(&report, 2), "10");
+    assert_eq!(line(&report, 3), "0");
+    assert_eq!(line(&report, 4), "1");
+}
+
+#[test]
+fn the_machine_and_the_build_are_named_the_way_keysharp_names_them() {
+    // The architecture and the system are in the upper-case spelling the
+    // documentation names, and the theme is the one KeySharp starts with
+    // on this platform.
+    let report = run_ks(concat!(
+        "MsgBox A_OSArch\n",
+        "MsgBox A_OSType\n",
+        "MsgBox A_GuiTheme\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    let expected_arch = if cfg!(target_arch = "x86_64") {
+        "X64"
+    } else if cfg!(target_arch = "aarch64") {
+        "ARM64"
+    } else {
+        "UNKNOWN"
+    };
+    assert_eq!(line(&report, 0), expected_arch);
+    let expected_os = if cfg!(windows) {
+        "WINDOWS"
+    } else if cfg!(target_os = "macos") {
+        "OSX"
+    } else {
+        "LINUX"
+    };
+    assert_eq!(line(&report, 1), expected_os);
+    let expected_theme = if cfg!(windows) { "System" } else { "Classic" };
+    assert_eq!(line(&report, 2), expected_theme);
+}
+
+#[test]
+fn the_core_of_the_dialect_is_the_binary_that_runs_the_script() {
+    // `A_KsCorePath` is the path to the Keysharp.Core.dll of KeySharp; in
+    // this tree it is the binary of the runner, the same one `A_AhkPath`
+    // answers.
+    let report = run_ks("MsgBox A_KsCorePath\n");
+    assert!(report.ok, "{:?}", report.error);
+        assert_eq!(line(&report, 0), "/usr/bin/ahk");
+}
+
+#[test]
+fn the_flags_of_the_script_read_the_defaults() {
+    let report = run_ks(concat!(
+        "MsgBox A_WinActivateForce\n",
+        "MsgBox A_NoTrayIcon\n",
+        "MsgBox A_Persistent\n",
+        "MsgBox A_PeekFrequency\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "0");
+    assert_eq!(line(&report, 3), "0");
+}
+
+#[test]
+fn the_dialect_of_the_v2_does_not_have_the_accessor_names() {
+    let mut desktop = Fake;
+    let statements = ahk::parse("x := A_ClipboardTimeout\n").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }

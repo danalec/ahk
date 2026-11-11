@@ -101,7 +101,45 @@ pub fn the_method_of(class: &str, member: &str) -> Option<(&'static str, i64, i6
 /// spellings are the ones the platform writes. The rest of the accessors
 /// of KeySharp ask for a state the tree does not keep yet, and they are
 /// not in the table until they answer.
-pub const VARIABLES: &[&str] = &["nowms", "nowutcms", "dirseparator", "newline"];
+pub const VARIABLES: &[&str] = &[
+    "nowms",
+    "nowutcms",
+    "dirseparator",
+    "newline",
+    // The defaults of the hotstrings, the ones the KeySharp manager starts
+    // with and the ones the documentation of AHK names.
+    "defaulthotstringcasesensitive",
+    "defaulthotstringconformtocase",
+    "defaulthotstringdetectwheninsideword",
+    "defaulthotstringdobackspace",
+    "defaulthotstringdoreset",
+    "defaulthotstringendcharrequired",
+    "defaulthotstringendchars",
+    "defaulthotstringkeydelay",
+    "defaulthotstringnomouse",
+    "defaulthotstringomitendchar",
+    "defaulthotstringpriority",
+    "defaulthotstringsendmode",
+    "defaulthotstringsendraw",
+    // The settings of the hotkeys and the threads, read out of the
+    // defaults KeySharp starts with.
+    "clipboardtimeout",
+    "hotiftimeout",
+    "maxthreads",
+    "maxthreadsbuffer",
+    "maxthreadsperhotkey",
+    "peekfrequency",
+    "persistent",
+    "winactivateforce",
+    "notrayicon",
+    // The machine and the build.
+    "osarch",
+    "processarch",
+    "ostype",
+    "ksversion",
+    "kscorepath",
+    "guitheme",
+];
 
 /// Whether the `ks` dialect carries the variable of this name.
 ///
@@ -146,6 +184,34 @@ pub const SURFACE_ROWS: &str = concat!(
     "variable\t\tA_NewLine\t\t\t\n",
     "variable\t\tA_NowMs\t\t\t\n",
     "variable\t\tA_NowUTCMs\t\t\t\n",
+    "variable\t\tA_ClipboardTimeout\t\t\t\n",
+    "variable\t\tA_DefaultHotstringCaseSensitive\t\t\t\n",
+    "variable\t\tA_DefaultHotstringConformToCase\t\t\t\n",
+    "variable\t\tA_DefaultHotstringDetectWhenInsideWord\t\t\t\n",
+    "variable\t\tA_DefaultHotstringDoBackspace\t\t\t\n",
+    "variable\t\tA_DefaultHotstringDoReset\t\t\t\n",
+    "variable\t\tA_DefaultHotstringEndCharRequired\t\t\t\n",
+    "variable\t\tA_DefaultHotstringEndChars\t\t\t\n",
+    "variable\t\tA_DefaultHotstringKeyDelay\t\t\t\n",
+    "variable\t\tA_DefaultHotstringNoMouse\t\t\t\n",
+    "variable\t\tA_DefaultHotstringOmitEndChar\t\t\t\n",
+    "variable\t\tA_DefaultHotstringPriority\t\t\t\n",
+    "variable\t\tA_DefaultHotstringSendMode\t\t\t\n",
+    "variable\t\tA_DefaultHotstringSendRaw\t\t\t\n",
+    "variable\t\tA_GuiTheme\t\t\t\n",
+    "variable\t\tA_HotIfTimeout\t\t\t\n",
+    "variable\t\tA_KsCorePath\t\t\t\n",
+    "variable\t\tA_KsVersion\t\t\t\n",
+    "variable\t\tA_MaxThreads\t\t\t\n",
+    "variable\t\tA_MaxThreadsBuffer\t\t\t\n",
+    "variable\t\tA_MaxThreadsPerHotkey\t\t\t\n",
+    "variable\t\tA_NoTrayIcon\t\t\t\n",
+    "variable\t\tA_OSArch\t\t\t\n",
+    "variable\t\tA_OSType\t\t\t\n",
+    "variable\t\tA_PeekFrequency\t\t\t\n",
+    "variable\t\tA_Persistent\t\t\t\n",
+    "variable\t\tA_ProcessArch\t\t\t\n",
+    "variable\t\tA_WinActivateForce\t\t\t\n",
     "function\t\tATan2\t\t\t\n",
     "function\t\tSinh\t\t\t\n",
     "function\t\tCosh\t\t\t\n",

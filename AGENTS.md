@@ -11325,3 +11325,38 @@ the same numbers of the machine.
 Verified on 2026-11-11: `ATan2(0.5, 1)` answers `0.4636`, the float the
 probe of KeySharp answered. The scorecard moves: 32 of 138 = 23.2 % of
 the platform-neutral Keysharp surface, from 15.2 %.
+
+## 304. The accessors of the Ks, and where a default is read from
+
+The fourth block of the dialect of KeySharp carries the accessors of its
+`Ks` module: the defaults of the hotstrings, the settings of the hotkeys
+and the threads, the names of the machine and of the build, and the theme
+of the GUI. The values are the ones KeySharp starts with, read out of its
+own source on 2026-11-11 -- the manager of the hotstrings
+(`HotstringManager.cs`: the case counts for nothing, the case conforms,
+the backspacing happens, the ending characters are the punctuation of
+AHK, the sending is `Input`) and its accessor data
+(`Accessors.cs`: the clipboard waits a second, the criterion of a `#HotIf`
+has a quarter of a second, ten threads run at once, one per hotkey, and
+the frequency of the peeking is zero outside a critical thread).
+
+The names of the machine are in the upper-case spelling the documentation
+names -- `A_OSArch` answers `X64` and `A_OSType` answers `LINUX` -- so
+that a script can compare them with the preprocessor symbols. `A_KsVersion`
+answers the version of the build that runs the script, and `A_KsCorePath`
+answers its path, the way the Keysharp.Core.dll is the core of KeySharp
+and this binary is the core of this tree. `A_NoTrayIcon` answers one,
+because there is no tray on this machine and so the icon is not shown.
+`A_WinActivateForce` answers zero, which is the true answer: the directive
+is not carried, so the forceful method is not in effect.
+
+Four accessors refuse with the reason of their own, because the objects
+they name are not carried: `A_LoopRegValue` (there is no `Loop Reg`),
+`A_RealThread` and `A_Thread` (the classes of the threads), and `A_Timers`
+(the objects of the timers). The rule of the tree holds: a name in the
+table answers or refuses with the reason.
+
+Verified on 2026-11-11 with six cases of its own
+(`tests/class_extensions.rs` now carries 29). The scorecard moves:
+60 of 138 = 43.5 % of the platform-neutral Keysharp surface, from
+23.2 % -- the whole section of the accessors is carried.

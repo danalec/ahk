@@ -1164,8 +1164,90 @@ fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeErr
         // The newline of the documentation is the one of the platform, and
         // `ReplaceLineEndings` defaults to the same one on every platform.
         "newline" => Ok(Value::Text("\n".to_string())),
+        // The defaults of the hotstrings, read out of the defaults
+        // KeySharp's manager starts with (HotstringManager.cs, read on
+        // 2026-11-11): the flags of the case and the ending, the ending
+        // characters themselves, and the mode of the sending.
+        "defaulthotstringcasesensitive" => Ok(Value::Int(0)),
+        "defaulthotstringconformtocase" => Ok(Value::Int(1)),
+        "defaulthotstringdetectwheninsideword" => Ok(Value::Int(0)),
+        "defaulthotstringdobackspace" => Ok(Value::Int(1)),
+        "defaulthotstringdoreset" => Ok(Value::Int(0)),
+        "defaulthotstringendcharrequired" => Ok(Value::Int(1)),
+        "defaulthotstringendchars" => Ok(Value::Text(
+            "-()[]{}:;'\"/\\,.?!\r\n \t".to_string(),
+        )),
+        "defaulthotstringkeydelay" => Ok(Value::Int(0)),
+        "defaulthotstringnomouse" => Ok(Value::Int(0)),
+        "defaulthotstringomitendchar" => Ok(Value::Int(0)),
+        "defaulthotstringpriority" => Ok(Value::Int(0)),
+        "defaulthotstringsendmode" => Ok(Value::Text("Input".to_string())),
+        "defaulthotstringsendraw" => Ok(Value::Int(0)),
+        // The settings of the hotkeys and the threads, read out of the
+        // defaults KeySharp's AccessorData starts with (Accessors.cs,
+        // read on 2026-11-11).
+        "clipboardtimeout" => Ok(Value::Int(1000)),
+        "hotiftimeout" => Ok(Value::Int(250)),
+        "maxthreads" => Ok(Value::Int(10)),
+        "maxthreadsbuffer" => Ok(Value::Int(0)),
+        "maxthreadsperhotkey" => Ok(Value::Int(1)),
+        // The reading of it is zero outside a critical thread, the way
+        // KeySharp reads it.
+        "peekfrequency" => Ok(Value::Int(0)),
+        // The Persistent() setting of the script, which the script has not
+        // turned on: zero until it does.
+        "persistent" => Ok(Value::Int(0)),
+        // The forceful method of activating a window is in effect when the
+        // directive names it, and the dialect does not carry the directive:
+        // the honest answer is that it is not in effect.
+        "winactivateforce" => Ok(Value::Int(0)),
+        // There is no tray on this machine, so the icon is not shown: the
+        // answer of "is the icon hidden" is one.
+        "notrayicon" => Ok(Value::Int(1)),
+        // The architecture and the system, in the upper-case spelling
+        // KeySharp names, so that a script can compare them with the
+        // preprocessor symbols.
+        "osarch" | "processarch" => Ok(Value::Text(arch_name().to_string())),
+        "ostype" => Ok(Value::Text(if cfg!(windows) {
+            "WINDOWS".to_string()
+        } else if cfg!(target_os = "macos") {
+            "OSX".to_string()
+        } else if cfg!(target_os = "linux") {
+            "LINUX".to_string()
+        } else {
+            "UNKNOWN".to_string()
+        })),
+        // The build that runs the script: the version of this crate.
+        "ksversion" => Ok(Value::Text(env!("CARGO_PKG_VERSION").to_string())),
+        // The core of the dialect is the binary that runs the script, the
+        // way the Keysharp.Core.dll is the core of KeySharp.
+        "kscorepath" => rt.desktop().executable().map(Value::Text).map_err(|why| reason(&why)),
+        // The theme of the GUI, which the GUI of this runtime does not
+        // draw: the answer is the one KeySharp starts with on this
+        // platform.
+        "guitheme" => Ok(Value::Text(if cfg!(windows) {
+            "System".to_string()
+        } else {
+            "Classic".to_string()
+        })),
         // The table and the dialect disagree about a name: the honest
         // answer is that the tree does not carry it.
         _ => Err(reason(crate::dialect::NOT_CARRIED_YET)),
+    }
+}
+
+/// The name of the architecture, in the upper-case spelling KeySharp
+/// names, so that a script can compare it with the preprocessor symbol.
+fn arch_name() -> &'static str {
+    if cfg!(target_arch = "x86_64") {
+        "X64"
+    } else if cfg!(target_arch = "aarch64") {
+        "ARM64"
+    } else if cfg!(target_arch = "x86") {
+        "X86"
+    } else if cfg!(target_arch = "arm") {
+        "ARM"
+    } else {
+        "UNKNOWN"
     }
 }
