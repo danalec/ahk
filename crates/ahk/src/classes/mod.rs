@@ -1484,6 +1484,14 @@ pub(crate) fn construct(
             return Some(Err(failure));
         }
     }
+    // The `ks` dialect makes the object of the `InputHook` even though
+    // this runtime has no hook: the object carries the settings of it,
+    // and the hook itself is not installed.
+    if class.eq_ignore_ascii_case("inputhook")
+        && rt.dialect().carries_the_member_of_the_extension("inputhook", "beforehotkeys")
+    {
+        return Some(inputhook::construct_the_extension(rt, line));
+    }
     if THE_CLASSES_THAT_ARE_NOT_HERE.contains(&class.to_lowercase().as_str()) {
         return Some(Err(the_failure_of_a_class_that_is_not_here(line)));
     }
@@ -1765,6 +1773,7 @@ pub(crate) fn property(
         "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
             thread::property(name, this, rt, line)
         }
+        "inputhook" => inputhook::property_the_extension(name, this, rt, line),
         _ if rt.dialect().carries_the_class_of_the_extension(class) => {
             propref::property(class, name, this, line)
                 .or_else(|| typed::property(class, name, this, line))
@@ -1817,6 +1826,7 @@ pub(crate) fn set_property(
         "func" | "closure" => func::set_property(name, this, value, rt, line),
         "hotkey" => hotkey::set_property(name, this, value, rt, line),
         "map" => map::set_property(name, this, value, rt, line),
+        "inputhook" => inputhook::set_property_the_extension(name, this, value, rt, line),
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::set_property(class, name, this, value, rt, line)
         }

@@ -757,3 +757,23 @@ fn the_dialect_of_the_v2_does_not_have_the_classes() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }
+#[test]
+fn the_input_hook_of_the_ks_carries_its_settings() {
+    // The defaults are the ones of the source of KeySharp on 2026-11-11:
+    // the buffer is 1023 characters long, the mouse is visible when it
+    // moves, and the flags are off. The tree has no hook, and the object
+    // is the settings of one.
+    let report = run_ks(concat!(
+        "ih := InputHook()\n",
+        "MsgBox ih.BeforeHotkeys\n",
+        "MsgBox ih.BufferLengthMax\n",
+        "MsgBox ih.VisibleMouseMove\n",
+        "ih.BeforeHotkeys := 1\n",
+        "MsgBox ih.BeforeHotkeys\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+    assert_eq!(line(&report, 1), "1023");
+    assert_eq!(line(&report, 2), "1");
+    assert_eq!(line(&report, 3), "1");
+}

@@ -11502,3 +11502,27 @@ Verified on 2026-11-11 with four cases of its own
 (`tests/class_extensions.rs` now carries 49). The scorecard moves:
 98 of 138 = 71.0 % of the platform-neutral Keysharp surface, from 67.4 %
 -- and the corpus of the pure language is unchanged.
+
+## 309. The eight settings that the Ks adds to the InputHook
+
+The ninth block of the dialect of KeySharp carries the eight members that
+the `ks` dialect adds to the `InputHook`: `BeforeHotkeys`,
+`BufferLengthMax`, `EndCharMode`, `OnMouseDown`, `OnMouseMove`,
+`OnMouseUp`, `TranscribeModifiedKeys` and `VisibleMouseMove`.
+
+**The tree has no keyboard hook, and the object of the settings is made
+anyway.** The class of the v2 is refused, because there is nothing to
+install; the dialect of KeySharp makes the object, the object carries the
+eight settings, they are read and they are written, and the hook itself
+is not installed. The defaults are the ones of the source of KeySharp
+(read on 2026-11-11, `InputType.cs`): the buffer of the input is 1023
+characters long, the mouse is visible when it moves, and the four flags
+are off.
+
+The members of the v2 keep refusing with the reason of the runtime, and
+the surface of the v2.0.19 is untouched: the eight are of the `ks`
+dialect alone.
+
+Verified on 2026-11-11 with a case of its own. The scorecard moves:
+106 of 138 = 76.8 % of the platform-neutral Keysharp surface, from
+71.0 %.
