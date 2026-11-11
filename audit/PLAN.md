@@ -39,7 +39,12 @@ its 1-based position, and the menu object (documented on v2.0.19 on
 2026-11-10). A trap found on the way: `Sleep` drains the events only when
 it returns, so a script that waits on the menu must sleep in short chunks
 -- a `Sleep 20000` swallows every event that happens inside it until the
-end.
+end. The helper side is verified too: the new `menu-choose` diagnostic op
+emits `activate` on an item of the bar exactly as a click does, and the
+events file carries `menu:&File` (round 4). With the runtime side proven
+the round before, the whole chain from the bar to the callback is green;
+the one link outside our code is the compositor's hit-test of a physical
+click.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
