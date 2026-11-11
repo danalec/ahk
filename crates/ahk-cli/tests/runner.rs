@@ -274,9 +274,12 @@ fn the_surface_flag_answers_with_json() {
     // The drive family is the latest sweep: the label, the serial, the list,
     // the status of a CD reader and the four hardware operations moved from
     // the refusal to the value in one round (round 7), which took the
-    // refusals under seventy for the first time.
-    assert_eq!(report.number("values"), 770);
-    assert_eq!(report.number("refusals"), 63);
+    // refusals under seventy for the first time. `WinActivateBottom` and
+    // `Shutdown` followed (round 9): the first is the same activation the
+    // window of the script already answers, and the second takes the number
+    // the binary takes and leaves the session alone.
+    assert_eq!(report.number("values"), 771);
+    assert_eq!(report.number("refusals"), 62);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");

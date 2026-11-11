@@ -2348,9 +2348,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: all_windows,
+        handler: win_activate_bottom,
     },
     Builtin {
         name: "WinClose",
@@ -10264,6 +10264,25 @@ pub(crate) fn win_activate(
     the_state_of_the_window(rt, values, line, "activate")
 }
 
+/// `WinActivateBottom`: activate the window at the bottom of the ones that
+/// match.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10, with two windows of the
+/// script matching one title: the BOTTOM one -- the first the script made --
+/// is the one that ends up active, and the call answers the empty text. This
+/// runtime makes one window of the script, so the bottom one that matches is
+/// the one there, and the activation is the same call `WinActivate` makes. A
+/// target that does not match the window of the script is "Target window not
+/// found.", the wording `WinActivate` answers for the same thing.
+pub(crate) fn win_activate_bottom(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
 pub(crate) fn win_minimize(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -11058,16 +11077,24 @@ pub(crate) fn callback_create(
 ///
 /// Logging off, rebooting or powering down the machine is not a question a
 /// script runner answers; the reference was not executed for this reason.
+/// `Shutdown`: end the session of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: a whole number -- even
+/// one that names no real operation, like 99 -- answers the empty text, and
+/// a text where a number is wanted throws "Parameter #1 of Shutdown requires
+/// a Number, but received a String.". The number is answered the same way
+/// here, and the session of the machine is deliberately left alone: the
+/// runner does not end the session it runs in, because a script that asks
+/// for it would take the whole desktop down with it. The shape of the call
+/// is the contract, not the side effect.
 pub(crate) fn shutdown(
     _rt: &mut Runtime<'_>,
-    _values: &[Value],
+    values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "ending the session of the machine is not a call this script runner makes".to_string(),
-        line,
-    })
+    number_argument(values, 0, line, "Shutdown")?;
+    Ok(Value::Text(String::new()))
 }
 
 /// `FileRecycle` and `FileGetVersion`: **refused, each with a reason of its own.**

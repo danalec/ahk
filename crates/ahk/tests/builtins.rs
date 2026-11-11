@@ -655,6 +655,11 @@ impl Windows for Fake {
     fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
         Ok("the window".to_string())
     }
+    fn gui_option(&mut self, name: &str, on: bool) -> Result<(), String> {
+        self.calls
+            .push(("gui-option".into(), format!("{name}|{on}")));
+        Ok(())
+    }
     fn gui_menu_bar(&mut self, json: &str) -> Result<(), String> {
         self.calls.push(("gui-menu-bar".into(), json.to_string()));
         Ok(())
@@ -1186,6 +1191,48 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
     // The variables stay as they were.
     assert_eq!(int_of(&report, "x"), -1);
     assert_eq!(int_of(&report, "y"), -1);
+}
+
+#[test]
+fn win_activate_bottom_activates_the_window_of_the_script_and_shutdown_takes_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: WinActivateBottom with
+    // two windows of the script matching one title activated the BOTTOM one
+    // and answered the empty text; this runtime makes one window of the
+    // script, so the bottom one that matches is the one there. Shutdown of a
+    // whole number -- even 99, which names no real operation -- answered the
+    // empty text, and a text where a number is wanted threw "Parameter #1 of
+    // Shutdown requires a Number, but received a String.". The number is
+    // answered the same way here, and the session of the machine is
+    // deliberately left alone: the runner does not end the session it runs
+    // in, because a script that asked for it would take the desktop down.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "a := WinActivateBottom(\"the window\")",
+            "\ntry\n{",
+            "\n    Shutdown(99)",
+            "\n}\ncatch as err\n{",
+            "\n    a := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    Shutdown(\"abc\")",
+            "\n}\ncatch as err\n{",
+            "\n    b := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    assert_eq!(
+        value_of(&report, "b"),
+        Value::Text(
+            "Parameter #1 of Shutdown requires a Number, but received a String.".into()
+        )
+    );
 }
 
 #[test]
