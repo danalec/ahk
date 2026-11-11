@@ -2119,6 +2119,15 @@ pub static THE_V2_1: V2 = V2 { extended: true, keysharp: false };
 /// extensions of `extensions.rs` are there too.
 pub static THE_KS: V2 = V2 { extended: true, keysharp: true };
 
+/// The extensions of KeySharp on top of the v2.0.19, behind the
+/// `--dialect=ks20`.
+///
+/// The two switches of the dialect are orthogonal, and this is the proof
+/// of it: the names of KeySharp are there, and the mechanisms of the v2.1
+/// are not. It is the dialect for the script that wants the names of
+/// KeySharp and the exact grammar of the v2.0.19.
+pub static THE_KS_20: V2 = V2 { extended: false, keysharp: true };
+
 /// The legacy dialect: AutoHotkey v1.1.37.02.
 pub struct V1;
 
@@ -2141,6 +2150,12 @@ pub fn v1() -> &'static dyn Dialect {
 /// The dialect of KeySharp, behind the gate of the `--dialect=ks`.
 pub fn ks() -> &'static dyn Dialect {
     &THE_KS
+}
+
+/// The KeySharp without the mechanisms of the v2.1, behind the
+/// `--dialect=ks20`.
+pub fn ks_20() -> &'static dyn Dialect {
+    &THE_KS_20
 }
 
 /// The reason a name that the tree does not carry yet gives.

@@ -11607,3 +11607,23 @@ refusal is a `no_method`, and the `no_method` calls of the runtime are
 the places to look. The tree was left as it was, at the 79.0 % of the
 scorecard: a name that the surface lists and the runtime does not answer
 is a name that is not carried.
+
+## 313. The fourth combination of the two switches, and the `--dialect=ks20`
+
+The dialect of the tree carries two switches, and they are orthogonal:
+`extended` says whether the mechanisms of the v2.1 are carried, and
+`keysharp` says whether the extensions of KeySharp are. Three of the four
+combinations were there -- the v2.0.19, the v2.1 and the `ks`, which is
+the v2.1 with the extensions of KeySharp beside it, because KeySharp
+states that it speaks the v2.1-alpha.
+
+The fourth is the `--dialect=ks20`: the extensions of KeySharp on top of
+the v2.0.19, with the mechanisms of the v2.1 left out. It is the dialect
+for the script that wants the names of KeySharp and the exact grammar of
+the v2.0.19, and it is the proof that the two switches are independent:
+the surface of it carries the names of KeySharp (939 entries, the same as
+the `ks`), and the mechanisms of the v2.1 are not lit.
+
+The v1 is not a combination of the two: it is a type of its own, with
+the grammar and the tables read out of the binary of the v1.1.37.02, and
+it does not mix with the family of the v2.

@@ -206,10 +206,14 @@ fn the_dialect() -> &'static dyn Dialect {
         // KeySharp beside them. The refusal names the dialects the tree
         // speaks, and this one is the third of them.
         Some("ks") => dialect::ks(),
+        // The KeySharp without the mechanisms of the v2.1: the two
+        // switches of the dialect are orthogonal, and this is the fourth
+        // combination of them.
+        Some("ks20") | Some("ks2.0") => dialect::ks_20(),
         Some("v2") | None => dialect::v2(),
         Some(other) => {
             eprintln!(
-                "the dialect {other} is not one this tree speaks: the tree speaks v1, v2, v2.1 and ks."
+                "the dialect {other} is not one this tree speaks: the tree speaks v1, v2, v2.1, ks and ks20."
             );
             std::process::exit(2);
         }
