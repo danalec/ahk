@@ -626,6 +626,14 @@ def the_option(name, on):
         window.close()
     elif low == "redraw":
         window.queue_draw()
+    elif low == "movebottom":
+        # GTK 3 carries the call that lowers a window -- GTK 4 removed it.
+        # On Wayland the compositor may refuse to reorder; the call is made
+        # and the answer is ok either way, because the request is the part a
+        # program owns.
+        gdk_window = window.get_window()
+        if gdk_window is not None:
+            gdk_window.lower()
     else:
         answer({"ok": False, "error": "%s is not an option this window can set" % name})
         return

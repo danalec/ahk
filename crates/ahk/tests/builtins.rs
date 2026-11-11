@@ -1194,6 +1194,41 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn win_move_bottom_and_the_minimize_all_pair_answer_the_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: WinMoveBottom answers
+    // the empty text and a window that is not there answers "Target window
+    // not found."; WinMinimizeAll and WinMinimizeAllUndo answer the empty
+    // text. The effect of the minimize-all pair reaches every window of the
+    // session on the binary, and the windows this runtime can act on are the
+    // ones of the script.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "a := WinMoveBottom(\"the window\")",
+            "\nb := WinMinimizeAll()",
+            "\nc := WinMinimizeAllUndo()",
+            "\ntry\n{",
+            "\n    WinMoveBottom(\"no-such\")",
+            "\n}\ncatch as err\n{",
+            "\n    d := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    for name in ["a", "b", "c"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()));
+    }
+    assert_eq!(
+        value_of(&report, "d"),
+        Value::Text("Target window not found.".into())
+    );
+}
+
+#[test]
 fn the_com_group_answers_the_wordings_the_binary_throws() {
     // Measured on the binary of v2.0.19 on 2026-11-10: ComObjGet of an empty
     // string and of an Integer throw "(0x80070057) The parameter is

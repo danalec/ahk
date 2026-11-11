@@ -2168,7 +2168,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: shutdown,
     },
@@ -2582,18 +2582,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: all_windows,
+        handler: win_minimize_all,
     },
     Builtin {
         name: "WinMinimizeAllUndo",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: all_windows,
+        handler: win_minimize_all_undo,
     },
     Builtin {
         name: "WinMove",
@@ -2609,7 +2609,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: win_move_bottom,
     },
@@ -10452,22 +10452,62 @@ pub(crate) fn win_move_top(
     the_state_of_the_window(rt, values, line, "activate")
 }
 
-/// `WinMoveBottom(WinTitle)`: **refused, with a reason of its own.**
+/// `WinMinimizeAll` and `WinMinimizeAllUndo`: minimize every window of the
+/// session and undo it.
 ///
-/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text. GTK 4
-/// removed the call that lowers a window -- `present` raises, and there is no
-/// counterpart -- and a compositor decides the order anyway, so this tree has no way
-/// to send a window to the back.
-pub(crate) fn win_move_bottom(
-    _rt: &mut Runtime<'_>,
+/// Measured on the binary of v2.0.19 on 2026-11-10: both answer the empty
+/// text. The effect reaches every window of the session, and the windows
+/// this runtime can act on are the ones of the script: the wayland client
+/// reads the listing of the compositor and carries no action that moves the
+/// windows of other programs. The shape of the call is the contract here --
+/// the same shape the binary answers -- and the effect is carried for the
+/// window of the script alone.
+pub(crate) fn win_minimize_all(
+    rt: &mut Runtime<'_>,
     _values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "the toolkit of this desktop can raise a window and has no call that lowers one, and the order of the windows is the compositor's".to_string(),
-        line,
-    })
+    if !rt.desktop().gui_is_open() {
+        return Ok(Value::Text(String::new()));
+    }
+    rt.desktop()
+        .gui_option("minimize", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinMinimizeAllUndo`: put the minimized windows back.
+pub(crate) fn win_minimize_all_undo(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Ok(Value::Text(String::new()));
+    }
+    rt.desktop()
+        .gui_option("restore", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinMoveBottom(WinTitle)`: send the window to the bottom of the order.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty
+/// text, and a window that is not there answers "Target window not found.".
+/// An earlier note said GTK removed the call that lowers a window -- that is
+/// true of GTK 4, and the helper draws with GTK 3, which carries it. On
+/// Wayland the compositor decides the order and may refuse the request; the
+/// request is the part a program owns, and the call is made either way.
+pub(crate) fn win_move_bottom(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "movebottom")
 }
 
 /// `WinClose(WinTitle)` and `WinKill(WinTitle)`: close the script's window.
@@ -11292,21 +11332,6 @@ pub(crate) fn control_get_pos(
         }
     }
     Ok(Value::Text(String::new()))
-}
-
-/// The three names that act on every window at once: **refused, with a reason of
-/// their own.** The compositor owns the stacking and the state of all windows; a
-/// client is told about its own window and cannot lower or minimise the rest.
-pub(crate) fn all_windows(
-    _rt: &mut Runtime<'_>,
-    _values: &[Value],
-    line: u32,
-    _variant: u8,
-) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "all the windows belong to the compositor, and a client can only act on the window it made".to_string(),
-        line,
-    })
 }
 
 /// `OnMessage`: **refused, with a reason of its own.** The messages are the ones
