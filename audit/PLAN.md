@@ -53,7 +53,14 @@ moved `MenuSelect`** (`9c1b419`) -- the v2 name of the v1
 throws "Target window not found." and the menu of one that is there throws
 "Non-existent or unsupported menu." for every shape (the reference avoids
 driving a menu from its own thread); the count is **761 values / 72
-refusals**.
+refusals**. **Round 7 moved the whole drive family** (`c18be7b`) -- the
+label, the serial, the list, the status of a CD reader and the four
+hardware operations, nine names in one sweep, each with the wording the
+binary throws measured shape by shape. The box reads them through lsblk
+and udisksctl, and a zfs dataset -- the root of that box -- is a drive
+that is THERE with no label, which is what the binary answers for a
+present drive that carries none. The count is **770 values / 63
+refusals**: the refusals under seventy for the first time.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
