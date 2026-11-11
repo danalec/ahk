@@ -353,6 +353,7 @@ fn the_builtin_of(dialect: &'static dyn Dialect, name: &str) -> Option<&'static 
         .builtins()
         .iter()
         .find(|builtin| builtin.name.to_lowercase() == wanted)
+        .or_else(|| dialect.the_builtin_of_the_extension(&wanted))
 }
 
 /// Whether this runtime has the class of a row of the surface.

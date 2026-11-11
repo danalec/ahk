@@ -11298,3 +11298,30 @@ its own, and the runtime resolves it. Verified on 2026-11-11: the
 `Params` of a closure of one parameter answers `["x"]`. The scorecard
 moves: 21 of 138 = 15.2 % of the platform-neutral Keysharp surface, from
 8.7 %.
+
+## 303. The functions of the Ks, and how a built-in is added beside the v2
+
+The third block of the dialect of KeySharp carries the ten functions of its
+`Ks` module that the tree answers honestly on every machine: the
+mathematics (`ATan2`, `Sinh`, `Cosh`, `Tanh`), the text
+(`ReplaceLineEndings`, which takes the seven line endings the
+documentation of KeySharp lists), the paths (`FileFullPath`,
+`FileCreateTemp`), and the three that touch the machine in ways this
+runtime has nothing to do (`RandomSeed` mixes its seed into the entropy of
+the machine, `OutputDebugLine` writes to the debugger with the line break,
+`Collect` answers the empty text because the objects of this runtime are
+reclaimed the moment the last reference to them goes away).
+
+The table of them lives in `extensions.rs`, and the lookup of a built-in
+asks it after the table of the v2.0.19: the four sites of the runtime, the
+four of the parser, the one of the surface and the one of the behaviour
+all ask the dialect now. The dialect of the v2.0.19 stays pure: `ATan2`
+is not a name of the v2, and the tree refuses the script that calls it.
+
+The seed of the random is a field of the runtime, mixed into the
+milliseconds of the machine by a call of `Random`; a run that seeds asks
+the same numbers of the machine.
+
+Verified on 2026-11-11: `ATan2(0.5, 1)` answers `0.4636`, the float the
+probe of KeySharp answered. The scorecard moves: 32 of 138 = 23.2 % of
+the platform-neutral Keysharp surface, from 15.2 %.

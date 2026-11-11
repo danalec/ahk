@@ -251,7 +251,8 @@ fn the_refusal_of(dialect: &'static dyn Dialect, name: &str) -> Option<String> {
     let builtin = dialect
         .builtins()
         .iter()
-        .find(|builtin| builtin.name.eq_ignore_ascii_case(name))?;
+        .find(|builtin| builtin.name.eq_ignore_ascii_case(name))
+        .or_else(|| dialect.the_builtin_of_the_extension(name))?;
     builtins::refusal_of_the(builtin).map(|reason| format!("refusal: {reason}"))
 }
 

@@ -663,6 +663,31 @@ impl ahk::desktop::Files for LabDesktop {
         Ok(())
     }
 
+    fn full_path(&mut self, path: &str) -> Result<String, String> {
+        // The full path of KeySharp is the one `Path.GetFullPath` answers:
+        // an absolute path is the one it is, and a relative one is read
+        // from the directory the run started in.
+        let candidate = std::path::Path::new(path);
+        if candidate.is_absolute() {
+            return Ok(path.to_string());
+        }
+        std::env::current_dir()
+            .map(|dir| dir.join(path).to_string_lossy().into_owned())
+            .map_err(|error| error.to_string())
+    }
+
+    fn create_temp_file(&mut self) -> Result<String, String> {
+        // An empty file in the temporary directory of the user, named so
+        // that two calls in the same nanosecond still do not meet.
+        let directory = std::env::temp_dir();
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|since| since.as_nanos())
+            .unwrap_or(0);
+        let path = directory.join(format!("ahk-{stamp}.tmp"));
+        std::fs::File::create(&path).map_err(|error| error.to_string())?;
+        Ok(path.to_string_lossy().into_owned())
+    }
     fn read_shortcut(&mut self, shortcut: &str) -> Result<(String, String, String, String, String), String> {
         // The inverse of create_shortcut: read the desktop file back. The
         // Exec line carries the target and the arguments together, split at

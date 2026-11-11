@@ -22,7 +22,7 @@ struct Fake;
 impl Clipboard for Fake {}
 impl Desktop for Fake {}
 impl Dialogs for Fake {}
-impl Files for Fake {}
+
 impl Hotkeys for Fake {}
 impl Keyboard for Fake {
     fn type_text(&mut self, _text: &str) -> Result<String, String> {
@@ -36,6 +36,14 @@ impl Machine for Fake {}
 impl Native for Fake {}
 impl Network for Fake {}
 impl Pictures for Fake {}
+impl Files for Fake {
+    fn full_path(&mut self, path: &str) -> Result<String, String> {
+        Ok(format!("/work/{path}"))
+    }
+    fn create_temp_file(&mut self) -> Result<String, String> {
+        Ok("/tmp/ahk-test.tmp".to_string())
+    }
+}
 impl Pointer for Fake {
     fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
         Ok(String::new())
@@ -308,6 +316,70 @@ fn the_dialect_of_the_v2_does_not_have_the_accessors() {
     // of the v2, and the tree says so.
     let mut desktop = Fake;
     let statements = ahk::parse("MsgBox A_NowMs\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}
+
+#[test]
+fn the_arcs_and_the_hyperbolics_of_the_ks_answer_the_numbers_of_the_documentation() {
+    // Measured on the binary of KeySharp on 2026-11-09: `ATan2` of the
+    // probe answers the float 0.4636..., and `Sinh(0)` is zero.
+    let report = run_ks(concat!(
+        "MsgBox Round(ATan2(0.5, 1), 4)\n",
+        "MsgBox Sinh(0)\n",
+        "MsgBox Cosh(0)\n",
+        "MsgBox Tanh(0)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0.4636");
+    assert_eq!(line(&report, 1), "0.0");
+    assert_eq!(line(&report, 2), "1.0");
+    assert_eq!(line(&report, 3), "0.0");
+}
+
+#[test]
+fn a_replace_of_the_line_endings_takes_the_seven_of_them() {
+    // The documentation lists the seven: the two of Windows, the two of
+    // the classic Mac and the Unix, the form feed, the next line of
+    // Unicode and the two separators of Unicode.
+    let report = run_ks(concat!(
+        "text := \"a`r`nb`nc`rd`ne\u{000C}f\u{0085}g\u{2028}h\u{2029}i\"\n",        "MsgBox ReplaceLineEndings(text, \"-\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "a-b-c-d-e-f-g-h-i");
+}
+
+#[test]
+fn a_seed_of_the_random_is_answered_with_nothing() {
+    let report = run_ks("r := RandomSeed(42)\nMsgBox r\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "");
+}
+
+#[test]
+fn the_paths_of_the_files_are_answered_by_the_desktop() {
+    let report = run_ks(concat!(
+        "MsgBox FileFullPath(\"x.ahk\")\n",
+        "MsgBox FileCreateTemp()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "/work/x.ahk");
+    assert_eq!(line(&report, 1), "/tmp/ahk-test.tmp");
+}
+
+#[test]
+fn a_collect_and_an_output_debug_line_answer_the_empty_text() {
+    let report = run_ks("MsgBox Collect()\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "");
+}
+
+#[test]
+fn the_dialect_of_the_v2_does_not_have_the_functions() {
+    // The surface of the v2.0.19 stays pure: `ATan2` is not a name of the
+    // v2, and the tree says so.
+    let mut desktop = Fake;
+    let statements = ahk::parse("x := ATan2(0.5, 1)\n").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }

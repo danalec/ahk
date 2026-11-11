@@ -1541,6 +1541,9 @@ pub struct Runtime<'a> {
     output: Vec<String>,
     notes: Vec<String>,
     started_ms: u64,
+    /// The seed a call of RandomSeed left, mixed into the entropy of a
+    /// call of Random.
+    random_seed: u64,
     steps_taken: usize,
     /// The calls that are running right now.
     depth: usize,
@@ -1617,6 +1620,7 @@ pub struct Runtime<'a> {
     caught_value: Option<Value>,
 }
 
+
 impl<'a> Runtime<'a> {
     /// The most statements one script may execute.
     ///
@@ -1683,6 +1687,7 @@ impl<'a> Runtime<'a> {
             output: Vec::new(),
             notes: Vec::new(),
             started_ms: 0,
+            random_seed: 0,
             steps_taken: 0,
             depth: 0,
             stack_base: Self::stack_here(),
@@ -1722,6 +1727,7 @@ impl<'a> Runtime<'a> {
         Self {
             desktop,
             clock: ClockSource::Borrowed(clock),
+            random_seed: 0,
             dialect: crate::dialect::v2(),
             no_env: false,
             warnings: Vec::new(),
@@ -1931,10 +1937,7 @@ impl<'a> Runtime<'a> {
     /// to the case.
     pub(crate) fn builtin(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
         let wanted = name.to_lowercase();
-        self.dialect
-            .builtins()
-            .iter()
-            .find(|builtin| builtin.name.to_lowercase() == wanted)
+        crate::builtins::the_builtin_in_the_dialect(self.dialect, &wanted)
     }
 
     /// The built-in of this name and of this kind, in the dialect that runs.
@@ -1943,6 +1946,18 @@ impl<'a> Runtime<'a> {
     /// of the v1 is a command and a function, and the call of an expression
     /// is the function: it takes one parameter and it answers the state of
     /// the key. The name that the dialect carries once is the row of it,
+    /// The seed a call of RandomSeed left, mixed into the entropy of the
+    /// machine.
+    pub(crate) fn the_seed_of_the_random(&self) -> u64 {
+        self.random_seed
+    }
+
+    /// Reinitialize the random number generator with the seed the script
+    /// named, the way RandomSeed does.
+    pub(crate) fn seed_the_random(&mut self, seed: i64) {
+        self.random_seed = seed as u64;
+    }
+
     /// whatever the kind is.
     pub(crate) fn the_builtin_of_the_kind(
         &self,
@@ -1959,6 +1974,7 @@ impl<'a> Runtime<'a> {
                     .iter()
                     .find(|builtin| builtin.name.to_lowercase() == wanted)
             })
+            .or_else(|| self.dialect.the_builtin_of_the_extension(&wanted))
     }
 
     /// The milliseconds since the run started.
@@ -4966,7 +4982,13 @@ impl<'a> Runtime<'a> {
         self.dialect.builtins().iter().any(|builtin| {
             builtin.kind == crate::builtins::BuiltinKind::Function
                 && builtin.name.eq_ignore_ascii_case(name)
-        })
+        }) || self
+            .dialect
+            .the_builtin_of_the_extension(name)
+            .map_or(false, |builtin| {
+                builtin.kind == crate::builtins::BuiltinKind::Function
+                    && builtin.name.eq_ignore_ascii_case(name)
+            })
     }
 
     /// The value of the built-in function of this name.
@@ -4979,10 +5001,20 @@ impl<'a> Runtime<'a> {
     /// `GetKeyState` of the v1 -- is a function: the table has a row for
     /// each of them, and the row of the function is the one that answers.
     pub(crate) fn the_builtin_function(&self, name: &str) -> Option<Value> {
-        let builtin = self.dialect.builtins().iter().find(|builtin| {
-            builtin.kind == crate::builtins::BuiltinKind::Function
-                && builtin.name.eq_ignore_ascii_case(name)
-        })?;
+        let builtin = self
+            .dialect
+            .builtins()
+            .iter()
+            .find(|builtin| {
+                builtin.kind == crate::builtins::BuiltinKind::Function
+                    && builtin.name.eq_ignore_ascii_case(name)
+            })
+            .or_else(|| {
+                self.dialect.the_builtin_of_the_extension(name).filter(|builtin| {
+                    builtin.kind == crate::builtins::BuiltinKind::Function
+                        && builtin.name.eq_ignore_ascii_case(name)
+                })
+            })?;
         let max = self.dialect.the_maximum_of_the_parameters(builtin.max);
         Some(builtin_value(builtin.name, builtin.min, max))
     }
@@ -15184,6 +15216,53 @@ pub(crate) fn cos(value: f64) -> f64 {
 pub(crate) fn sin(value: f64) -> f64 {
     value.sin()
 }
+/// The arc whose tangent is `y / x`, in the quadrant the signs name.
+#[cfg(feature = "std")]
+pub(crate) fn atan2(y: f64, x: f64) -> f64 {
+    y.atan2(x)
+}
+
+/// The arc whose tangent is `y / x`, in the quadrant the signs name.
+#[cfg(not(feature = "std"))]
+pub(crate) fn atan2(y: f64, x: f64) -> f64 {
+    crate::math::atan2(y, x)
+}
+
+/// The hyperbolic sine of `value`.
+#[cfg(feature = "std")]
+pub(crate) fn sinh(value: f64) -> f64 {
+    value.sinh()
+}
+
+/// The hyperbolic sine of `value`.
+#[cfg(not(feature = "std"))]
+pub(crate) fn sinh(value: f64) -> f64 {
+    crate::math::sinh(value)
+}
+
+/// The hyperbolic cosine of `value`.
+#[cfg(feature = "std")]
+pub(crate) fn cosh(value: f64) -> f64 {
+    value.cosh()
+}
+
+/// The hyperbolic cosine of `value`.
+#[cfg(not(feature = "std"))]
+pub(crate) fn cosh(value: f64) -> f64 {
+    crate::math::cosh(value)
+}
+
+/// The hyperbolic tangent of `value`.
+#[cfg(feature = "std")]
+pub(crate) fn tanh(value: f64) -> f64 {
+    value.tanh()
+}
+
+/// The hyperbolic tangent of `value`.
+#[cfg(not(feature = "std"))]
+pub(crate) fn tanh(value: f64) -> f64 {
+    crate::math::tanh(value)
+}
 
 /// The sine of `value`.
 #[cfg(not(feature = "std"))]
@@ -16205,6 +16284,7 @@ pub fn the_builtin_in(
         .builtins()
         .iter()
         .find(|builtin| builtin.name.to_lowercase() == wanted)
+        .or_else(|| dialect.the_builtin_of_the_extension(&wanted))
 }
 /// The name a statement is reported under.
 pub fn op_name(statement: &Node) -> &str {

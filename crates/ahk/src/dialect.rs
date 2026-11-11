@@ -538,6 +538,17 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// The row of a built-in the dialect adds beside the table of the
+    /// v2.0.19.
+    ///
+    /// The `ks` dialect adds the functions of the `Ks` module of KeySharp
+    /// there, and the lookup of a built-in asks here when the table of the
+    /// v2.0.19 does not have the name.
+    fn the_builtin_of_the_extension(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
+        let _ = name;
+        None
+    }
+
     /// Whether the dialect adds the built-in variable of this name.
     ///
     /// The variables of the extensions of KeySharp are not in the table of
@@ -2265,6 +2276,17 @@ impl Dialect for V2 {
         self.keysharp && crate::extensions::carries_the_variable(name)
     }
 
+    fn the_builtin_of_the_extension(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
+        // The extensions of KeySharp are behind the `--dialect=ks`, and the
+        // v2.0.19 does not carry them.
+        if !self.keysharp {
+            return None;
+        }
+        let wanted = name.to_lowercase();
+        crate::extensions::KS_BUILTINS
+            .iter()
+            .find(|builtin| builtin.name.to_lowercase() == wanted)
+    }
     fn accepts_a_bare_backslash(&self) -> bool {
         false
     }

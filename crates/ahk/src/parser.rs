@@ -2211,10 +2211,19 @@ impl Parser {
             }
             let wanted = &call.name;
             // The function of the dialect: the arity is in the table.
-            let function = self.dialect.builtins().iter().find(|builtin| {
-                builtin.name.to_lowercase() == *wanted
-                    && builtin.kind == crate::builtins::BuiltinKind::Function
-            });
+            let function = self
+                .dialect
+                .builtins()
+                .iter()
+                .find(|builtin| {
+                    builtin.name.to_lowercase() == *wanted
+                        && builtin.kind == crate::builtins::BuiltinKind::Function
+                })
+                .or_else(|| {
+                    self.dialect.the_builtin_of_the_extension(wanted).filter(|builtin| {
+                        builtin.kind == crate::builtins::BuiltinKind::Function
+                    })
+                });
             if let Some(function) = function {
                 // The table says 255 when the built-in takes any number of
                 // them.
@@ -4791,8 +4800,13 @@ impl Parser {
             builtin.name.to_lowercase() == name
                 && (!self.dialect.the_command_has_to_be_a_command()
                     || builtin.kind == crate::builtins::BuiltinKind::Command)
-        });
-        if !carried {
+        }) || self
+            .dialect
+            .the_builtin_of_the_extension(&name)
+            .map_or(false, |builtin| {
+                !self.dialect.the_command_has_to_be_a_command()
+                    || builtin.kind == crate::builtins::BuiltinKind::Command
+            });        if !carried {
             return Err(self.error(format!(
                 "This line does not contain a recognized action.\n     Specifically: {}",
                 self.the_source_of_the_legacy_command(name_at)
@@ -5030,10 +5044,7 @@ impl Parser {
         &self,
         name: &str,
     ) -> Option<&'static crate::builtins::Builtin> {
-        self.dialect
-            .builtins()
-            .iter()
-            .find(|builtin| builtin.name.to_lowercase() == name)
+        crate::builtins::the_builtin_in_the_dialect(self.dialect, name)
     }
 
     /// Whether the text begins with the name of a command of the v1.
@@ -5058,9 +5069,14 @@ impl Parser {
             builtin.name.to_lowercase() == name
                 && (!self.dialect.the_command_has_to_be_a_command()
                     || builtin.kind == crate::builtins::BuiltinKind::Command)
-        })
+        }) || self
+            .dialect
+            .the_builtin_of_the_extension(&name)
+            .map_or(false, |builtin| {
+                !self.dialect.the_command_has_to_be_a_command()
+                    || builtin.kind == crate::builtins::BuiltinKind::Command
+            })
     }
-
     /// The text of a command of the v1 that a refusal names.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the text is the
@@ -13745,7 +13761,12 @@ impl Parser {
         self.dialect.builtins().iter().any(|builtin| {
             builtin.name.to_lowercase() == wanted
                 && builtin.kind == crate::builtins::BuiltinKind::Function
-        })
+        }) || self
+            .dialect
+            .the_builtin_of_the_extension(&wanted)
+            .map_or(false, |builtin| {
+                builtin.kind == crate::builtins::BuiltinKind::Function
+            })
     }
 
     /// The `new` of the v1: `new C` and `new C(5)`.

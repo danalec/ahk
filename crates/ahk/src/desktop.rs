@@ -487,6 +487,21 @@ pub trait Files {
     /// Measured on the binary of v2.0.19 on 2026-11-09: `FileCreateShortcut`
     /// answers the empty text and makes the file, and it makes it even for a
     /// target that is not there.
+    /// The full path to a file, the way the platform writes one.
+    ///
+    /// Measured on the documentation of KeySharp on 2026-11-11:
+    /// `FileFullPath(Filename)` answers the full path to the file.
+    fn full_path(&mut self, _path: &str) -> Result<String, String> {
+        Err("this desktop cannot say the full path of a file".to_string())
+    }
+
+    /// Make an empty temporary file, and answer its full path.
+    ///
+    /// Measured on the documentation of KeySharp on 2026-11-11:
+    /// `FileCreateTemp()` makes the file and answers where it is.
+    fn create_temp_file(&mut self) -> Result<String, String> {
+        Err("this desktop cannot make a temporary file".to_string())
+    }
     fn create_shortcut(
         &mut self,
         _target: &str,

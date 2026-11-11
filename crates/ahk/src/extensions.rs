@@ -146,4 +146,116 @@ pub const SURFACE_ROWS: &str = concat!(
     "variable\t\tA_NewLine\t\t\t\n",
     "variable\t\tA_NowMs\t\t\t\n",
     "variable\t\tA_NowUTCMs\t\t\t\n",
+    "function\t\tATan2\t\t\t\n",
+    "function\t\tSinh\t\t\t\n",
+    "function\t\tCosh\t\t\t\n",
+    "function\t\tTanh\t\t\t\n",
+    "function\t\tRandomSeed\t\t\t\n",
+    "function\t\tReplaceLineEndings\t\t\t\n",
+    "function\t\tFileFullPath\t\t\t\n",
+    "function\t\tFileCreateTemp\t\t\t\n",
+    "function\t\tOutputDebugLine\t\t\t\n",
+    "function\t\tCollect\t\t\t\n",
 );
+
+/// The functions the `ks` dialect adds beside the table of the v2.0.19.
+///
+/// They are the functions of the `Ks` module of KeySharp that the tree can
+/// answer honestly on every machine: the four of the mathematics and the
+/// three of the text and the paths are pure, and the three that touch the
+/// machine ask the desktop. The rest of the module -- the ones that need a
+/// network, a mailer, a compiler of scripts or a component of Windows --
+/// is not in the table until it answers, the rule of the tree being that a
+/// name in the table answers or refuses with the reason.
+pub static KS_BUILTINS: &[crate::builtins::Builtin] = &[
+    crate::builtins::Builtin {
+        name: "ATan2",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 2,
+        max: 2,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_atan2,
+    },
+    crate::builtins::Builtin {
+        name: "Sinh",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_hyperbolic,
+    },
+    crate::builtins::Builtin {
+        name: "Cosh",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 1,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_hyperbolic,
+    },
+    crate::builtins::Builtin {
+        name: "Tanh",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 2,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_hyperbolic,
+    },
+    crate::builtins::Builtin {
+        name: "RandomSeed",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_random_seed,
+    },
+    crate::builtins::Builtin {
+        name: "ReplaceLineEndings",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 1,
+        max: 2,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_replace_line_endings,
+    },
+    crate::builtins::Builtin {
+        name: "FileFullPath",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_file_full_path,
+    },
+    crate::builtins::Builtin {
+        name: "FileCreateTemp",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 0,
+        max: 0,
+        variant: 0,
+        parameters: &[],
+        handler: crate::builtins::ks_file_create_temp,
+    },
+    crate::builtins::Builtin {
+        name: "OutputDebugLine",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 0,
+        max: 1,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_output_debug_line,
+    },
+    crate::builtins::Builtin {
+        name: "Collect",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 0,
+        max: 0,
+        variant: 0,
+        parameters: &[],
+        handler: crate::builtins::ks_collect,
+    },
+];

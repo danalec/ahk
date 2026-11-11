@@ -6893,7 +6893,10 @@ pub(crate) fn random(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let now = rt.now_ms();
+    // The seed a call of RandomSeed left is mixed into the entropy of the
+    // machine, so that a seeded run of the same script asks the same numbers
+    // of the machine.
+    let now = rt.now_ms() ^ rt.the_seed_of_the_random();
     match values.len() {
         0 => Ok(Value::Float(unit_random(now))),
         1 => {
@@ -7590,7 +7593,10 @@ pub(crate) fn sort(
     } else if options.random {
         // A shuffle: the items are put in a random order, and the options
         // of `N`, `C` and `CL` are still what the duplicates are read by.
-        let now = rt.now_ms();
+        // The seed a call of RandomSeed left is mixed into the entropy of the
+    // machine, so that a seeded run of the same script asks the same numbers
+    // of the machine.
+    let now = rt.now_ms() ^ rt.the_seed_of_the_random();
         for at in (1..order.len()).rev() {
             let pick = (unit_random(now) * (at as f64 + 1.0)) as usize;
             order.swap(at, pick.min(at));
@@ -11556,4 +11562,192 @@ fn split_send(text: &str) -> Vec<SendPart> {
         parts.push(SendPart::Text(buffer));
     }
     parts
+}
+
+// -- the functions the ks dialect adds --------------------------------------------
+//
+// The table of them is in `extensions.rs`, and the dialect of KeySharp is
+// the one that carries it: the v2.0.19 does not see any of these names.
+
+/// `ATan2(Y, X)`: the arc whose tangent is the quotient, in the quadrant
+/// the signs name.
+pub(crate) fn ks_atan2(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let y = number_argument(values, 0, line, "ATan2")?;
+    let x = number_argument(values, 1, line, "ATan2")?;
+    Ok(Value::Float(crate::runtime::atan2(y, x)))
+}
+
+/// `Sinh`, `Cosh` and `Tanh`: the hyperbolic sine, cosine and tangent.
+pub(crate) fn ks_hyperbolic(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    let name = match variant {
+        0 => "Sinh",
+        1 => "Cosh",
+        _ => "Tanh",
+    };
+    let number = number_argument(values, 0, line, name)?;
+    let result = match variant {
+        0 => crate::runtime::sinh(number),
+        1 => crate::runtime::cosh(number),
+        _ => crate::runtime::tanh(number),
+    };
+    Ok(Value::Float(result))
+}
+
+/// `RandomSeed(Seed)`: reinitialize the random number generator with the
+/// seed the script named, and answer nothing.
+pub(crate) fn ks_random_seed(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let seed = number_argument(values, 0, line, "RandomSeed")?;
+    rt.seed_the_random(seed as i64);
+    Ok(Value::Text(String::new()))
+}
+
+/// `ReplaceLineEndings(Str, EndOfLine?)`: make every line ending of the
+/// text the one the caller names.
+///
+/// The endings are the seven the documentation of KeySharp lists: the two
+/// of Windows, the two of the classic Mac and the Unix, the form feed, the
+/// next line of Unicode, and the two separators of Unicode.
+pub(crate) fn ks_replace_line_endings(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let _ = line;
+    let text = text_of(values, 0);
+    let ending = if values.len() > 1 {
+        text_of(values, 1)
+    } else {
+        "\n".to_string()
+    };
+    let mut out = String::new();
+    let mut characters = text.chars().peekable();
+    while let Some(character) = characters.next() {
+        let is_ending = match character {
+            '\r' => {
+                // The two of Windows go together, and the pair is one
+                // ending and not two.
+                if characters.peek() == Some(&'\n') {
+                    characters.next();
+                }
+                true
+            }
+            '\n' | '\u{000C}' | '\u{0085}' | '\u{2028}' | '\u{2029}' => true,
+            _ => false,
+        };
+        if is_ending {
+            out.push_str(&ending);
+        } else {
+            out.push(character);
+        }
+    }
+    Ok(Value::Text(out))
+}
+
+/// `FileFullPath(Filename)`: the full path to the file.
+pub(crate) fn ks_file_full_path(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    rt.desktop()
+        .full_path(&path)
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `FileCreateTemp()`: make an empty temporary file, and answer where it
+/// is.
+pub(crate) fn ks_file_create_temp(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    rt.desktop()
+        .create_temp_file()
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `OutputDebugLine(Text)`: the same as `OutputDebug`, with the line break
+/// at the end.
+pub(crate) fn ks_output_debug_line(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    rt.desktop()
+        .output_debug(&(text + "\n"))
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `Collect()`: ask for the memory of the unreachable objects to be
+/// reclaimed.
+///
+/// The objects of this runtime are reclaimed the moment the last reference
+/// to them goes away, so there is nothing to ask for: the answer is the
+/// empty text, the way an answer of no value is.
+pub(crate) fn ks_collect(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
+/// The row of a built-in of the dialect: the table of the v2.0.19 first,
+/// and the rows the dialect adds after it.
+pub(crate) fn the_builtin_in_the_dialect(
+    dialect: &'static dyn crate::dialect::Dialect,
+    wanted: &str,
+) -> Option<&'static Builtin> {
+    dialect
+        .builtins()
+        .iter()
+        .find(|builtin| builtin.name.to_lowercase() == wanted)
+        .or_else(|| dialect.the_builtin_of_the_extension(wanted))
+}
+
+/// The row of a built-in FUNCTION of the dialect: the table of the v2.0.19
+/// first, and the rows the dialect adds after it.
+pub(crate) fn the_function_in_the_dialect(
+    dialect: &'static dyn crate::dialect::Dialect,
+    wanted: &str,
+) -> Option<&'static Builtin> {
+    dialect
+        .builtins()
+        .iter()
+        .find(|builtin| {
+            builtin.kind == BuiltinKind::Function && builtin.name.to_lowercase() == wanted
+        })
+        .or_else(|| {
+            dialect
+                .the_builtin_of_the_extension(wanted)
+                .filter(|builtin| builtin.kind == BuiltinKind::Function)
+        })
 }
