@@ -1194,6 +1194,64 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_com_group_answers_the_wordings_the_binary_throws() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: ComObjGet of an empty
+    // string and of an Integer throw "(0x80070057) The parameter is
+    // incorrect."; ComObjActive of a class no program owns throws
+    // "(0x800401F3) Invalid class string"; ComObjType of an Integer answers
+    // the EMPTY text; ComObjQuery of an Integer throws "Parameter #1 of
+    // ComObjQuery is invalid."; and ComObjFlags, ComObjValue and
+    // ComObjConnect of an Integer throw "Parameter #1 of <name> requires a
+    // ComValue, but received an Integer.". ComObjFromPtr hangs on the binary
+    // and ComCall wants two parameters, so both stay refused.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "T(n, f)\n{\n    try\n    {\n        f.Call()\n        return \"ok\"\n    }\n    catch as err\n    {\n        return err.Message\n    }\n}",
+            "\na := T(\"get\", (() => ComObjGet(\"\")))",
+            "\nactive := T(\"active\", (() => ComObjActive(\"NoSuch.App.Xyz\")))",
+            "\nctype := ComObjType(123)",
+            "\nquery := T(\"query\", (() => ComObjQuery(123, \"x\")))",
+            "\nflags := T(\"flags\", (() => ComObjFlags(123)))",
+            "\nvalue := T(\"value\", (() => ComObjValue(123)))",
+            "\nconnect := T(\"connect\", (() => ComObjConnect(123)))",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    let value = |name: &str| {
+        report
+            .variables
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| panic!("{name} has no value"))
+    };
+    assert_eq!(
+        value("a"),
+        Value::Text("(0x80070057) The parameter is incorrect.".into())
+    );
+    assert_eq!(
+        value("active"),
+        Value::Text("(0x800401F3) Invalid class string".into())
+    );
+    assert_eq!(value("ctype"), Value::Text(String::new()));
+    assert_eq!(
+        value("query"),
+        Value::Text("Parameter #1 of ComObjQuery is invalid.".into())
+    );
+    for (variable, name) in [
+        ("flags", "ComObjFlags"),
+        ("value", "ComObjValue"),
+        ("connect", "ComObjConnect"),
+    ] {
+        let expected = format!(
+            "Parameter #1 of {name} requires a ComValue, but received an Integer."
+        );
+        assert_eq!(value(variable), Value::Text(expected), "{variable}");
+    }
+}
+
+#[test]
 fn the_hwnd_of_a_window_and_of_a_control_round_trip_through_the_lookup() {
     // Measured on the binary of v2.0.19 on 2026-11-10: g.Hwnd and e.Hwnd
     // answer numbers, GuiFromHwnd(g.Hwnd) gives the SAME Gui object back,
@@ -2565,15 +2623,16 @@ fn the_take_away_of_a_property_answers_its_value() {
 }
 
 #[test]
-fn the_names_of_com_fail_with_the_reason() {
-    // `ObjFromPtr` was the example until round 203 answered it: a number that names an
-    // object is a feature a runtime can carry on any platform, and it is an address in
-    // v2 only because v2 is a C++ program. What is genuinely Windows is the COM
-    // objects, and `ComObjActive` is one.
+fn the_names_of_com_answer_the_wordings_of_the_binary() {
+    // `ComObjActive` moved from the platform refusal to the measured wording
+    // in round 12: measured on the binary of v2.0.19 on 2026-11-10, a class
+    // string that no running program owns throws "(0x800401F3) Invalid class
+    // string". This platform has no running object table, so every call
+    // answers the same throw.
     let report = run("a := ComObjActive(\"Excel.Application\")");
     assert_eq!(
         failure_of(&report),
-        "COM objects belong to the component model of Windows, and this runtime has no COM."
+        "(0x800401F3) Invalid class string"
     );
 }
 

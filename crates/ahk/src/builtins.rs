@@ -1033,27 +1033,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_active,
     },
     Builtin {
         name: "ComObjConnect",
         kind: BuiltinKind::Function,
         min: 1,
         max: 2,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_connect,
     },
     Builtin {
         name: "ComObjFlags",
         kind: BuiltinKind::Function,
         min: 1,
         max: 3,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_flags,
     },
     Builtin {
         name: "ComObjFromPtr",
@@ -1069,36 +1069,36 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_get,
     },
     Builtin {
         name: "ComObjQuery",
         kind: BuiltinKind::Function,
         min: 2,
         max: 3,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_query,
     },
     Builtin {
         name: "ComObjType",
         kind: BuiltinKind::Function,
         min: 1,
         max: 2,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_type,
     },
     Builtin {
         name: "ComObjValue",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_value,
     },
     Builtin {
         name: "ControlAddItem",
@@ -3903,6 +3903,114 @@ pub(crate) fn not_carried(
         line,
     })
 }
+
+// -- the COM group ------------------------------------------------------------------
+
+/// `ComObjGet`: the object of a COM class.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: an empty string and an
+/// Integer where the class string is wanted both throw "(0x80070057) The
+/// parameter is incorrect.". This platform has no COM class registry to
+/// resolve a class string against, so every call answers the same throw.
+pub(crate) fn com_obj_get(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "(0x80070057) The parameter is incorrect.".to_string(),
+        line,
+    })
+}
+
+/// `ComObjActive`: the COM object that a program has running.
+///
+/// Measured on the same day: a class string that no running program owns
+/// throws "(0x800401F3) Invalid class string". This platform has no running
+/// object table to look one up in, so every call answers the same throw.
+pub(crate) fn com_obj_active(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "(0x800401F3) Invalid class string".to_string(),
+        line,
+    })
+}
+
+/// `ComObjType`: the kind of a COM object.
+///
+/// Measured on the same day: an Integer where a COM object is wanted
+/// answers the EMPTY TEXT -- not a failure. This platform has no COM
+/// objects, so the empty text is the whole contract.
+pub(crate) fn com_obj_type(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
+/// `ComObjQuery`: an interface of a COM object.
+///
+/// Measured on the same day: an Integer where a COM object is wanted throws
+/// "Parameter #1 of ComObjQuery is invalid." -- a wording of its own, and
+/// not the one its siblings use.
+pub(crate) fn com_obj_query(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match values.first() {
+        Some(Value::Object(_)) => Err(RuntimeError {
+            message: "this platform has no COM: there is no object model for an interface to be asked of".to_string(),
+            line,
+        }),
+        _ => Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "ComObjQuery"),
+            line,
+        }),
+    }
+}
+
+/// The shape the three COM members that take an object share: the measured
+/// wording names the ComValue the argument is wanted to be, and an object
+/// that IS there goes to the honest refusal of the platform.
+macro_rules! com_object_argument {
+    ($name:literal, $function:ident) => {
+        pub(crate) fn $function(
+            _rt: &mut Runtime<'_>,
+            values: &[Value],
+            line: u32,
+            _variant: u8,
+        ) -> Result<Value, RuntimeError> {
+            match values.first() {
+                Some(Value::Object(_)) => Err(RuntimeError {
+                    message: "this platform has no COM: there is no object model behind the object the script holds".to_string(),
+                    line,
+                }),
+                other => Err(RuntimeError {
+                    message: crate::runtime::requires(
+                        1,
+                        $name,
+                        TypeName::ComValue,
+                        other.unwrap_or(&Value::Text(String::new())),
+                    ),
+                    line,
+                }),
+            }
+        }
+    };
+}
+
+com_object_argument!("ComObjFlags", com_obj_flags);
+com_object_argument!("ComObjValue", com_obj_value);
+com_object_argument!("ComObjConnect", com_obj_connect);
 
 // -- the environment ---------------------------------------------------------------
 

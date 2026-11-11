@@ -282,9 +282,12 @@ fn the_surface_flag_answers_with_json() {
     // zero, and A_TrayMenu one Menu object the script keeps for its life.
     // `GuiFromHwnd` and `GuiCtrlFromHwnd` are the latest (round 11): the
     // handle of a window or a control is a number this runtime mints, and
-    // the inverse is the same table read backwards.
-    assert_eq!(report.number("values"), 777);
-    assert_eq!(report.number("refusals"), 56);
+    // the inverse is the same table read backwards. The COM group followed
+    // (round 12): seven of the nine names answer the wordings the binary
+    // throws shape by shape, and the two without a measured shape --
+    // ComObjFromPtr, which hangs on the binary, and ComCall -- stay refused.
+    assert_eq!(report.number("values"), 784);
+    assert_eq!(report.number("refusals"), 49);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
