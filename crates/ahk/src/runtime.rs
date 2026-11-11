@@ -5308,6 +5308,11 @@ impl<'a> Runtime<'a> {
     /// The answer is nothing when the variable has no value: that is the
     /// difference between a variable that is set and one that is not.
     pub(crate) fn read_reference(&self, reference: &Reference) -> Option<Value> {
+        if reference.name.is_empty() {
+            // The reference that points at no variable -- the
+            // `VarRef.Empty` of KeySharp -- has no value to read.
+            return None;
+        }
         let name = the_key_of(&reference.name);
         match reference.scope {
             Scope::Global => self.variables.get(&name).cloned(),
@@ -5323,6 +5328,12 @@ impl<'a> Runtime<'a> {
         let Value::Reference(reference) = value else {
             return;
         };
+        if reference.name.is_empty() {
+            // The write into the reference that points at no variable
+            // goes nowhere, the way the empty VarRef of KeySharp drops
+            // it.
+            return;
+        }
         let name = the_key_of(&reference.name);
         match reference.scope {
             Scope::Global => {
@@ -5344,6 +5355,11 @@ impl<'a> Runtime<'a> {
         let Value::Reference(reference) = value else {
             return;
         };
+        if reference.name.is_empty() {
+            // The reference that points at no variable has nothing to
+            // take away.
+            return;
+        }
         let name = the_key_of(&reference.name);
         match reference.scope {
             Scope::Global => {

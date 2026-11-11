@@ -1078,6 +1078,14 @@ pub trait Sound {
 /// does not have is not in the answer: the name that asks for it says
 /// so.
 pub trait Machine {
+    /// The identity of the thread the run is on.
+    ///
+    /// The identity of a thread is the machine's, and a machine that
+    /// cannot say is a failure with the reason: the number of a thread
+    /// is not guessed.
+    fn the_current_thread_id(&mut self) -> Result<i64, String> {
+        Err("this desktop cannot say the thread it runs on".to_string())
+    }
     /// The path of the executable that is running the script.
     ///
     /// It is what `A_AhkPath` answers. A desktop that cannot tell says so,

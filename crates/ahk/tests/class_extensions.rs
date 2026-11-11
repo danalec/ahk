@@ -41,7 +41,14 @@ impl Keyboard for Fake {
         Ok(String::new())
     }
 }
-impl Machine for Fake {    fn executable(&mut self) -> Result<String, String> {        Ok("/usr/bin/ahk".to_string())    }}
+impl Machine for Fake {
+    fn executable(&mut self) -> Result<String, String> {
+        Ok("/usr/bin/ahk".to_string())
+    }
+    fn the_current_thread_id(&mut self) -> Result<i64, String> {
+        Ok(4242)
+    }
+}
 impl Native for Fake {}
 impl Network for Fake {}
 impl Pictures for Fake {}
@@ -1253,4 +1260,67 @@ fn the_window_at_a_point_is_the_one_the_machine_names() {
     assert_eq!(line(&report, 2), "0");
     let report = run_ks("MsgBox WinFromPoint(\"x\", 5)\n");
     assert!(!report.ok);
+}
+
+#[test]
+fn the_real_thread_is_the_thread_the_script_runs_on() {
+    // The tree runs the script on one real thread: the collection of the
+    // threads is that one, it is alive while the script runs, and its
+    // identity is the one the machine gives.
+    let report = run_ks(concat!(
+        "t := A_RealThread\n",
+        "MsgBox Type(t)\n",
+        "MsgBox t.IsAlive\n",
+        "MsgBox t.Id\n",
+        "MsgBox t.Threads.Length\n",
+        "MsgBox RealThread.Main.IsAlive\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "RealThread");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "4242");
+    assert_eq!(line(&report, 3), "1");
+    assert_eq!(line(&report, 4), "1");
+}
+
+#[test]
+fn the_worker_members_of_the_real_thread_are_refused_with_the_reason() {
+    // The thread of the tree is not a worker: Task and Terminated are
+    // refused the way KeySharp refuses them on its main thread, and Post
+    // and Send are refused because the tree has no queue to post to.
+    let report = run_ks("MsgBox A_RealThread.Task\n");
+    assert!(!report.ok);
+    let report = run_ks("MsgBox A_RealThread.Post(() => 0)\n");
+    assert!(!report.ok);
+}
+
+#[test]
+fn the_exit_of_the_real_thread_stops_the_run() {
+    // The exit of the main thread is the end of the run, the way ExitApp
+    // ends it: the code is kept and the statements after it do not run.
+    let report = run_ks(concat!(
+        "MsgBox \"before\"\n",
+        "A_RealThread.Exit(3)\n",
+        "MsgBox \"after\"\n",
+    ));
+    assert_eq!(line(&report, 0), "before");
+    assert_eq!(report.exit_code, Some(3));
+}
+
+#[test]
+fn the_empty_reference_points_at_no_variable() {
+    // VarRef.Empty is the reference that points at no variable: the type
+    // of it is VarRef, it is an object, and a built-in that writes into
+    // it writes nowhere -- the run goes on and nothing is created.
+    let report = run_ks(concat!(
+        "e := VarRef.Empty\n",
+        "MsgBox Type(e)\n",
+        "MsgBox IsObject(e)\n",
+        "SplitPath(\"C:/dir/file.txt\", e)\n",
+        "MsgBox \"done\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "VarRef");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "done");
 }

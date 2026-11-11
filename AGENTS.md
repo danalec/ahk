@@ -11945,3 +11945,44 @@ worst outcome. The dialect-level semantics -- the counts, the messages,
 the normalization -- work on every machine; the machine-level question
 is answered where the machine can answer it, the way the cases against
 the `Fake` pin it.
+
+## 326. The one real thread, and the reference that points at no variable
+
+The `ks` dialect carries the accessor `A_RealThread` and the static
+member `VarRef.Empty`, both read in the source of KeySharp on 2026-11-11
+(`RealThreads.cs`, `ObjectBase/VarRef.cs`).
+
+**`A_RealThread` is the thread the script runs on.** KeySharp runs a
+script on real threads of the platform and hands the script the object
+of the current one; the tree runs the script on one real thread and says
+exactly that. `IsAlive` is one -- the question is asked from the thread
+itself. `Threads` is the collection of the one. `Main` is the same
+thread. `Id` is the machine's: the `LabDesktop` reads the link of the
+procfs (`/proc/thread-self`, Linux only), and a machine that cannot say
+is refused with the reason. `Exit(code)` is the end of the run, the way
+`ExitApp` ends it. The worker members are refused with the reason:
+`Task` and `Terminated` the way KeySharp itself refuses them on a thread
+that is not a worker, and `Post` and `Send` because the tree has no
+queue of a real thread to post to.
+
+**`VarRef.Empty` is the reference that points at no variable.** KeySharp
+makes it with a getter of nothing and a setter that drops the write, and
+hands it to the built-ins whose output parameter was left out. The tree
+makes it a `Value::Reference` with the empty name, and the three places
+that touch a reference -- `read_reference`, `write_reference` and
+`unset_reference` -- know the empty name: the read is nothing, the write
+goes nowhere, and there is nothing to take away. A built-in that writes
+its output parameter into `VarRef.Empty` writes nowhere and the run goes
+on: `SplitPath("C:/dir/file.txt", VarRef.Empty)` is the case that pins
+it.
+
+The `VarRef` class was already a class value of the v2 -- measured on
+the binary, `Type(VarRef)` is `Class` -- so the member went into the
+extension chain with the class guard of section 324, and the v2 keeps
+refusing `VarRef.Empty` the way it refuses a name it does not have.
+
+Two functions the rounds past left dead -- `the_function_in_the_dialect`
+and `ks_win_set_always_on_top`, the one of them orphaned when
+`WinSetAlwaysOnTop` moved to the v2 table -- went away with this round:
+rustc names them "never used", and a definition with no caller is a
+lie of a smaller kind.

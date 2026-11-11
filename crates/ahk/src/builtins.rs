@@ -11733,25 +11733,6 @@ pub(crate) fn the_builtin_in_the_dialect(
         .or_else(|| dialect.the_builtin_of_the_extension(wanted))
 }
 
-/// The row of a built-in FUNCTION of the dialect: the table of the v2.0.19
-/// first, and the rows the dialect adds after it.
-pub(crate) fn the_function_in_the_dialect(
-    dialect: &'static dyn crate::dialect::Dialect,
-    wanted: &str,
-) -> Option<&'static Builtin> {
-    dialect
-        .builtins()
-        .iter()
-        .find(|builtin| {
-            builtin.kind == BuiltinKind::Function && builtin.name.to_lowercase() == wanted
-        })
-        .or_else(|| {
-            dialect
-                .the_builtin_of_the_extension(wanted)
-                .filter(|builtin| builtin.kind == BuiltinKind::Function)
-        })
-}
-
 /// `Throw(Value)`: throw the value, the way the `throw` statement does.
 ///
 /// The documentation of KeySharp: the value is thrown, and the catch
@@ -12119,61 +12100,6 @@ pub(crate) fn ks_win_get_always_on_top(
             line,
         }),
     }
-}
-
-/// `WinSetAlwaysOnTop`: put a window above the others, or take it from there.
-///
-/// The second parameter is the way of AHK: `1` enables, `0` disables, `-1`
-/// toggles, and the texts `Toggle`, `On` and `Off` are the same three.
-pub(crate) fn ks_win_set_always_on_top(
-    rt: &mut Runtime<'_>,
-    values: &[Value],
-    line: u32,
-    _variant: u8,
-) -> Result<Value, RuntimeError> {
-    let window = ks_the_window_of(rt, values, line)?;
-    let asked = match values.get(1) {
-        Some(value) => value.to_text(),
-        None => String::new(),
-    };
-    let wanted = match asked.trim().to_lowercase().as_str() {
-        "1" | "on" | "true" => Some(true),
-        "0" | "off" | "false" => Some(false),
-        "-1" | "toggle" => None,
-        other => {
-            return Err(RuntimeError {
-                message: format!(
-                    "WinSetAlwaysOnTop: the second parameter is not one of 1, 0, -1, Toggle, On or Off: {other}"
-                ),
-                line,
-            })
-        }
-    };
-    let on = match wanted {
-        Some(on) => on,
-        // The toggle is the reading of the state and the opposite of it, and
-        // a machine that cannot say cannot toggle either.
-        None => match rt
-            .desktop()
-            .always_on_top(&window)
-            .map_err(|e| desktop_failure(e, line))?
-        {
-            Some(current) => !current,
-            None => {
-                return Err(RuntimeError {
-                    message:
-                        "the desktop of this run cannot say whether the window is above the others, so it cannot toggle it."
-                            .into(),
-                    line,
-                })
-            }
-        },
-    };
-    rt.desktop()
-        .set_always_on_top(&window, on)
-        .map_err(|e| desktop_failure(e, line))?;
-    // The answer of a setter that answers nothing is the empty text.
-    Ok(Value::Text(String::new()))
 }
 
 /// `WinGetEnabled`: whether a window is enabled.

@@ -42,6 +42,8 @@ pub(crate) mod map;
 pub(crate) mod regexmatchinfo;
 pub(crate) mod thread;
 pub(crate) mod keyinfo;
+pub(crate) mod realthread;
+pub(crate) mod varref;
 pub(crate) mod timer;
 pub(crate) mod scriptprocess;
 pub(crate) mod propref;
@@ -1439,6 +1441,7 @@ const THE_KS_SPELLINGS: &[(&str, &str)] = &[
     ("propref", "PropRef"),
 ("timer", "Timer"),
     ("keyinfo", "KeyInfo"),
+    ("realthread", "RealThread"),
 ("scriptprocess", "ScriptProcess"),
     ("argumenterror", "ArgumentError"),
     ("unsupportederror", "UnsupportedError"),
@@ -1769,6 +1772,9 @@ fn call_once(
             scriptprocess::call(class, method, this, arguments, rt, line)
 
         }
+        "realthread" if rt.dialect().carries_the_class_of_the_extension("realthread") => {
+            realthread::call(class, method, this, arguments, rt, line)
+        }
 
         "string" => the_member_of_a_text(method, this, arguments, rt, line),
         // The methods of the base object are the methods of every object,
@@ -1831,6 +1837,8 @@ pub(crate) fn property(
                 .or_else(|| scriptprocess::property(class, name, this, rt, line))
                 .or_else(|| timer::property(class, name, this, rt, line))
                 .or_else(|| keyinfo::property(class, name, this, rt, line))
+                .or_else(|| realthread::property(class, name, this, rt, line))
+                .or_else(|| varref::property(class, name, this, rt, line))
                 .or_else(|| typed::property(class, name, this, line))
         }
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {

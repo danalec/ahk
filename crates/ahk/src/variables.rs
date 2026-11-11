@@ -1137,6 +1137,9 @@ fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeErr
         .strip_prefix("a_")
         .unwrap_or(lowered.strip_prefix('a').unwrap_or(lowered.as_str()));
     match bare {
+        // The one real thread of the run: the thread the script runs on,
+        // which is the main one.
+        "realthread" => Ok(crate::classes::realthread::the_main_thread()),
         // The condition that the script set with `HotIf`: the text of it,
         // and the empty text when the script set none.
         "hotif" => Ok(Value::Text(rt.the_hotif().unwrap_or_default())),

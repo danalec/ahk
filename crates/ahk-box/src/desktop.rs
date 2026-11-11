@@ -1242,6 +1242,27 @@ fn the_program(command: &str, working_dir: &str) -> Command {
 }
 
 impl ahk::desktop::Machine for LabDesktop {
+    fn the_current_thread_id(&mut self) -> Result<i64, String> {
+        // The kernel names the thread that asks in the link of the
+        // procfs: the target of /proc/thread-self is the number of the
+        // thread. A machine that is not Linux has no such link, and the
+        // answer is a failure with the reason.
+        #[cfg(target_os = "linux")]
+        {
+            let id = std::fs::read_link("/proc/thread-self")
+                .ok()
+                .and_then(|path| {
+                    path.file_name()
+                        .and_then(|name| name.to_str())
+                        .map(|text| text.to_string())
+                })
+                .and_then(|text| text.parse::<i64>().ok());
+            if let Some(id) = id {
+                return Ok(id);
+            }
+        }
+        Err("this desktop cannot say the thread it runs on".to_string())
+    }
     fn executable(&mut self) -> Result<String, String> {
         crate::machine::executable()
     }
