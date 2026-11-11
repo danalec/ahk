@@ -233,12 +233,26 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 712 and 121.** The branch answers 815 and
-refuses 18, so **103 names are still to come**: the family of the windows
-of the machine (`WinMove`, `WinWait`, `WinGetText`, ...), the family of
-the focused edit (`EditGetLine`, `EditPaste`, ...), the registry and the
-drives, the tray, the COM objects, and the small ones (the lock lights,
-the cursor, the trash, the sound devices).
+a value and 149 refusals to 747 and 86.** The branch answers 815 and
+refuses 18, so **68 names are still to come**: the family of the focused
+edit (`EditGetLine`, `EditPaste`, ...), the COM objects (9), the registry
+(5), the drives (7), the tray (3), and the small ones (the lock lights,
+the cursor, the trash, the sound devices, the IPs).
+
+**The third family is ported too (2026-11-11): the windows of the
+machine.** The `Win*` names ask the compositor of the session, and the
+two clients of the compositor had diverged -- the one of the tree of the
+owner learned to name the windows with a number, the one of the branch
+learned where a window is and the scale of an output -- so the merge of
+the two is by hand (`audit/port-wayland-merge.py`). Measured on the box:
+`WinGetCount()` answers 3, `WinGetList()` answers the ids 1 2 3, and
+`WinWait("zzz-nothing-zzz", "", 1)` answers 0 in 1012 ms.
+
+**And the port does not take a name away from the tree of the owner to
+give it back in another shape**: `WinGetID`, `WinGetList`, `WinGetCount`
+and `WinGetClass` keep the handler that the tree had, with the ids as
+whole numbers -- the measurement of the binary of v2.0.19 -- and the port
+gives the names that the tree refused.
 
 The branch's own `audit/PLAN.md` says the gap matrix is 140/140 covered and
 that the tree answers 759 of 833 names; that is the number to beat.
