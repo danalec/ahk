@@ -1192,6 +1192,16 @@ pub trait Files {
         Err("this desktop cannot read a file".to_string())
     }
 
+    /// The path of a file, in the form the machine writes it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script, and `A_IconFile` answers the path of it in
+    /// the canonical form of the machine -- "C:\WINDOWS\System32\SHELL32.dll"
+    /// for the shell32.dll that the script wrote in another case.
+    fn canonical_path(&mut self, _path: &str) -> Result<String, String> {
+        Err("this desktop cannot write the canonical form of a path".to_string())
+    }
+
     /// Write a file, replacing what was in it; return what was written.
     fn write_file(&mut self, _path: &str, _text: &str) -> Result<String, String> {
         Err("this desktop cannot write a file".to_string())

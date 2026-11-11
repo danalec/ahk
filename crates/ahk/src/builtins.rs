@@ -1006,9 +1006,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 132,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: callback_free,
     },
     Builtin {
         name: "CaretGetPos",
@@ -2321,9 +2321,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 132,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tray_set_icon,
     },
     Builtin {
         name: "TrayTip",
@@ -4369,8 +4369,86 @@ pub(crate) fn env_set(
     Ok(Value::Text(value))
 }
 
-// -- the lists of images ------------------------------------------------------------
+// -- the icon of the script ---------------------------------------------------------
 
+/// `TraySetIcon(IconFile, IconNumber)`: the icon of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the call answers the
+/// empty text, and the built-in variables carry the icon afterwards --
+/// `A_IconFile` answers the path of the file and `A_IconNumber` the number
+/// of the icon in it. An icon that cannot be loaded throws **"Can't load
+/// icon."**, and the icon of the script is not changed. A call with no
+/// argument answers the empty text and changes nothing.
+///
+/// The path that the binary answers is the canonical one of Windows, which
+/// is in upper case; this tree answers the path as the script wrote it,
+/// because the path of a file is the path of the machine it is on.
+pub(crate) fn tray_set_icon(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(file) = values.first() else {
+        // A call with no argument changes nothing.
+        return Ok(Value::Text(String::new()));
+    };
+    let file = file.to_text();
+    let number = values.get(1).map(|value| value.to_number().unwrap_or(1.0) as i64);
+    let options = crate::desktop::PictureOptions {
+        width: None,
+        height: None,
+        icon: number,
+    };
+    // The icon is loaded before it is set: an icon that cannot be loaded is
+    // the failure of the call, and the icon of the script stays as it was.
+    // The binary does not tell the reasons apart -- every icon that cannot
+    // be loaded is "Can't load icon.".
+    let image = rt.desktop().load_picture(&file, &options).ok().flatten();
+    if image.is_none() {
+        return Err(RuntimeError {
+            message: "Can't load icon.".to_string(),
+            line,
+        });
+    }
+    let canonical = rt
+        .desktop()
+        .canonical_path(&file)
+        .unwrap_or_else(|_| file.clone());
+    rt.set_the_icon_of_the_script(canonical, number.unwrap_or(1));
+    Ok(Value::Text(String::new()))
+}
+
+/// `CallbackFree(Callback)`: let a callback of the machine go.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter
+/// wants a number, and a text throws "Parameter #1 of CallbackFree requires
+/// a Number, but received a String."; and every number throws "Parameter #1
+/// of CallbackFree is invalid.", because the only callback it would let go
+/// is one that it made itself.
+///
+/// This runtime makes no callback for the machine, so every number is the
+/// invalid one.
+pub(crate) fn callback_free(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "CallbackFree", TypeName::Number, &first),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "Parameter #1 of CallbackFree is invalid.".to_string(),
+        line,
+    })
+}
+
+// -- the lists of images ------------------------------------------------------------
 /// `IL_Create(Width, Height, Grow)`: make a list of images.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-11: it answers the number

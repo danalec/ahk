@@ -1286,6 +1286,52 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_icon_of_the_script_is_the_one_that_was_put_in_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` answers
+    // the empty text, and the built-in variables carry the icon afterwards --
+    // A_IconFile is the file and A_IconNumber the number of the icon in it.
+    // An icon that cannot be loaded throws "Can't load icon." and the icon
+    // of the script stays as it was. A call with no argument answers the
+    // empty text and changes nothing.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "before := A_IconFile",
+            "\nbeforeNum := A_IconNumber",
+            "\nset := TraySetIcon(\"/tmp/icon.png\", 3)",
+            "\nafter := A_IconFile",
+            "\nafterNum := A_IconNumber",
+            "\ntry\n{",
+            "\n    TraySetIcon(\"/tmp/no-such-icon.png\")",
+            "\n}\ncatch as err\n{",
+            "\n    missing := err.Message",
+            "\n}",
+            "\nstill := A_IconFile",
+            "\nnothing := TraySetIcon()",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Before the call there is no icon.
+    assert_eq!(value_of(&report, "before"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "beforenum"), Value::Int(0));
+    // The call answers the empty text, and the variables carry the icon.
+    assert_eq!(value_of(&report, "set"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "after"), Value::Text("/tmp/icon.png".into()));
+    assert_eq!(value_of(&report, "afternum"), Value::Int(3));
+    // An icon that cannot be loaded is the failure of the call, and the icon
+    // of the script stays as it was.
+    assert_eq!(
+        value_of(&report, "missing"),
+        Value::Text("Can't load icon.".into())
+    );
+    assert_eq!(value_of(&report, "still"), Value::Text("/tmp/icon.png".into()));
+    // A call with no argument changes nothing.
+    assert_eq!(value_of(&report, "nothing"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "still"), Value::Text("/tmp/icon.png".into()));
+}
+
+#[test]
 fn a_list_of_images_holds_the_images_that_were_put_in_it() {
     // Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
     // the number that names the list it made; `IL_Add` answers the place of
@@ -2341,12 +2387,22 @@ fn a_name_of_windows_without_a_counterpart_says_so() {
     // reference does NOT hang on these names -- an earlier note had mistaken
     // one call shape for the name. The true obstacle is that they ask for
     // Win32 resources this runtime has no counterpart for. `StrGet` was the
-    // example until the same round answered it; `CallbackFree` is still in
-    // the group.
+    // example until the same round answered it, and `CallbackFree` was the
+    // example until 2026-11-11: measured on the binary of v2.0.19 that day,
+    // a first parameter that is not a number throws "Parameter #1 of
+    // CallbackFree requires a Number, but received a String." and every
+    // number throws "Parameter #1 of CallbackFree is invalid." -- the only
+    // callback the binary would let go is one that it made itself, and this
+    // runtime makes none for the machine.
+    let report = run("CallbackFree(\"x\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of CallbackFree requires a Number, but received a String."
+    );
     let report = run("CallbackFree(1)");
     assert_eq!(
         failure_of(&report),
-        "these names ask for things of Windows that this runtime has no counterpart for: a caret's screen place, a Win32 shortcut, a COM audio interface, a string at a raw address, or a native callback thunk. Re-measured on the binary of v2.0.19 on 2026-11-10: it does NOT hang on them -- an earlier note mistook one call shape for the name."
+        "Parameter #1 of CallbackFree is invalid."
     );
 }
 

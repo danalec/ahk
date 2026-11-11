@@ -717,8 +717,18 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         // answers zero, and A_TrayMenu answers a Menu object -- the same one
         // for the life of the script, whose Default is "&Open" before any
         // item is added.
-        "iconfile" => Ok(Value::Text(String::new())),
-        "iconnumber" => Ok(Value::Int(0)),
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon`
+        // puts the icon of the script, and the two variables carry it
+        // afterwards -- the file of it and the number of the icon in it.
+        "iconfile" => Ok(Value::Text(
+            rt.the_icon_of_the_script()
+                .map(|(file, _)| file.clone())
+                .unwrap_or_default(),
+        )),
+        "iconnumber" => Ok(Value::Int(
+            rt.the_icon_of_the_script().map(|(_, number)| *number).unwrap_or(0),
+        )),
         "traymenu" => Ok(rt.the_tray_menu(0)),
         "ahkpath" => rt
             .desktop()

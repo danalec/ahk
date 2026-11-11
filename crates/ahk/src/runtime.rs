@@ -1223,6 +1223,13 @@ pub struct Runtime<'a> {
     image_lists: Vec<(i64, Vec<i64>)>,
     /// The number of the lists of images that were made.
     image_list_addresses: i64,
+    /// The icon of the script: the file of it and the number of the icon.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script, and the built-in variables carry it
+    /// afterwards -- `A_IconFile` is the file and `A_IconNumber` the number
+    /// of the icon in it.
+    icon_of_the_script: Option<(String, i64)>,
     /// The menu of the tray icon, made the first time a script asks for it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
@@ -1429,6 +1436,7 @@ impl<'a> Runtime<'a> {
             text_addresses: 0,
             image_lists: Vec::new(),
             image_list_addresses: 0,
+            icon_of_the_script: None,
             tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
@@ -1504,6 +1512,7 @@ impl<'a> Runtime<'a> {
             text_addresses: 0,
             image_lists: Vec::new(),
             image_list_addresses: 0,
+            icon_of_the_script: None,
             tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
@@ -2422,6 +2431,19 @@ impl<'a> Runtime<'a> {
         let before = self.image_lists.len();
         self.image_lists.retain(|(held, _)| *held != address);
         before != self.image_lists.len()
+    }
+
+    /// Put the icon of the script, the way `TraySetIcon` does.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: the built-in
+    /// variables carry the icon afterwards.
+    pub fn set_the_icon_of_the_script(&mut self, file: String, number: i64) {
+        self.icon_of_the_script = Some((file, number));
+    }
+
+    /// The file of the icon of the script, and the number of the icon in it.
+    pub fn the_icon_of_the_script(&self) -> Option<&(String, i64)> {
+        self.icon_of_the_script.as_ref()
     }
 
     /// Register the function `OnClipboardChange` named, or take it away.
