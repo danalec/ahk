@@ -136,11 +136,6 @@ const NO_SCRIPT_HWND: &str =
 /// The desktop does not know the scale of the screen it shows.
 const NO_SCREEN_DPI: &str = "this desktop does not know the scale of the output.";
 
-/// The reason the tray icon is not answered.
-///
-/// The runtime has no tray icon.
-const NO_TRAY_ICON: &str = "this runtime has no tray icon.";
-
 /// The reason the directory where the run started is not answered.
 ///
 /// The runtime does not keep it.
@@ -717,6 +712,14 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         "lasterror" => Ok(Value::Int(0)),
         // There is no tray icon, so the icon of the script is not hidden.
         "iconhidden" => Ok(Value::Int(1)),
+        // Measured on the binary of v2.0.19 on 2026-11-10: A_IconFile of a
+        // script that set no icon answers the empty text, A_IconNumber
+        // answers zero, and A_TrayMenu answers a Menu object -- the same one
+        // for the life of the script, whose Default is "&Open" before any
+        // item is added.
+        "iconfile" => Ok(Value::Text(String::new())),
+        "iconnumber" => Ok(Value::Int(0)),
+        "traymenu" => Ok(rt.the_tray_menu(0)),
         "ahkpath" => rt
             .desktop()
             .executable()
@@ -736,7 +739,6 @@ fn machine_refusal(name: &str) -> Option<&'static str> {
         "windir" | "programfiles" => NOT_WINDOWS,
         "scripthwnd" => NO_SCRIPT_HWND,
         "screendpi" => NO_SCREEN_DPI,
-        "iconfile" | "iconnumber" | "traymenu" => NO_TRAY_ICON,
         _ => return None,
     })
 }

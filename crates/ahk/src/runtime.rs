@@ -1188,6 +1188,13 @@ pub struct Runtime<'a> {
     /// runtime has no watcher of another program's clipboard, but its own
     /// writes are a change it can see, so the callback is called for them.
     clipboard_watcher: Option<String>,
+    /// The menu of the tray icon, made the first time a script asks for it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
+    /// a Menu object -- the SAME one for the life of the script -- whose
+    /// `Default` is "&Open" before any item is added to it, and whose `Add`
+    /// works like any menu's.
+    tray_menu: Option<Value>,
     /// The directory where the run started.
     ///
     /// The runtime asks the desktop for it when it is made, and it keeps
@@ -1383,6 +1390,7 @@ impl<'a> Runtime<'a> {
             groups: Vec::new(),
             last_window: None,
             clipboard_watcher: None,
+            tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -1453,6 +1461,7 @@ impl<'a> Runtime<'a> {
             groups: Vec::new(),
             last_window: None,
             clipboard_watcher: None,
+            tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
@@ -2036,6 +2045,31 @@ impl<'a> Runtime<'a> {
         if !already {
             self.guis.push(object.clone());
         }
+    }
+
+    /// The menu of the tray icon, made the first time a script asks for it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
+    /// a Menu object -- the SAME one for the life of the script, so it is
+    /// made once and kept -- whose `Default` is "&Open" before any item is
+    /// added to it, and whose `Add` works like any menu's.
+    pub fn the_tray_menu(&mut self, line: u32) -> Value {
+        if let Some(menu) = &self.tray_menu {
+            return menu.clone();
+        }
+        let menu = crate::classes::menu::construct(&[], self, line)
+            .unwrap_or_else(|_| crate::classes::object_with("Menu", vec![]));
+        // The default of a fresh tray menu is the standard &Open item, which
+        // the binary answers even before the standard items are added.
+        let _ = crate::classes::menu::set_property(
+            "Default",
+            &menu,
+            &Value::Text("&Open".to_string()),
+            self,
+            line,
+        );
+        self.tray_menu = Some(menu.clone());
+        menu
     }
 
     /// Call a function of the script by its name, with the arguments of a call.

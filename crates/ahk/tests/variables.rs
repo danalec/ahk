@@ -10,7 +10,7 @@ use ahk::desktop::{
     Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
-use ahk::runtime::{Report, Runtime};
+use ahk::runtime::{Report, Runtime, Value};
 use std::time::Duration;
 
 /// A desktop that holds a clipboard of its own and answers the machine.
@@ -172,6 +172,53 @@ fn run(script: &str) -> Report {
     let statements = parse(script).expect("parses");
     let mut desktop = Fake::default();
     Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements)
+}
+
+/// The tray variables of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `A_IconFile` of a script
+/// that set no icon answers the empty text, `A_IconNumber` answers zero, and
+/// `A_TrayMenu` answers a Menu object -- the SAME one on every read, whose
+/// `Default` is "&Open" before any item is added to it, and whose `Add`
+/// works like any menu's.
+#[test]
+fn the_tray_variables_answer_the_icon_the_number_and_one_menu_object() {
+    let report = run(concat!(
+        "f := A_IconFile",
+        "\nn := A_IconNumber",
+        "\nt1 := A_TrayMenu",
+        "\nc := Type(t1)",
+        "\nd := t1.Default",
+        "\nt1.Add(\"&About\", (*) => 0)",
+        "\nt2 := A_TrayMenu",
+        "\ne := t1 == t2",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    let value = |name: &str| {
+        report
+            .variables
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| panic!("{name} has no value"))
+    };
+    assert_eq!(value("f"), Value::Text(String::new()));
+    assert_eq!(value("n"), Value::Int(0));
+    assert_eq!(value("c"), Value::Text("Menu".into()));
+    assert_eq!(value("d"), Value::Text("&Open".into()));
+    // The same object on every read: adding through t2 is adding through t1.
+    assert_eq!(value("e"), Value::Int(1));
+    let t1 = match value("t1") {
+        Value::Object(object) => object,
+        other => panic!("A_TrayMenu holds {other:?}"),
+    };
+    let t2 = match value("t2") {
+        Value::Object(object) => object,
+        other => panic!("A_TrayMenu holds {other:?}"),
+    };
+    assert!(
+        std::rc::Rc::ptr_eq(&t1, &t2),
+        "A_TrayMenu answered two different objects"
+    );
 }
 
 /// The line of the statement and the name of the function that runs.
@@ -378,7 +425,6 @@ fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
         "A_ProgramFiles",
         "A_Cursor",
         "A_ScriptHwnd",
-        "A_IconFile",
     ] {
         let refusal = match ahk::variables::refusal_of(name) {
             Some(refusal) => refusal,

@@ -277,9 +277,11 @@ fn the_surface_flag_answers_with_json() {
     // refusals under seventy for the first time. `WinActivateBottom` and
     // `Shutdown` followed (round 9): the first is the same activation the
     // window of the script already answers, and the second takes the number
-    // the binary takes and leaves the session alone.
-    assert_eq!(report.number("values"), 771);
-    assert_eq!(report.number("refusals"), 62);
+    // the binary takes and leaves the session alone. The tray variables came
+    // after that (round 10): A_IconFile answers the empty text, A_IconNumber
+    // zero, and A_TrayMenu one Menu object the script keeps for its life.
+    assert_eq!(report.number("values"), 774);
+    assert_eq!(report.number("refusals"), 59);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -313,8 +315,10 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     // The names that the v1 has and the v2 does not are carried, and none of
     // them is pending: the surface of the v1 is complete. `A_AhkPath` answers
     // with a value since round 9, in both dialects, so the count of the values
-    // moved with the one of the v2.
-    assert_eq!(report.number("values"), 303);
+    // moved with the one of the v2. The tray variables of the v1 -- A_IconFile,
+    // A_IconNumber and A_TrayMenu -- followed in round 10, with the same
+    // answers the v2 gives.
+    assert_eq!(report.number("values"), 305);
     assert_eq!(report.number("pending"), 0);
     let entries = report.array("entries");
     let is_set = entries
