@@ -221,7 +221,22 @@ emulated machine. (Measured on the binary of v2.0.19: the **binary
 hangs** when the script writes the name without the prefix `A_` -- the
 spelling the table of the surface carries -- and `A_ProgramFilesCommon`
 hangs too.) The count is **815 values / 18 refusals** for the v2, and
-**308** for the v1, which has the same names.
+**308** for the v1, which has the same names. **Round 29 mapped the
+raven** (`d44b8dc`): the emulated system has a registry (the keys are
+there and they last; the values are stubs), it has the environment of a
+Windows -- `APPDATA` is "C:\Users\danalec\AppData\Roaming", `TEMP` is
+"C:\Users\danalec\AppData\Local\Temp", `ComSpec` is
+"C:\Windows\system32\cmd.exe" -- and it has the users and the programs of
+a Windows. And a function that it does not carry takes the **guest**
+down with it: `GetCursorInfo` and `RegSetValueA` kill it, and a guest
+that is dead answers nothing more, so every call of the script after it
+failed. The guest is now put away when it dies and the next call starts
+a new one: the crash is caught by the `try` of the script and the call
+after it answers again (measured: `after=92132812`, and `A_WinDir` still
+answers "C:\Windows"). The `A_Cursor` was left out of it: the emulated
+system has no `GetCursorInfo` that answers, and the shape of the cursor
+stays a refusal with its own reason. The count is **815 values / 18
+refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
