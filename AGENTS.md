@@ -12096,3 +12096,46 @@ with `p` = 4096, the first identity of the run.
 
 **The surface moves with the family: 779 answers with a value and 54 are
 refused become 793 and 40.**
+
+## 328. The lists of images are state of the runtime, and the list controls are the helper's
+
+**The twelfth family of the port is seven names**: `IL_Create`, `IL_Add`
+and `IL_Destroy`, `ListViewGetContent`, `StatusBarGetText`,
+`StatusBarWait` and `MenuSelect`.
+
+**A list of images is a set of picture identities the runtime keeps.**
+Its address is minted from `0x3000_0000`, apart from the addresses of the
+objects (`0x1000`) and of the texts, so the three never name the same
+thing. `IL_Add` loads the picture through the desktop -- the same path
+`LoadPicture` takes -- and **a picture that cannot be loaded answers
+zero, not a failure**: the binary answers zero for a file that is not
+there and for a file that is not an image. `IL_Destroy` answers 1 for a
+list that was there and 0 for one that was not.
+
+**The list controls and the status bar are the script's own window**:
+`ListViewGetContent` reads the content of a list control through the
+helper -- all of it, or the selected rows alone -- and `StatusBarGetText`
+and `StatusBarWait` read and watch the text of the status bar the same
+way. The desktop methods were in the tree already, carried by the family
+of the controls; the handlers and the runtime state were what was
+missing. `MenuSelect` finds the window and refuses the menu with the
+wording of v2 -- "Non-existent or unsupported menu." -- because the
+reference avoids driving a menu from its own thread, and this desktop
+cannot reach the menus of a foreign window either.
+
+**Measured on the box on 2026-11-11**: `IL_Create(4)` answers 805306369
+(0x30000001, the first address of a list), `IL_Add` of a file that is not
+there answers 0, of a real PNG answers 1 and then 2, `IL_Destroy` answers
+1 and 0 the second time, `MenuSelect` of a window that is not there
+throws "Target window not found." and of a window that is there throws
+"Non-existent or unsupported menu.".
+
+**Three adaptations the port made, and the script records them**: the
+case of the master that asked `StatusBarGetText` for the blanket reason
+died with the refusal; the fake of the tree answered every picture with a
+number, and now answers "no-such" with none, the way the fake of the
+branch does; and the case of `MenuSelect` names the window "Steam", the
+one the fake of this tree has, and not "first".
+
+**The surface moves with the family: 793 answers with a value and 40 are
+refused become 800 and 33.**

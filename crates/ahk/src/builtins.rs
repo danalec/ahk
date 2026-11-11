@@ -1721,36 +1721,36 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_add,
     },
     Builtin {
         name: "IL_Create",
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_create,
     },
     Builtin {
         name: "IL_Destroy",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_destroy,
     },
     Builtin {
         name: "ListViewGetContent",
         kind: BuiltinKind::Command,
         min: 0,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_view_get_content,
     },
     Builtin {
         name: "MenuFromHandle",
@@ -1766,9 +1766,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 11,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: menu_select,
     },
     Builtin {
         name: "MonitorGet",
@@ -2274,18 +2274,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: status_bar_get_text,
     },
     Builtin {
         name: "StatusBarWait",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: status_bar_wait,
     },
     Builtin {
         name: "StrGet",
@@ -15080,5 +15080,245 @@ fn the_kind_of(value: &Value) -> &'static str {
         Value::Text(_) => "String",
         Value::Object(_) => "Object",
         _ => "value that is not an object",
+    }
+}
+
+/// `IL_Create(Width, Height, Grow)`: make a list of images.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers the number
+/// that names the list it made.
+pub(crate) fn il_create(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(rt.make_an_image_list()))
+}
+
+/// `IL_Add(ImageList, IconFile, IconIndex)`: put an image in a list of images.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers the place of
+/// the image in the list -- one for the first -- and **zero** when the image
+/// could not be loaded: a file that is not there, and a file that is not an
+/// image, are both zero and not a failure. The list is looked at first: a
+/// number that names no list is zero as well, and the **null** handle is
+/// refused with "Parameter #1 of IL_Add is invalid.". A first parameter
+/// that is not a number throws "Parameter #1 of IL_Add requires a Number,
+/// but received a String.".
+pub(crate) fn il_add(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "IL_Add", TypeName::Number, &first),
+            line,
+        });
+    }
+    let list = number_of(values, 0) as i64;
+    if list == 0 {
+        return Err(RuntimeError {
+            message: "Parameter #1 of IL_Add is invalid.".to_string(),
+            line,
+        });
+    }
+    let file = text_of(values, 1);
+    // The image is the one of the machine: the same path that `LoadPicture`
+    // takes, with the icon that the call names.
+    let icon = values.get(2).map(|value| value.to_number().unwrap_or(1.0) as i64);
+    let options = crate::desktop::PictureOptions {
+        width: None,
+        height: None,
+        icon,
+    };
+    // An image that cannot be loaded is zero, and not a failure -- the
+    // binary answers zero for a file that is not there and for a file that
+    // is not an image.
+    let image = rt.desktop().load_picture(&file, &options).ok().flatten();
+    let Some(image) = image else {
+        return Ok(Value::Int(0));
+    };
+    // A list that is not there is zero as well.
+    Ok(Value::Int(
+        rt.put_an_image_in_a_list(list, image as i64).unwrap_or(0),
+    ))
+}
+
+/// `IL_Destroy(ImageList)`: take a list of images away.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers **one** when
+/// the list was there and **zero** when it was not -- the null handle among
+/// them -- and a first parameter that is not a number throws "Parameter #1
+/// of IL_Destroy requires a Number, but received a String.".
+pub(crate) fn il_destroy(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "IL_Destroy", TypeName::Number, &first),
+            line,
+        });
+    }
+    let list = number_of(values, 0) as i64;
+    Ok(Value::Int(rt.take_an_image_list(list) as i64))
+}
+
+/// `ListViewGetContent(Options, Control, WinTitle)`: the rows of a list view,
+/// cells by tabs and rows by line breaks.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with no options it answers
+/// "alpha\t10\nbeta\t20", and the "Selected" option answers only the rows that
+/// are chosen. The control is named by its `ClassNN` (`SysListView321`).
+pub(crate) fn list_view_get_content(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let options = text_of(values, 0);
+    let classnn = text_of(values, 1);
+    let title = text_of(values, 2);
+    the_window_of_the_script(rt, &title, line)?;
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let selected = options.eq_ignore_ascii_case("selected");
+    rt.desktop()
+        .gui_list_content(number as u64, selected)
+        .map(Value::Text)
+        .map_err(|e| desktop_failure(e, line))
+}
+
+/// `MenuSelect`: choose an item of the menu of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10, each shape in its own
+/// try: a window that is not there is a throw of "Target window not found.";
+/// the menu of a window that IS there -- the script's own, by position or by
+/// path, an item that does not exist, or a window without a menu at all --
+/// is a throw of "Non-existent or unsupported menu." (the reference avoids
+/// driving a menu from its own thread and fails the same way for every
+/// shape). This desktop cannot reach the menus of a foreign window either,
+/// so the second wording is the answer for every window that is found.
+pub(crate) fn menu_select(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The shape here is (WinTitle, Menu, SubMenu1, ...): the parameters after
+    // the first are the path of the item and not the exclusions of a WinGet,
+    // so the title alone is read from the first of them.
+    let title = text_of(values, 0);
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, crate::settings::title_match_mode())
+        .map_err(|e| desktop_failure(e, line))?;
+    if windows.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "Non-existent or unsupported menu.".to_string(),
+        line,
+    })
+}
+
+/// `StatusBarGetText(Part, WinTitle)`: the text of the status bar.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with part 1 and the title
+/// of a window holding a StatusBar, it answers the text the bar was made with.
+/// This tree carries one part. A window that is not the script's own is not
+/// asked of the accessibility layer, which has no status bar of its own.
+pub(crate) fn status_bar_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let title = text_of(values, 1);
+    the_window_of_the_script(rt, &title, line)?;
+    rt.desktop()
+        .gui_status_text()
+        .map(Value::Text)
+        .map_err(|e| desktop_failure(e, line))
+}
+
+/// `StatusBarWait(Text, Seconds, Part, WinTitle)`: wait for the status bar to
+/// hold a text.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the match is a
+/// case-sensitive SUBSTRING of part 1 ("status" matches "the status"), the
+/// answer is 1 on a match and 0 when the seconds run out, and a part other
+/// than 1 is refused with "Parameter #3 of StatusBarWait is invalid.".
+/// The status text of this runtime cannot change while a script runs, so the
+/// answer is known at once -- but the wait is honoured in shape, polling until
+/// the timeout like `ClipWait` does.
+pub(crate) fn status_bar_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = text_of(values, 0);
+    let seconds = number_of(values, 1);
+    let part = number_of(values, 2);
+    let title = text_of(values, 3);
+    if part != 1.0 && values.len() > 2 {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(3, "StatusBarWait"),
+            line,
+        });
+    }
+    the_window_of_the_script(rt, &title, line)?;
+    let limit = if values.len() > 1 && seconds > 0.0 {
+        Some(seconds * 1000.0)
+    } else if values.len() > 1 {
+        Some(0.0)
+    } else {
+        None
+    };
+    let started = rt.now_ms();
+    loop {
+        let text = rt
+            .desktop()
+            .gui_status_text()
+            .map_err(|e| desktop_failure(e, line))?;
+        if text.contains(&wanted) {
+            return Ok(Value::Int(1));
+        }
+        let waited = rt.now_ms().saturating_sub(started) as f64;
+        let left = match limit {
+            Some(limit) => {
+                if waited >= limit {
+                    return Ok(Value::Int(0));
+                }
+                limit - waited
+            }
+            None => {
+                let left = rt.remaining_ms();
+                if left == 0 {
+                    return Ok(Value::Int(0));
+                }
+                left as f64
+            }
+        };
+        rt.sleep_ms((left as u64).clamp(1, CLIP_POLL_MS));
     }
 }

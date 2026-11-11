@@ -233,14 +233,26 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 793 and 40.** The branch answers 815 and
-refuses 18, so **22 names are still to come**: the lists of icons (3),
-the list controls and the status bars (3), the tray (2, and a helper of
-their own), `MenuSelect`, `ListViewGetContent`, `OnClipboardChange` --
-beside the variables and the methods the branch answers and this tree
-still refuses. The styles and `Edit` are not in that count: they are
+a value and 149 refusals to 800 and 33.** The branch answers 815 and
+refuses 18, so **15 names are still to come**: the tray (`TraySetIcon`
+and `TrayTip`, and a helper of their own) and the variables and methods
+the branch answers and this tree still refuses -- the directories of
+Windows, the shape of the cursor, the lights of the keyboard, the notify
+of the session. The styles and `Edit` are not in that count: they are
 refused in the branch too, and the port carries the same refusals now,
 with the reasons of the families at the run.
+
+**The twelfth family is ported too (2026-11-11): the lists of images, the
+list controls and the status bars -- seven names.** `IL_Create` mints the
+address of a list from `0x3000_0000`, `IL_Add` loads the picture through
+the desktop and a picture that cannot be loaded answers zero,
+`IL_Destroy` takes the list away; `ListViewGetContent`,
+`StatusBarGetText` and `StatusBarWait` read the controls of the script's
+own window through the helper the controls family carried; `MenuSelect`
+refuses the menu of a window with the wording of v2. Measured on the box:
+`IL_Create(4)` answers 805306369, `IL_Add` of a real PNG answers 1 and
+then 2, of a file that is not there answers 0, and `MenuSelect("Steam",
+"&File")` throws "Non-existent or unsupported menu.".
 
 **The eleventh family is ported too (2026-11-11): the COM objects and
 the pointers of objects -- fourteen names, the biggest jump of the

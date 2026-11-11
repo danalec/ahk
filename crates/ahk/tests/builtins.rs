@@ -106,7 +106,13 @@ impl Pictures for Fake {
     ) -> Result<Option<u32>, String> {
         self.calls
             .push(("load-picture".into(), filename.to_string()));
-        Ok(Some(7))
+        // An image that is not there is not a failure: the answer is that
+        // there is no image.
+        if filename.contains("no-such") {
+            Ok(None)
+        } else {
+            Ok(Some(7))
+        }
     }
     fn image_search(
         &mut self,
@@ -5694,14 +5700,6 @@ fn an_empty_text_is_named_in_the_message_of_the_check() {
     );
 }
 
-#[test]
-fn a_name_that_the_tree_does_not_carry_says_the_reason_of_the_machine_when_the_kind_fits() {
-    let report = run("a := StatusBarGetText(1)");
-    assert_eq!(
-        failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
-    );
-}
 
 #[test]
 fn the_kind_of_a_value_comes_before_the_parameter_that_may_not_be_left_out() {
@@ -6963,3 +6961,100 @@ fn the_pointers_of_the_objects_round_trip_through_the_table_of_identities() {
         "Parameter #1 of ObjRelease is invalid."
     );
 }
+
+
+#[test]
+fn a_list_of_images_holds_the_images_that_were_put_in_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
+    // the number that names the list it made; `IL_Add` answers the place of
+    // the image in it -- one for the first -- and ZERO when the image could
+    // not be loaded, a file that is not there being not a failure; and
+    // `IL_Destroy` answers one when the list was there and zero when it was
+    // not.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "l := IL_Create(4, 4, 0)",
+            "\nfirst := IL_Add(l, \"/tmp/icon.png\")",
+            "\nsecond := ILAddMissing := IL_Add(l, \"/tmp/no-such-icon.png\")",
+            "\ngone := IL_Destroy(l)",
+            "\nagain := IL_Destroy(l)",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The list is named by a number.
+    assert!(matches!(value_of(&report, "l"), Value::Int(_)));
+    // The first image is the first, and the one that is not there is zero.
+    assert_eq!(value_of(&report, "first"), Value::Int(1));
+    assert_eq!(value_of(&report, "iladdmissing"), Value::Int(0));
+    // The list is there once, and not twice.
+    assert_eq!(value_of(&report, "gone"), Value::Int(1));
+    assert_eq!(value_of(&report, "again"), Value::Int(0));
+}
+
+
+#[test]
+fn the_pop_up_and_the_status_bar_answer() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "a := ControlShowDropDown(\"ComboBox1\", \"the window\")\nb := ControlHideDropDown(\"ComboBox1\", \"the window\")\nc := StatusBarGetText(1, \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "b"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "c"), Value::Text("the status".into()));
+}
+
+#[test]
+fn status_bar_wait_of_a_part_that_is_not_one_is_refused() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "StatusBarWait(\"the status\", 0.2, 2, \"the window\")",
+        &mut desktop,
+    );
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #3 of StatusBarWait is invalid."
+    );
+}
+
+#[test]
+fn menu_select_fails_on_a_window_that_is_not_there_and_on_a_menu_it_cannot_reach() {
+    // Measured on the binary of v2.0.19 on 2026-11-10, each shape in its own
+    // try: a window that is not there throws "Target window not found."; the
+    // menu of a window that IS there throws "Non-existent or unsupported
+    // menu." -- the reference avoids driving a menu from its own thread, and
+    // this desktop cannot reach the menus of a foreign window either.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    MenuSelect(\"no-such\", \"\", \"&File\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "seen"), Value::Text("Target window not found.".into()));
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    MenuSelect(\"Steam\", \"\", \"&File\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("Non-existent or unsupported menu.".into())
+    );
+}

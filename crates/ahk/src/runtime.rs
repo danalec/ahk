@@ -52,6 +52,13 @@ use crate::ast::{
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
 
+/// The first address of a list of images.
+///
+/// The addresses of the objects are minted from `0x1000`, the ones of the
+/// texts from `0x2000_0000`, and the ones of the lists of images from here,
+/// so that the three never name the same thing.
+const IMAGE_LIST_ADDRESS_BASE: i64 = 0x3000_0000;
+
 /// The variables of the loops, the ones that the runtime writes where it
 /// runs.
 ///
@@ -1660,6 +1667,15 @@ pub struct Runtime<'a> {
     /// drain of the events answers a `message:<number>` event of the helper
     /// with the handler that is registered here.
     message_handlers: BTreeMap<i64, String>,
+    /// The lists of images of the script, and the images of each one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
+    /// the number that names the list, `IL_Add` answers the place of the
+    /// image in it -- one for the first -- and `IL_Destroy` answers one when
+    /// the list was there and zero when it was not.
+    image_lists: Vec<(i64, Vec<i64>)>,
+    /// The number of the lists of images that were made.
+    image_list_addresses: i64,
     last_window: Option<String>,
 }
 
@@ -1751,6 +1767,8 @@ impl<'a> Runtime<'a> {
             exit_callbacks: Vec::new(),
             last_window: None,
             groups: Vec::new(),
+            image_lists: Vec::new(),
+            image_list_addresses: 0,
             guis: Vec::new(),
             pointers: Vec::new(),
             message_handlers: BTreeMap::new(),
@@ -1833,6 +1851,8 @@ impl<'a> Runtime<'a> {
             exit_callbacks: Vec::new(),
             last_window: None,
             groups: Vec::new(),
+            image_lists: Vec::new(),
+            image_list_addresses: 0,
             guis: Vec::new(),
             pointers: Vec::new(),
             message_handlers: BTreeMap::new(),
@@ -15476,6 +15496,36 @@ impl<'a> Runtime<'a> {
     pub fn close_a_group(&mut self, group: &str) {
         self.groups
             .retain(|(name, _)| !name.eq_ignore_ascii_case(group));
+    }
+
+    /// Make a list of images, and answer the number that names it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
+    /// the number that names the list it made.
+    pub fn make_an_image_list(&mut self) -> i64 {
+        self.image_list_addresses += 1;
+        let address = IMAGE_LIST_ADDRESS_BASE + self.image_list_addresses;
+        self.image_lists.push((address, Vec::new()));
+        address
+    }
+
+    /// Put an image in a list of images, and answer its place in it.
+    ///
+    /// `None` is a number that names no list of images.
+    pub fn put_an_image_in_a_list(&mut self, address: i64, image: i64) -> Option<i64> {
+        let list = self
+            .image_lists
+            .iter_mut()
+            .find(|(held, _)| *held == address)?;
+        list.1.push(image);
+        Some(list.1.len() as i64)
+    }
+
+    /// Take a list of images away, and say whether it was there.
+    pub fn take_an_image_list(&mut self, address: i64) -> bool {
+        let before = self.image_lists.len();
+        self.image_lists.retain(|(held, _)| *held != address);
+        before != self.image_lists.len()
     }
 
     /// Remember the window a `Win*` call just found.
