@@ -11699,3 +11699,32 @@ compositor and the focus of it. The state of the window manager (the
 always on top, the enabled) is not carried by the machine yet, and the
 capability list says so: a capability that the desktop cannot answer is
 not listed.
+
+## 317. The EWMH of X11, and what a compositor of Wayland does not say
+
+The always on top of a window of X11 is the atom `_NET_WM_STATE_ABOVE`
+among the atoms of the property `_NET_WM_STATE` of the window, and the
+window manager is asked to change it with the **client message** of the
+EWMH -- not by writing the property, which a window manager that reads
+the property itself ignores. The client of X11 in `x11.rs` does both, and
+the X11 backend of the box answers `WinGetAlwaysOnTop` and
+`WinSetAlwaysOnTop` with them. The XWayland windows are seen by the same
+client, so the same path serves them.
+
+**The enabled state of a window of X11 is that it is mapped and not
+iconified** -- the map state of the attributes of the window. The enabled
+state of a *control* is the state of a widget, and it needs the
+accessibility tree (AT-SPI); the tree does not read it yet, and the
+answer is the one that says so.
+
+**A compositor of Wayland does not publish the always on top.** The
+protocol of the foreign toplevels carries the maximized, the minimized,
+the activated and the fullscreen states -- and not the state of the
+window manager. The desktop of the box therefore answers `Ok(None)`: the
+name refuses with the reason, and it never answers `0` for a state that
+nobody published. A compositor with an interface of its own -- Hyprland,
+KWin, GNOME -- would answer there, one at a time.
+
+**A capability that the desktop cannot answer is not listed.** The
+desktop of the box lists the windows and the focus of it; the backend of
+X11 lists the always on top and the enabled state beside them.

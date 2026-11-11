@@ -934,6 +934,45 @@ impl ahk::desktop::Windows for LabDesktop {
              the list of the windows."
             .to_string())
     }
+    fn always_on_top(
+        &mut self,
+        _window: &ahk::desktop::WindowInfo,
+    ) -> Result<Option<bool>, String> {
+        // The compositor of a Wayland session does not publish the state of
+        // the window manager: the protocol of the foreign toplevels carries
+        // the maximized, the minimized, the activated and the fullscreen
+        // states, and not the always on top. A compositor with an interface
+        // of its own -- Hyprland, KWin, GNOME -- would answer here.
+        Ok(None)
+    }
+
+    fn set_always_on_top(
+        &mut self,
+        _window: &ahk::desktop::WindowInfo,
+        _on: bool,
+    ) -> Result<(), String> {
+        Err("the compositor of this session does not publish the state of the window manager, and this runtime cannot change it.".to_string())
+    }
+
+    fn window_enabled(
+        &mut self,
+        _window: &ahk::desktop::WindowInfo,
+    ) -> Result<Option<bool>, String> {
+        // The enabled state of a window of a Wayland session is that it is
+        // mapped and not minimized, and the compositor is the one that says
+        // it. The client of this tree reads the focus of it, and not the
+        // states.
+        Ok(None)
+    }
+
+    fn control_enabled(
+        &mut self,
+        _window: &ahk::desktop::WindowInfo,
+    ) -> Result<Option<bool>, String> {
+        // The state of a control is the state of a widget, and it needs the
+        // accessibility tree. This desktop does not read it.
+        Ok(None)
+    }
     fn window_capabilities(&mut self) -> Vec<String> {
         // What this desktop can really answer: the windows of the
         // compositor and the focus of it. The state of the window manager

@@ -51,9 +51,9 @@ mod ffi {
     /// `RTLD_LAZY`; `RTLD_LOCAL` is zero on both Linux and FreeBSD.
     const RTLD_LAZY: c_int = 1;
     /// The first index in `SYMBOLS` that belongs to libXtst rather than libX11.
-    pub(super) const LIBXTST_FROM: usize = 19;
+    pub(super) const LIBXTST_FROM: usize = 20;
     /// The number of resolved symbols.
-    pub(super) const SYMBOL_COUNT: usize = 22;
+    pub(super) const SYMBOL_COUNT: usize = 23;
 
     /// The symbols, in a FIXED order: entry `i` belongs to wrapper `i`.
     ///
@@ -81,9 +81,11 @@ mod ffi {
         b"XNextEvent\0",            // 16
         b"XLookupString\0",         // 17
         b"XKeysymToString\0",       // 18
-        b"XTestFakeKeyEvent\0",     // 19 Xtst
-        b"XTestFakeButtonEvent\0",  // 20
-        b"XTestFakeMotionEvent\0",  // 21
+        b"XSendEvent\0",            // 19
+
+        b"XTestFakeKeyEvent\0",     // 20 Xtst
+        b"XTestFakeButtonEvent\0",  // 21
+        b"XTestFakeMotionEvent\0",  // 22
     ];
 
     const _: () = assert!(SYMBOLS.len() == SYMBOL_COUNT);
@@ -221,11 +223,199 @@ mod ffi {
     #[rustfmt::skip]
     xfn!(18, XKeysymToString(ks: c_ulong) -> *const c_char);
     #[rustfmt::skip]
-    xfn!(19, XTestFakeKeyEvent(d: *mut c_void, keycode: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
+    xfn!(19, XSendEvent(d: *mut c_void, e: *mut c_void, propagate: c_int, mask: c_long, w: c_ulong) -> c_int);
+
+    xfn!(20, XTestFakeKeyEvent(d: *mut c_void, keycode: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
     #[rustfmt::skip]
-    xfn!(20, XTestFakeButtonEvent(d: *mut c_void, button: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
+    xfn!(21, XTestFakeButtonEvent(d: *mut c_void, button: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
     #[rustfmt::skip]
-    xfn!(21, XTestFakeMotionEvent(d: *mut c_void, screen: c_int, x: c_int, y: c_int, delay: c_ulong) -> c_int);
+    xfn!(22, XTestFakeMotionEvent(d: *mut c_void, screen: c_int, x: c_int, y: c_int, delay: c_ulong) -> c_int);
+    /// The client message of the EWMH, as Xlib lays it out.
+    ///
+    /// The layout is the one of `XClientMessageEvent` on a 64-bit Linux:
+    /// the `long` of the union is eight bytes, and the union is five of
+    /// them. The padding of the C struct is the padding of this one.
+    #[repr(C)]
+    struct ClientMessage {
+        kind: c_int,
+        serial: c_ulong,
+        send_event: c_int,
+        display: *mut c_void,
+        window: c_ulong,
+        message_type: c_ulong,
+        format: c_int,
+        data: [c_long; 5],
+    }
+
+    /// The kind of the event of a client message.
+    const CLIENT_MESSAGE: c_int = 33;
+    /// The mask of the events that the root window wants to hear about.
+    ///
+    /// It is `SubstructureRedirectMask | SubstructureNotifyMask`.
+    const SUBSTRUCTURE_MASK: c_long = 0x0018_0000;
+    /// The type of the property of a list of atoms.
+    const XA_ATOM: c_ulong = 4;
+
+    /// Whether the window is above the others, when the server says.
+    ///
+    /// The state of a window is the property `_NET_WM_STATE`, a list of
+    /// atoms, and `_NET_WM_STATE_ABOVE` among them is the always on top.
+    /// `None` is the answer of a window that is not there.
+    pub(super) fn always_on_top(d: *mut c_void, window: c_ulong) -> Option<bool> {
+        let state = XInternAtom(d, CString::new("_NET_WM_STATE").ok()?.as_ptr(), 1);
+        let above = XInternAtom(d, CString::new("_NET_WM_STATE_ABOVE").ok()?.as_ptr(), 1);
+        if state == 0 || above == 0 {
+            return None;
+        }
+        let mut format: c_int = 0;
+        let mut actual_type: c_ulong = 0;
+        let mut nitems: c_ulong = 0;
+        let mut after: c_ulong = 0;
+        let mut prop: *mut c_uchar = std::ptr::null_mut();
+        let status = XGetWindowProperty(
+            d,
+            window,
+            state,
+            0,
+            32,
+            0,
+            XA_ATOM,
+            &mut format,
+            &mut actual_type,
+            &mut nitems,
+            &mut after,
+            &mut prop,
+        );
+        let mut found = false;
+        if status == 0 && format == 32 && !prop.is_null() {
+            let atoms = prop.cast::<c_ulong>();
+            for index in 0..nitems as usize {
+                if unsafe { *atoms.add(index) } == above {
+                    found = true;
+                }
+            }
+        }
+        if !prop.is_null() {
+            XFree(prop.cast());
+        }
+        if status != 0 {
+            // The window is not there, and the server says so.
+            return None;
+        }
+        Some(found)
+    }
+
+    /// Put the window above the others, or take it from there.
+    ///
+    /// The window manager is asked with the client message of the EWMH:
+    /// the property `_NET_WM_STATE` of the root window carries the atom
+    /// `_NET_WM_STATE_ABOVE` and the action, and the window manager is the
+    /// one that changes the state of the window.
+    pub(super) fn set_always_on_top(
+        d: *mut c_void,
+        root: c_ulong,
+        window: c_ulong,
+        on: bool,
+    ) -> bool {
+        let state = match CString::new("_NET_WM_STATE") {
+            Ok(name) => XInternAtom(d, name.as_ptr(), 0),
+            Err(_) => return false,
+        };
+        let above = match CString::new("_NET_WM_STATE_ABOVE") {
+            Ok(name) => XInternAtom(d, name.as_ptr(), 0),
+            Err(_) => return false,
+        };
+        if state == 0 || above == 0 {
+            return false;
+        }
+        let mut event = ClientMessage {
+            kind: CLIENT_MESSAGE,
+            serial: 0,
+            send_event: 1,
+            display: d,
+            window,
+            message_type: state,
+            format: 32,
+            // The action is the first item: zero removes the state, one
+            // adds it and two toggles it. The last item says that the
+            // request comes from the application.
+            data: [if on { 1 } else { 0 }, above as c_long, state as c_long, 1, 0],
+        };
+        XSendEvent(
+            d,
+            (&mut event as *mut ClientMessage).cast(),
+            0,
+            SUBSTRUCTURE_MASK,
+            root,
+        ) != 0
+    }
+
+    /// Whether the window is mapped and not iconified.
+    ///
+    /// This is the enabled state of a window of X11: a window that is not
+    /// mapped is not there, and a window that is iconified is not on the
+    /// screen.
+    pub(super) fn window_is_enabled(d: *mut c_void, window: c_ulong) -> Option<bool> {
+        // The attributes of a window are read into a buffer of the size of
+        // `XWindowAttributes`, and the map state is its ninth field.
+        #[repr(C)]
+        struct Attributes {
+            x: c_int,
+            y: c_int,
+            width: c_int,
+            height: c_int,
+            border_width: c_int,
+            depth: c_int,
+            visual: *mut c_void,
+            root: c_ulong,
+            class: c_int,
+            bit_gravity: c_int,
+            win_gravity: c_int,
+            backing_store: c_int,
+            backing_planes: c_ulong,
+            backing_pixel: c_ulong,
+            save_under: c_int,
+            colormap: c_ulong,
+            map_installed: c_int,
+            map_state: c_int,
+            all_event_masks: c_long,
+            your_event_mask: c_long,
+            do_not_propagate_mask: c_long,
+            override_redirect: c_int,
+            screen: *mut c_void,
+        }
+        let mut attributes = Attributes {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            border_width: 0,
+            depth: 0,
+            visual: std::ptr::null_mut(),
+            root: 0,
+            class: 0,
+            bit_gravity: 0,
+            win_gravity: 0,
+            backing_store: 0,
+            backing_planes: 0,
+            backing_pixel: 0,
+            save_under: 0,
+            colormap: 0,
+            map_installed: 0,
+            map_state: 0,
+            all_event_masks: 0,
+            your_event_mask: 0,
+            do_not_propagate_mask: 0,
+            override_redirect: 0,
+            screen: std::ptr::null_mut(),
+        };
+        if XGetWindowAttributes(d, window, (&mut attributes as *mut Attributes).cast()) == 0 {
+            return None;
+        }
+        // The map state is 0 when the window is unmapped, 1 when it is
+        // viewable and 2 when it is iconified.
+        Some(attributes.map_state == 1)
+    }
 
     // The libc dynamic loader, declared by hand (no `#[link]`, no crate).
     unsafe extern "C" {
@@ -1329,6 +1519,54 @@ impl Windows for X11Desktop {
             return Ok(None);
         };
         Ok(ffi::fetch_name(display, id))
+    fn always_on_top(
+        &mut self,
+        window: &ahk::desktop::WindowInfo,
+    ) -> Result<Option<bool>, String> {
+        let display = self.connection()?;
+        Ok(ffi::always_on_top(display, window.id as c_ulong))
+    }
+
+    fn set_always_on_top(
+        &mut self,
+        window: &ahk::desktop::WindowInfo,
+        on: bool,
+    ) -> Result<(), String> {
+        let display = self.connection()?;
+        let root = ffi::XDefaultRootWindow(display);
+        if ffi::set_always_on_top(display, root, window.id as c_ulong, on) {
+            Ok(())
+        } else {
+            Err("the X server refused the client message of the EWMH.".to_string())
+        }
+    }
+
+    fn window_enabled(
+        &mut self,
+        window: &ahk::desktop::WindowInfo,
+    ) -> Result<Option<bool>, String> {
+        let display = self.connection()?;
+        Ok(ffi::window_is_enabled(display, window.id as c_ulong))
+    }
+
+    fn control_enabled(
+        &mut self,
+        _window: &ahk::desktop::WindowInfo,
+    ) -> Result<Option<bool>, String> {
+        // The state of a control is the state of a widget, and it needs the
+        // accessibility tree. This backend does not read it.
+        Ok(None)
+    }
+
+    fn window_capabilities(&mut self) -> Vec<String> {
+        vec![
+            "AlwaysOnTopGet".to_string(),
+            "AlwaysOnTopSet".to_string(),
+            "WindowEnabledGet".to_string(),
+            "WindowList".to_string(),
+            "WindowActivate".to_string(),
+        ]
+    }
     }
 
     fn window_active(&mut self, title: &str, mode: TitleMatch) -> Result<WindowAnswer, String> {
