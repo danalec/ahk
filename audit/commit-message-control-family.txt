@@ -1,0 +1,37 @@
+Port the family of the controls of another window, and the bus that answers it
+
+The second family of the port (`docs/two-lines.md` §5.2): the accessibility
+bus. The `Control*` names of v2 read and write the controls of *another*
+window, and the tree of the owner refused every one of them with the blanket
+reason of the names of Windows.
+
+The port is:
+
+- The module of the bus (`crates/ahk-box/src/atspi.rs`) and the three
+  answers it carries: `ControlAnswer`, `ControlFlag` and `ControlEdit`.
+- The eight methods of the `Windows` trait that the family needs -- the
+  text, the flag, the write, the click, the focus and the pid of the window
+  -- and the eight answers of the box that carry them, with the four
+  helpers that tell the window of the script from the windows of the
+  session.
+- The twenty-six handlers of the family, the helpers they call and the
+  thirty-two rows of the built-in table that answer to them. Twenty-eight of
+  the rows carry a handler now, and the four of the styles keep the refusal
+  of the branch, because a style of a control is a thing of Windows.
+- The cases of the family are the ones of the branch, and the fake of the
+  suite answers them.
+
+**The surface moves with it: 684 values and 149 refusals become 712 and
+121.** The twenty-eight names of the family answer with a value, and the
+case of the runner that read the blanket reason of `ControlSendText` now
+reads the reason of the family.
+
+Measured on the box on 2026-11-11, with this tree built there:
+`ControlGetText("Edit1", "the-probe-of-the-controls")` answers "hello from
+the port" -- the text of a control of a window, read through the bus of the
+accessibility.
+
+And the port is a script and not a copy by hand
+(`audit/port-control-family.py` and `audit/port-control-cases.py`): the two
+trees have drifted, and the rows of the built-in table are in another order
+in each of them.

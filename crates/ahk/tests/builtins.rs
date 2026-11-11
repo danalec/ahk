@@ -5,7 +5,7 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
+    Clipboard, ControlAnswer, ControlEdit, ControlFlag, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native, Network,
     PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WindowInfo, Windows,
 };
@@ -51,6 +51,45 @@ struct Fake {
     gui_open: bool,
     /// The events the fake hands out when the runtime asks for them.
     events: Vec<String>,
+    /// The items of the one list-shaped control the fake carries, and the
+    /// 1-based index of the item that is chosen (0 = nothing).
+    combo_items: Vec<String>,
+    combo_choice: i64,
+    combo_popup: bool,
+    /// The text of the one status bar the fake carries.
+    status_text: String,
+    /// The rows of the one list view the fake carries.
+    list_rows: Vec<Vec<String>>,
+    list_selected: i64,
+    /// The items of the one tree view the fake carries: (id, text, parent).
+    tree_items: Vec<(i64, String, i64)>,
+    tree_next: i64,
+    tree_selected: i64,
+    /// The number of the one UpDown the fake carries, shared with its buddy.
+    updown_value: i64,
+    /// The pages of the one Tab the fake carries, and the chosen page.
+    tab_pages: i64,
+    tab_chosen: i64,
+    /// Whether the fake's control is a date control, and its timestamp string.
+    date_control: bool,
+    date_value: String,
+    date_month_only: bool,
+    /// The file path of the one Pic the fake carries, if it made one.
+    pic_path: Option<String>,
+    /// The primary and second text of the one Link or Hotkey the fake carries.
+    text_control: bool,
+    text_value: String,
+    second_text: String,
+    /// The caret of the one focused edit, when there is one.
+    caret: Option<(i64, i64)>,
+    /// The label of the one drive the fake carries, when there is one.
+    drive_label: Option<String>,
+    /// The state of the three lock lights of the fake.
+    lock_lights: [bool; 3],
+    /// The registry of the fake: the key, and the values of it.
+    registry: std::collections::BTreeMap<String, Vec<(String, String, String)>>,
+    /// The files that the test put there, by their path.
+    files: std::collections::BTreeMap<String, Vec<u8>>,
 }
 
 impl Desktop for Fake {}
@@ -200,7 +239,416 @@ impl Dialogs for Fake {
     }
 }
 
+impl Fake {
+    // ---- the_edit
+    /// The answer about a write to a control: the one control takes it, and
+    /// every other question is one of the two failures.
+    fn the_edit(&self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        Ok(if control == "the label" && title == "the window" {
+            ControlEdit::Done
+        } else if title == "the window" {
+            ControlEdit::NoSuchControl
+        } else {
+            ControlEdit::NoSuchWindow
+        })
+    }
+
+    // ---- the_flag
+    /// The answer about a flag of a control: the one control is visible and
+    /// enabled, and every other question is one of the two failures.
+    fn the_flag(&self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        Ok(if control == "the label" && title == "the window" {
+            ControlFlag::Yes
+        } else if title == "the window" {
+            ControlFlag::NoSuchControl
+        } else {
+            ControlFlag::NoSuchWindow
+        })
+    }
+
+}
+
 impl Windows for Fake {
+    // ---- gui_value
+    fn gui_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if self.tab_pages > 0 {
+            // A Tab's Value is the chosen page; a page that is not there is
+            // refused. Measured on the binary of v2.0.19 on 2026-11-10.
+            if let Some(text) = setting {
+                let page = text.parse().unwrap_or(0);
+                if page < 1 || page > self.tab_pages {
+                    return Err("Invalid value.".to_string());
+                }
+                self.tab_chosen = page;
+            }
+            return Ok(self.tab_chosen.to_string());
+        }
+        if self.text_control {
+            if let Some(text) = setting {
+                self.text_value = text.to_string();
+            }
+            return Ok(self.text_value.clone());
+        }
+        if self.date_control {
+            if let Some(text) = setting {
+                let wanted = if self.date_month_only { 8 } else { 14 };
+                let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
+                let mut held = digits;
+                held.truncate(wanted);
+                while held.len() < wanted {
+                    held.push('0');
+                }
+                self.date_value = held;
+            }
+            return Ok(self.date_value.clone());
+        }
+        if let Some(path) = &self.pic_path {
+            // Writing the Value of a Pic changes nothing. Measured on the
+            // binary of v2.0.19 on 2026-11-10.
+            let _ = setting;
+            return Ok(path.clone());
+        }
+        if let Some(text) = setting {
+            self.updown_value = text.parse().unwrap_or(0);
+        }
+        Ok(self.updown_value.to_string())
+    }
+
+    // ---- gui_tree_text
+    fn gui_tree_text(&mut self, _number: u64, item: i64) -> Result<String, String> {
+        Ok(self
+            .tree_items
+            .iter()
+            .find(|(id, _, _)| *id == item)
+            .map(|(_, text, _)| text.clone())
+            .unwrap_or_default())
+    }
+
+    // ---- gui_tree_selection
+    fn gui_tree_selection(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.tree_selected)
+    }
+
+    // ---- gui_tree_relation
+    fn gui_tree_relation(&mut self, _number: u64, item: i64, relation: &str) -> Result<i64, String> {
+        let entry = self.tree_items.iter().find(|(id, _, _)| *id == item).cloned();
+        let Some((_id, _text, parent)) = entry else {
+            return Ok(0);
+        };
+        Ok(match relation {
+            "parent" => parent,
+            "child" => self
+                .tree_items
+                .iter()
+                .find(|(_, _, held)| *held == item)
+                .map(|(id, _, _)| *id)
+                .unwrap_or(0),
+            "next" => self
+                .tree_items
+                .iter()
+                .filter(|(_, _, held)| *held == parent)
+                .map(|(id, _, _)| *id)
+                .find(|id| *id > item)
+                .unwrap_or(0),
+            "prev" => self
+                .tree_items
+                .iter()
+                .rev()
+                .find(|(id, _, held)| *held == parent && *id < item)
+                .map(|(id, _, _)| *id)
+                .unwrap_or(0),
+            _ => 0,
+        })
+    }
+
+    // ---- gui_tree_modify
+    fn gui_tree_modify(&mut self, _number: u64, item: i64, _options: &str) -> Result<i64, String> {
+        self.tree_selected = item;
+        Ok(item)
+    }
+
+    // ---- gui_tree_delete
+    fn gui_tree_delete(&mut self, _number: u64, item: i64) -> Result<i64, String> {
+        self.tree_items.retain(|(id, _, _)| *id != item);
+        Ok(1)
+    }
+
+    // ---- gui_tree_count
+    fn gui_tree_count(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.tree_items.len() as i64)
+    }
+
+    // ---- gui_tree_add
+    fn gui_tree_add(&mut self, _number: u64, text: &str, parent: i64, _options: &str) -> Result<i64, String> {
+        let id = self.tree_next;
+        self.tree_next += 1;
+        self.tree_items.push((id, text.to_string(), parent));
+        Ok(id)
+    }
+
+    // ---- gui_title
+    fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
+        Ok("the window".to_string())
+    }
+
+    // ---- gui_status_text
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        Ok(self.status_text.clone())
+    }
+
+    // ---- gui_second_value
+    fn gui_second_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if let Some(text) = setting {
+            self.second_text = text.to_string();
+        }
+        Ok(self.second_text.clone())
+    }
+
+    // ---- gui_option
+    fn gui_option(&mut self, name: &str, on: bool) -> Result<(), String> {
+        self.calls
+            .push(("gui-option".into(), format!("{name}|{on}")));
+        Ok(())
+    }
+
+    // ---- gui_number_named
+    fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
+        self.calls.push(("resolve".into(), classnn.to_string()));
+        if classnn.eq_ignore_ascii_case("ComboBox1")
+            || classnn.eq_ignore_ascii_case("msctls_statusbar321")
+            || classnn.eq_ignore_ascii_case("SysListView321")
+            || classnn.eq_ignore_ascii_case("SysTreeView321")
+            || classnn.eq_ignore_ascii_case("msctls_updown321")
+            || classnn.eq_ignore_ascii_case("msctls_trackbar321")
+            || classnn.eq_ignore_ascii_case("msctls_progress321")
+            || classnn.eq_ignore_ascii_case("SysDateTimePick321")
+            || classnn.eq_ignore_ascii_case("SysMonthCal321")
+            || classnn.eq_ignore_ascii_case("SysLink1")
+            || classnn.eq_ignore_ascii_case("msctls_hotkey321")
+            || classnn.eq_ignore_ascii_case("Edit1")
+        {
+            Ok(1)
+        } else {
+            Err(format!("there is no control named {classnn}"))
+        }
+    }
+
+    // ---- gui_list_text
+    fn gui_list_text(&mut self, _number: u64, row: i64, col: i64) -> Result<String, String> {
+        Ok(self
+            .list_rows
+            .get(row as usize - 1)
+            .and_then(|cells| cells.get(col as usize - 1))
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    // ---- gui_list_next
+    fn gui_list_next(&mut self, _number: u64, start: i64) -> Result<i64, String> {
+        if start == 0 {
+            return Ok(self.list_selected);
+        }
+        Ok(if start < self.list_rows.len() as i64 {
+            start + 1
+        } else {
+            0
+        })
+    }
+
+    // ---- gui_list_modify
+    fn gui_list_modify(&mut self, _number: u64, row: i64, cells: &[String]) -> Result<i64, String> {
+        if let Some(existing) = self.list_rows.get_mut(row as usize - 1) {
+            for (index, text) in cells.iter().enumerate() {
+                if index < existing.len() {
+                    existing[index] = text.clone();
+                }
+            }
+        }
+        self.list_selected = row;
+        Ok(1)
+    }
+
+    // ---- gui_list_count
+    fn gui_list_count(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.list_rows.len() as i64)
+    }
+
+    // ---- gui_list_content
+    fn gui_list_content(&mut self, _number: u64, selected: bool) -> Result<String, String> {
+        let rows: Vec<String> = self
+            .list_rows
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| !selected || self.list_selected == *index as i64 + 1)
+            .map(|(_, cells)| cells.join("\t"))
+            .collect();
+        Ok(rows.join("\n"))
+    }
+
+    // ---- gui_list_add
+    fn gui_list_add(&mut self, _number: u64, cells: &[String]) -> Result<i64, String> {
+        self.list_rows.push(cells.to_vec());
+        Ok(self.list_rows.len() as i64)
+    }
+
+    // ---- gui_control_pos
+    fn gui_control_pos(&mut self, _number: u64) -> Result<(i64, i64, i64, i64), String> {
+        Ok((10, 20, 100, 30))
+    }
+
+    // ---- gui_combo_select
+    fn gui_combo_select(&mut self, _number: u64, wanted: &str, by_text: bool) -> Result<i64, String> {
+        if by_text {
+            let found = self
+                .combo_items
+                .iter()
+                .position(|item| item == wanted)
+                .map(|index| index as i64 + 1);
+            self.combo_choice = found.unwrap_or(0);
+            Ok(self.combo_choice)
+        } else {
+            let index: i64 = wanted.parse().unwrap_or(0);
+            self.combo_choice = if (1..=self.combo_items.len() as i64).contains(&index) {
+                index
+            } else {
+                0
+            };
+            Ok(self.combo_choice)
+        }
+    }
+
+    // ---- gui_combo_items
+    fn gui_combo_items(&mut self, _number: u64) -> Result<String, String> {
+        Ok(self.combo_items.join("\n"))
+    }
+
+    // ---- gui_combo_find
+    fn gui_combo_find(&mut self, _number: u64, text: &str) -> Result<i64, String> {
+        Ok(self
+            .combo_items
+            .iter()
+            .position(|item| item == text)
+            .map(|index| index as i64 + 1)
+            .unwrap_or(0))
+    }
+
+    // ---- gui_combo_dropdown
+    fn gui_combo_dropdown(&mut self, _number: u64, show: bool) -> Result<(), String> {
+        self.combo_popup = show;
+        Ok(())
+    }
+
+    // ---- gui_combo_delete
+    fn gui_combo_delete(&mut self, _number: u64, index: &str) -> Result<(), String> {
+        let at: usize = index.parse().unwrap_or(0);
+        if at >= 1 && at <= self.combo_items.len() {
+            self.combo_items.remove(at - 1);
+            if self.combo_choice >= at as i64 {
+                self.combo_choice = 0;
+            }
+            Ok(())
+        } else {
+            Err(format!("there is no item at {index}"))
+        }
+    }
+
+    // ---- gui_combo_choice
+    fn gui_combo_choice(&mut self, _number: u64) -> Result<(i64, String), String> {
+        let index = self.combo_choice;
+        let text = if index >= 1 {
+            self.combo_items
+                .get(index as usize - 1)
+                .cloned()
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        Ok((index, text))
+    }
+
+    // ---- gui_combo_add
+    fn gui_combo_add(&mut self, _number: u64, text: &str) -> Result<(), String> {
+        self.combo_items.push(text.to_string());
+        Ok(())
+    }
+
+    // ---- gui_caret
+    fn gui_caret(&mut self) -> Result<Option<(i64, i64)>, String> {
+        Ok(self.caret)
+    }
+
+    // ---- control_text
+    fn control_text(&mut self, control: &str, title: &str) -> Result<ControlAnswer, String> {
+        self.calls
+            .push(("control-text".into(), format!("{control}|{title}")));
+        // One control, in one window, and nothing else.
+        Ok(if control == "the label" && title == "the window" {
+            ControlAnswer::Found("the text of the label".to_string())
+        } else if title == "the window" {
+            ControlAnswer::NoSuchControl
+        } else {
+            ControlAnswer::NoSuchWindow
+        })
+    }
+
+    // ---- control_visible
+    fn control_visible(&mut self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        self.calls
+            .push(("control-visible".into(), format!("{control}|{title}")));
+        self.the_flag(control, title)
+    }
+
+    // ---- control_enabled
+    fn control_enabled(&mut self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        self.calls
+            .push(("control-enabled".into(), format!("{control}|{title}")));
+        self.the_flag(control, title)
+    }
+
+    // ---- control_set_text
+    fn control_set_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-set-text".into(), format!("{control}|{title}|{text}")));
+        Ok(if control == "the label" && title == "the window" {
+            ControlEdit::Done
+        } else if title == "the window" {
+            ControlEdit::NoSuchControl
+        } else {
+            ControlEdit::NoSuchWindow
+        })
+    }
+
+    // ---- control_click
+    fn control_click(&mut self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-click".into(), format!("{control}|{title}")));
+        self.the_edit(control, title)
+    }
+
+    // ---- control_focus
+    fn control_focus(&mut self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-focus".into(), format!("{control}|{title}")));
+        self.the_edit(control, title)
+    }
+
+    // ---- control_send_text
+    fn control_send_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-send-text".into(), format!("{control}|{title}|{text}")));
+        self.the_edit(control, title)
+    }
+
     // The window of the script: the fake makes one when the script asks for
     // it, and it hands out the events it was given.
     fn gui_is_open(&mut self) -> bool {
@@ -974,11 +1422,16 @@ fn a_drag_goes_down_in_one_place_and_comes_up_in_another() {
 }
 
 #[test]
-fn a_name_of_windows_fails_with_the_reason() {
+fn a_name_of_the_control_family_fails_with_the_reason_of_the_family() {
+    // The blanket reason -- "this is a name of Windows, and this desktop
+    // is not Windows" -- was the one of a family that was not carried at
+    // all. The family of the controls of *another* window is carried since
+    // 2026-11-11, and a control without a window fails with the reason of
+    // the family: the window is found by its title, and there is none.
     let report = run("ControlGetText(\"x\")");
     assert_eq!(
         failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
+        "the window of a control is found by its title, and an empty title is not carried yet."
     );
 }
 
@@ -5610,4 +6063,84 @@ fn a_click_on_a_control_calls_the_handler_of_the_control() {
     // The control has no number of its own in the fake, so the event that
     // the fake hands out names the control that the script made.
     assert_eq!(value_of(&report, "seen"), Value::Text("Gui.Button".into()));
+}
+
+#[test]
+fn control_get_items_answers_an_array_of_the_items() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on("x := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\none := x[1]", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "n"), 3);
+    assert_eq!(value_of(&report, "one"), Value::Text("alpha".into()));
+}
+
+#[test]
+fn control_add_item_makes_the_array_one_longer() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "r := ControlAddItem(\"delta\", \"ComboBox1\", \"the window\")\nx := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\nfour := x[4]",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    assert_eq!(int_of(&report, "n"), 4);
+    assert_eq!(value_of(&report, "four"), Value::Text("delta".into()));
+}
+
+#[test]
+fn control_choose_index_and_string_set_the_choice() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "ControlChooseIndex(2, \"ComboBox1\", \"the window\")\na := ControlGetChoice(\"ComboBox1\", \"the window\")\nb := ControlGetIndex(\"ComboBox1\", \"the window\")\nControlChooseString(\"gamma\", \"ComboBox1\", \"the window\")\nc := ControlGetIndex(\"ComboBox1\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("beta".into()));
+    assert_eq!(int_of(&report, "b"), 2);
+    assert_eq!(int_of(&report, "c"), 3);
+}
+
+#[test]
+fn control_find_item_and_delete_item() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "a := ControlFindItem(\"beta\", \"ComboBox1\", \"the window\")\nControlDeleteItem(1, \"ComboBox1\", \"the window\")\nx := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\none := x[1]",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 2);
+    assert_eq!(int_of(&report, "n"), 2);
+    assert_eq!(value_of(&report, "one"), Value::Text("beta".into()));
+}
+
+#[test]
+fn a_control_get_pos_writes_the_four_places_of_a_control() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: ControlGetPos with
+    // four VarRef outputs writes x, y, width and height relative to the
+    // client area, and answers the empty text. This is the GTK allocation of
+    // the control in the helper's box.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        "x := y := w := h := 0\ng := Gui()\ng.Add(\"Edit\", \"\", \"x\")\nr := ControlGetPos(&x, &y, &w, &h, \"Edit1\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    assert_eq!(int_of(&report, "x"), 10);
+    assert_eq!(int_of(&report, "y"), 20);
+    assert_eq!(int_of(&report, "w"), 100);
+    assert_eq!(int_of(&report, "h"), 30);
+}
+
+// ---- a_fake_with_a_combo
+fn a_fake_with_a_combo() -> Fake {
+    Fake {
+        combo_items: vec!["alpha".into(), "beta".into(), "gamma".into()],
+        gui_open: true,
+        status_text: "the status".into(),
+        ..Default::default()
+    }
 }

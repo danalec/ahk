@@ -144,6 +144,74 @@ impl Default for LabDesktop {
 }
 
 impl LabDesktop {
+    // ---- gui_title_is
+    /// Whether the title names the window the script made.
+    fn gui_title_is(&mut self, title: &str) -> bool {
+        if title.is_empty() {
+            return true;
+        }
+        let command = "{\"op\": \"title\"}".to_string();
+        match self.the_gui_says(&command) {
+            Ok(said) => the_text_in(&said, "\"title\": ")
+                .map(|t| t.eq_ignore_ascii_case(title))
+                .unwrap_or(false),
+            Err(_) => false,
+        }
+    }
+
+    // ---- own_control_text
+    /// The text of a control of the script's own window.
+    fn own_control_text(&mut self, control: &str) -> Result<ahk::desktop::ControlAnswer, String> {
+        let number = match self.own_control_number(control) {
+            Ok(number) => number,
+            Err(_) => return Ok(ahk::desktop::ControlAnswer::NoSuchControl),
+        };
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"value\", \"id\": {}}}",
+            number
+        ))?;
+        Ok(ahk::desktop::ControlAnswer::Found(
+            the_text_in(&said, "\"value\": ").unwrap_or_default(),
+        ))
+    }
+
+    // ---- own_control_send_text
+    /// Put text into a control of the script's own window, at its cursor.
+    fn own_control_send_text(
+        &mut self,
+        control: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        let number = match self.own_control_number(control) {
+            Ok(number) => number,
+            Err(_) => return Ok(ahk::desktop::ControlEdit::NoSuchControl),
+        };
+        let command = format!(
+            "{{\"op\": \"paste\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        );
+        match self.the_gui_says(&command) {
+            Ok(_) => Ok(ahk::desktop::ControlEdit::Done),
+            Err(reason) if reason.contains("is not an edit") => {
+                Ok(ahk::desktop::ControlEdit::NoSuchControl)
+            }
+            Err(reason) => Err(reason),
+        }
+    }
+
+    // ---- own_control_number
+    /// The number of a control of the script's own window, from its `ClassNN`.
+    fn own_control_number(&mut self, control: &str) -> Result<i64, String> {
+        let command = format!(
+            "{{\"op\": \"resolve\", \"classnn\": {}}}",
+            quoted(control)
+        );
+        let said = self.the_gui_says(&command)?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the window of the script has no control named {control}"))
+    }
+
     /// A desktop that has not yet opened anything.
     pub fn new() -> Self {
         Self {
@@ -870,6 +938,114 @@ impl ahk::desktop::Screen for LabDesktop {
 }
 
 impl ahk::desktop::Windows for LabDesktop {
+    // ---- control_text
+    fn control_text(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlAnswer, String> {
+        // The window the script made is known to the helper by the class and
+        // number of each control. A foreign window needs the accessibility bus;
+        // the script's own window does not, and asking the bus about it would
+        // invent a second route to something already in hand (round 216).
+        if self.gui_is_open() && self.gui_title_is(title) {
+            return self.own_control_text(control);
+        }
+        // `busctl` is the tool of the accessibility bus, and the bus is a thing
+        // of a Linux session.
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_text(&address, title, control)
+    }
+
+    // ---- control_visible
+    fn control_visible(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlFlag, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // Measured on the box from the header of the machine: the enum of the
+        // states starts at zero, so `ATSPI_STATE_VISIBLE` is the bit 30.
+        crate::atspi::control_flag(&address, title, control, 30)
+    }
+
+    // ---- control_enabled
+    fn control_enabled(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlFlag, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // `ATSPI_STATE_ENABLED` is the bit 8.
+        crate::atspi::control_flag(&address, title, control, 8)
+    }
+
+    // ---- control_set_text
+    fn control_set_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_set_text(&address, title, control, text)
+    }
+
+    // ---- control_click
+    fn control_click(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_click(&address, title, control)
+    }
+
+    // ---- control_focus
+    fn control_focus(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_focus(&address, title, control)
+    }
+
+    // ---- control_send_text
+    fn control_send_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        if self.gui_is_open() && self.gui_title_is(title) {
+            return self.own_control_send_text(control, text);
+        }
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // The focus first, through the accessibility layer, and then the keys
+        // through the keyboard of our own: the two capabilities together.
+        match crate::atspi::control_focus(&address, title, control)? {
+            ahk::desktop::ControlEdit::Done => {}
+            other => return Ok(other),
+        }
+        ahk::desktop::Keyboard::type_text(self, text)?;
+        Ok(ahk::desktop::ControlEdit::Done)
+    }
+
+    // ---- window_pid
+    fn window_pid(&mut self, title: &str) -> Result<Option<i64>, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::app_pid(&address, title)
+    }
+
     fn window_active(
         &mut self,
         title: &str,

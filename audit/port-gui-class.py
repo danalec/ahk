@@ -244,6 +244,13 @@ def main():
         BRANCH / "crates" / "ahk" / "src" / "classes" / "menu.rs",
         ROOT / "crates" / "ahk" / "src" / "classes" / "menu.rs",
     )
+    # The name of the item by default of a menu is the tray's, and the tray
+    # is not ported yet: the helper would be a function that nothing calls.
+    menu = read_lines(ROOT / "crates" / "ahk" / "src" / "classes" / "menu.rs")
+    found = a_block(menu, "the_default_of")
+    if found is not None:
+        del menu[found[0]:found[1]]
+        write_lines(ROOT / "crates" / "ahk" / "src" / "classes" / "menu.rs", menu)
     if not has_marker(classes, "pub(crate) mod menu;"):
         at = the_line_of(classes, r"^pub\(crate\) mod gui;$", "the module of the window")
         classes = insert(classes, at + 1, ["pub(crate) mod menu;"])

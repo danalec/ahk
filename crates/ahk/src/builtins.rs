@@ -1118,106 +1118,106 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_add_item,
     },
     Builtin {
         name: "ControlChooseIndex",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_choose_index,
     },
     Builtin {
         name: "ControlChooseString",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_choose_string,
     },
     Builtin {
         name: "ControlClick",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_act,
     },
     Builtin {
         name: "ControlDeleteItem",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_delete_item,
     },
     Builtin {
         name: "ControlFindItem",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_find_item,
     },
     Builtin {
         name: "ControlFocus",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_act,
     },
     Builtin {
         name: "ControlGetChecked",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_checked,
     },
     Builtin {
         name: "ControlGetChoice",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_choice,
     },
     Builtin {
         name: "ControlGetClassNN",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_classnn,
     },
     Builtin {
         name: "ControlGetEnabled",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_flag,
     },
     Builtin {
         name: "ControlGetExStyle",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 127,
         parameters: &[Parameter::Value],
         handler: not_carried,
     },
@@ -1226,52 +1226,52 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_focus,
     },
     Builtin {
         name: "ControlGetHwnd",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_hwnd,
     },
     Builtin {
         name: "ControlGetIndex",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_index,
     },
     Builtin {
         name: "ControlGetItems",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_items,
     },
     Builtin {
         name: "ControlGetPos",
         kind: BuiltinKind::Command,
         min: 0,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_pos,
     },
     Builtin {
         name: "ControlGetStyle",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 127,
         parameters: &[Parameter::Value],
         handler: not_carried,
     },
@@ -1280,88 +1280,88 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_text,
     },
     Builtin {
         name: "ControlGetVisible",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_flag,
     },
     Builtin {
         name: "ControlHide",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_visibility,
     },
     Builtin {
         name: "ControlHideDropDown",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_hide_drop_down,
     },
     Builtin {
         name: "ControlMove",
         kind: BuiltinKind::Command,
         min: 0,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_move,
     },
     Builtin {
         name: "ControlSend",
         kind: BuiltinKind::Command,
         min: 1,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_send,
     },
     Builtin {
         name: "ControlSendText",
         kind: BuiltinKind::Command,
         min: 1,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_send_text,
     },
     Builtin {
         name: "ControlSetChecked",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_checked,
     },
     Builtin {
         name: "ControlSetEnabled",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_enabled,
     },
     Builtin {
         name: "ControlSetExStyle",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 127,
         parameters: &[Parameter::Value],
         handler: not_carried,
     },
@@ -1370,7 +1370,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 127,
         parameters: &[Parameter::Value],
         handler: not_carried,
     },
@@ -1379,27 +1379,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_text,
     },
     Builtin {
         name: "ControlShow",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_show,
     },
     Builtin {
         name: "ControlShowDropDown",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_show_drop_down,
     },
     Builtin {
         name: "DetectHiddenText",
@@ -11953,3 +11953,879 @@ pub(crate) fn ks_request_capabilities(
     let _ = rt;
     Ok(Value::Object(object))
 }
+
+
+// ---- control_get_text
+/// `ControlGetText`: the text of a control of a window.
+///
+/// The control is found by its name and the window by its title, through the
+/// accessibility layer, because that is the only description of the controls of
+/// a window that a Wayland session keeps.
+///
+/// **A control that the application does not publish answers the empty text,
+/// and that is not a failure.** Measured on the box on 2026-11-09 with a dump of
+/// the whole tree: `zenity` publishes its dialog -- the `Name` of the window is
+/// the title of the window, and it is a `dialog` -- and publishes no name and no
+/// text for anything inside it. Any client of AT-SPI sees the same nothing. The
+/// walk therefore answers what the tree holds, which for that program is the
+/// empty text.
+pub(crate) fn control_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the text of the
+    // window and the two exclusions, and they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .control_text(&control, &title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        crate::desktop::ControlAnswer::Found(text) => Ok(Value::Text(text)),
+        crate::desktop::ControlAnswer::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlAnswer::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+// ---- control_flag
+/// `ControlGetVisible` and `ControlGetEnabled`: a flag of a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09 against a window of its own
+/// making: both answer the integer **1** for a control that is there and visible
+/// or enabled, and the two failures are the two of `ControlGetText`. The variant
+/// is the name -- this one is `ControlGetVisible` and the other is
+/// `ControlGetEnabled`.
+pub(crate) fn control_flag(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the text of the
+    // window and the two exclusions, and they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    let answer = if variant == 0 {
+        rt.desktop().control_visible(&control, &title)
+    } else {
+        rt.desktop().control_enabled(&control, &title)
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        crate::desktop::ControlFlag::Yes => Ok(Value::Int(1)),
+        crate::desktop::ControlFlag::No => Ok(Value::Int(0)),
+        crate::desktop::ControlFlag::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlFlag::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+// ---- control_set_text
+/// `ControlSetText`: write a text into a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the **empty
+/// text**, and the text of the control is the new one afterwards. The
+/// parameters are the *new text first*, then the control, then the title --
+/// which is the order of v2 and not the order of `ControlGetText`.
+pub(crate) fn control_set_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the three are the text of the window and the two
+    // exclusions, and they are not carried yet.
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let text = text_of(values, 0);
+    let control = text_of(values, 1);
+    let title = text_of(values, 2);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .control_set_text(&control, &title, &text)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+// ---- control_act
+/// `ControlClick` and `ControlFocus`: an act on a named control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the **empty
+/// text**, and the two failures are the two of `ControlGetText`. The variant is
+/// the name -- this one is `ControlClick` and the other is `ControlFocus`.
+pub(crate) fn control_act(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the button, the
+    // count, the options, the text of the window and the two exclusions, and
+    // they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the parameters after the control and the window are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    let answer = if variant == 0 {
+        rt.desktop().control_click(&control, &title)
+    } else {
+        rt.desktop().control_focus(&control, &title)
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+// ---- control_send_text
+/// `ControlSendText`: type a text into a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the **empty
+/// text**, and the control holds the text afterwards. The parameters are the
+/// text first, then the control, then the title.
+pub(crate) fn control_send_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the parameters after the text, the control and the window are not carried yet.".into(),
+            line,
+        });
+    }
+    let text = text_of(values, 0);
+    let control = text_of(values, 1);
+    let title = text_of(values, 2);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .control_send_text(&control, &title, &text)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+// ---- control_get_focus
+/// `ControlGetFocus(Title?)`: the `ClassNN` of the control that has the focus.
+///
+/// Answered for a window of the script's own, which the helper made and therefore
+/// knows the focus of; the focus of another program's window is not read, and says
+/// so rather than answering a control that is not the one the script meant.
+pub(crate) fn control_get_focus(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "the focus of a window of another program is not read by this runtime, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    rt.desktop()
+        .gui_focused()
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+// ---- control_get_hwnd
+/// `ControlGetHwnd(Control)`: the handle of a control of the script's window.
+///
+/// The control is named by its `ClassNN`, and the answer is the number that names
+/// it -- the same number an event about it carries.
+pub(crate) fn control_get_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_number_named(&classnn)
+        .map(Value::Int)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+// ---- control_visibility
+pub(crate) fn control_visibility(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_a_control(rt, values, line, false)
+}
+
+// ---- control_show
+pub(crate) fn control_show(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_a_control(rt, values, line, true)
+}
+
+// ---- control_get_classnn
+/// `ControlGetClassNN(Control)`: the class and number that name a control.
+///
+/// Answered for a window of the script's own. The name is what v2 gives a control
+/// of a window it made, and the lookup that already exists is what checks that the
+/// control is really there.
+pub(crate) fn control_get_classnn(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(classnn))
+}
+
+// ---- control_set_enabled
+pub(crate) fn control_set_enabled(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    the_state_of_a_control(rt, values, line, "enabled", on)
+}
+
+// ---- control_get_checked
+pub(crate) fn control_get_checked(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_tick_of_a_control(rt, values, line, 0, None)
+}
+
+// ---- control_set_checked
+pub(crate) fn control_set_checked(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    the_tick_of_a_control(rt, values, line, 1, Some(on))
+}
+
+// ---- control_move
+/// `ControlMove(X, Y, W, H, Control, WinTitle)`: moves a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ControlMove X, Y, W, H, Control, WinTitle` -- the **control is the
+/// fifth parameter**, and a call that leaves it out is refused with
+/// "Parameter #5 of ControlMove must not be omitted in this case."; the
+/// first parameter is a number, and a text throws "Parameter #1 of
+/// ControlMove requires a Number, but received a String."; and a control
+/// or a window that is not there throws "Target window not found.".
+///
+/// **A call that names a control that IS there hangs the binary.** Measured
+/// on 2026-11-11: `ControlMove("10", "20", "100", "30", "Edit1", "title")`
+/// on a window of the script never came back, and the run was killed after
+/// ten seconds. There is no answer of the binary to match, and this runtime
+/// does not wait forever either -- so the call that names a control that is
+/// there answers the reason of this tree.
+pub(crate) fn control_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The control is the fifth parameter, and the binary wants it.
+    if values.len() < 5 {
+        return Err(RuntimeError {
+            message: "Parameter #5 of ControlMove must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    }
+    // The first parameter is the place, and it is a number: a text that
+    // holds no number is refused, and a text that holds one is taken as it
+    // is -- the binary answers "Target window not found." for a call whose
+    // place is the text "10".
+    number_argument(values, 0, line, "ControlMove")?;
+    // The target: the window of the script by its title, and the control of
+    // it by its ClassNN.
+    let title = text_of(values, 5);
+    the_window_of_the_script(rt, &title, line)?;
+    let classnn = text_of(values, 4);
+    match rt.desktop().gui_number_named(&classnn) {
+        Ok(_) => Err(RuntimeError {
+            message: "the binary of v2.0.19 hangs on this call -- measured on 2026-11-11 -- and this runtime does not wait forever: the window of this tree lays its controls out in order, so the place of a control cannot be set.".to_string(),
+            line,
+        }),
+        // A control that is not there is the failure of the target.
+        Err(_) => Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        }),
+    }
+}
+
+// ---- control_send
+/// `ControlSend(Keys, Control, WinTitle)`: send plain text into a control of the
+/// script's own window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `ControlSend "abc", "Edit1"`
+/// leaves `abc` in the edit, and `ControlSend "a{Enter}b"` leaves `ab` in a
+/// single-line edit and `a` + a line break + `b` in a multi-line one. The tree
+/// carries the text path and expands the keys that have a text effect -- Enter,
+/// Tab and Backspace -- into that text. Keys that move a caret, press a modifier
+/// or act on the window are refused with a reason rather than faked.
+pub(crate) fn control_send(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let raw = rt.interpolate(&text_of(values, 0), line)?;
+    if !raw.contains('{') && !raw.contains('}') {
+        return control_send_text(rt, values, line, 0);
+    }
+    let mut text = String::new();
+    for part in split_send(&raw) {
+        match part {
+            SendPart::Text(t) => text.push_str(&t),
+            SendPart::Key { name, modifiers } => {
+                if !modifiers.is_empty() {
+                    return Err(RuntimeError {
+                        message: format!(
+                            "the {name} key with a modifier has no text to put into a control"
+                        ),
+                        line,
+                    });
+                }
+                match name.to_ascii_lowercase().as_str() {
+                    "enter" => text.push('\n'),
+                    "tab" => text.push('\t'),
+                    "backspace" | "bs" => {
+                        text.pop();
+                    }
+                    other => {
+                        return Err(RuntimeError {
+                            message: format!(
+                                "the {other} key has no text effect on a control, and this tree will not claim it did"
+                            ),
+                            line,
+                        })
+                    }
+                }
+            }
+            SendPart::Down(name) | SendPart::Up(name) => {
+                return Err(RuntimeError {
+                    message: format!("holding the {name} key down has no text effect on a control"),
+                    line,
+                })
+            }
+        }
+    }
+    let mut sent = values.to_vec();
+    if sent.is_empty() {
+        sent.push(Value::Text(text));
+    } else {
+        sent[0] = Value::Text(text);
+    }
+    control_send_text(rt, &sent, line, 0)
+}
+
+// ---- control_get_pos
+/// `ControlGetPos(&X, &Y, &W, &H, Control, WinTitle)`: the place and size of a
+/// control of the script's own window, relative to its client area.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with four VarRef outputs it
+/// answers the four numbers (e.g. `[10,6,31,21]` for an Edit), and the answer
+/// of the command is the empty text. **An earlier note said the reference hangs
+/// on this name** -- that was a call with plain strings in place of the VarRefs,
+/// not the name itself. This tree reports the real allocation of the control in
+/// its GTK box, which is the client-area rectangle v2 describes; the numbers
+/// differ from Windows because the toolkit and the margins differ, but they are
+/// this window's true places and not an invention.
+pub(crate) fn control_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    for index in 0..4 {
+        let Some(value) = values.get(index) else {
+            continue;
+        };
+        if !matches!(value, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(
+                    index + 1,
+                    "ControlGetPos",
+                    "a VarRef",
+                    value,
+                ),
+                line,
+            });
+        }
+    }
+    let number = the_number_of_a_combo(rt, values, 4, line)?;
+    let (x, y, width, height) = rt
+        .desktop()
+        .gui_control_pos(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    let places = [x, y, width, height];
+    for (index, place) in places.iter().enumerate() {
+        if values.get(index).is_some() {
+            rt.write_reference(&values[index], Value::Int(*place));
+        }
+    }
+    Ok(Value::Text(String::new()))
+}
+
+// ---- control_get_items
+/// `ControlGetItems(Control, WinTitle)`: the items of a list-shaped control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers an Array of the
+/// texts, in order, and `ControlAddItem` makes it one longer.
+pub(crate) fn control_get_items(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let joined = rt
+        .desktop()
+        .gui_combo_items(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    let answers: Vec<Value> = if joined.is_empty() {
+        Vec::new()
+    } else {
+        joined
+            .split('\n')
+            .map(|item| Value::Text(item.to_string()))
+            .collect()
+    };
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
+}
+
+// ---- control_add_item
+/// `ControlAddItem(Text, Control, WinTitle)`: append an item. Measured on the
+/// same day: the answer is nothing the script reads (the empty text).
+pub(crate) fn control_add_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_add(number, &text)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- control_choose_index
+/// `ControlChooseIndex(N, Control, WinTitle)`: choose by a 1-based index.
+/// Measured on the same day: the control's `Value` becomes that index.
+pub(crate) fn control_choose_index(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let index = number_of(values, 0) as i64;
+    rt.desktop()
+        .gui_combo_select(number, &index.to_string(), false)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- control_choose_string
+/// `ControlChooseString(Text, Control, WinTitle)`: choose by the item's text.
+pub(crate) fn control_choose_string(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_select(number, &text, true)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- control_get_choice
+/// `ControlGetChoice(Control, WinTitle)`: the text of the chosen item, or the
+/// empty text when nothing is chosen.
+pub(crate) fn control_get_choice(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let (_index, text) = rt
+        .desktop()
+        .gui_combo_choice(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(text))
+}
+
+// ---- control_get_index
+/// `ControlGetIndex(Control, WinTitle)`: the 1-based index of the chosen item.
+pub(crate) fn control_get_index(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let (index, _text) = rt
+        .desktop()
+        .gui_combo_choice(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(index))
+}
+
+// ---- control_delete_item
+/// `ControlDeleteItem(N, Control, WinTitle)`: remove an item by its 1-based
+/// index. Measured on the same day: the array becomes one shorter.
+pub(crate) fn control_delete_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let index = number_of(values, 0) as i64;
+    rt.desktop()
+        .gui_combo_delete(number, &index.to_string())
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- control_find_item
+/// `ControlFindItem(Text, Control, WinTitle)`: the 1-based index of the first
+/// item that is this text, or zero. Measured on the same day.
+pub(crate) fn control_find_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_find(number, &text)
+        .map(Value::Int)
+        .map_err(|e| desktop_failure(e, line))
+}
+
+// ---- control_show_drop_down
+pub(crate) fn control_show_drop_down(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_drop_down_of_a_combo(rt, values, line, true)
+}
+
+// ---- control_hide_drop_down
+pub(crate) fn control_hide_drop_down(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_drop_down_of_a_combo(rt, values, line, false)
+}
+
+// ---- the_state_of_a_control
+/// `ControlSetEnabled(Value, Control)`: set the sensitivity of a control of the
+/// script's window.
+///
+/// Round 35 refused this because the accessibility layer has no call to change
+/// another program's control state -- true, and not this case: the control is the
+/// helper's own, and `set_sensitive` is one call.
+fn the_state_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    what: &str,
+    on: bool,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 1);
+    rt.desktop()
+        .gui_control_state(&classnn, what, on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- the_tick_of_a_control
+/// `ControlGetChecked(Control)` and `ControlSetChecked(Value, Control)`: whether a
+/// check box of the script's window is ticked.
+///
+/// Round 35 refused this because the accessibility layer reports no `CHECKED` state
+/// and a click toggles, which is true of another program's window and not of this
+/// one: the check box is the helper's own and its state is one call.
+fn the_tick_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    at: usize,
+    setting: Option<bool>,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, at);
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))? as u64;
+    let checked = rt
+        .desktop()
+        .gui_checked(number, setting)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    match setting {
+        Some(_) => Ok(Value::Text(String::new())),
+        None => Ok(Value::Int(checked)),
+    }
+}
+
+// ---- the_visibility_of_a_control
+/// `ControlHide(Control)` and `ControlShow(Control)`: hide or show a control of
+/// the script's window, named by its `ClassNN`.
+fn the_visibility_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    on: bool,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_visibility(&classnn, on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- the_window_of_the_script
+/// The window of the script, if the title the script named is that window.
+///
+/// The default match of v2 is that the title **contains** the text and the case
+/// matters, and a window that does not match is not there: *"Target window not
+/// found."* Shared by the names that act on the script's own window.
+fn the_window_of_the_script(
+    rt: &mut Runtime<'_>,
+    target: &str,
+    line: u32,
+) -> Result<(), RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    let current = rt
+        .desktop()
+        .gui_title(0, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    if !target.is_empty() && !current.contains(target) {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    Ok(())
+}
+
+// ---- the_number_of_a_combo
+/// The number of a list-shaped control of the script's own window, from its
+/// `ClassNN`. The `Control*` family names a control by its class and number;
+/// the helper knows each one by the number it gave it when it was added.
+fn the_number_of_a_combo(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    control_index: usize,
+    line: u32,
+) -> Result<u64, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, control_index);
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(number as u64)
+}
+
+// ---- the_drop_down_of_a_combo
+/// `ControlShowDropDown` and `ControlHideDropDown`: open or close the pop-up of
+/// a list-shaped control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: both answer the empty text.
+/// They have one handler each because the variant field of a row is the count's
+/// answer/refusal flag and cannot carry which one this is.
+fn the_drop_down_of_a_combo(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    show: bool,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    rt.desktop()
+        .gui_combo_dropdown(number, show)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- TARGET_WINDOW
+/// The failure v2 gives when a window is looked for and is not there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetID` and
+/// `WinGetClass` fail with it, while `WinGetList` answers an empty array and
+/// `WinGetCount` answers the zero.
+const TARGET_WINDOW: &str = "Target window not found.";
+
+// ---- TARGET_CONTROL
+/// The failure of a question about a control, when the window is there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ControlGetText("x", "A")`
+/// -- a window that is there -- fails with this, and not with an empty text.
+const TARGET_CONTROL: &str = "Target control not found.";

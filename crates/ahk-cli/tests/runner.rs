@@ -253,8 +253,8 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 684);
-    assert_eq!(report.number("refusals"), 149);
+    assert_eq!(report.number("values"), 712);
+    assert_eq!(report.number("refusals"), 121);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -271,8 +271,16 @@ fn the_surface_flag_answers_with_json() {
         .iter()
         .find(|entry| field_text(entry, "name") == "ControlSendText")
         .expect("the name is in the report");
-    assert_eq!(field_text(windows, "state"), "refusal");
-    assert!(windows.get("reason").map(|v| v.is_string()).unwrap_or(false));
+    // The family of the controls of another window is carried since
+    // 2026-11-11: the name answers with a value.
+    assert_eq!(field_text(windows, "state"), "value");
+    // And a name that the tree refuses carries the reason of the refusal.
+    let refused = entries
+        .iter()
+        .find(|entry| field_text(entry, "name") == "BlockInput")
+        .expect("the name is in the report");
+    assert_eq!(field_text(refused, "state"), "refusal");
+    assert!(refused.get("reason").map(|v| v.is_string()).unwrap_or(false));
 }
 
 #[test]

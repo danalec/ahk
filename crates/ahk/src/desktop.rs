@@ -288,7 +288,133 @@ impl TitleMatch {
 }
 
 /// The windows of the desktop.
+/// What became of a question about a control of a window.
+///
+/// The two failures are different facts and v2 tells them apart. Measured on the
+/// binary of v2.0.19 on 2026-11-09: `ControlGetText("x", "zzz-no-such-window-zzz")`
+/// fails with **"Target window not found."** and the title in the `Extra`, and
+/// `ControlGetText("x", "A")` -- a window that is there -- fails with **"Target
+/// control not found."**. Neither of them answers an empty text, which is what
+/// this tree answered before the measurement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ControlAnswer {
+    /// The control is there, and this is its text.
+    Found(String),
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
+/// What became of a question about a property of a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09 with a window of its own
+/// making: `ControlGetVisible` and `ControlGetEnabled` answer **1** for a control
+/// that is there and visible or enabled, so the answer is a number and not a
+/// truth of the host; and the two failures are the two of `ControlGetText`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlFlag {
+    /// The control is there and the flag is set.
+    Yes,
+    /// The control is there and the flag is not set.
+    No,
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
+/// What became of a question that writes to a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ControlSetText` answers the
+/// **empty text** when it worked, and the two failures are the two of
+/// `ControlGetText`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlEdit {
+    /// The text was written.
+    Done,
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
 pub trait Windows {
+    /// The text of a named control of the window with this title.
+    ///
+    /// This is the **accessibility** layer: AT-SPI is a D-Bus protocol, and
+    /// D-Bus is what a Wayland session keeps, so it is the one way to reach the
+    /// controls of a window on the box. The AHK_X11 reaches the same layer
+    /// through `at-spi.cr`, and it is the most valuable piece it has.
+    ///
+    /// A control is named, and the name is what a script writes: the text of a
+    /// label, the caption of a button. The window is found by its title, which
+    /// is the `Name` of a window in the tree.
+    ///
+    /// It is a method here and not a capability trait of its own, because the
+    /// controls are the windows' and every fake desktop of the suite already
+    /// answers `Windows`. A trait of its own is the rule of this tree, and it
+    /// would have cost an empty `impl` in eighteen test files for no gain the
+    /// suite can see.
+    ///
+    /// `None` is a window or a control that is not there, and not a failure: a
+    /// script asks about a control that may be absent.
+    fn control_text(&mut self, _control: &str, _title: &str) -> Result<ControlAnswer, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Whether a named control of the window with this title is visible.
+    fn control_visible(&mut self, _control: &str, _title: &str) -> Result<ControlFlag, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Whether a named control of the window with this title is enabled.
+    fn control_enabled(&mut self, _control: &str, _title: &str) -> Result<ControlFlag, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Write a text into a named control of the window with this title.
+    fn control_set_text(
+        &mut self,
+        _control: &str,
+        _title: &str,
+        _text: &str,
+    ) -> Result<ControlEdit, String> {
+        Err("this desktop cannot write to the controls of a window".to_string())
+    }
+
+    /// Click a named control of the window with this title.
+    fn control_click(&mut self, _control: &str, _title: &str) -> Result<ControlEdit, String> {
+        Err("this desktop cannot click the controls of a window".to_string())
+    }
+
+    /// Put the focus on a named control of the window with this title.
+    fn control_focus(&mut self, _control: &str, _title: &str) -> Result<ControlEdit, String> {
+        Err("this desktop cannot focus the controls of a window".to_string())
+    }
+
+    /// Type a text into a named control of the window with this title.
+    ///
+    /// The way in is two capabilities together: the focus goes on the control
+    /// through the accessibility layer, and the keys go through the keyboard.
+    fn control_send_text(
+        &mut self,
+        _control: &str,
+        _title: &str,
+        _text: &str,
+    ) -> Result<ControlEdit, String> {
+        Err("this desktop cannot type into the controls of a window".to_string())
+    }
+
+    /// The process of the window with this title.
+    ///
+    /// `None` is a window that is not there. Measured on the binary of v2.0.19 on
+    /// 2026-11-09: `WinGetPID` answers the number of the process, and a title that
+    /// no window has is "Target window not found.".
+    fn window_pid(&mut self, _title: &str) -> Result<Option<i64>, String> {
+        Err("this desktop cannot say the process of a window".to_string())
+    }
+
     /// Whether the window with this title is the active one.
     ///
     /// The mode is the way the title is matched with the text that is
