@@ -11728,3 +11728,36 @@ KWin, GNOME -- would answer there, one at a time.
 **A capability that the desktop cannot answer is not listed.** The
 desktop of the box lists the windows and the focus of it; the backend of
 X11 lists the always on top and the enabled state beside them.
+
+## 318. What the KeySharp says about the three names of the keyboard and of the processes
+
+Read on 2026-11-11 in the source of KeySharp, for the names that the tree
+does not carry yet.
+
+**`GetKeyboardLayout()`** answers "a stable, readable platform-native
+layout string, or blank when unavailable" -- it is the layout of the
+machine, and it is read of the platform. The tree types the US layout
+(section 5) and it does not read the layout of the machine, so the
+answer of the tree has to come from the desktop: the box reads it with
+`setxkbmap -query` or with `localectl`, and the name of the layout is the
+answer.
+
+**`GetKeyInfo(KeyName, Layout)`** answers "an object with VK, SC, Name,
+Modifiers and Prefix, or 0 if unresolved". The tree knows the tables of
+the virtual keys and of the scan codes (`keys.rs`), so the VK and the SC
+of a name are facts it has; the layout is the one of the machine, and
+the Modifiers and the Prefix are the ones of the layout.
+
+**`ScriptProcess`** is the class of a process that the script launched:
+`HasExited` is one or zero, `ExitCode` is the code when the process has
+exited and unset while it runs, `ExitTime` is the moment it exited,
+`Kill()` kills it, and `StdOut`, `StdErr` and `StdIn` are `File` objects
+over the streams of it.
+
+**The honest way to know the state of a process on Linux is `waitpid`**:
+the child of the tree is a zombie until its parent reaps it, and the
+status of the zombie carries the code it exited with. The desktop has
+to keep the children it launched, and `waitpid(pid, WNOHANG)` is what
+says whether the process has exited and with which code. The streams
+are the other half: the launch has to keep the pipes, and a `File` over
+a pipe is a file the tree does not have yet.
