@@ -568,7 +568,6 @@ fn kind_of(name: &str) -> Option<Kind> {
         | "coordmodemouse"
         | "coordmodepixel"
         | "coordmodetooltip"
-        | "cursor"
         | "defaultmousespeed"
         | "detecthiddentext"
         | "detecthiddenwindows"
@@ -587,6 +586,7 @@ fn kind_of(name: &str) -> Option<Kind> {
         | "storecapslockmode"
         | "titlematchmode"
         | "titlematchmodespeed"
+        | "cursor"
         | "windelay" => Some(Kind::State),
         // -- the date and the time ------------------------------------------------
         "dd" | "ddd" | "dddd" | "hour" | "mday" | "min" | "mm" | "mmm" | "mmmm" | "mon"
@@ -594,12 +594,11 @@ fn kind_of(name: &str) -> Option<Kind> {
             Some(Kind::Date)
         }
         // -- the machine and the session -------------------------------------------
-        "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec" | "desktop"
-        | "desktopcommon" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
-        | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments"
-        | "osversion" | "programfiles" | "programs" | "programscommon"
-        | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu"
-        | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle"
+        "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec"
+        | "desktop" | "desktopcommon" | "eventinfo" | "iconfile" | "iconhidden"        | "iconnumber" | "icontip" | "initialworkingdir" | "isadmin" | "language"
+        | "lasterror" | "mydocuments" | "osversion" | "programfiles" | "programs"
+        | "programscommon" | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname"
+        | "startmenu" | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle"
         | "timeidlekeyboard" | "timeidlemouse" | "timeidlephysical" | "traymenu" | "username"
         | "windir" | "workingdir" => Some(Kind::Machine),
         // -- the clipboard -----------------------------------------------------------

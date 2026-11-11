@@ -370,6 +370,112 @@ impl LabDesktop {
         Ok(text)
     }
 
+    /// The name of the shape of the cursor of the machine.
+    ///
+    /// The raven has a cursor of its own -- the one of the machine that
+    /// the emulated system sees -- and the Windows of the raven says which
+    /// shape it is with `GetCursorInfo`. The name that v2 answers is the
+    /// name of the shape, and Windows has no name for it: the shape is
+    /// compared with the cursors of the system.
+    #[cfg(target_os = "linux")]
+    fn cursor_shape(&mut self) -> Result<String, String> {
+        // The structure of the cursor: the size of it, the flags, the handle
+        // of the shape, and the place of the ponteiro.
+        let mut block = vec![0u8; 24];
+        block[0..4].copy_from_slice(&24u32.to_le_bytes());
+        let mut call = NativeCall {
+            library: "user32".to_string(),
+            function: "GetCursorInfo".to_string(),
+            convention: Convention::Standard,
+            returns: NativeType::Int,
+            arguments: vec![
+                NativeArg {
+                    kind: NativeType::Str,
+                    address: true,
+                    value: NativeValue::Bytes(block),
+                },
+                NativeArg {
+                    kind: NativeType::Int,
+                    address: false,
+                    value: NativeValue::Integer(24),
+                },
+            ],
+        };
+        self.windows(&mut call)
+            .map_err(|failure| failure.reason)?;
+        let bytes = match &call.arguments[0].value {
+            NativeValue::Bytes(bytes) => bytes.clone(),
+            _ => Vec::new(),
+        };
+        if bytes.len() < 16 {
+            return Err("the raven said no shape of cursor.".to_string());
+        }
+        // The flags come first: the bit of them says that the cursor is
+        // showing, and the handle of the shape comes next.
+        let flags = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
+        if flags & 1 == 0 {
+            return Err("the cursor of the machine is not showing.".to_string());
+        }
+        let handle = u64::from_le_bytes([
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+        ]);
+        self.the_name_of_the_shape(handle)
+    }
+
+    /// The name of the shape of a cursor, by the handles of the system.
+    ///
+    /// Windows has no name for a shape: the shape is compared with the
+    /// cursors of the system, and the name is the one of v2.
+    #[cfg(target_os = "linux")]
+    fn the_name_of_the_shape(&mut self, handle: u64) -> Result<String, String> {
+        // The names of v2 and os numeros dos cursores de Windows.
+        const THE_SHAPES: [(&str, i64); 12] = [
+            ("Arrow", 32512),
+            ("IBeam", 32513),
+            ("Wait", 32514),
+            ("Cross", 32515),
+            ("UpArrow", 32516),
+            ("SizeNWSE", 32517),
+            ("SizeNESW", 32518),
+            ("SizeWE", 32519),
+            ("SizeNS", 32520),
+            ("SizeAll", 32521),
+            ("Hand", 32649),
+            ("AppStarting", 32650),
+        ];
+        for (name, number) in THE_SHAPES {
+            let mut call = NativeCall {
+                library: "user32".to_string(),
+                function: "LoadCursorA".to_string(),
+                convention: Convention::Standard,
+                returns: NativeType::Ptr,
+                arguments: vec![
+                    NativeArg {
+                        kind: NativeType::Int,
+                        address: false,
+                        value: NativeValue::Integer(0),
+                    },
+                    NativeArg {
+                        kind: NativeType::Int,
+                        address: false,
+                        value: NativeValue::Integer(number),
+                    },
+                ],
+            };
+            let answer = self
+                .windows(&mut call)
+                .map_err(|failure| failure.reason)?;
+            let held = match answer.value {
+                NativeValue::Integer(number) => number as u64,
+                _ => 0,
+            };
+            if held != 0 && held == handle {
+                return Ok(name.to_string());
+            }
+        }
+        Err("the shape of the cursor is not one of the shapes of the system.".to_string())
+    }
+
     /// The directory of the Windows of the raven.
     #[cfg(target_os = "linux")]
     fn windows_directory(&mut self) -> Result<String, String> {
@@ -763,6 +869,17 @@ fn the_lock_of(name: &str) -> Option<usize> {
 }
 
 impl ahk::desktop::Pointer for LabDesktop {
+    fn cursor_shape(&mut self) -> Result<String, String> {
+        #[cfg(target_os = "linux")]
+        {
+            self.cursor_shape()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            Err("the raven is a Linux thing: this machine has no Windows of its own.".to_string())
+        }
+    }
+
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
         // The absolute pointer is the path that lands where it is aimed:
         // ydotool's device is relative, so its click lands wherever the

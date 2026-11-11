@@ -169,6 +169,8 @@ pub struct Raven {
     transport: Box<dyn Transport>,
     /// The process of the raven, when the guest has one.
     process: Option<Child>,
+    /// Whether the guest died and answers nothing more.
+    dead: bool,
 }
 
 impl Raven {
@@ -206,6 +208,7 @@ impl Raven {
                 output: BufReader::new(output),
             }),
             process: Some(process),
+            dead: false,
         })
     }
 
@@ -222,8 +225,25 @@ impl Raven {
         // the line, and a request without it is a request it never
         // answers.
         line.push('\n');
-        let reply = self.transport.ask(&line).map_err(the_failure)?;
+        let reply = match self.transport.ask(&line) {
+            Ok(reply) => reply,
+            Err(reason) => {
+                // The guest died: the pipe of it is closed and there is no
+                // answer. A function that the emulated system does not
+                // carry takes the guest down with it (measured on the box on
+                // 2026-11-11: `GetCursorInfo` and `RegSetValueA` do), and a
+                // guest that is dead answers nothing more. It is put away
+                // here, so that the next call starts a new one.
+                self.dead = true;
+                return Err(the_failure(reason));
+            }
+        };
         answer(call, &reply)
+    }
+
+    /// Whether the guest is still there.
+    pub fn is_dead(&self) -> bool {
+        self.dead
     }
 
     /// The raven stops: the guest is told by the end of its input,
@@ -297,6 +317,14 @@ impl Guests {
                 Err(failure) => failure,
             }
         };
+        // The guest died: it is put away, and the next call starts a new
+        // one. A script that asked for a function that the emulated system
+        // does not carry keeps working after it.
+        if self.wide.as_ref().is_some_and(|wide| wide.is_dead()) {
+            self.wide = None;
+            self.notes
+                .push("the guest of the raven died and was started again".to_string());
+        }
         if failure.kind != NativeFailureKind::NoLibrary {
             return Err(failure);
         }
@@ -793,10 +821,12 @@ mod tests {
             wide: Some(Raven {
                 transport: Box::new(Fake::new(wide)),
                 process: None,
+                dead: false,
             }),
             narrow: Some(Raven {
                 transport: Box::new(Fake::new(narrow)),
                 process: None,
+                dead: false,
             }),
             notes: Vec::new(),
         }

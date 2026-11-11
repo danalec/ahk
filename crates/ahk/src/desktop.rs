@@ -83,6 +83,14 @@ pub trait Keyboard {
 
 /// The pointer of the desktop.
 pub trait Pointer {
+    /// The name of the shape of the cursor of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `A_Cursor` answers
+    /// the name of the shape -- "IBeam" for the shape of a field of text.
+    fn cursor_shape(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the shape of the cursor".to_string())
+    }
+
     /// Click at a screen position.
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String>;
 
