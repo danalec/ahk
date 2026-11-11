@@ -77,7 +77,12 @@ script, whose `Default` is "&Open" before any item is added. The runtime
 makes the menu once and keeps it. The count is **774 values / 59
 refusals**, in both dialects. The tray VISUAL -- an icon in the tray of
 the desktop, which AHK_X11 does not have -- is the next piece of this
-group, through StatusNotifierItem.
+group, through StatusNotifierItem. **Round 11 answered the handle
+family** (`cc2e310`): `Hwnd` of a window and of a control answers a
+number this runtime mints, `GuiFromHwnd` and `GuiCtrlFromHwnd` give the
+same object back, and a handle that no window owns answers the empty
+text -- measured, not a failure. The count is **777 values / 56
+refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
