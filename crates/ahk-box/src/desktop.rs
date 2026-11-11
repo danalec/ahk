@@ -1106,6 +1106,71 @@ impl ahk::desktop::Sound for LabDesktop {
 }
 
 impl ahk::desktop::Processes for LabDesktop {
+    fn launch_with_stdin(
+        &mut self,
+        program: &str,
+        arguments: &[String],
+        standard_input: &str,
+        working_dir: &str,
+    ) -> Result<u32, String> {
+        // The runner of the tree reads its script on the standard input,
+        // so the program is started with a pipe there, the script is
+        // written into it and the pipe is closed: the child reads to the
+        // end and runs. The child is left to the machine, the way the
+        // launch above leaves it.
+        use std::io::Write as _;
+        let mut command = std::process::Command::new(program);
+        command.args(arguments);
+        command.stdin(std::process::Stdio::piped());
+        command.stdout(std::process::Stdio::null());
+        command.stderr(std::process::Stdio::null());
+        if !working_dir.is_empty() {
+            command.current_dir(working_dir);
+        }
+        let mut child = command
+            .spawn()
+            .map_err(|error| format!("the program could not be started: {error}"))?;
+        let pid = child.id();
+        if let Some(mut input) = child.stdin.take() {
+            let _ = input.write_all(standard_input.as_bytes());
+        }
+        Ok(pid)
+    }
+
+    fn run_with_stdin(
+        &mut self,
+        program: &str,
+        arguments: &[String],
+        standard_input: &str,
+        working_dir: &str,
+    ) -> Result<(u32, i32, String, String), String> {
+        // The same start as the launch, and then the wait: what the child
+        // wrote is captured, because the report of the runner is on its
+        // standard output and nobody else is going to read it.
+        use std::io::Write as _;
+        let mut command = std::process::Command::new(program);
+        command.args(arguments);
+        command.stdin(std::process::Stdio::piped());
+        command.stdout(std::process::Stdio::piped());
+        command.stderr(std::process::Stdio::piped());
+        if !working_dir.is_empty() {
+            command.current_dir(working_dir);
+        }
+        let mut child = command
+            .spawn()
+            .map_err(|error| format!("the program could not be started: {error}"))?;
+        let pid = child.id();
+        if let Some(mut input) = child.stdin.take() {
+            let _ = input.write_all(standard_input.as_bytes());
+        }
+        let output = child
+            .wait_with_output()
+            .map_err(|error| format!("the program could not be waited for: {error}"))?;
+        let code = output.status.code().unwrap_or(-1);
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        Ok((pid, code, stdout, stderr))
+    }
     fn env_get(&mut self, name: &str) -> Result<Option<String>, String> {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
         // warning of the environment is given when the variable is there, and

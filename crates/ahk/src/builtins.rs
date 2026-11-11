@@ -12103,6 +12103,419 @@ pub(crate) fn ks_show_debug(
     Ok(Value::Text(String::new()))
 }
 
+/// The pieces of a command line: the blanks separate, and the double
+/// quotes group, the way KeySharp splits the options of `RunScript`.
+fn the_pieces_of_a_command_line(text: &str) -> Vec<String> {
+    let mut pieces: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut quoted = false;
+    let mut has = false;
+    for character in text.chars() {
+        match character {
+            '"' => {
+                quoted = !quoted;
+                has = true;
+            }
+            other => {
+                if other.is_whitespace() && !quoted {
+                    if has {
+                        pieces.push(current.clone());
+                        current.clear();
+                        has = false;
+                    }
+                    continue;
+                }
+                current.push(other);
+                has = true;
+            }
+        }
+    }
+    if has {
+        pieces.push(current);
+    }
+    pieces
+}
+
+/// `Mail`: send a mail through an SMTP server.
+///
+/// The recipients are one text or an array of them, and the options are
+/// a Map with `host` and `from` required -- SMTP has no default for
+/// either -- and `cc`, `bcc`, `replyto`, `attachments` and `headers`
+/// optional. An unknown key is refused with the message of KeySharp that
+/// lists the accepted ones, and the port rides on the host after the
+/// rightmost colon that is not inside a bracketed IPv6 literal.
+///
+/// The validation is the dialect's and runs on every machine; the
+/// sending is the machine's, and a desktop that cannot send says so --
+/// a mail that was not sent is never reported as sent.
+pub(crate) fn ks_mail(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let failure = |message: String| RuntimeError { message, line };
+    // The recipients: one text or an array of them, none of them empty.
+    let mut to: Vec<String> = Vec::new();
+    let first = values.first().unwrap_or(&Value::Unset);
+    match first {
+        Value::Text(text) => {
+            if !text.is_empty() {
+                to.push(text.clone());
+            }
+        }
+        // The array of the script is an object of the class, and the
+        // module that owns it is the one that hands over the items: the
+        // built-in may not reach into the state of the array.
+        Value::Object(object) if object.borrow().class == "array" => {
+            for (index, item) in crate::classes::array::the_items(first).iter().enumerate() {
+                match item {
+                    Value::Text(text) if !text.is_empty() => to.push(text.clone()),
+                    Value::Text(_) => {
+                        return Err(failure(format!("Recipient {} is empty.", index + 1)))
+                    }
+                    other => {
+                        return Err(failure(format!(
+                            "Recipient {} is {}; every recipient must be a String.",
+                            index + 1,
+                            other.the_kind()
+                        )))
+                    }
+                }
+            }
+        }
+        other => {
+            return Err(failure(expected_type(
+                TypeName::String,
+                other.type_name(),
+            )))
+        }
+    }
+    if to.is_empty() {
+        return Err(failure("At least one recipient is required.".to_string()));
+    }
+    let subject = text_of(values, 1);
+    let body = text_of(values, 2);
+
+    let mut host: Option<String> = None;
+    let mut port: u16 = 25;
+    let mut from: Option<String> = None;
+    let mut reply_to: Option<String> = None;
+    let mut cc: Vec<String> = Vec::new();
+    let mut bcc: Vec<String> = Vec::new();
+    let mut attachments: Vec<String> = Vec::new();
+    let mut headers: Vec<(String, String)> = Vec::new();
+
+    if let Some(value) = values.get(3) {
+        if !matches!(value, Value::Unset) {
+            let pairs = match crate::classes::map::the_pairs(value) {
+                Some(pairs) => pairs,
+                None => {
+                    return Err(failure(
+                        "The options of Mail must be a Map.".to_string(),
+                    ))
+                }
+            };
+            for (key, val) in pairs {
+                let item = key.to_text();
+                if item.is_empty() {
+                    continue;
+                }
+                match item.to_lowercase().as_str() {
+                    "host" => {
+                        let Value::Text(text) = val else {
+                            return Err(failure(format!(
+                                "The \"{item}\" option must be a String."
+                            )));
+                        };
+                        // The rightmost colon only, and never one inside a
+                        // bracketed IPv6 literal.
+                        let mut named = text.clone();
+                        if let Some(colon) = text.rfind(':') {
+                            if text.rfind(']').map_or(true, |bracket| bracket < colon) {
+                                let (left, right) = text.split_at(colon + 1);
+                                let number = right.trim().parse::<i64>();
+                                match number {
+                                    Ok(number) if (1..=65535).contains(&number) => {
+                                        port = number as u16;
+                                        named = left[..left.len() - 1].to_string();
+                                    }
+                                    _ => {
+                                        return Err(failure(format!(
+                                            "\"{right}\" is not a port between 1 and 65535."
+                                        )))
+                                    }
+                                }
+                            }
+                        }
+                        if named.is_empty() {
+                            return Err(failure(format!(
+                                "The \"{item}\" option names no server."
+                            )));
+                        }
+                        host = Some(named);
+                    }
+                    "from" | "replyto" => {
+                        let Value::Text(text) = val else {
+                            return Err(failure(format!(
+                                "The \"{item}\" option must be a String."
+                            )));
+                        };
+                        if item.eq_ignore_ascii_case("from") {
+                            from = Some(text.clone());
+                        } else {
+                            reply_to = Some(text.clone());
+                        }
+                    }
+                    "cc" | "bcc" | "attachments" => {
+                        let wanted = item.to_lowercase();
+                        let list = match &val {
+                            Value::Text(text) => vec![text.clone()],
+                            Value::Object(inner) if inner.borrow().class == "array" => {
+                                let mut out: Vec<String> = Vec::new();
+                                for entry in crate::classes::array::the_items(&val) {
+                                    let Value::Text(text) = entry else {
+                                        return Err(failure(format!(
+                                            "The \"{item}\" option must be a String or an Array of them."
+                                        )));
+                                    };
+                                    out.push(text.clone());
+                                }
+                                out
+                            }
+                            _ => {
+                                return Err(failure(format!(
+                                    "The \"{item}\" option must be a String or an Array of them."
+                                )))
+                            }
+                        };
+                        match wanted.as_str() {
+                            "cc" => cc = list,
+                            "bcc" => bcc = list,
+                            _ => attachments = list,
+                        }
+                    }
+                    "headers" => {
+                        let pairs = match crate::classes::map::the_pairs(&val) {
+                            Some(pairs) => pairs,
+                            None => {
+                                return Err(failure(
+                                    "The \"headers\" option must be a Map of header names and values.".to_string(),
+                                ))
+                            }
+                        };
+                        for (name, value) in pairs {
+                            let name = name.to_text();
+                            if name.is_empty() {
+                                continue;
+                            }
+                            headers.push((name, value.to_text()));
+                        }
+                    }
+                    _ => {
+                        return Err(failure(format!(
+                            "Unknown option \"{item}\". Accepted keys are host, from, cc, bcc, replyto, attachments and headers."
+                        )))
+                    }
+                }
+            }
+        }
+    }
+
+    let Some(host) = host else {
+        return Err(failure(
+            "The \"host\" option is required: there is no default SMTP server.".to_string(),
+        ));
+    };
+    let Some(from) = from else {
+        return Err(failure(
+            "The \"from\" option is required: SMTP has no sender to fall back on.".to_string(),
+        ));
+    };
+
+    let message = crate::desktop::MailMessage {
+        to,
+        cc,
+        bcc,
+        subject,
+        body,
+        from,
+        reply_to,
+        attachments,
+        headers,
+        host,
+        port,
+    };
+    rt.desktop()
+        .send_mail(&message)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `RunScript`: run a script in a process of its own.
+///
+/// The code is the path of a file when the machine has one and the
+/// source otherwise, the way CompileScript reads it, and the compile of
+/// the tree is the parser of the dialect that runs: a script that does
+/// not parse is never launched. The program -- the runner of this run by
+/// default -- is started with the script on its standard input, and the
+/// answer is the ScriptProcess of the pid.
+///
+/// The `name` parameter names the generated program of KeySharp, and the
+/// tree generates no program of its own: the parameter is refused with
+/// the reason. The callback of an asynchronous run is refused too: the
+/// tree does not watch a process it does not wait for, and a callback
+/// that is never called is a lie. With no asynchronous flag the run is
+/// waited for, and the callback is called with the process before the
+/// answer.
+pub(crate) fn ks_run_script(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let failure = |message: String| RuntimeError { message, line };
+    let code = text_of(values, 0);
+    // A file of that name, when the machine has one, and the source
+    // otherwise -- the reading of CompileScript.
+    let source = match rt.desktop().read_file(&code) {
+        Ok(lines) => lines.join("\n"),
+        Err(_) => code.clone(),
+    };
+    // The compile of the tree is the parser of the dialect: KeySharp
+    // throws a compilation as an Error, and a script that does not parse
+    // is never launched.
+    if let Err(failure_of_the_parse) = crate::parser::parse_with(&source, rt.dialect()) {
+        return Err(failure(format!(
+            "the script does not compile: {}:{}: {}",
+            failure_of_the_parse.line,
+            failure_of_the_parse.column,
+            failure_of_the_parse.message
+        )));
+    }
+    let asynchronous = values
+        .get(1)
+        .map(|value| value.truthy())
+        .unwrap_or(false);
+    // The callback takes the process alone -- the `CheckedCallback(
+    // callback, 1)` of KeySharp -- and the tree calls it by the name of
+    // the function, the way the callbacks of the exit are called. A
+    // function with no name to be called by is refused with the answer
+    // of KeySharp.
+    let callback_name: Option<String> = match values.get(2) {
+        None => None,
+        Some(Value::Unset) => None,
+        Some(value) => match value {
+            Value::Object(object) if object.borrow().class == "func" => {
+                match object.borrow().value_of("name") {
+                    Some(Value::Text(text)) if !text.is_empty() => Some(text.clone()),
+                    _ => return Err(failure("Invalid callback function.".to_string())),
+                }
+            }
+            _ => {
+                return Err(failure(format!(
+                    "This value of type \"{}\" has no method named \"Call\".",
+                    value.type_name().name()
+                )))
+            }
+        },
+    };
+    // The name of the generated program of KeySharp has nothing to name
+    // here: the tree launches the runner itself and compiles nothing.
+    if let Some(value) = values.get(3) {
+        if !matches!(value, Value::Unset) && !value.to_text().is_empty() {
+            return Err(failure(
+                "this tree generates no program of its own: the name parameter of RunScript has nothing to name".to_string(),
+            ));
+        }
+    }
+    let executable = match values.get(4) {
+        Some(value) if !matches!(value, Value::Unset) && !value.to_text().is_empty() => {
+            value.to_text()
+        }
+        _ => rt
+            .desktop()
+            .executable()
+            .map_err(|reason| desktop_failure(reason, line))?,
+    };
+    // The options: the arguments of the launched process. --define and
+    // --include select what is compiled, and the tree compiles with its
+    // parser alone: the two are refused with the reason.
+    let mut arguments: Vec<String> = Vec::new();
+    if let Some(value) = values.get(5) {
+        if !matches!(value, Value::Unset) {
+            let pieces = match value {
+                Value::Object(object) if object.borrow().class == "array" => {
+                    crate::classes::array::the_items(value)
+                        .iter()
+                        .map(|item| item.to_text())
+                        .collect()
+                }
+                other => the_pieces_of_a_command_line(&other.to_text()),
+            };
+            for piece in pieces {
+                let lowered = piece.to_lowercase();
+                if lowered.starts_with("--define") || lowered.starts_with("--include") {
+                    return Err(failure(
+                        "this tree compiles with its parser alone: --define and --include have no compilation to be applied to".to_string(),
+                    ));
+                }
+                arguments.push(piece);
+            }
+        }
+    }
+    if asynchronous && callback_name.is_some() {
+        return Err(failure(
+            "this tree does not watch a process it does not wait for: the callback of an asynchronous RunScript cannot be called".to_string(),
+        ));
+    }
+    let pid = if asynchronous {
+        rt.desktop()
+            .launch_with_stdin(&executable, &arguments, &source, "")
+            .map_err(|reason| desktop_failure(reason, line))? as i64
+    } else {
+        let (pid, _, _, _) = rt
+            .desktop()
+            .run_with_stdin(&executable, &arguments, &source, "")
+            .map_err(|reason| desktop_failure(reason, line))?;
+        pid as i64
+    };
+    let process = match crate::classes::scriptprocess::construct(
+        "scriptprocess",
+        &[Value::Int(pid)],
+        rt,
+        line,
+    ) {
+        Some(Ok(value)) => value,
+        Some(Err(failure_of_the_object)) => {
+            return Err(RuntimeError {
+                message: crate::runtime::the_message_of(&failure_of_the_object),
+                line,
+            })
+        }
+        None => {
+            return Err(failure(
+                "the object of the process could not be made".to_string(),
+            ))
+        }
+    };
+    if let Some(name) = &callback_name {
+        // The run was waited for: the process is over, and the callback
+        // is called with it, the way KeySharp calls it after the exit.
+        rt.call_named(
+            name,
+            core::slice::from_ref(&process),
+            line,
+            crate::runtime::Route::Written,
+        )
+        .map_err(|failure_of_the_call| RuntimeError {
+            message: crate::runtime::the_message_of(&failure_of_the_call),
+            line,
+        })?;
+    }
+    Ok(process)
+}
+
 /// `GetKeyboardLayout`: the name of the keyboard layout of the machine.
 ///
 /// The name is the one the platform gives it, and the empty text when the

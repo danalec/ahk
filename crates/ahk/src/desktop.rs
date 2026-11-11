@@ -444,6 +444,33 @@ pub struct ProcessState {
 }
 
 pub trait Processes {
+    /// Start a program with a text on its standard input, and do not
+    /// wait for it; return the pid of it.
+    ///
+    /// The runner of the tree reads its script on the standard input, so
+    /// a program that is started this way receives what the script gives
+    /// it there. A desktop that cannot start a program says so.
+    fn launch_with_stdin(
+        &mut self,
+        _program: &str,
+        _arguments: &[String],
+        _standard_input: &str,
+        _working_dir: &str,
+    ) -> Result<u32, String> {
+        Err("this desktop cannot launch a program".to_string())
+    }
+
+    /// Start a program with a text on its standard input and wait for
+    /// it; return the pid, the code of the exit and what it wrote.
+    fn run_with_stdin(
+        &mut self,
+        _program: &str,
+        _arguments: &[String],
+        _standard_input: &str,
+        _working_dir: &str,
+    ) -> Result<(u32, i32, String, String), String> {
+        Err("this desktop cannot launch a program".to_string())
+    }
 
     /// Run a command; return its exit code, stdout and stderr.
     fn run(&mut self, command: &str, window: &str) -> Result<(i32, String, String), String>;
@@ -965,7 +992,46 @@ pub trait Pictures {
 ///
 /// A download is a file that comes from the network, and the network is
 /// the machine's: a desktop that does not reach it says so.
+/// One mail message, validated by the dialect.
+///
+/// The shape is the one the `Mail` of KeySharp accepts: the recipients,
+/// the subject, the body, the sender and the optional copies, replies,
+/// attachments and headers of it, beside the server and the port to
+/// send it through. The validation of all of it is the dialect's, and
+/// the sending is the machine's.
+pub struct MailMessage {
+    /// The recipients of the message.
+    pub to: Vec<String>,
+    /// The copies.
+    pub cc: Vec<String>,
+    /// The blind copies.
+    pub bcc: Vec<String>,
+    /// The subject of the message.
+    pub subject: String,
+    /// The body of the message.
+    pub body: String,
+    /// The sender.
+    pub from: String,
+    /// The address the replies go to, when it is not the sender.
+    pub reply_to: Option<String>,
+    /// The paths of the attachments.
+    pub attachments: Vec<String>,
+    /// The headers beside the ones the message carries.
+    pub headers: Vec<(String, String)>,
+    /// The SMTP server.
+    pub host: String,
+    /// The port of the server, 25 when the host named none.
+    pub port: u16,
+}
+
 pub trait Network {
+    /// Send a mail message through the network of the machine.
+    ///
+    /// A desktop that cannot send a mail says so with the reason: a
+    /// message that was not sent is never reported as sent.
+    fn send_mail(&mut self, _message: &MailMessage) -> Result<(), String> {
+        Err("this desktop cannot send mail".to_string())
+    }
     /// Fetch a file of the network and write it on the disk.
     ///
     /// The answer is the path of the file that was written.

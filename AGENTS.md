@@ -12021,3 +12021,52 @@ of the runtime classes before this round: `classes::call` was behind
 the one of the property path (section 324): the class value of an
 extension class reaches `classes::call` too, and the v2 keeps refusing
 the names it does not have, because the gate is the dialect's.
+
+## 328. The mail and the nested run: the last two names
+
+The `ks` dialect carries `Mail` and `RunScript`, read in the source of
+KeySharp on 2026-11-11 (`Network.cs` and `Env.cs`). They are the last
+two names of the platform-neutral surface, and with them the scorecard
+reads 138 of 138.
+
+**`Mail(recipients, subject, message, options?)` is validated by the
+dialect and sent by the machine.** The shapes and the messages are the
+ones of KeySharp: the recipients are one text or an array of them and
+none of them is empty; `host` and `from` are required, because SMTP has
+no default for either; the port rides on the host after the rightmost
+colon that is not inside a bracketed IPv6 literal; an unknown key is
+refused with the message that lists the accepted ones. What the tree
+cannot do is send: the `Network` trait carries the validated message in
+a struct of its own, and a desktop that has no SMTP says so with the
+reason -- a mail that was not sent is never reported as sent. The
+sending through curl on the box is a backend round of its own.
+
+**`RunScript(code, async?, callback?, name?, executable?, options?)`
+runs a script in a process of its own.** The code is the path of a file
+when the machine has one and the source otherwise -- the reading of
+CompileScript -- and the compile of the tree is the parser of the
+dialect that runs: a script that does not parse is never launched, and
+the refusal carries the place of the failure. The program is started
+with the script on its standard input, because the runner of the tree
+reads it there, and the answer is the `ScriptProcess` of the pid -- the
+class the tree already carries, so `HasExited`, `ExitCode` and `Kill`
+of the answer are the ones that already work. The `LabDesktop` starts
+the child with `std::process::Command` on Linux and Windows alike.
+
+Three parameters are refused with the reason instead of being ignored,
+the way the tree refuses what it cannot honour: the `name` of the
+generated program of KeySharp has nothing to name here, `--define` and
+`--include` select what a compilation would carry and the tree compiles
+with its parser alone, and the callback beside the asynchronous run
+cannot be called because the tree does not watch a process it does not
+wait for. With no asynchronous flag the run is waited for, and the
+callback -- which takes the process alone, the `CheckedCallback(cb, 1)`
+of KeySharp, and not the two parameters the exit callbacks take -- is
+called by the name of the function before the answer.
+
+The array of the script is an object of the class and not a
+`Value::List`: the built-ins that take one read it through
+`array::the_items`, the way `StrSplit` and `Sort` do, and never reach
+into the state of the array. `Mail` and `RunScript` learned that the
+hard way -- the first cases answered "Expected a String but got an
+Object." for a recipient list that was exactly where it should be.

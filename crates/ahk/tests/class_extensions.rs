@@ -50,7 +50,11 @@ impl Machine for Fake {
     }
 }
 impl Native for Fake {}
-impl Network for Fake {}
+impl Network for Fake {
+    fn send_mail(&mut self, _message: &ahk::desktop::MailMessage) -> Result<(), String> {
+        Ok(())
+    }
+}
 impl Pictures for Fake {}
 impl Files for Fake {
     fn full_path(&mut self, path: &str) -> Result<String, String> {
@@ -69,6 +73,24 @@ impl Pointer for Fake {
     }
 }
 impl Processes for Fake {
+    fn launch_with_stdin(
+        &mut self,
+        _program: &str,
+        _arguments: &[String],
+        _standard_input: &str,
+        _working_dir: &str,
+    ) -> Result<u32, String> {
+        Ok(1234)
+    }
+    fn run_with_stdin(
+        &mut self,
+        _program: &str,
+        _arguments: &[String],
+        _standard_input: &str,
+        _working_dir: &str,
+    ) -> Result<(u32, i32, String, String), String> {
+        Ok((1234, 0, String::new(), String::new()))
+    }
     fn the_state_of_a_process(
         &mut self,
         pid: u32,
@@ -1391,6 +1413,95 @@ fn the_v2_has_no_view_of_a_struct() {
     // address is a name of the ks dialect alone.
     let mut desktop = Fake;
     let statements = ahk::parse("v := Struct.At(0x10000)\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}
+
+#[test]
+fn the_mail_is_validated_before_the_machine_is_asked() {
+    // The shapes are the dialect's, and the messages are the ones of
+    // KeySharp: the empty list of the recipients, the host that is
+    // missing, the port that is not one and the key that is not known
+    // are refused before the network is asked. The Fake sends the
+    // message that passes.
+    let report = run_ks("Mail([], \"s\", \"b\", Map(\"host\", \"smtp\", \"from\", \"a@b\"))\n");
+    assert!(!report.ok);
+    let report = run_ks("Mail(\"a@b\", \"s\", \"b\")\n");
+    assert!(!report.ok);
+    let report = run_ks(
+        "Mail(\"a@b\", \"s\", \"b\", Map(\"host\", \"smtp.example:99999\", \"from\", \"a@b\"))\n",
+    );
+    assert!(!report.ok);
+    let report = run_ks(
+        "Mail(\"a@b\", \"s\", \"b\", Map(\"host\", \"smtp.example\", \"from\", \"a@b\", \"nope\", 1))\n",
+    );
+    assert!(!report.ok);
+    let report = run_ks(
+        "Mail([\"a@b\", \"c@d\"], \"s\", \"b\", Map(\"host\", \"smtp.example:587\", \"from\", \"a@b\", \"cc\", \"e@f\"))\n",
+    );
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn the_script_of_the_run_script_is_checked_before_it_is_launched() {
+    // The compile of the tree is the parser: a script that does not
+    // parse is never launched, and one that parses comes back as the
+    // ScriptProcess of its pid. The name of the generated program of
+    // KeySharp has nothing to name here, and the switches of a compile
+    // the tree does not do are refused with the reason.
+    let report = run_ks("p := RunScript(\"MsgBox 1\")\nMsgBox Type(p)\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "ScriptProcess");
+    let report = run_ks("RunScript(\"a := := 5\")\n");
+    assert!(!report.ok);
+    let report = run_ks("RunScript(\"ExitApp\", , , \"named\")\n");
+    assert!(!report.ok);
+    let report = run_ks("RunScript(\"ExitApp\", , , , , \"--define:X\")\n");
+    assert!(!report.ok);
+}
+
+#[test]
+fn the_callback_of_a_waited_run_script_is_called_with_the_process() {
+    // The run is waited for, so the process is over when the callback
+    // is called with it, the way KeySharp calls it after the exit.
+    let report = run_ks(concat!(
+        "Done(p) {\n",
+        "    MsgBox Type(p)\n",
+        "}\n",
+        "q := RunScript(\"ExitApp\", false, Done)\n",
+        "MsgBox Type(q)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "ScriptProcess");
+    assert_eq!(line(&report, 1), "ScriptProcess");
+}
+
+#[test]
+fn the_run_script_of_a_process_it_does_not_wait_for_says_so() {
+    // The tree does not watch a process it does not wait for: the
+    // callback beside the asynchronous run is refused with the reason,
+    // and the run without one comes back with the process of the pid.
+    let report = run_ks(concat!(
+        "Done(p) {\n",
+        "}\n",
+        "RunScript(\"ExitApp\", true, Done)\n",
+    ));
+    assert!(!report.ok);
+    let report = run_ks("p := RunScript(\"ExitApp\", true)\nMsgBox Type(p)\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "ScriptProcess");
+}
+
+#[test]
+fn the_v2_has_no_mail_and_no_run_script() {
+    // The surface of the v2.0.19 stays pure: the two names are of the
+    // ks dialect alone.
+    let mut desktop = Fake;
+    let statements = ahk::parse("Mail(\"a@b\", \"s\", \"b\")\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+    let mut desktop = Fake;
+    let statements = ahk::parse("RunScript(\"ExitApp\")\n").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }

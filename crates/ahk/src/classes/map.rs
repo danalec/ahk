@@ -352,6 +352,16 @@ fn entries(state: &Object) -> Vec<(Value, Value)> {
         .collect()
 }
 
+/// The pairs of a map, in the order they were put in.
+///
+/// The built-ins that take a Map of options read it through here: the
+/// entries are the data of the class, and only the module of the map
+/// touches them. The answer is nothing when the value is not a map.
+pub(crate) fn the_pairs(this: &Value) -> Option<Vec<(Value, Value)>> {
+    let state = state(this)?;
+    Some(entries(&state.borrow()))
+}
+
 /// The entries of a map, written back.
 fn set_entries(state: &mut Object, pairs: Vec<(Value, Value)>) {
     let items: Vec<Value> = pairs
