@@ -1698,6 +1698,39 @@ pub(crate) fn call(
 }
 
 /// A method of a class type, with the name as it is.
+/// A member of a text, the way the `ks` dialect adds them.
+///
+/// The `ks` dialect gives the class of the `String` two members that the
+/// v2.0.19 does not have: `StartsWith` and `EndsWith`. The comparison is
+/// the ordinal one -- the case matters -- and the answer is one when the
+/// text begins or ends with the other, and zero when it does not.
+fn the_member_of_a_text(
+    method: &str,
+    this: &Value,
+    arguments: &[Value],
+    _rt: &mut Runtime,
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    let Value::Text(text) = this else {
+        return None;
+    };
+    let other = match arguments.first() {
+        Some(value) => value.to_text(),
+        None => {
+            return Some(Err(RuntimeFailure::Error(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            })))
+        }
+    };
+    let answer = match method.to_lowercase().as_str() {
+        "startswith" => text.starts_with(&other),
+        "endswith" => text.ends_with(&other),
+        _ => return None,
+    };
+    Some(Ok(Value::Int(if answer { 1 } else { 0 })))
+}
+
 fn call_once(
     class: &str,
     method: &str,
@@ -1719,6 +1752,7 @@ fn call_once(
         "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
             thread::call(method, this, arguments, rt, line)
         }
+        "string" => the_member_of_a_text(method, this, arguments, rt, line),
         // The methods of the base object are the methods of every object,
         // and they are answered by the runtime.
         "object" => rt.base_method(this, method, arguments, line),

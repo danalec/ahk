@@ -11627,3 +11627,22 @@ the `ks`), and the mechanisms of the v2.1 are not lit.
 The v1 is not a combination of the two: it is a type of its own, with
 the grammar and the tables read out of the binary of the v1.1.37.02, and
 it does not mix with the family of the v2.
+
+## 314. The call of a member of a text, and where it is asked
+
+The `ks` dialect gives the class of the `String` two members that the
+v2.0.19 does not have: `StartsWith` and `EndsWith`. The comparison is the
+ordinal one -- the case matters -- and the answer is one when the text
+begins or ends with the other, and zero when it does not.
+
+**The path of the call of a member of a value is `call_method_on`, and the
+class of a value that is not an object is the empty text.** The arm that
+asks the table of the classes with that name never fires, and the call
+ends in the refusal of `no_method`. The arm of the `ks` dialect goes
+after the methods of the base object -- so that `HasProp` and the rest
+keep working on a text -- and before the `__Call` of the value is asked.
+
+The arm is inside the `if let` of the base object when it is written
+there, and then it only runs when the base object has the method: the
+member is still refused, and the tree still builds. The arm goes after
+the brace that closes that `if let`.

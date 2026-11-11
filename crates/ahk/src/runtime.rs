@@ -6433,6 +6433,24 @@ impl<'a> Runtime<'a> {
         if let Some(result) = self.base_method(target, name, &values, line) {
             return result;
         }
+        // The members that the `ks` dialect adds to the text.
+        //
+        // The class of a value that is not an object is the empty text, and
+        // the table of the classes is asked with it -- so the members of a
+        // text are asked here, with the name of the class that the dialect
+        // names. The arm is after the methods of the base object, so that
+        // `HasProp` and the rest of them keep working on a text.
+        if matches!(target, Value::Text(_))
+            && self
+                .dialect
+                .carries_the_member_of_the_extension("string", name)
+        {
+            if let Some(result) =
+                crate::classes::call("string", name, target, &values, self, line)
+            {
+                return result;
+            }
+        }
         // `__Call` is asked when the method is not there: v2 asks it with
         // the name of the method and the parameters of the call.
         if let Some((defining, method)) = self.find_method_in(&class, "__call") {

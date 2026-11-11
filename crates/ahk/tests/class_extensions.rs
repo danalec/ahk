@@ -829,3 +829,30 @@ fn the_capabilities_of_the_machine_are_answered() {
     assert_eq!(line(&report, 2), "Unsupported");
     assert_eq!(line(&report, 3), "0");
 }
+#[test]
+fn the_two_members_of_the_string_are_the_ones_of_the_ks() {
+    // The comparison is the ordinal one -- the case matters -- and the
+    // answer is one when the text begins or ends with the other.
+    let report = run_ks(concat!(
+        "t := \"hello world\"\n",
+        "MsgBox t.StartsWith(\"hello\")\n",
+        "MsgBox t.EndsWith(\"world\")\n",
+        "MsgBox t.StartsWith(\"x\")\n",
+        "MsgBox t.StartsWith(\"Hello\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "0");
+    assert_eq!(line(&report, 3), "0");
+}
+
+#[test]
+fn the_dialect_of_the_v2_does_not_have_the_members_of_the_string() {
+    // The surface of the v2.0.19 stays pure: a text has no member named
+    // `StartsWith` there.
+    let mut desktop = Fake;
+    let statements = ahk::parse("t := \"a\"\nMsgBox t.StartsWith(\"a\")\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}
