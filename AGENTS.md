@@ -12070,3 +12070,72 @@ The array of the script is an object of the class and not a
 into the state of the array. `Mail` and `RunScript` learned that the
 hard way -- the first cases answered "Expected a String but got an
 Object." for a recipient list that was exactly where it should be.
+
+## 329. The machine answers: the mail, the waited child and the point of the X
+
+The names of the close are language; this section is the machine behind
+them, landed on 2026-11-11.
+
+**Two breaks were found before any of it.** The commit `d7bd342` (the
+EWMH of X11) had lost the closing brace of `active_window_title` and
+carried a stray one after `window_capabilities` in
+`crates/ahk-box/src/x11.rs` -- and no gate on this workstation could see
+it, because `x11.rs` is `cfg`'d to Linux and FreeBSD and the Windows
+build never compiles it. The lesson is in the gate now: **anything that
+touches `ahk-box` is also checked with
+`cargo check -p ahk-box --target x86_64-unknown-linux-gnu`**, which
+compiles the platform bodies from this workstation. The box build of
+section 12 would have exploded on the next copy; it did not, because the
+check ran first.
+
+**The mail goes through curl.** `network.rs` assembles the message the
+way SMTP carries it -- the headers, the blank line, the body with the
+ends of line of the protocol, the attachments as base64 parts of a
+multipart in lines of 76 -- stages it in a temporary file and hands it
+to `curl smtp://host:port` with the envelope: `--mail-from` and one
+`--mail-rcpt` per recipient, the copies and the blind ones included,
+because the envelope is what the server routes by and the headers are
+what the reader sees. A header value is put on one line before it is
+written, so a value that holds an end of line cannot add a header of its
+own. The attachments are read before anything is sent: a file that
+cannot be read fails the call. The sending is anonymous, the way the
+options of KeySharp are -- there is no credential in them, and none is
+invented here. A server that is not reached is the code of curl in front
+of what it says: "the mail was not sent: (7) Failed to connect...".
+
+**The child the Lab waited for is known.** `run_with_stdin` -- the start
+that waits, which `RunScript` without the asynchronous flag uses --
+records the pid and the code of the exit in a table of the desktop, and
+`the_state_of_a_process` answers from it: `HasExited` is one and
+`ExitCode` is the code the wait saw. `ExitTime` stays unset: a time the
+desktop did not read is a time it does not say. A process the desktop
+did not wait for -- an asynchronous child, a pid of anywhere else -- is
+still refused with the reason. The state of a running process is the
+work of a later round (`/proc` on the box, `OpenProcess` on Windows).
+
+**The window at a point is a translation of the X server.**
+`XTranslateCoordinates` from the root to the root answers the child of
+the root at the coordinate -- the top-level window there -- and a child
+of zero is the root itself: no window, `None`, and `WinFromPoint`
+answers zero. The symbol entered the table at 20 and the three of Xtst
+moved to 21-23, `LIBXTST_FROM` with them.
+
+**The confine of the pointer is NOT landed on X11, on purpose.** The
+only mechanism the X server has for it is an active grab
+(`XGrabPointer` with a confine window), and an active grab redirects the
+pointer events of the whole session to the grabber: a bug in it takes
+the mouse of the user until the grab is released. Landing that unseen,
+from a workstation that has no X session to see it on, is the guess this
+tree does not make. The refusal stands, and says why.
+
+One subtlety, measured on the box on 2026-11-11: the nested runner of a
+`RunScript` exits 0 by design (section 10 -- the exit code of the script
+is in its report, not in its process), so the `ScriptProcess` of a nested
+tree run carries the code of the runner's process. The `ExitApp` code of
+the inner script is the inner report's to tell.
+
+**The thread of the Windows names itself.** `GetCurrentThreadId` answers
+`A_RealThread.Id` where the procfs does not: `tid=` on Windows,
+`/proc/thread-self` on the box. And the X11 desktop gained the network
+of the box -- `download` and `send_mail` go through the same curl, which
+does not care which session is up.

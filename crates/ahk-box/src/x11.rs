@@ -51,9 +51,9 @@ mod ffi {
     /// `RTLD_LAZY`; `RTLD_LOCAL` is zero on both Linux and FreeBSD.
     const RTLD_LAZY: c_int = 1;
     /// The first index in `SYMBOLS` that belongs to libXtst rather than libX11.
-    pub(super) const LIBXTST_FROM: usize = 20;
+    pub(super) const LIBXTST_FROM: usize = 21;
     /// The number of resolved symbols.
-    pub(super) const SYMBOL_COUNT: usize = 23;
+    pub(super) const SYMBOL_COUNT: usize = 24;
 
     /// The symbols, in a FIXED order: entry `i` belongs to wrapper `i`.
     ///
@@ -82,10 +82,11 @@ mod ffi {
         b"XLookupString\0",         // 17
         b"XKeysymToString\0",       // 18
         b"XSendEvent\0",            // 19
+        b"XTranslateCoordinates\0", // 20
 
-        b"XTestFakeKeyEvent\0",     // 20 Xtst
-        b"XTestFakeButtonEvent\0",  // 21
-        b"XTestFakeMotionEvent\0",  // 22
+        b"XTestFakeKeyEvent\0",     // 21 Xtst
+        b"XTestFakeButtonEvent\0",  // 22
+        b"XTestFakeMotionEvent\0",  // 23
     ];
 
     const _: () = assert!(SYMBOLS.len() == SYMBOL_COUNT);
@@ -224,12 +225,14 @@ mod ffi {
     xfn!(18, XKeysymToString(ks: c_ulong) -> *const c_char);
     #[rustfmt::skip]
     xfn!(19, XSendEvent(d: *mut c_void, e: *mut c_void, propagate: c_int, mask: c_long, w: c_ulong) -> c_int);
+    #[rustfmt::skip]
+    xfn!(20, XTranslateCoordinates(d: *mut c_void, src: c_ulong, dst: c_ulong, src_x: c_int, src_y: c_int, dst_x: *mut c_int, dst_y: *mut c_int, child: *mut c_ulong) -> c_int);
 
-    xfn!(20, XTestFakeKeyEvent(d: *mut c_void, keycode: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
+    xfn!(21, XTestFakeKeyEvent(d: *mut c_void, keycode: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
     #[rustfmt::skip]
-    xfn!(21, XTestFakeButtonEvent(d: *mut c_void, button: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
+    xfn!(22, XTestFakeButtonEvent(d: *mut c_void, button: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
     #[rustfmt::skip]
-    xfn!(22, XTestFakeMotionEvent(d: *mut c_void, screen: c_int, x: c_int, y: c_int, delay: c_ulong) -> c_int);
+    xfn!(23, XTestFakeMotionEvent(d: *mut c_void, screen: c_int, x: c_int, y: c_int, delay: c_ulong) -> c_int);
     /// The client message of the EWMH, as Xlib lays it out.
     ///
     /// The layout is the one of `XClientMessageEvent` on a 64-bit Linux:
@@ -1519,6 +1522,8 @@ impl Windows for X11Desktop {
             return Ok(None);
         };
         Ok(ffi::fetch_name(display, id))
+    }
+
     fn always_on_top(
         &mut self,
         window: &ahk::desktop::WindowInfo,
@@ -1558,7 +1563,39 @@ impl Windows for X11Desktop {
         Ok(None)
     }
 
+    fn the_window_at(&mut self, x: i64, y: i64) -> Result<Option<i64>, String> {
+        // The translation from the root to the root answers the child of
+        // the root that holds the point -- the top-level window there --
+        // and a child of zero is the root itself, with no window at the
+        // point. The identifier is the window of the X server, the same
+        // one the enumeration of the windows of this backend carries.
+        let display = self.connection()?;
+        let root = ffi::XDefaultRootWindow(display);
+        let mut dst_x: c_int = 0;
+        let mut dst_y: c_int = 0;
+        let mut child: c_ulong = 0;
+        let translated = ffi::XTranslateCoordinates(
+            display,
+            root,
+            root,
+            x as c_int,
+            y as c_int,
+            &mut dst_x,
+            &mut dst_y,
+            &mut child,
+        );
+        if translated == 0 {
+            return Err("the X server did not translate the point".to_string());
+        }
+        Ok(if child == 0 {
+            None
+        } else {
+            Some(child as i64)
+        })
+    }
+
     fn window_capabilities(&mut self) -> Vec<String> {
+
         vec![
             "AlwaysOnTopGet".to_string(),
             "AlwaysOnTopSet".to_string(),
@@ -1566,7 +1603,6 @@ impl Windows for X11Desktop {
             "WindowList".to_string(),
             "WindowActivate".to_string(),
         ]
-    }
     }
 
     fn window_active(&mut self, title: &str, mode: TitleMatch) -> Result<WindowAnswer, String> {
@@ -1725,7 +1761,17 @@ impl Machine for X11Desktop {
     }
 }
 impl Dialogs for X11Desktop {}
-impl Network for X11Desktop {}
+impl Network for X11Desktop {
+    fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
+        // The curl of the box does not care which session is up.
+        crate::network::download(url, file)
+    }
+
+    fn send_mail(&mut self, message: &ahk::desktop::MailMessage) -> Result<(), String> {
+        crate::network::send_mail(message)
+    }
+}
+
 impl Pictures for X11Desktop {}
 impl Desktop for X11Desktop {}
 #[cfg(test)]

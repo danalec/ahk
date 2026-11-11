@@ -113,6 +113,12 @@ pub struct LabDesktop {
     /// kept: a script that calls the same library twice does not load
     /// it twice.
     libraries: Libraries,
+    /// The children this desktop waited for: the pid and the code of the
+    /// exit the wait saw. The wait is the moment the desktop knows of,
+    /// and a process it did not wait for is the machine's to tell of --
+    /// which this desktop cannot do yet, and says so.
+    waited_children: std::collections::HashMap<u32, i32>,
+
     /// The raven, when a library of Windows has been asked for. The
     /// raven is a process of its own, and it is started with the first
     /// call and lives until the desktop is dropped.
@@ -152,6 +158,8 @@ impl LabDesktop {
                 .ok()
                 .map(|path| path.to_string_lossy().to_string()),
             libraries: Libraries::new(),
+            waited_children: std::collections::HashMap::new(),
+
             #[cfg(target_os = "linux")]
             raven: None,
             #[cfg(target_os = "linux")]
@@ -1106,6 +1114,24 @@ impl ahk::desktop::Sound for LabDesktop {
 }
 
 impl ahk::desktop::Processes for LabDesktop {
+    fn the_state_of_a_process(
+        &mut self,
+        pid: u32,
+    ) -> Result<Option<ahk::desktop::ProcessState>, String> {
+        // A child this desktop waited for has exited: the wait saw the
+        // code. The moment of the exit is not recorded -- a time this
+        // desktop did not read is a time it does not say -- and a
+        // process it did not wait for is refused with the reason.
+        if let Some(code) = self.waited_children.get(&pid) {
+            return Ok(Some(ahk::desktop::ProcessState {
+                has_exited: true,
+                exit_code: Some(*code),
+                exit_time: None,
+            }));
+        }
+        Err("this desktop cannot say the state of a process".to_string())
+    }
+
     fn launch_with_stdin(
         &mut self,
         program: &str,
@@ -1169,7 +1195,11 @@ impl ahk::desktop::Processes for LabDesktop {
         let code = output.status.code().unwrap_or(-1);
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        // The wait saw the exit: the state of this child is known from
+        // here on, and the ScriptProcess of its pid answers from it.
+        self.waited_children.insert(pid, code);
         Ok((pid, code, stdout, stderr))
+
     }
     fn env_get(&mut self, name: &str) -> Result<Option<String>, String> {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
@@ -1326,7 +1356,19 @@ impl ahk::desktop::Machine for LabDesktop {
                 return Ok(id);
             }
         }
+        #[cfg(windows)]
+        {
+            // The thread of the Windows names itself through the library
+            // of the machine, the way every Windows answer of this tree
+            // asks it.
+            unsafe extern "system" {
+                fn GetCurrentThreadId() -> u32;
+            }
+            return Ok(unsafe { GetCurrentThreadId() } as i64);
+        }
+        #[cfg_attr(windows, allow(unreachable_code))]
         Err("this desktop cannot say the thread it runs on".to_string())
+
     }
     fn executable(&mut self) -> Result<String, String> {
         crate::machine::executable()
@@ -1390,6 +1432,14 @@ impl ahk::desktop::Network for LabDesktop {
     fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
         crate::network::download(url, file)
     }
+
+    fn send_mail(&mut self, message: &ahk::desktop::MailMessage) -> Result<(), String> {
+        // The mail goes through the curl of the machine, the way the
+        // download does: the message is the dialect's, and the sending
+        // is the box's.
+        crate::network::send_mail(message)
+    }
+
 }
 
 impl ahk::desktop::Dialogs for LabDesktop {
