@@ -11909,3 +11909,39 @@ The stranded doc comments of rounds 60 and 62 (inside `env_get` and
 `run_timers`, where the move scripts left them) went away with this
 round: rustc names them "unused doc comment", and they are the mark of a
 move that extracted a body and left the doc behind.
+
+## 325. The three machine names of KeySharp, and the refusal that is the answer
+
+The `ks` dialect carries `GetKeyboardLayout()`, `ClipCursor` and
+`WinFromPoint`, read in the source of KeySharp on 2026-11-11
+(`Platform.Keys.GetKeyboardLayoutName`, `Ks.ClipCursor` in `Screen.cs`,
+`Ks.WinFromPoint` in `WindowX.cs`). All three ask the machine, and all
+three go through the desktop traits with a refusal as the default, the
+way the window state went in section 316: a machine that cannot say is
+refused with the reason, and never answered with a guess.
+
+- `GetKeyboardLayout()` is the platform-native name of the layout -- the
+  KLID of Windows with the layout text after it, the keymap of the
+  session -- and the empty text when the platform has no name to give.
+  The `LabDesktop` reads the declaration of the session in the
+  environment of the XKB (`XKB_DEFAULT_LAYOUT`, with the variant after
+  it); a session that declares none is refused with the reason.
+- `ClipCursor()` releases the confinement of the pointer, and
+  `ClipCursor(x1, y1, x2, y2)` confines it to the rectangle, the far
+  edges exclusive and the corners in any order -- the rectangle is
+  normalized in the handler. Any other count is refused with the message
+  of KeySharp: "ClipCursor requires either zero or four coordinates."
+- `WinFromPoint(x?, y?)` is the identity of the window at the point --
+  the point that is not given is the position of the pointer, the way
+  KeySharp fills it from `GetCursorPos` -- and zero when no window is
+  there. **Zero means "no window", and not "I do not know"**: a desktop
+  that cannot say which window is under a point is refused, because
+  answering zero for it would be a lie about the screen.
+
+KeySharp answers its default object for an argument that is not a
+number; the tree refuses with the reason ("Parameter #1 of ClipCursor
+requires a Number..."), because a wrong value answered silently is the
+worst outcome. The dialect-level semantics -- the counts, the messages,
+the normalization -- work on every machine; the machine-level question
+is answered where the machine can answer it, the way the cases against
+the `Fake` pin it.

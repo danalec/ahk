@@ -509,6 +509,22 @@ impl ahk::desktop::Native for LabDesktop {
 }
 
 impl ahk::desktop::Keyboard for LabDesktop {
+    fn keyboard_layout_name(&mut self) -> Result<String, String> {
+        // The session declares its layout in the environment of the XKB;
+        // a session that declares none has no name to give, and the
+        // answer is a failure with the reason, and not a guess.
+        match std::env::var("XKB_DEFAULT_LAYOUT") {
+            Ok(layout) if !layout.is_empty() => {
+                let variant = std::env::var("XKB_DEFAULT_VARIANT").unwrap_or_default();
+                if variant.is_empty() {
+                    Ok(layout)
+                } else {
+                    Ok(format!("{layout}:{variant}"))
+                }
+            }
+            _ => Err("this session does not declare its keyboard layout".to_string()),
+        }
+    }
     fn type_text(&mut self, text: &str) -> Result<String, String> {
         if text.is_empty() {
             return Ok(String::new());

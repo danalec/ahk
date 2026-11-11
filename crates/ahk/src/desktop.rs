@@ -36,6 +36,15 @@ pub enum WindowAnswer {
 
 /// The keyboard of the desktop.
 pub trait Keyboard {
+    /// The name of the keyboard layout of the machine.
+    ///
+    /// The name is the one the platform gives it -- the KLID of Windows,
+    /// the keymap of the session -- and the empty text when the platform
+    /// has no name to give, the way KeySharp answers it. A machine that
+    /// cannot say at all is a failure with the reason.
+    fn keyboard_layout_name(&mut self) -> Result<String, String> {
+        Err("this desktop cannot say the keyboard layout".to_string())
+    }
     /// Type text exactly, and say how it was typed.
     fn type_text(&mut self, text: &str) -> Result<String, String>;
 
@@ -83,6 +92,14 @@ pub trait Keyboard {
 
 /// The pointer of the desktop.
 pub trait Pointer {
+    /// Confine the pointer to a rectangle of the screen, or release it.
+    ///
+    /// The rectangle is `(left, top, right, bottom)`, the far edges
+    /// exclusive, and `None` releases the confinement. A desktop that
+    /// does not own the pointer cannot confine it, and says so.
+    fn clip_cursor(&mut self, _rect: Option<(i64, i64, i64, i64)>) -> Result<(), String> {
+        Err("this desktop cannot confine the pointer".to_string())
+    }
     /// Click at a screen position.
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String>;
 
@@ -289,6 +306,15 @@ impl TitleMatch {
 
 /// The windows of the desktop.
 pub trait Windows {
+    /// The window at a point of the screen.
+    ///
+    /// The answer is `None` when no window is at the point, and a failure
+    /// with the reason when the machine cannot say: zero means "no
+    /// window", and a desktop that does not publish what is under a point
+    /// does not answer zero for it.
+    fn the_window_at(&mut self, _x: i64, _y: i64) -> Result<Option<i64>, String> {
+        Err("this desktop cannot say which window is at a point".to_string())
+    }
     /// Whether the window with this title is the active one.
     ///
     /// The mode is the way the title is matched with the text that is

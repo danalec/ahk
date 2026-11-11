@@ -11933,6 +11933,122 @@ pub(crate) fn ks_get_key_info(
     ))
 }
 
+/// `GetKeyboardLayout`: the name of the keyboard layout of the machine.
+///
+/// The name is the one the platform gives it, and the empty text when the
+/// platform has none to give -- the answer of KeySharp. A machine that
+/// cannot say at all is refused with the reason.
+pub(crate) fn ks_get_keyboard_layout(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let name = rt
+        .desktop()
+        .keyboard_layout_name()
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(name))
+}
+
+/// `ClipCursor`: confine the pointer to a rectangle, or release it.
+///
+/// No argument releases the confinement and four arguments set it, the
+/// way KeySharp does it; any other count is refused with its message.
+/// The corners may come in any order: the rectangle is normalized here,
+/// and the far edges are exclusive. A value that is not a number is
+/// refused with the reason -- KeySharp answers its default object for
+/// one, and a wrong value answered silently is the worst outcome.
+pub(crate) fn ks_clip_cursor(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let rect = if values.is_empty() {
+        None
+    } else if values.len() == 4 && !values.iter().any(|value| matches!(value, Value::Unset)) {
+        let mut numbers = [0i64; 4];
+        for (index, slot) in numbers.iter_mut().enumerate() {
+            match values[index].to_number() {
+                Some(number) => *slot = number as i64,
+                None => {
+                    return Err(RuntimeError {
+                        message: crate::runtime::requires(
+                            index + 1,
+                            "ClipCursor",
+                            TypeName::Number,
+                            &values[index],
+                        ),
+                        line,
+                    })
+                }
+            }
+        }
+        let [x1, y1, x2, y2] = numbers;
+        Some((x1.min(x2), y1.min(y2), x1.max(x2), y1.max(y2)))
+    } else {
+        return Err(RuntimeError {
+            message: "ClipCursor requires either zero or four coordinates.".to_string(),
+            line,
+        });
+    };
+    rt.desktop()
+        .clip_cursor(rect)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinFromPoint`: the window at a point of the screen.
+///
+/// The point that is not given is the position of the pointer, the way
+/// KeySharp reads it from GetCursorPos. The answer is the identity of the
+/// window, and zero when no window is at the point. A machine that cannot
+/// say which window is at a point is refused with the reason: zero means
+/// "no window", and not "I do not know".
+pub(crate) fn ks_win_from_point(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let mut given: [Option<i64>; 2] = [None, None];
+    for index in 0..values.len().min(2) {
+        if matches!(values[index], Value::Unset) {
+            continue;
+        }
+        match values[index].to_number() {
+            Some(number) => given[index] = Some(number as i64),
+            None => {
+                return Err(RuntimeError {
+                    message: crate::runtime::requires(
+                        index + 1,
+                        "WinFromPoint",
+                        TypeName::Number,
+                        &values[index],
+                    ),
+                    line,
+                })
+            }
+        }
+    }
+    let (x, y) = match (given[0], given[1]) {
+        (Some(x), Some(y)) => (x, y),
+        _ => {
+            let (px, py) = rt
+                .desktop()
+                .mouse_position()
+                .map_err(|e| desktop_failure(e, line))?;
+            (given[0].unwrap_or(px), given[1].unwrap_or(py))
+        }
+    };
+    let answer = rt
+        .desktop()
+        .the_window_at(x, y)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(answer.unwrap_or(0)))
+}
+
 /// `RequestCapabilities(Capabilities...)`: what the machine can do.
 ///
 /// The documentation of KeySharp: the answer is an object with a property

@@ -31,6 +31,9 @@ impl Hotkeys for Fake {
     }
 }
 impl Keyboard for Fake {
+    fn keyboard_layout_name(&mut self) -> Result<String, String> {
+        Ok("00000409:Test".to_string())
+    }
     fn type_text(&mut self, _text: &str) -> Result<String, String> {
         Ok(String::new())
     }
@@ -51,6 +54,9 @@ impl Files for Fake {
     }
 }
 impl Pointer for Fake {
+    fn clip_cursor(&mut self, _rect: Option<(i64, i64, i64, i64)>) -> Result<(), String> {
+        Ok(())
+    }
     fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
         Ok(String::new())
     }
@@ -97,6 +103,16 @@ impl Screen for Fake {
 impl Sound for Fake {}
 impl Timers for Fake {}
 impl Windows for Fake {
+    fn the_window_at(&mut self, x: i64, y: i64) -> Result<Option<i64>, String> {
+        // The window of the point (5, 5) is the plain one, and the one of
+        // (9, 9) is the window that is above the others; anywhere else
+        // there is no window.
+        match (x, y) {
+            (5, 5) => Ok(Some(2)),
+            (9, 9) => Ok(Some(1)),
+            _ => Ok(None),
+        }
+    }
     fn windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
         Ok(vec![
             ahk::desktop::WindowInfo {
@@ -1190,5 +1206,51 @@ fn the_layout_of_the_key_info_is_refused_with_the_reason() {
     // parameter the tree cannot honour, and it says so instead of
     // answering as if it had one.
     let report = run_ks("MsgBox GetKeyInfo(\"Enter\", \"00000409\")\n");
+    assert!(!report.ok);
+}
+
+#[test]
+fn the_keyboard_layout_is_the_name_the_machine_gives() {
+    // The name is the one the platform gives, and a machine that cannot
+    // say at all is refused with the reason, and not answered with a
+    // guess.
+    let report = run_ks("MsgBox GetKeyboardLayout()\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "00000409:Test");
+}
+
+#[test]
+fn the_cursor_is_confined_and_released() {
+    // No argument releases the confinement, four arguments confine it,
+    // and any other count is refused with the message of KeySharp. The
+    // corners may come in any order, and a value that is not a number is
+    // refused with the reason.
+    let report = run_ks(concat!(
+        "ClipCursor()\n",
+        "ClipCursor(10, 10, 100, 100)\n",
+        "ClipCursor(100, 100, 10, 10)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    let report = run_ks("ClipCursor(1, 2, 3)\n");
+    assert!(!report.ok);
+    let report = run_ks("ClipCursor(\"x\", 2, 3, 4)\n");
+    assert!(!report.ok);
+}
+
+#[test]
+fn the_window_at_a_point_is_the_one_the_machine_names() {
+    // The answer is the identity of the window, and zero when no window
+    // is at the point. A value that is not a number is refused with the
+    // reason: zero means "no window", and not "the argument was wrong".
+    let report = run_ks(concat!(
+        "MsgBox WinFromPoint(5, 5)\n",
+        "MsgBox WinFromPoint(9, 9)\n",
+        "MsgBox WinFromPoint(500, 500)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "2");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "0");
+    let report = run_ks("MsgBox WinFromPoint(\"x\", 5)\n");
     assert!(!report.ok);
 }
