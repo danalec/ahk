@@ -1267,6 +1267,42 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_log_of_the_lines_answers_the_setting_that_was_there() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+    // `ListLines Setting`, where the setting is a number -- a text throws
+    // "Parameter #1 of ListLines requires a Number, but received a String."
+    // -- and the answer is the PREVIOUS setting. The log is on by default,
+    // and the built-in variable A_ListLines carries it.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "first := ListLines(0)",
+            "\nstate := A_ListLines",
+            "\nsecond := ListLines(1)",
+            "\nthird := ListLines(0)",
+            "\ntry\n{",
+            "\n    ListLines(\"x\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The log is on by default, so the first call answers one.
+    assert_eq!(value_of(&report, "first"), Value::Int(1));
+    // And the variable carries the state the call left.
+    assert_eq!(value_of(&report, "state"), Value::Int(0));
+    // Every call answers the setting that was there before it.
+    assert_eq!(value_of(&report, "second"), Value::Int(0));
+    assert_eq!(value_of(&report, "third"), Value::Int(1));
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #1 of ListLines requires a Number, but received a String.".into())
+    );
+}
+
+#[test]
 fn the_address_of_a_text_names_a_copy_of_it_that_can_be_read_and_written() {
     // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
     // `StrPtr String` -- a text and not a reference to one -- and the answer
@@ -3564,11 +3600,6 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "Suspend",
             "Suspend",
             "this runtime cannot stop itself: it would never end.",
-        ),
-        (
-            "ListLines",
-            "ListLines",
-            "the lines are listed in a window of v2, and this runtime has no window to show them in.",
         ),
     ] {
         let report = run(source);

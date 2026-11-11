@@ -57,6 +57,14 @@ pub use crate::desktop::{Desktop, Files, WindowAnswer};
 /// Measured on the binary of v2.0.19 on 2026-10-31: they are there
 /// before the first loop runs, and the index is zero and the others are
 /// empty.
+/// The first address of a text that a script asks the address of.
+///
+/// The addresses of the objects are minted from `0x1000`, and the ones of
+/// the texts are minted from here, so that the two never name the same
+/// thing.
+const TEXT_ADDRESS_BASE: i64 = 0x2000_0000;
+
+/// The names of the variables that a loop keeps for itself.
 const THE_LOOP_VARIABLES: &[&str] = &[
     "index",
     "loopfield",
@@ -1197,6 +1205,8 @@ pub struct Runtime<'a> {
     /// drain of the events answers a `message:<number>` event of the helper
     /// with the handler that is registered here.
     message_handlers: BTreeMap<i64, String>,
+    /// The number of the addresses minted for the texts.
+    text_addresses: i64,
     /// The menu of the tray icon, made the first time a script asks for it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
@@ -1400,6 +1410,7 @@ impl<'a> Runtime<'a> {
             last_window: None,
             clipboard_watcher: None,
             message_handlers: BTreeMap::new(),
+            text_addresses: 0,
             tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
@@ -1472,6 +1483,7 @@ impl<'a> Runtime<'a> {
             last_window: None,
             clipboard_watcher: None,
             message_handlers: BTreeMap::new(),
+            text_addresses: 0,
             tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
@@ -2343,6 +2355,23 @@ impl<'a> Runtime<'a> {
             .iter()
             .find(|(held, _)| *held == address)
             .map(|(_, buffer)| buffer.clone())
+    }
+
+    /// Mint an address for a text that the script asks the address of.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: two calls of
+    /// `StrPtr` with the same text give **two** addresses, so the address
+    /// names a copy of the text and not the text itself.
+    ///
+    /// The address of the storage of a buffer is the address of the memory
+    /// of the runtime, and the allocator gives the same one twice when the
+    /// first copy is gone -- so the address of a text is minted here, and it
+    /// is the one the runtime remembers the copy under.
+    pub(crate) fn mint_a_text_address(&mut self) -> i64 {
+        self.text_addresses += 1;
+        // The range is apart from the addresses of the objects, which the
+        // runtime mints from `0x1000`.
+        TEXT_ADDRESS_BASE + self.text_addresses
     }
 
     /// Register the function `OnClipboardChange` named, or take it away.

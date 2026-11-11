@@ -3141,9 +3141,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 114,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_lines,
     },
     Builtin {
         name: "ListVars",
@@ -4012,8 +4012,52 @@ com_object_argument!("ComObjFlags", com_obj_flags);
 com_object_argument!("ComObjValue", com_obj_value);
 com_object_argument!("ComObjConnect", com_obj_connect);
 
-// -- the registry of the machine ----------------------------------------------------
+// -- the log of the lines ------------------------------------------------------------
 
+/// `ListLines(Setting)`: the log of the lines that the script runs.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ListLines Setting`, where the setting is a **number** -- a text throws
+/// "Parameter #1 of ListLines requires a Number, but received a String." --
+/// and the answer is the **previous** setting: one when the log was on, and
+/// zero when it was off. The log is on by default, and the built-in variable
+/// `A_ListLines` carries it and may be written.
+///
+/// Without the setting the call shows the history of the lines in the window
+/// of the debugger of v2 and answers the previous setting too. This runtime
+/// has no debugger, so it answers the number and keeps the log.
+pub(crate) fn list_lines(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The setting that is there now is the one the call answers.
+    let before = match crate::settings::value_of("listlines") {
+        Some(Ok(Value::Int(on))) => Value::Int(on),
+        _ => Value::Int(1),
+    };
+    let Some(setting) = values.first() else {
+        return Ok(before);
+    };
+    if !matches!(setting, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ListLines", TypeName::Number, setting),
+            line,
+        });
+    }
+    let on = setting.to_number_lenient() != 0.0;
+    match crate::settings::write_of("listlines", &Value::Int(on as i64)) {
+        Some(Ok(_)) => Ok(before),
+        Some(Err(why)) => Err(RuntimeError { message: why, line }),
+        None => Err(RuntimeError {
+            message: "the log of the lines is not carried.".to_string(),
+            line,
+        }),
+    }
+}
+
+// -- the registry of the machine ----------------------------------------------------
 /// The kinds of a value that the v2 carries.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-11: a kind that is not one
@@ -9268,8 +9312,11 @@ pub(crate) fn str_ptr(
             line,
         });
     };
-    // The copy is a buffer, and the address is the one of its storage: the
-    // runtime remembers it, so that `StrGet` and `StrPut` find it back.
+    // The copy is a buffer, and the address is one that this runtime mints:
+    // the address of the storage of a buffer is the address of the memory of
+    // the runtime, and the allocator gives the same one twice when the first
+    // copy is gone -- and two calls of `StrPtr` with the same text give two
+    // addresses, measured on the binary of v2.0.19 on 2026-11-11.
     //
     // The bytes of the buffer are the ones of the text in the encoding of the
     // dialect -- the UTF-16 with its terminator -- because that is what
@@ -9280,14 +9327,7 @@ pub(crate) fn str_ptr(
         line,
     })?;
     let buffer = crate::classes::buffer::of_bytes(bytes);
-    let address = crate::classes::buffer::ptr_of(&buffer, line).map_err(|failure| match failure {
-        crate::runtime::RuntimeFailure::Error(error) => error,
-        crate::runtime::RuntimeFailure::Detailed(error, _) => error,
-        _ => RuntimeError {
-            message: "the text did not get an address.".to_string(),
-            line,
-        },
-    })?;
+    let address = rt.mint_a_text_address();
     rt.remember_a_buffer_at(address, buffer);
     Ok(Value::Int(address))
 }
