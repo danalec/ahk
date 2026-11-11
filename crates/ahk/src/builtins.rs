@@ -1627,7 +1627,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: file_get_version,
     },
@@ -11708,20 +11708,46 @@ pub(crate) fn file_recycle(
     Ok(Value::Text(String::new()))
 }
 
-/// `FileGetVersion`: **refused, with a reason of its own.** Re-measured on
-/// 2026-11-10: the reference answers `2.0.19.0` for a real PE and does NOT hang
-/// -- the earlier hang was a path that was not there. An ELF has no version
-/// resource to read, so an empty text or a made-up number would be a lie.
+/// `FileGetVersion`: the version of a program of Windows.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `FileGetVersion FileName`; a program of Windows answers the version as
+/// four numbers and a point between them -- "10.0.26100.9818" for the
+/// notepad of that day -- a file that is not there throws "(2) The system
+/// cannot find the file specified.", and a file that has no section of
+/// resources throws "(1812) The specified image file did not contain a
+/// resource section.".
+///
+/// The file is read as a program of Windows wherever it is: a program of
+/// Windows may be read on any platform, and the version of it is a
+/// resource of the file and not a thing of the machine that runs it.
 pub(crate) fn file_get_version(
-    _rt: &mut Runtime<'_>,
-    _values: &[Value],
+    rt: &mut Runtime<'_>,
+    values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "FileGetVersion reads the version resource of a PE file; re-measured on 2026-11-10 the reference answers 2.0.19.0 and does NOT hang. An ELF has no version resource, so an empty text or a made-up number would be a lie rather than an answer".to_string(),
-        line,
-    })
+    let Some(path) = values.first() else {
+        return Err(RuntimeError {
+            message: "Parameter #1 of FileGetVersion must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    };
+    let path = path.to_text();
+    let bytes = rt
+        .desktop()
+        .read_the_bytes_of_a_file(&path)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    match crate::version::the_version_of(&bytes) {
+        Some(version) => Ok(Value::Text(version)),
+        // The file is there and it is not a program that carries a version.
+        None => Err(RuntimeError {
+            message: "(1812) The specified image file did not contain a resource section."
+                .to_string(),
+            line,
+        }),
+    }
 }
 
 /// `ControlGetPos(&X, &Y, &W, &H, Control, WinTitle)`: the place and size of a

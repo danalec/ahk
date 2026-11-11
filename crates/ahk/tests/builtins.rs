@@ -73,6 +73,8 @@ struct Fake {
     lock_lights: [bool; 3],
     /// The registry of the fake: the key, and the values of it.
     registry: std::collections::BTreeMap<String, Vec<(String, String, String)>>,
+    /// The files that the test put there, by their path.
+    files: std::collections::BTreeMap<String, Vec<u8>>,
 }
 
 impl Desktop for Fake {}
@@ -879,7 +881,18 @@ impl Files for Fake {
     }
     fn read_the_bytes_of_a_file(&mut self, path: &str) -> Result<Vec<u8>, String> {
         self.calls.push(("bytes-of-file".into(), path.into()));
-        Ok(b"one\r\ntwo\r\n".to_vec())
+        // A file that the test put there is the one that is read, and a file
+        // that is not there is the failure of the machine.
+        match self.files.get(path) {
+            Some(bytes) => Ok(bytes.clone()),
+            None => {
+                if self.files.is_empty() {
+                    Ok(b"one\r\ntwo\r\n".to_vec())
+                } else {
+                    Err("(2) The system cannot find the file specified.".to_string())
+                }
+            }
+        }
     }
     fn delete_file(&mut self, path: &str) -> Result<String, String> {
         self.calls.push(("delete-file".into(), path.into()));
@@ -1264,6 +1277,107 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
     // The variables stay as they were.
     assert_eq!(int_of(&report, "x"), -1);
     assert_eq!(int_of(&report, "y"), -1);
+}
+
+#[test]
+fn the_version_of_a_program_is_read_out_of_the_file_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+    // `FileGetVersion FileName`; a program of Windows answers the version as
+    // four numbers and a point between them -- "10.0.26100.9818" for the
+    // notepad of that day -- a file that is not there throws "(2) The system
+    // cannot find the file specified.", and a file that has no section of
+    // resources throws "(1812) The specified image file did not contain a
+    // resource section.".
+    //
+    // The file is read as a program of Windows wherever it is: a program of
+    // Windows may be read on any platform.
+    let mut desktop = Fake::default();
+    // A program of Windows with a version in it, made here.
+    let file = a_program_with_a_version();
+    desktop.files.insert("/tmp/program.exe".to_string(), file);
+    let report = run_on(
+        concat!(
+            "v := FileGetVersion(\"/tmp/program.exe\")",
+            "\ntry\n{",
+            "\n    FileGetVersion(\"/tmp/no-such-file.exe\")",
+            "\n}\ncatch as err\n{",
+            "\n    missing := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    FileGetVersion()",
+            "\n}\ncatch as err\n{",
+            "\n    noarg := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "v"), Value::Text("10.0.26100.9818".into()));
+    assert_eq!(
+        value_of(&report, "missing"),
+        Value::Text("(2) The system cannot find the file specified.".into())
+    );
+    assert_eq!(
+        value_of(&report, "noarg"),
+        Value::Text("Parameter #1 of FileGetVersion must not be omitted in this case.".into())
+    );
+}
+
+/// A program of Windows with a version in it, made here.
+///
+/// The file is the smallest one that carries a version: the header of the
+/// DOS, the header of the PE, one section, and the table of the resources
+/// with the resource of the version in it.
+fn a_program_with_a_version() -> Vec<u8> {
+    let mut file = vec![0u8; 0x600];
+    file[0] = b'M';
+    file[1] = b'Z';
+    file[0x3C] = 0x80;
+    let header = 0x80;
+    file[header..header + 4].copy_from_slice(b"PE\0\0");
+    file[header + 6..header + 8].copy_from_slice(&1u16.to_le_bytes());
+    file[header + 20..header + 22].copy_from_slice(&0xE0u16.to_le_bytes());
+    let optional = header + 24;
+    file[optional..optional + 2].copy_from_slice(&0x10Bu16.to_le_bytes());
+    let directories = optional + 96;
+    file[directories + 16..directories + 20].copy_from_slice(&0x400u32.to_le_bytes());
+    file[directories + 20..directories + 24].copy_from_slice(&0x200u32.to_le_bytes());
+    let table = optional + 0xE0;
+    file[table..table + 8].copy_from_slice(b".rsrc\0\0\0");
+    file[table + 12..table + 16].copy_from_slice(&0x400u32.to_le_bytes());
+    file[table + 16..table + 20].copy_from_slice(&0x200u32.to_le_bytes());
+    file[table + 20..table + 24].copy_from_slice(&0x400u32.to_le_bytes());
+    let root = 0x400;
+    file[root + 12..root + 14].copy_from_slice(&1u16.to_le_bytes());
+    file[root + 16..root + 20].copy_from_slice(&16u32.to_le_bytes());
+    file[root + 20..root + 24].copy_from_slice(&0x8000_0020u32.to_le_bytes());
+    let names = root + 0x20;
+    file[names + 12..names + 14].copy_from_slice(&1u16.to_le_bytes());
+    file[names + 16..names + 20].copy_from_slice(&1u32.to_le_bytes());
+    file[names + 20..names + 24].copy_from_slice(&0x8000_0040u32.to_le_bytes());
+    let languages = root + 0x40;
+    file[languages + 12..languages + 14].copy_from_slice(&1u16.to_le_bytes());
+    file[languages + 16..languages + 20].copy_from_slice(&0x409u32.to_le_bytes());
+    file[languages + 20..languages + 24].copy_from_slice(&0x60u32.to_le_bytes());
+    let leaf = root + 0x60;
+    file[leaf..leaf + 4].copy_from_slice(&0x480u32.to_le_bytes());
+    file[leaf + 4..leaf + 8].copy_from_slice(&0x100u32.to_le_bytes());
+    let blob = 0x480;
+    let key: Vec<u16> = "VS_VERSION_INFO".encode_utf16().chain([0]).collect();
+    let mut at = blob;
+    file[at..at + 2].copy_from_slice(&0x100u16.to_le_bytes());
+    file[at + 2..at + 4].copy_from_slice(&52u16.to_le_bytes());
+    for letter in key {
+        file[at..at + 2].copy_from_slice(&letter.to_le_bytes());
+        at += 2;
+    }
+    at = (at + 3) & !3;
+    file[at..at + 4].copy_from_slice(&0xFEEF_04BDu32.to_le_bytes());
+    let high = 10u32 << 16;
+    let low = ((26100u32) << 16) | 9818u32;
+    file[at + 8..at + 12].copy_from_slice(&high.to_le_bytes());
+    file[at + 12..at + 16].copy_from_slice(&low.to_le_bytes());
+    file
 }
 
 #[test]
