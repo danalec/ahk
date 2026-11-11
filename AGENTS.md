@@ -12139,3 +12139,16 @@ one the fake of this tree has, and not "first".
 
 **The surface moves with the family: 793 answers with a value and 40 are
 refused become 800 and 33.**
+
+## 329. The reasons of the refusals that remain are the ones of the branch
+
+The branch's pass of 2026-11-10 over the refusals gave each group of them
+a reason of its own -- the slots 24 to 33 of `refusal_message` -- instead
+of the blanket claim that the name is "a name of Windows", which was
+false about most of them. The port carried the blanket table only up to
+the slot 23, and the names whose rows point higher fell through to the
+fallback: "this runtime does not carry that name yet.". The slots are
+copied now, and the four rows of the control styles -- which already
+pointed at the variant 127 -- answer the reason of the branch. The
+surface does not move with this: the names stay refusals in both trees,
+and what moves is the reason the run gives.

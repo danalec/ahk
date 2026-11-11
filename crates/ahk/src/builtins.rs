@@ -3908,6 +3908,32 @@ fn refusal_message(variant: u8) -> &'static str {
         20 => "the handler of an error is not carried: this runtime ends the script when it fails.",
         21 => crate::settings::NO_TEXT_OF_A_WINDOW,
         23 => "the registry is a thing of Windows, and this runtime does not carry it.",
+        24 => {
+            "COM objects belong to the component model of Windows, and this runtime has no COM."
+        }
+        25 => "image lists are the IL_* handles of a Win32 control, and this runtime makes none.",
+        26 => {
+            "these are messages of a Win32 window procedure, and this runtime has no such loop."
+        }
+        27 => {
+            "these names act on a list-shaped control or a status bar, and this runtime makes no such control; the reference can be asked about the list ones, so a ComboBox is the next piece of work."
+        }
+        28 => {
+            "the label, the serial, the list and the locking of a drive are the drive tools of the machine, and this runtime does not carry those tools."
+        }
+        29 => {
+            "a window group is a set a script names across statements, and this runtime has no such state between statements."
+        }
+        30 => {
+            "these read a handle or the last window a call found; this runtime has neither a handle table nor a last-found window."
+        }
+        31 => {
+            "the lock lights belong to the keyboard of the machine, and this runtime does not set them."
+        }
+        32 => {
+            "these names ask for things of Windows that this runtime has no counterpart for: a caret's screen place, a Win32 shortcut, a COM audio interface, a string at a raw address, or a native callback thunk. Re-measured on the binary of v2.0.19 on 2026-11-10: it does NOT hang on them -- an earlier note mistook one call shape for the name."
+        }
+        33 => "a pointer to a string would be a value at a stable address, and the values of this runtime have none.",
         // No name of the surface has this variant: the `ObjBindMethod` was
         // the last one, and it is carried now. The arm is the fallback of a
         // variant that the table does not have.
