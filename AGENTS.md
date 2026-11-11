@@ -11228,3 +11228,42 @@ desktop that cannot say it answers with the reason of the desktop.
 
 This is the second family ported from the branch `audit-ahk-x11-parity`
 (section 298). The tree answers 684 of the 833 names since 2026-11-11.
+
+## 301. The dialect of KeySharp, and where its names live
+
+KeySharp states that it speaks the AutoHotkey v2.1-alpha.37 and adds names of
+its own to it. The tree speaks that dialect behind the `--dialect=ks`: the
+v2.1 mechanisms are there, and the extensions beside them. The dialect of
+the v2.0.19 stays pure: a script that does not ask for the `ks` sees the
+surface of the v2.0.19, and `x.Contains(10)` on an array is refused with
+"has no method named" there, the way the binary refuses it.
+
+The names live in `crates/ahk/src/extensions.rs`. A member of a class goes
+through three places: the table of the extensions (which one is added, and
+the numbers of its parameters), the lookup of a member in the runtime (the
+handover of `a.Sort` as a value asks there when the table of the class does
+not have the name), and the dispatch of the class itself. The surface of
+the `ks` dialect is the table of the v2 with the rows of the extensions
+after it, and the scorecard of the audit
+(`egm-review/keysharp-audit/score.py`) asks all three dialects.
+
+The first block is the nine members of the `Array`:
+`Contains/Filter/FindIndex/IndexOf/Join/Map/Remove/Sort/ToString`. Their
+rules are the ones the documentation of KeySharp writes: the searches
+compare the actual underlying values, so "1" is not 1; an empty array
+answers without reading the start; a start of zero, or one whose absolute
+value is past the end, throws; a negative start walks from the end toward
+the beginning; the callback is called with the parameters it has, the item
+and the place when it takes two; the `Sort` counts only the sign of the
+answer and keeps the order of the equal ones; the `ToString` quotes the
+texts and writes a place without a value as `unset`. Verified on
+2026-11-11: `Map((x, i) => x * i)` of `[10, 20, 30]` answers `[10, 40,
+90]`, the example the documentation gives.
+
+Two things the work taught: the places of an array hold the wrapped form of
+a value, and a member that answers an array wraps its answers the way a
+`Push` does -- a raw value reads back as a place without one; and the count
+of the parameters of a callback is read out of the function itself, because
+a closure keeps its function under a name of its own and its object does
+not carry the flags. The scorecard moves: 12 of 138 = 8.7 % of the
+platform-neutral Keysharp surface, from 2.2 %.

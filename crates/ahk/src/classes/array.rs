@@ -121,6 +121,13 @@ pub(crate) fn call(
             &index.to_string(),
         )
     };
+    // The members that the KeySharp extension adds: none of their names is
+    // a method of the v2, so they are asked before the methods of the v2
+    // and the dialect of the v2.0.19 never reaches them.
+    if rt.dialect().carries_the_member_of_the_extension("array", &method) {
+        return the_extension_answer(&method, this, arguments, rt, line);
+    }
+
     match method.as_str() {
         // `Push` and `__New` are the same thing in v2: both put the values
         // at the end, and both answer the array, so that the calls can be
@@ -1008,4 +1015,436 @@ fn base_method(
 /// the array, and the script never wrote it.
 fn own_property(object: &Rc<RefCell<Object>>, key: &str) -> bool {
     key != STATE && object.borrow().properties.contains_key(key)
+}
+
+// -- the members that the KeySharp extension adds ---------------------------------
+//
+// The `ks` dialect carries the members of the `Array` that KeySharp adds to
+// the classes of AutoHotkey. Their rules are the ones the documentation of
+// KeySharp writes (`Keysharp/docs/reference.md`, the members of the classes
+// of AutoHotkey): the searches compare the actual underlying values, so
+// "1" is not 1; an empty array answers without looking at the start; and a
+// start of zero, or one whose absolute value is past the end, throws.
+
+/// The places a search visits, in the order it visits them.
+///
+/// A start of one walks from the first place toward the end, and a start of
+/// minus one walks from the last place toward the beginning: the
+/// documentation says a negative start searches backwards.
+fn the_places_of_the_walk(start: usize, forward: bool, len: usize) -> Vec<usize> {
+    if forward {
+        (start..len).collect()
+    } else {
+        (0..=start).rev().collect()
+    }
+}
+
+/// The place a search starts at: the 0-based place, and whether it walks
+/// forward.
+///
+/// A start of zero is refused, and so is one whose absolute value is past
+/// the end: the documentation says both throw. A negative start walks from
+/// the end toward the beginning, and -1 is the last place.
+fn the_start_of_the_search(start: i64, len: i64) -> Option<(usize, bool)> {
+    if start == 0 || start.unsigned_abs() as i64 > len {
+        return None;
+    }
+    if start > 0 {
+        Some(((start - 1) as usize, true))
+    } else {
+        Some(((len + start) as usize, false))
+    }
+}
+
+/// The start a member is asked with: the second parameter when it is there,
+/// and one when it is not.
+///
+/// The start is a number of the whole kind: a text that does not hold one
+/// is an invalid parameter, the way the invalid places of the v2 are.
+fn the_start_of_the_arguments(arguments: &[Value], who: &str, line: u32) -> Result<i64, RuntimeFailure> {
+    let Some(value) = arguments.get(1) else {
+        return Ok(1);
+    };
+    let text = value.to_text();
+    let Ok(start) = text.trim().parse::<i64>() else {
+        return Err(crate::classes::the_failure_with(
+            &alloc::format!("Parameter #2 of Array.Prototype.{who} is invalid."),
+            &text,
+            line,
+        ));
+    };
+    Ok(start)
+}
+
+/// Whether two values are the same, the way the searches of KeySharp
+/// compare them.
+///
+/// The documentation says the comparisons compare the actual underlying
+/// values, so "1" is not 1 -- a search of an array is not the `=` of an
+/// `if`, which reads a text that holds a number as the number. Two numbers
+/// are the same number, the way the numbers of the tree are: 1 and 1.0 are
+/// one.
+fn the_search_matches(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Object(one), Value::Object(other)) => Rc::ptr_eq(one, other),
+        (Value::Object(_), _) | (_, Value::Object(_)) => false,
+        (Value::Text(one), Value::Text(other)) => one == other,
+        (Value::Int(one), Value::Int(other)) => one == other,
+        (Value::Float(one), Value::Float(other)) => one == other,
+        (Value::Int(one), Value::Float(other)) | (Value::Float(other), Value::Int(one)) => {
+            (*one as f64) == *other
+        }
+        (Value::Unset, Value::Unset) => true,
+        _ => false,
+    }
+}
+
+/// The place of the first item that matches, as the 1-based answer, or 0.
+///
+/// An empty array answers zero whatever the start is: the documentation
+/// says the empty array is not validated, so the start is not read there.
+/// A place that has no value does not match, because a value of the caller
+/// is never the absence of one.
+fn the_place_of_the_match(
+    items: &[Value],
+    wanted: &Value,
+    arguments: &[Value],
+    who: &str,
+    _rt: &mut Runtime,
+    line: u32,
+) -> Result<i64, RuntimeFailure> {
+    let len = items.len() as i64;
+    if len == 0 {
+        return Ok(0);
+    }
+    let start = the_start_of_the_arguments(arguments, who, line)?;
+    let Some((from, forward)) = the_start_of_the_search(start, len) else {
+        let text = arguments.get(1).map(|v| v.to_text()).unwrap_or_default();
+        return Err(crate::classes::the_failure_with(
+            &alloc::format!("Parameter #2 of Array.Prototype.{who} is invalid."),
+            &text,
+            line,
+        ));
+    };
+    for place in the_places_of_the_walk(from, forward, items.len()) {
+        if let Some(item) = element_value(&items[place]) {
+            if the_search_matches(&item, wanted) {
+                return Ok(place as i64 + 1);
+            }
+        }
+    }
+    Ok(0)
+}
+
+/// The call of the callback of a member: the callback takes the item, and
+/// when it takes two parameters, the place of the item as well.
+///
+/// The count of the parameters is read out of the function: a callback
+/// written with one is called with the item alone, because a call that
+/// gives a parameter the function does not have is refused. A value that is
+/// not a function is an invalid first parameter.
+fn the_call_of_the_callback(
+    callback: &Value,
+    item: &Value,
+    place: i64,
+    who: &str,
+    rt: &mut Runtime,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
+    let invalid = || {
+        crate::classes::the_failure_with(
+            &alloc::format!("Parameter #1 of Array.Prototype.{who} is invalid."),
+            "a function",
+            line,
+        )
+    };
+    let Value::Object(_) = callback else {
+        return Err(invalid());
+    };
+    let count = rt.the_count_of_the_parameters_of_a_function(callback) as i64;
+    let arguments = if count >= 2 {
+        vec![item.clone(), Value::Int(place)]
+    } else {
+        vec![item.clone()]
+    };
+    match crate::classes::func::call_the_value(callback, &arguments, rt, line) {
+        Some(result) => result,
+        None => Err(invalid()),
+    }
+}
+
+/// The sign of the answer of the callback of a `Sort`: only the sign
+/// counts, the way the documentation says, and an answer that is not a
+/// number counts as equal.
+fn the_sign_of(value: &Value) -> f64 {
+    match value {
+        Value::Int(number) => number.signum() as f64,
+        Value::Float(number) => number.signum(),
+        Value::Text(text) => text.trim().parse::<f64>().map(|n| n.signum()).unwrap_or(0.0),
+        _ => 0.0,
+    }
+}
+
+/// The text an element of a `ToString` answer is written with.
+///
+/// A place without a value is written `unset`; a text is written between
+/// quotes; an object is written with the answer of its own `ToString`, or
+/// with the name of its class when it has none; and an object whose
+/// `ToString` raises is written `<ERROR>`, the way the documentation says.
+fn the_text_of_an_element(item: &Value, rt: &mut Runtime, line: u32) -> String {
+    let Some(value) = element_value(item) else {
+        return "unset".to_string();
+    };
+    match &value {
+        Value::Text(text) => {
+            let mut out = String::from("\"");
+            for character in text.chars() {
+                if character == '"' || character == '\\' {
+                    out.push('\\');
+                }
+                out.push(character);
+            }
+            out.push('"');
+            out
+        }
+        Value::Object(object) => {
+            let class = object.borrow().class.clone();
+            match crate::classes::call(&class, "tostring", &value, &[], rt, line) {
+                Some(Ok(text)) => text.to_text(),
+                Some(Err(_)) => "<ERROR>".to_string(),
+                None => crate::classes::the_spelling_of(&class),
+            }
+        }
+        other => other.to_text(),
+    }
+}
+
+/// The answer of a member that the KeySharp extension adds.
+///
+/// The rules of each one are the ones the documentation of KeySharp writes;
+/// where the documentation does not say what a place without a value does,
+/// the choice is written where it is made.
+fn the_extension_answer(
+    method: &str,
+    this: &Value,
+    arguments: &[Value],
+    rt: &mut Runtime,
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    let invalid_first = |who: &str, extra: &str| {
+        crate::classes::the_failure_with(
+            &alloc::format!("Parameter #1 of Array.Prototype.{who} is invalid."),
+            extra,
+            line,
+        )
+    };
+    let Some(state) = state(this) else {
+        return Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: "Invalid index.".to_string(),
+            line,
+        })));
+    };
+    let items = items(&state.borrow());
+    match method {
+        "contains" => {
+            let wanted = arguments.first().cloned().unwrap_or(Value::Unset);
+            let found = match the_place_of_the_match(&items, &wanted, arguments, "Contains", rt, line)
+            {
+                Ok(found) => found,
+                Err(failure) => return Some(Err(failure)),
+            };
+            Some(Ok(Value::Int((found != 0) as i64)))
+        }
+        "indexof" => {
+            let wanted = arguments.first().cloned().unwrap_or(Value::Unset);
+            let found = match the_place_of_the_match(&items, &wanted, arguments, "IndexOf", rt, line)
+            {
+                Ok(found) => found,
+                Err(failure) => return Some(Err(failure)),
+            };
+            Some(Ok(Value::Int(found)))
+        }
+        "findindex" => {
+            let Some(callback) = arguments.first().cloned() else {
+                return Some(Err(invalid_first("FindIndex", "a function")));
+            };
+            let len = items.len() as i64;
+            if len == 0 {
+                return Some(Ok(Value::Int(0)));
+            }
+            let start = match the_start_of_the_arguments(arguments, "FindIndex", line) {
+                Ok(start) => start,
+                Err(failure) => return Some(Err(failure)),
+            };
+            let Some((from, forward)) = the_start_of_the_search(start, len) else {
+                let text = arguments.get(1).map(|v| v.to_text()).unwrap_or_default();
+                return Some(Err(invalid_first("FindIndex", &text)));
+            };
+            for place in the_places_of_the_walk(from, forward, items.len()) {
+                // A place that has no value is handed to the callback as the
+                // value of unset: the callback decides what an absence is.
+                let item = element_value(&items[place]).unwrap_or(Value::Unset);
+                let answer = match the_call_of_the_callback(
+                    &callback,
+                    &item,
+                    place as i64 + 1,
+                    "FindIndex",
+                    rt,
+                    line,
+                ) {
+                    Ok(answer) => answer,
+                    Err(failure) => return Some(Err(failure)),
+                };
+                if answer.truthy() {
+                    return Some(Ok(Value::Int(place as i64 + 1)));
+                }
+            }
+            Some(Ok(Value::Int(0)))
+        }
+        "filter" | "map" => {
+            let who = if method == "filter" { "Filter" } else { "Map" };
+            let Some(callback) = arguments.first().cloned() else {
+                return Some(Err(invalid_first(who, "a function")));
+            };
+            if items.is_empty() {
+                // An empty array answers an empty one whatever the start is.
+                return Some(Ok(crate::classes::object_with(
+                    "array",
+                    vec![(STATE, new_state(Vec::new(), 0))],
+                )));
+            }
+            let start = match the_start_of_the_arguments(arguments, who, line) {
+                Ok(start) => start,
+                Err(failure) => return Some(Err(failure)),
+            };
+            let Some((from, forward)) = the_start_of_the_search(start, items.len() as i64) else {
+                let text = arguments.get(1).map(|v| v.to_text()).unwrap_or_default();
+                return Some(Err(invalid_first(who, &text)));
+            };
+            let mut out = Vec::new();
+            for place in the_places_of_the_walk(from, forward, items.len()) {
+                let item = element_value(&items[place]).unwrap_or(Value::Unset);
+                let answer = match the_call_of_the_callback(&callback, &item, place as i64 + 1, who, rt, line)
+                {
+                    Ok(answer) => answer,
+                    Err(failure) => return Some(Err(failure)),
+                };
+                if method == "filter" {
+                    if answer.truthy() {
+                        out.push(items[place].clone());
+                    }
+                } else {
+                    // The answer of the callback is a value, and the places
+                    // of an array hold the wrapped form of one: the value is
+                    // wrapped the way a push wraps it, so that the array the
+                    // member answers reads like any other.
+                    out.push(element(Some(answer)));
+                }
+            }
+            Some(Ok(crate::classes::object_with(
+                "array",
+                vec![(STATE, new_state(out, 0))],
+            )))
+        }
+        "join" => {
+            let separator = arguments
+                .first()
+                .map(|value| value.to_text())
+                .unwrap_or_else(|| ",".to_string());
+            // A place without a value joins as the empty text: the
+            // documentation does not say, and the empty text is the one the
+            // rest of the tree reads a place without a value as.
+            let parts: Vec<String> = items
+                .iter()
+                .map(|item| element_value(item).map(|value| value.to_text()).unwrap_or_default())
+                .collect();
+            Some(Ok(Value::Text(parts.join(&separator))))
+        }
+        "remove" => {
+            if items.is_empty() {
+                return Some(Ok(Value::Int(0)));
+            }
+            let found = match arguments.first() {
+                // Without a value, the first place that has no value goes.
+                None => items
+                    .iter()
+                    .position(|item| element_value(item).is_none())
+                    .map(|place| place as i64 + 1)
+                    .unwrap_or(0),
+                Some(wanted) => {
+                    match the_place_of_the_match(&items, wanted, arguments, "Remove", rt, line) {
+                        Ok(found) => found,
+                        Err(failure) => return Some(Err(failure)),
+                    }
+                }
+            };
+            if found == 0 {
+                return Some(Ok(Value::Int(0)));
+            }
+            let mut owned = items;
+            owned.remove((found - 1) as usize);
+            set_items(&mut state.borrow_mut(), owned);
+            Some(Ok(Value::Int(1)))
+        }
+        "sort" => {
+            let Some(callback) = arguments.first().cloned() else {
+                return Some(Err(invalid_first("Sort", "a function")));
+            };
+            if items.len() < 2 {
+                return Some(Ok(this.clone()));
+            }
+            let mut sorted = items;
+            // The callback may raise, and the sort cannot stop in the middle:
+            // the first failure it makes is kept and raised when the sort is
+            // over, and the array is left as the partial sort left it.
+            let failure: RefCell<Option<RuntimeFailure>> = RefCell::new(None);
+            sorted.sort_by(|one, other| {
+                if failure.borrow().is_some() {
+                    return core::cmp::Ordering::Equal;
+                }
+                // The items are the places of the array, and the place of
+                // one that has no value is handed to the callback as the
+                // value of unset: the callback decides what an absence is.
+                let first = element_value(one).unwrap_or(Value::Unset);
+                let second = element_value(other).unwrap_or(Value::Unset);
+                let answer =
+                    match crate::classes::func::call_the_value(&callback, &[first, second], rt, line)
+                    {
+                        Some(Ok(answer)) => answer,
+                        Some(Err(raise)) => {
+                            *failure.borrow_mut() = Some(raise);
+                            return core::cmp::Ordering::Equal;
+                        }
+                        None => {
+                            *failure.borrow_mut() = Some(invalid_first("Sort", "a function"));
+                            return core::cmp::Ordering::Equal;
+                        }
+                    };
+                let sign = the_sign_of(&answer);
+                sign.partial_cmp(&0.0).unwrap_or(core::cmp::Ordering::Equal)
+            });
+            if let Some(failure) = failure.into_inner() {
+                return Some(Err(failure));
+            }
+            set_items(&mut state.borrow_mut(), sorted);
+            Some(Ok(this.clone()))
+        }
+        "tostring" => {
+            let mut out = String::new();
+            out.push('[');
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&the_text_of_an_element(item, rt, line));
+            }
+            out.push(']');
+            Some(Ok(Value::Text(out)))
+        }
+        // The dialect said the member is carried, and the table of the
+        // extensions says which ones are: a name that is not here is a
+        // member the table and the dialect disagree about, and the honest
+        // answer is that the tree does not have it.
+        _ => None,
+    }
 }

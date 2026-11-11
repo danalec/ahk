@@ -7036,7 +7036,10 @@ impl<'a> Runtime<'a> {
             return self.method_reference(&defining, &method);
         }
         // A method of a class of the runtime.
-        if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &lower) {
+        if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &lower)
+            .or_else(|| self.the_extension_method(&class, &lower))
+        {
+
             return self.method_reference_of_a_class_type(&class, spelled, min, max);
         }
         // A method of the base object.
@@ -7454,7 +7457,7 @@ impl<'a> Runtime<'a> {
                     // `obj.HasProp("Say")` answers 1 when `Say` is a method
                     // of the class, and 0 when it is a static one.
                     || self.find_the_instance_method_in(&class, &name).is_some()
-                    || crate::classes::the_method_of(&class, &name).is_some()
+                    || crate::classes::the_method_of(&class, &name).or_else(|| self.the_extension_method(&class, &name)).is_some()
                     // The properties that have a getter are the properties
                     // of the object.
                     || self.the_accessor_of(target, &name).is_some()
@@ -7557,7 +7560,7 @@ impl<'a> Runtime<'a> {
                     // `obj.HasMethod("Say")` answers 0 when `Say` is a
                     // static method of the class of the object.
                     self.find_the_instance_method_in(&class, &name).is_some()
-                        || crate::classes::the_method_of(&class, &name).is_some()
+                        || crate::classes::the_method_of(&class, &name).or_else(|| self.the_extension_method(&class, &name)).is_some()
                         || crate::classes::the_base_object_has_the_method(&name)
                 };
                 // Every class has an initialiser, and it is a method of the
@@ -7592,7 +7595,7 @@ impl<'a> Runtime<'a> {
                         return Some(Ok(self.method_reference(&defining, &method)));
                     }
                     // A method of a class type of the runtime.
-                    if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name)
+                    if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name).or_else(|| self.the_extension_method(&class, &name))
                     {
                         let reference =
                             self.method_reference_of_a_class_type(&class, spelled, min, max);
@@ -7627,7 +7630,7 @@ impl<'a> Runtime<'a> {
                 //
                 // Measured on the binary of v2.0.19 on 2026-10-31:
                 // `m.GetMethod("Get")` is the method of the `Map`.
-                if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name) {
+                if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name).or_else(|| self.the_extension_method(&class, &name)) {
                     let reference =
                         self.method_reference_of_a_class_type(&class, spelled, min, max);
                     return Some(Ok(reference));
@@ -8410,6 +8413,21 @@ impl<'a> Runtime<'a> {
     /// v2 hands a method over as a function whose first parameter is
     /// `this`: the reference is the method itself, and the object is one
     /// of the arguments of the call.
+    /// The member of the extension dialect that a class answers, if it does.
+    ///
+    /// The `ks` dialect adds the members of KeySharp beside the classes of
+    /// the runtime, and the lookup of a member asks here when the table of
+    /// the class does not have the name.
+    fn the_extension_method(&self, class: &str, member: &str) -> Option<(&'static str, i64, i64)> {
+        if !self
+            .dialect
+            .carries_the_member_of_the_extension(class, member)
+        {
+            return None;
+        }
+        crate::extensions::the_method_of(class, member)
+    }
+
     pub(crate) fn method_reference_of_a_class_type(
         &self,
         class: &str,
@@ -8833,7 +8851,7 @@ impl<'a> Runtime<'a> {
             // A method of a class type of the runtime is a value too: v2
             // hands it over as a function whose first parameter is
             // `this`.
-            if let Some((spelled, min, max)) = crate::classes::the_method_of(&members, &name) {
+            if let Some((spelled, min, max)) = crate::classes::the_method_of(&members, &name).or_else(|| self.the_extension_method(&members, &name)) {
                 let reference = self.method_reference_of_a_class_type(&members, spelled, min, max);
                 return Ok((reference, false));
             }
@@ -11445,6 +11463,52 @@ impl<'a> Runtime<'a> {
     /// there.
     ///
     /// The name may be a function of the script or a built-in.
+    /// The number of the parameters of a function value.
+    ///
+    /// A callback is called with the parameters it has: one written with a
+    /// single parameter is called with the item alone, and one written with
+    /// two is called with the item and the place of it. The count is read
+    /// out of the function itself, and not out of the object that holds it,
+    /// because a closure keeps its function under a name of its own and the
+    /// object does not carry the flags of the parameters.
+    pub(crate) fn the_count_of_the_parameters_of_a_function(&self, value: &Value) -> usize {
+        let Value::Object(object) = value else {
+            return 0;
+        };
+        // The object carries the numbers of the parameters as properties:
+        // the smallest and the largest, and the largest is the count of the
+        // parameters the call may give, the optional ones included.
+        if let Some(count) = object
+            .borrow()
+            .value_of("maxparams")
+            .and_then(|value| value.to_text().trim().parse::<usize>().ok())
+        {
+            return count;
+        }
+        let name = {
+            let borrowed = object.borrow();
+            match borrowed.value_of(CLOSURE).map(|value| value.to_text()) {
+                Some(kept) => kept,
+                None => borrowed
+                    .value_of("name")
+                    .map(|value| value.to_text())
+                    .unwrap_or_default(),
+            }
+        };
+        if let Some(function) = self.function_in_a_variable(&name) {
+            return function.parameters.len();
+        }
+        if let Some(function) = self.functions.get(&name.to_lowercase()).cloned() {
+            return function.parameters.len();
+        }
+        // A built-in or the reference of a method: the object carries the
+        // flags of its parameters, one for each of them.
+        if let Some(Value::List(flags)) = object.borrow().value_of(PARAMETERS) {
+            return flags.len();
+        }
+        0
+    }
+
     pub(crate) fn call_named(
         &mut self,
         name: &str,

@@ -193,7 +193,13 @@ pub fn entries() -> Vec<Entry> {
 /// variables, and a method is in the class that owns it.
 pub fn entries_of(dialect: &'static dyn Dialect) -> Vec<Entry> {
     let (surface, pending) = dialect.tables();
+    // The rows a dialect adds to the table of the v2.0.19 come after it: the
+    // `ks` dialect carries the rows of the extensions of KeySharp there, and
+    // the dialects of the AHK carry none.
+    let extension = dialect.the_extension_rows();
     rows(surface)
+        .into_iter()
+        .chain(rows(extension))
         .into_iter()
         .map(|row| {
             let kind = Kind::of(row[0]);
@@ -298,7 +304,11 @@ fn state_of(
             State::Pending(reason_of_pending(pending, kind, class, name))
         }
         Kind::Method => {
-            if classes::carries(class, name) {
+            // The members the dialect adds beside the classes of the runtime
+            // are answered the same way: the `ks` dialect adds the members of
+            // KeySharp, and the surface of it lists them as values.
+            if classes::carries(class, name) || dialect.carries_the_member_of_the_extension(class, name)
+            {
                 return State::Value;
             }
             // A class that this runtime does not have is a refusal and not

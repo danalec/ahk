@@ -528,6 +528,26 @@ pub trait Dialect: Sync {
     /// a class. The v2 has the class types of the runtime.
     fn carries_the_class_of_the_runtime(&self, name: &str) -> bool;
 
+    /// Whether the dialect adds the member to the class of this name.
+    ///
+    /// The members of the extensions of KeySharp are not in the surface of
+    /// the v2.0.19, and the dialect of the v2.0.19 does not have them: the
+    /// `ks` dialect is the one that has them.
+    fn carries_the_member_of_the_extension(&self, class: &str, member: &str) -> bool {
+        let _ = (class, member);
+        false
+    }
+
+    /// The rows of the surface that the dialect adds to the table of the
+    /// v2.0.19.
+    ///
+    /// The dialects of the AHK add none: their surfaces are the tables the
+    /// binary carries. The `ks` dialect adds the rows of the extensions of
+    /// KeySharp, and the surface of it lists them.
+    fn the_extension_rows(&self) -> &'static str {
+        ""
+    }
+
     /// Whether the dialect accepts the backslash outside of a text.
     ///
     /// Measured on the binary of v1.1.37.02 on 2026-11-02: the backslash
@@ -2040,18 +2060,33 @@ pub trait Dialect: Sync {
 pub struct V2 {
     /// Whether the mechanisms of v2.1 are carried.
     pub extended: bool,
+    /// Whether the extensions of KeySharp are carried.
+    ///
+    /// The names of them are not in the surface of the v2.0.19, and the
+    /// dialect of the v2.0.19 stays pure: the extensions are behind the
+    /// `--dialect=ks` and the v2.0.19 does not see them.
+    pub keysharp: bool,
 }
 
 /// The v2.0.19 of the tree, which is the dialect of every script that does not
 /// ask for another one.
-pub static THE_V2: V2 = V2 { extended: false };
+pub static THE_V2: V2 = V2 { extended: false, keysharp: false };
 
 /// The v2.1 mechanisms beside the v2.0.19, behind the `--dialect=v2.1`.
 ///
 /// Measured on the test suite of KeySharp and on the notes of v2.1-alpha: the
 /// `Until` clause of a `while` is a mechanism that the v2.1 adds and that the
 /// binary of v2.0.19 refuses.
-pub static THE_V2_1: V2 = V2 { extended: true };
+pub static THE_V2_1: V2 = V2 { extended: true, keysharp: false };
+
+/// The dialect of KeySharp: the v2.1 mechanisms and the extensions of
+/// KeySharp beside them.
+///
+/// KeySharp states that it speaks the AutoHotkey v2.1-alpha.37, and it adds
+/// names of its own to it. The tree speaks that dialect behind the
+/// `--dialect=ks`: the v2.1 mechanisms are there, and the names of the
+/// extensions of `extensions.rs` are there too.
+pub static THE_KS: V2 = V2 { extended: true, keysharp: true };
 
 /// The legacy dialect: AutoHotkey v1.1.37.02.
 pub struct V1;
@@ -2070,6 +2105,11 @@ pub fn v2_1() -> &'static dyn Dialect {
 /// The legacy dialect, behind the gate of the `--dialect=v1`.
 pub fn v1() -> &'static dyn Dialect {
     &V1
+}
+
+/// The dialect of KeySharp, behind the gate of the `--dialect=ks`.
+pub fn ks() -> &'static dyn Dialect {
+    &THE_KS
 }
 
 /// The reason a name that the tree does not carry yet gives.
@@ -2193,6 +2233,20 @@ impl Dialect for V2 {
 
     fn carries_the_class_of_the_runtime(&self, name: &str) -> bool {
         crate::classes::is_type(name)
+    }
+
+    fn carries_the_member_of_the_extension(&self, class: &str, member: &str) -> bool {
+        // The extensions of KeySharp are behind the `--dialect=ks`, and the
+        // v2.0.19 does not carry them.
+        self.keysharp && crate::extensions::carries_the_member(class, member)
+    }
+
+    fn the_extension_rows(&self) -> &'static str {
+        if self.keysharp {
+            crate::extensions::SURFACE_ROWS
+        } else {
+            ""
+        }
     }
 
     fn accepts_a_bare_backslash(&self) -> bool {

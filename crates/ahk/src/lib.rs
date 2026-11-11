@@ -110,6 +110,7 @@ pub mod date;
 pub mod desktop;
 pub mod dialect;
 pub mod dialogs;
+pub mod extensions;
 pub mod dll;
 pub mod files;
 pub mod float_text;
