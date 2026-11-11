@@ -702,3 +702,58 @@ fn the_dialect_of_the_v2_does_not_have_the_typed_numbers() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }
+
+#[test]
+fn the_argument_error_carries_the_message_of_keysharp() {
+    // The source of KeySharp on 2026-11-11: the `ArgumentError` is the
+    // error of a call that left out a parameter, and it carries that
+    // message when the caller gives it none.
+    let report = run_ks(concat!(
+        "e := ArgumentError()\n",
+        "MsgBox Type(e)\n",
+        "MsgBox e.Message\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "ArgumentError");
+    assert_eq!(line(&report, 1), "A required parameter was omitted or unset.");
+}
+
+#[test]
+fn the_unsupported_error_is_the_error_of_what_the_platform_cannot_do() {
+    let report = run_ks(concat!(
+        "u := UnsupportedError(\"no x11\")\n",
+        "MsgBox Type(u)\n",
+        "MsgBox u.Message\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "UnsupportedError");
+    assert_eq!(line(&report, 1), "no x11");
+}
+
+#[test]
+fn the_property_reference_carries_the_target_and_the_arguments() {
+    let report = run_ks(concat!(
+        "class Thing {\n",
+        "    x := 1\n",
+        "}\n",
+        "obj := Thing()\n",
+        "p := PropRef(obj, \"x\")\n",
+        "MsgBox Type(p)\n",
+        "MsgBox Type(p.Target)\n",
+        "MsgBox p.Args.Length\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "PropRef");
+    assert_eq!(line(&report, 1), "Thing");
+    assert_eq!(line(&report, 2), "0");
+}
+
+#[test]
+fn the_dialect_of_the_v2_does_not_have_the_classes() {
+    // The surface of the v2.0.19 stays pure: `ArgumentError` and
+    // `PropRef` are not names of the v2.
+    let mut desktop = Fake;
+    let statements = ahk::parse("e := ArgumentError()\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}

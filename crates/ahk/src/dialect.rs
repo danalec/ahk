@@ -2291,6 +2291,9 @@ impl Dialect for V2 {
         // v2.0.19 has Thread as a command and not as a class.
         self.keysharp
             && (name.eq_ignore_ascii_case("thread")
+                || name.eq_ignore_ascii_case("propref")
+                || name.eq_ignore_ascii_case("argumenterror")
+                || name.eq_ignore_ascii_case("unsupportederror")
                 || crate::classes::typed::is_a_class(name))
     }
     fn the_builtin_of_the_extension(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {

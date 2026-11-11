@@ -11465,3 +11465,40 @@ Verified on 2026-11-11 with four cases of its own
 93 of 138 = 67.4 % of the platform-neutral Keysharp surface, from 59.4 %
 -- and the corpus of the pure language is unchanged: 87 of 162 in the
 v2.0.19 and 93 of 162 in the v2.1.
+
+## 308. The two errors of the Ks, and the reference to a property
+
+The eighth block of the dialect of KeySharp carries the two error classes
+that the v2.0.19 does not have and the reference to a property.
+
+`ArgumentError` is the error of a call that left out a parameter or
+passed one that was unset, and it derives from the `Error`. Its message,
+when the caller gives it none, is the one of the source of KeySharp
+("A required parameter was omitted or unset."). `UnsupportedError` is the
+error of an operation the platform of the machine cannot do, and it
+derives from the `OSError`.
+
+**The classes of the errors of the `ks` dialect are a table of their own.**
+The tree of the errors of the v2 is static -- the fourteen classes are the
+ones of the documentation of v2 -- and the two of the `ks` dialect are
+beside it, so that the v2.0.19 does not carry them: the dialect is what
+says that the class exists.
+
+`PropRef` is a virtual reference to a property of an object: the target
+of it, the name of the property, and the arguments of the access when it
+is an indexed one. KeySharp makes one with the reference operator of the
+v2.1 -- `&obj.prop` -- and the tree makes one with the call of the class:
+`PropRef(target, name, args...)`. The reference is bound to the target and
+to the name that the caller named, the way it is in KeySharp: it does not
+rebind to whatever the target answers later.
+
+**The classes of the `ks` dialect are spelled the way KeySharp spells
+them.** The name of the class of a value is the spelling of it, and the
+spelling of `PropRef` is not `Propref`: the table of the spellings of the
+classes of the dialect is beside the one of the runtime, and the two
+classes of the errors take their spelling from their own table.
+
+Verified on 2026-11-11 with four cases of its own
+(`tests/class_extensions.rs` now carries 49). The scorecard moves:
+98 of 138 = 71.0 % of the platform-neutral Keysharp surface, from 67.4 %
+-- and the corpus of the pure language is unchanged.

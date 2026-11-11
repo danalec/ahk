@@ -41,6 +41,7 @@ pub(crate) mod inputhook;
 pub(crate) mod map;
 pub(crate) mod regexmatchinfo;
 pub(crate) mod thread;
+pub(crate) mod propref;
 pub(crate) mod typed;
 
 /// The methods of the class types, with the name v2 spells them and
@@ -1400,12 +1401,42 @@ pub(crate) fn the_spelling_of(name: &str) -> String {
     if let Some((_, spelled)) = THE_SPELLINGS.iter().find(|(key, _)| *key == lower) {
         return spelled.to_string();
     }
+    // The classes of the `ks` dialect are spelled the way KeySharp spells
+    // them: `PropRef` and not `Propref`.
+    if let Some((_, spelled)) = THE_KS_SPELLINGS
+        .iter()
+        .find(|(key, _)| *key == lower)
+    {
+        return spelled.to_string();
+    }
     let mut spelled = name.to_string();
     if let Some(first) = spelled.get_mut(0..1) {
         first.make_ascii_uppercase();
     }
     spelled
 }
+
+/// The spelling of the classes that the `ks` dialect adds.
+///
+/// The v2.0.19 has none of them, and a script of the v2 cannot make one,
+/// so the table is only read for the objects of the `ks` dialect.
+const THE_KS_SPELLINGS: &[(&str, &str)] = &[
+    ("int8", "Int8"),
+    ("uint8", "UInt8"),
+    ("int16", "Int16"),
+    ("uint16", "UInt16"),
+    ("int32", "Int32"),
+    ("uint32", "UInt32"),
+    ("int64", "Int64"),
+    ("intptr", "IntPtr"),
+    ("float32", "Float32"),
+    ("float64", "Float64"),
+    ("struct", "Struct"),
+    ("thread", "Thread"),
+    ("propref", "PropRef"),
+    ("argumenterror", "ArgumentError"),
+    ("unsupportederror", "UnsupportedError"),
+];
 
 /// The object a class type makes.
 ///
@@ -1455,6 +1486,17 @@ pub(crate) fn construct(
     }
     if THE_CLASSES_THAT_ARE_NOT_HERE.contains(&class.to_lowercase().as_str()) {
         return Some(Err(the_failure_of_a_class_that_is_not_here(line)));
+    }
+    // The errors of the `ks` dialect: the `ArgumentError` and the
+    // `UnsupportedError` are made the way the errors of v2 are.
+    if rt.dialect().carries_the_class_of_the_extension(class) {
+        if let Some(result) = error::construct_the_extension(class, arguments, rt, line) {
+            return Some(result);
+        }
+        if class.eq_ignore_ascii_case("propref") {
+            return propref::construct(class, arguments, rt, line);
+
+        }
     }
     // The errors of v2 are a tree of classes, and every one of them is
     // made the way the root of it is.
@@ -1724,7 +1766,8 @@ pub(crate) fn property(
             thread::property(name, this, rt, line)
         }
         _ if rt.dialect().carries_the_class_of_the_extension(class) => {
-            typed::property(class, name, this, line)
+            propref::property(class, name, this, line)
+                .or_else(|| typed::property(class, name, this, line))
         }
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::property(class, name, this, rt, line)
@@ -1857,6 +1900,7 @@ pub fn names(class: &str) -> Vec<&'static str> {
         "regexmatchinfo" => regexmatchinfo::names(),
         "thread" => thread::names(),
         _ if typed::is_a_class(class) => typed::names(),
+        "propref" => propref::names(),
         "class" => THE_CLASS_VALUE.to_vec(),
         "object" => THE_BASE_OBJECT
             .iter()
