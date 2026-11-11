@@ -109,7 +109,18 @@ refused every second parameter -- a wrong answer for a valid call. The
 lamp of the physical keyboard of the box needs the root to be written
 and the kernel makes no class entry for the lamps of our own device, so
 the state a script reads back is the state it set. The count is **791
-values / 42 refusals**.
+values / 42 refusals**. **Round 18 carried the registry of the machine**
+(`fec4c64`): the five names read it and write it, with the shapes the
+binary carries -- `RegWrite` takes the **value first** and the kind
+second, `RegRead` takes the key, the name and the default -- and every
+wording measured: a hive that is not one of the five is refused, a name
+of a value that is not given throws "(161) The specified path is
+invalid.", and a value that is not there throws "(2) The system cannot
+find the file specified." unless a default is given. Windows has a
+registry and this platform has none, so the tree keeps one of its own:
+the hives are folders and the keys are files under the config folder of
+the user -- verified on the box, where the store is real on the disk.
+The count is **796 values / 37 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
