@@ -856,3 +856,22 @@ fn the_dialect_of_the_v2_does_not_have_the_members_of_the_string() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }
+#[test]
+fn the_compilation_of_a_script_is_the_parse_of_it() {
+    // This tree has no compiler of its own: the script is compiled into
+    // what the tree runs, and that is the parse. The answer is the object
+    // of IsValid, Errors and Warnings.
+    let report = run_ks(concat!(
+        "good := CompileScript(\"x := 1\")\n",
+        "MsgBox good.IsValid\n",
+        "MsgBox good.Errors.Length\n",
+        "bad := CompileScript(\"x := )\")\n",
+        "MsgBox bad.IsValid\n",
+        "MsgBox bad.Errors.Length\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "0");
+    assert_eq!(line(&report, 2), "0");
+    assert_eq!(line(&report, 3), "1");
+}

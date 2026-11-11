@@ -287,6 +287,7 @@ pub const SURFACE_ROWS: &str = concat!(
     "variable\t\tFalse\t\t\t\n",
     "variable\t\tTrue\t\t\t\n",
     "function\t\tProps\t\t\t\n",
+    "function\t\tCompileScript\t\t\t\n",
     "function\t\tThrow\t\t\t\n",
     "function\t\tIsComponentAvailable\t\t\t\n",
     "function\t\tValidateScript\t\t\t\n",
@@ -437,6 +438,15 @@ pub static KS_BUILTINS: &[crate::builtins::Builtin] = &[
         variant: 0,
         parameters: &[crate::builtins::Parameter::Value],
         handler: crate::builtins::ks_props,
+    },
+    crate::builtins::Builtin {
+        name: "CompileScript",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_validate_script,
     },
     crate::builtins::Builtin {
         name: "IsComponentAvailable",

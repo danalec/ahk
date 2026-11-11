@@ -11646,3 +11646,21 @@ The arm is inside the `if let` of the base object when it is written
 there, and then it only runs when the base object has the method: the
 member is still refused, and the tree still builds. The arm goes after
 the brace that closes that `if let`.
+
+## 315. The compilation of a script in this tree, and what it is
+
+The `ks` dialect carries `CompileScript(Code)`, the sibling of
+`ValidateScript(Code)`. The documentation of KeySharp: the code is the
+path of a script file when the machine has a file of that name, and the
+source of a script otherwise; the answer is an object with `IsValid`,
+`Errors` and `Warnings`.
+
+**This tree has no compiler of its own: the script is compiled into what
+the tree runs, and that is the parse.** The check that the name asks for
+-- does this script compile -- is therefore the check of the parse, and
+the two answers are the same object. The errors of the lowering of
+KeySharp have no counterpart here, because this tree does not lower a
+script into another language.
+
+The `Errors` of the answer carry the line and the column, the way the
+errors of `ValidateScript` do.
