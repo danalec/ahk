@@ -120,7 +120,15 @@ find the file specified." unless a default is given. Windows has a
 registry and this platform has none, so the tree keeps one of its own:
 the hives are folders and the keys are files under the config folder of
 the user -- verified on the box, where the store is real on the disk.
-The count is **796 values / 37 refusals**.
+The count is **796 values / 37 refusals**. **Round 19 carried the messages
+of a window procedure** (`ecc186d`): `OnMessage` takes (MsgNumber,
+Callback, MaxThreads) and **registers** the handler -- the runtime keeps
+the registry of them, and the drain answers a `message:<number>` event of
+the helper with the handler registered for it -- while `PostMessage`,
+`SendMessage` and `WinSetRegion` take the number of a window and answer
+"Target window not found." for every one of them, the window of the
+script included, because the messages go to the windows of other
+programs. The count is **800 values / 33 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
