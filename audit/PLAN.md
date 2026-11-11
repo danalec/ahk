@@ -32,7 +32,14 @@ name, `IsSet`, is ported (`0147eb7`). The `Menu`/`MenuBar` class is built:
 family, `Rename`, `SetColor`, `SetIcon`, `Show`, `AddStandard`) and the
 `Default`/`ClickCount` properties (`1c13c92`), attached with `Gui.Menu :=`
 and drawn as a `Gtk.MenuBar` by the helper; choosing an item is an event on
-the same channel as a click.
+the same channel as a click. The dispatch is verified end to end on the box:
+the event written into the watch file comes back as
+`chosen:&File:1:MenuBar` -- the callback called with the name of the item,
+its 1-based position, and the menu object (documented on v2.0.19 on
+2026-11-10). A trap found on the way: `Sleep` drains the events only when
+it returns, so a script that waits on the menu must sleep in short chunks
+-- a `Sleep 20000` swallows every event that happens inside it until the
+end.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
