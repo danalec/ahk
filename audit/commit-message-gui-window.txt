@@ -1,0 +1,49 @@
+Port the window of the script, and the menu that hangs on it, from the branch
+
+The first family of the port (`docs/two-lines.md` §5.2): the window itself.
+The branch `audit-ahk-x11-parity` carries a window of the script -- a GTK3
+window drawn by the helper of the box -- and the tree of the owner refused
+every name of it with "a window is a Windows window, and this desktop is a
+Wayland session without one".
+
+The port is four things:
+
+- The transport (`crates/ahk-box/src/gui.rs`) and the helper that draws the
+  window (`crates/ahk-box/helper/ahk-gui.py`), and the fifty methods of
+  the `Windows` trait that the window needs.
+- The class of the window (`crates/ahk/src/classes/gui.rs`) and the class of
+  the menu that hangs on it (`crates/ahk/src/classes/menu.rs`), with the
+  arms of the dispatcher that answer them.
+- The memory of the windows of the script and the identity of their
+  objects, so that a script can hand a window back and an event can find
+  the control it is about.
+- The drain of the events: what the desktop says happened is read, and the
+  handler that the window kept is called -- by its value, because a closure
+  has no name in v2.
+
+The port is a script (`audit/port-gui-window.py`,
+`audit/port-gui-class.py` and `egm-review/port-gui-names.py`) and not
+a copy by hand: the two trees have drifted, and a copy would have taken the
+drift with it. The script reads the branch and writes the tree of the
+owner, it refuses to write anything when an anchor is not where it says it
+is, and it can be run twice. `audit/port_text.py` reads and writes
+the text of the tree without touching its line endings: a lone `\r` inside
+a line is a line break to the reader of Python and not to the compiler, and
+the round trip broke a comment that had one.
+
+Measured on the box on 2026-11-11, with the ported tree built there:
+
+- The window opens. `Gui()`, `Add("Text")`, `Add("Button")`, `Title :=`,
+  `Show()` and `Destroy()` all answer, and the report carries the controls
+  with their `ClassNN` (`Static1`, `Button1`) and their numbers.
+- The event reaches the handler. The event is written into the file the
+  runtime polls -- the file the helper writes to -- and the `Sleep` that
+  follows reads it and calls the handler of the control, with the control
+  as its argument: the output is "[pressed [Gui.Button]]".
+
+The cases of the port are the ones of the branch (`crates/ahk/tests/
+class_gui.rs`) and three of them are new here: the callback of a menu item
+is called with the name of the item, its position and the menu; a closure
+is called the same way; and a click on a control calls the handler of the
+control.
+

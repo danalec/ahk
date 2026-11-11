@@ -96,6 +96,11 @@ impl From<PointerError> for BoxError {
 pub struct LabDesktop {
     keyboard: Option<Keyboard>,
     pointer: Option<Pointer>,
+    /// The window of the script, when the session has one.
+    ///
+    /// It is made by the helper of the window and lives as long as
+    /// the desktop does.
+    gui: Option<crate::gui::TheWindow>,
     screen: Option<(i64, i64)>,
     notes: Vec<String>,
     /// The files that are open. A handle is the place of the file in
@@ -144,6 +149,7 @@ impl LabDesktop {
         Self {
             keyboard: None,
             pointer: None,
+            gui: None,
             screen: None,
             notes: Vec::new(),
             files: Vec::new(),
@@ -296,6 +302,20 @@ impl LabDesktop {
             self.notes.push(note);
         }
         answer
+    }
+
+    /// Send one command to the program that draws the windows of the script, and
+    /// refuse when it says it did not do the thing.
+    fn the_gui_says(&mut self, command: &str) -> Result<String, String> {
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("there is no window of the script")?;
+        let answer = window.send(command)?;
+        if !answer.contains("\"ok\": true") {
+            return Err(format!("the window of the script refused: {answer}"));
+        }
+        Ok(answer)
     }
 }
 
@@ -976,6 +996,570 @@ impl ahk::desktop::Windows for LabDesktop {
         }
         Ok(None)
     }
+    // ---- gui_is_open
+    fn gui_is_open(&mut self) -> bool {
+        self.gui.is_some()
+    }
+
+    // ---- gui_open
+    fn gui_open(&mut self, title: &str) -> Result<u64, String> {
+        box_tools_are_near()?;
+        // One window at a time. The helper replaces the window it holds when it
+        // is told to make another, so a second one would silently take the place
+        // of the first -- and a script that made two `Gui`s would find one
+        // window with no word about it. It fails with the reason instead, which
+        // is the rule of this tree; a window that was taken away frees the place
+        // again, so `Destroy` and then a new `Gui` works.
+        if self.gui.is_some() {
+            return Err(
+                "this desktop makes one window at a time, and a window of the script is \
+                 already there."
+                    .to_string(),
+            );
+        }
+        let helper = the_helper_of_the_window()?;
+        self.gui = Some(crate::gui::TheWindow::open(&helper)?);
+        let window = self.gui.as_mut().ok_or("the helper of the window did not start")?;
+        let answer = window.send(&format!(
+            "{{\"op\": \"window\", \"title\": {}}}",
+            quoted(title)
+        ))?;
+        if !answer.contains("\"ok\": true") {
+            return Err(format!("the window of the script was not made: {answer}"));
+        }
+        // The events of that window go where `gui_events` will look for them.
+        let watch = format!(
+            "{{\"op\": \"watch\", \"path\": {}}}",
+            quoted(&the_events_of_the_window().to_string_lossy())
+        );
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("the helper of the window did not start")?;
+        let _ = window.send(&watch);
+        Ok(1)
+    }
+
+    // ---- gui_add
+    fn gui_add(&mut self, _handle: u64, kind: &str, text: &str) -> Result<(u64, String), String> {
+        let window = self.gui.as_mut().ok_or("there is no window of the script")?;
+        let answer = window.send(&format!(
+            "{{\"op\": \"add\", \"kind\": {}, \"text\": {}}}",
+            quoted(kind),
+            quoted(text)
+        ))?;
+        let id = the_number_in(&answer, "\"id\": ")
+            .ok_or_else(|| format!("the control was not added: {answer}"))?;
+        let classnn = the_text_in(&answer, "\"classnn\": ")
+            .ok_or_else(|| format!("the control was not added: {answer}"))?;
+        Ok((id as u64, classnn))
+    }
+
+    // ---- gui_combo_items
+    fn gui_combo_items(&mut self, number: u64) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-items\", \"id\": {}}}",
+            number
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_combo_add
+    fn gui_combo_add(&mut self, number: u64, text: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-add\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the item was not added: {said}"))
+        }
+    }
+
+    // ---- gui_combo_select
+    fn gui_combo_select(&mut self, number: u64, wanted: &str, by_text: bool) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-select\", \"id\": {}, \"wanted\": {}, \"by_text\": {}}}",
+            number,
+            quoted(wanted),
+            by_text
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| {
+            format!("the item was not chosen: {said}")
+        })
+    }
+
+    // ---- gui_combo_choice
+    fn gui_combo_choice(&mut self, number: u64) -> Result<(i64, String), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-choice\", \"id\": {}}}",
+            number
+        ))?;
+        let index = the_number_in(&said, "\"index\": ").unwrap_or(0);
+        let text = the_text_in(&said, "\"text\": ").unwrap_or_default();
+        Ok((index, text))
+    }
+
+    // ---- gui_combo_delete
+    fn gui_combo_delete(&mut self, number: u64, index: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-delete\", \"id\": {}, \"wanted\": {}}}",
+            number,
+            quoted(index)
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the item was not removed: {said}"))
+        }
+    }
+
+    // ---- gui_combo_find
+    fn gui_combo_find(&mut self, number: u64, text: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-find\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the item was not found: {said}"))
+    }
+
+    // ---- gui_combo_dropdown
+    fn gui_combo_dropdown(&mut self, number: u64, show: bool) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-dropdown\", \"id\": {}, \"show\": {}}}",
+            number, show
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the pop-up was not changed: {said}"))
+        }
+    }
+
+    // ---- gui_status_text
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        let said = self.the_gui_says("{\"op\": \"status-text\"}")?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_list_add
+    fn gui_list_add(&mut self, number: u64, cells: &[String]) -> Result<i64, String> {
+        let list = cells
+            .iter()
+            .map(|cell| quoted(cell))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-add\", \"id\": {}, \"cells\": [{}]}}",
+            number, list
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the row was not added: {said}"))
+    }
+
+    // ---- gui_list_count
+    fn gui_list_count(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-count\", \"id\": {}}}",
+            number
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the rows were not counted: {said}"))
+    }
+
+    // ---- gui_list_text
+    fn gui_list_text(&mut self, number: u64, row: i64, col: i64) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-text\", \"id\": {}, \"row\": {}, \"col\": {}}}",
+            number, row, col
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_list_content
+    fn gui_list_content(&mut self, number: u64, selected: bool) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-content\", \"id\": {}, \"selected\": {}}}",
+            number, selected
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_list_modify
+    fn gui_list_modify(&mut self, number: u64, row: i64, cells: &[String]) -> Result<i64, String> {
+        let list = cells
+            .iter()
+            .map(|cell| quoted(cell))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-modify\", \"id\": {}, \"row\": {}, \"cells\": [{}]}}",
+            number, row, list
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the row was not changed: {said}"))
+    }
+
+    // ---- gui_list_next
+    fn gui_list_next(&mut self, number: u64, start: i64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-next\", \"id\": {}, \"start\": {}}}",
+            number, start
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the next row was not read: {said}"))
+    }
+
+    // ---- gui_tree_add
+    fn gui_tree_add(&mut self, number: u64, text: &str, parent: i64, options: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-add\", \"id\": {}, \"text\": {}, \"parent\": {}, \"options\": {}}}",
+            number,
+            quoted(text),
+            parent,
+            quoted(options)
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not added: {said}"))
+    }
+
+    // ---- gui_tree_count
+    fn gui_tree_count(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-count\", \"id\": {}}}",
+            number
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the items were not counted: {said}"))
+    }
+
+    // ---- gui_tree_text
+    fn gui_tree_text(&mut self, number: u64, item: i64) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-text\", \"id\": {}, \"item\": {}}}",
+            number, item
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_tree_relation
+    fn gui_tree_relation(&mut self, number: u64, item: i64, relation: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-relation\", \"id\": {}, \"item\": {}, \"relation\": {}}}",
+            number,
+            item,
+            quoted(relation)
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the tree was not walked: {said}"))
+    }
+
+    // ---- gui_tree_selection
+    fn gui_tree_selection(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-selection\", \"id\": {}}}",
+            number
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the selection was not read: {said}"))
+    }
+
+    // ---- gui_tree_modify
+    fn gui_tree_modify(&mut self, number: u64, item: i64, options: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-modify\", \"id\": {}, \"item\": {}, \"options\": {}}}",
+            number,
+            item,
+            quoted(options)
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not changed: {said}"))
+    }
+
+    // ---- gui_tree_delete
+    fn gui_tree_delete(&mut self, number: u64, item: i64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-delete\", \"id\": {}, \"item\": {}}}",
+            number, item
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not deleted: {said}"))
+    }
+
+    // ---- gui_second_value
+    fn gui_second_value(&mut self, number: u64, setting: Option<&str>) -> Result<String, String> {
+        let command = match setting {
+            Some(text) => format!(
+                "{{\"op\": \"second-value\", \"id\": {}, \"text\": {}}}",
+                number,
+                quoted(text)
+            ),
+            None => format!("{{\"op\": \"second-value\", \"id\": {}}}", number),
+        };
+        let said = self.the_gui_says(&command)?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_control_pos
+    fn gui_control_pos(&mut self, number: u64) -> Result<(i64, i64, i64, i64), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"control-pos\", \"id\": {}}}",
+            number
+        ))?;
+        let get = |name: &str| {
+            the_number_in(&said, name)
+                .ok_or_else(|| format!("the place of the control was not read: {said}"))
+        };
+        Ok((get("\"x\": ")?, get("\"y\": ")?, get("\"w\": ")?, get("\"h\": ")?))
+    }
+
+    // ---- gui_menu_bar
+    fn gui_menu_bar(&mut self, json: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"menu-bar\", \"items\": {}}}",
+            json
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the menu bar was not shown: {said}"))
+        }
+    }
+
+    // ---- gui_caret
+    fn gui_caret(&mut self) -> Result<Option<(i64, i64)>, String> {
+        let said = self.the_gui_says("{\"op\": \"caret\"}")?;
+        // "value": null is no caret; "value": [x, y] is the place of it.
+        if said.contains("\"value\": null") {
+            return Ok(None);
+        }
+        let get = |name: &str| {
+            the_number_in(&said, name)
+                .ok_or_else(|| format!("the place of the caret was not read: {said}"))
+        };
+        Ok(Some((get("\"x\": ")?, get("\"y\": ")?)))
+    }
+
+    // ---- gui_show
+    fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
+        self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
+    }
+
+    // ---- gui_destroy
+    fn gui_destroy(&mut self, _handle: u64) -> Result<(), String> {
+        self.the_gui_says("{\"op\": \"destroy\"}").map(|_| ())?;
+        // The helper goes with the window: it has nothing left to hold, and
+        // letting it go frees the one place a window of the script can have.
+        self.gui = None;
+        Ok(())
+    }
+
+    // ---- gui_value
+    fn gui_value(&mut self, number: u64, setting: Option<&str>) -> Result<String, String> {
+        let command = match setting {
+            Some(text) => format!(
+                "{{\"op\": \"value\", \"id\": {}, \"text\": {}}}",
+                number,
+                quoted(text)
+            ),
+            None => format!("{{\"op\": \"value\", \"id\": {}}}", number),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_text_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no value: {answer}"))
+    }
+
+    // ---- gui_flag
+    fn gui_flag(
+        &mut self,
+        number: u64,
+        name: &str,
+        setting: Option<bool>,
+    ) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!(
+                "{{\"op\": \"flag\", \"id\": {}, \"name\": {}, \"on\": {}}}",
+                number,
+                quoted(name),
+                if on { "true" } else { "false" }
+            ),
+            None => format!(
+                "{{\"op\": \"flag\", \"id\": {}, \"name\": {}}}",
+                number,
+                quoted(name)
+            ),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
+    }
+
+    // ---- gui_control_state
+    fn gui_control_state(&mut self, classnn: &str, what: &str, on: bool) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"state\", \"classnn\": {}, \"what\": {}, \"on\": {}}}",
+            quoted(classnn),
+            quoted(what),
+            if on { "true" } else { "false" }
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the state of the control was not set: {answer}"))
+        }
+    }
+
+    // ---- gui_visibility
+    fn gui_visibility(&mut self, classnn: &str, on: bool) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"visibility\", \"classnn\": {}, \"on\": {}}}",
+            quoted(classnn),
+            if on { "true" } else { "false" }
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the control was not shown or hidden: {answer}"))
+        }
+    }
+
+    // ---- gui_number_named
+    fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
+        let command = format!(
+            "{{\"op\": \"resolve\", \"classnn\": {}}}",
+            quoted(classnn)
+        );
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ").ok_or_else(|| {
+            format!("the window of the script has no control named {classnn}")
+        })
+    }
+
+    // ---- gui_focused
+    fn gui_focused(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"focused\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_selection
+    fn gui_selection(&mut self, number: u64) -> Result<String, String> {
+        let command = format!("{{\"op\": \"selection\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        the_text_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no selection: {answer}"))
+    }
+
+    // ---- gui_cursor
+    fn gui_cursor(&mut self, number: u64) -> Result<i64, String> {
+        let command = format!("{{\"op\": \"cursor\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no cursor: {answer}"))
+    }
+
+    // ---- gui_line_count
+    fn gui_line_count(&mut self, number: u64) -> Result<i64, String> {
+        let command = format!("{{\"op\": \"lines\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ").ok_or_else(|| {
+            format!("the control of the script gave no line count: {answer}")
+        })
+    }
+
+    // ---- gui_option
+    fn gui_option(&mut self, name: &str, on: bool) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"option\", \"name\": {}, \"on\": {}}}",
+            quoted(name),
+            if on { "true" } else { "false" }
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!(
+                "the option {name} of the window was not set: {answer}"
+            ))
+        }
+    }
+
+    // ---- gui_hide
+    fn gui_hide(&mut self) -> Result<(), String> {
+        let answer = self.the_gui_says("{\"op\": \"hide\"}")?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the window of the script was not hidden: {answer}"))
+        }
+    }
+
+    // ---- gui_focus
+    fn gui_focus(&mut self, number: u64) -> Result<(), String> {
+        let command = format!("{{\"op\": \"focus\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the focus did not move to the control: {answer}"))
+        }
+    }
+
+    // ---- gui_size
+    fn gui_size(&mut self, number: u64, width: i64, height: i64) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"size\", \"id\": {}, \"w\": {}, \"h\": {}}}",
+            number, width, height
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the control of the script was not sized: {answer}"))
+        }
+    }
+
+    // ---- gui_events
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        // The file the helper was told to write to. Its name is derived from the
+        // process, so that two runners on one machine do not read each other's
+        // events, and nothing has to be kept: both ends compute it.
+        let path = the_events_of_the_window();
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            // No file is no events, and that is the common case.
+            Err(_) => return Ok(Vec::new()),
+        };
+        // Taken and cleared: what was read is not read again.
+        let _ = std::fs::write(&path, "");
+        Ok(text
+            .lines()
+            .map(str::to_string)
+            .filter(|line| !line.is_empty())
+            .collect())
+    }
+
+    // ---- gui_title
+    fn gui_title(&mut self, _handle: u64, setting: Option<&str>) -> Result<String, String> {
+        let command = match setting {
+            Some(title) => format!("{{\"op\": \"title\", \"set\": {}}}", quoted(title)),
+            None => "{\"op\": \"title\"}".to_string(),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_text_in(&answer, "\"title\": ")
+            .ok_or_else(|| format!("the window of the script gave no title: {answer}"))
+    }
+
+    // ---- gui_checked
+    fn gui_checked(&mut self, number: u64, setting: Option<bool>) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!(
+                "{{\"op\": \"checked\", \"id\": {}, \"on\": {}}}",
+                number,
+                if on { "true" } else { "false" }
+            ),
+            None => format!("{{\"op\": \"checked\", \"id\": {}}}", number),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the check box of the script gave no tick: {answer}"))
+    }
+
 }
 
 impl ahk::desktop::Sound for LabDesktop {
@@ -1893,6 +2477,115 @@ pub(crate) fn name_matches(pattern: &str, name: &str) -> bool {
     table[pattern.len()][name.len()]
 }
 
+// ---- the_helper_of_the_window
+/// Where the program that draws the windows of the script is.
+///
+/// Two places, in the order that works for a binary that has been moved and for
+/// one that has not:
+///
+/// 1. **beside the binary**, under `helper/` -- which is where a copy of the
+///    runner carries it, and the convention the raven's helper follows;
+/// 2. **under the crate** as it was compiled, which is right when the runner is
+///    built where the sources are (the box builds its own), and is a build path
+///    baked into the binary when it is not.
+///
+/// The first that exists wins. The answer when neither is there names both, so a
+/// failure says where it looked rather than that something is missing.
+fn the_helper_of_the_window() -> Result<std::path::PathBuf, String> {
+    let mut tried: Vec<String> = Vec::new();
+    if let Ok(program) = std::env::current_exe() {
+        if let Some(folder) = program.parent() {
+            let beside = folder.join("helper/ahk-gui.py");
+            if beside.is_file() {
+                return Ok(beside);
+            }
+            tried.push(beside.to_string_lossy().into_owned());
+        }
+    }
+    let under = Path::new(env!("CARGO_MANIFEST_DIR")).join("helper/ahk-gui.py");
+    if under.is_file() {
+        return Ok(under);
+    }
+    tried.push(under.to_string_lossy().into_owned());
+    Err(format!(
+        "the program that draws the windows of the script is not where it was looked for: {}",
+        tried.join(", ")
+    ))
+}
+
+// ---- the_events_of_the_window
+/// of letting the shell answer "not found": a failure that names a missing
+/// program of another platform tells the script nothing it can act on.
+/// Where the events of the windows of the script are written.
+///
+/// Derived from the process, so two runners on one machine do not read each
+/// other's events, and nothing has to be kept: the helper and the reader both
+/// compute the same name.
+fn the_events_of_the_window() -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("ahk-gui-events-{}", std::process::id()))
+}
+
+// ---- quoted
+/// A text as the JSON string of it, with the characters that JSON needs.
+fn quoted(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for letter in text.chars() {
+        match letter {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(letter),
+        }
+    }
+    out.push('"');
+    out
+}
+
+// ---- the_number_in
+/// The number after a name in an answer of the helper.
+fn the_number_in(answer: &str, name: &str) -> Option<i64> {
+    let rest = answer.split_once(name)?.1;
+    let digits: String = rest
+        .chars()
+        .take_while(|letter| letter.is_ascii_digit() || *letter == '-')
+        .collect();
+    digits.parse().ok()
+}
+
+// ---- the_text_in
+/// The text after a name in an answer of the helper.
+fn the_text_in(answer: &str, name: &str) -> Option<String> {
+    let rest = answer.split_once(name)?.1.trim_start();
+    let rest = rest.strip_prefix('"')?;
+    let mut out = String::new();
+    let mut letters = rest.chars();
+    while let Some(letter) = letters.next() {
+        match letter {
+            '"' => return Some(out),
+            '\\' => {
+                if let Some(next) = letters.next() {
+                    out.push(match next {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        other => other,
+                    });
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    None
+}
+
+// ---- box_tools_are_near
+fn box_tools_are_near() -> Result<(), String> {
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{name_matches, title_matches};
@@ -1942,3 +2635,4 @@ mod tests {
         assert!(!title_matches("<host>/Login - Chromium", "", mode).expect("it does not match"));
     }
 }
+

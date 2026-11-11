@@ -212,6 +212,20 @@ The order that costs least:
 3. `crates/ahk/src/classes/menu.rs` -- the `Menu` / `MenuBar` class type.
 4. The 86 control names, family by family.
 
+**The first family is ported (2026-11-11), and the third came with it.**
+The window puts a menu on itself (`g.Menu := mb`), and the menu is a
+class of its own -- so the two could not be separated without the window
+answering that a menu bar is not joined to it yet. The port is a script
+and not a copy by hand (`audit/port-gui-window.py`,
+`audit/port-gui-class.py` and `audit/port-gui-names.py`): the
+two trees have drifted, and a copy would have taken the drift with it.
+Measured on the box: the window opens, takes its controls, and an event
+reaches the handler of a control.
+
+The bus of the accessibility is the next family, and it is the one that
+carries the eighty-six names: `ControlGetText` and its kin read the
+controls of *another* window, and the window of the script is not that.
+
 The branch's own `audit/PLAN.md` says the gap matrix is 140/140 covered and
 that the tree answers 759 of 833 names; that is the number to beat.
 
@@ -256,3 +270,4 @@ one thing that was at risk of being lost**, and they are safe now.
 - The two branches are named as they are, and the difference between "the
   history contains master" and "the tree has master's content" is the whole
   point of section 2.
+

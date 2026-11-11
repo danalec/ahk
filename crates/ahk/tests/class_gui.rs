@@ -1,6 +1,6 @@
 //! The classes of the windows, against a fake desktop.
 //!
-//! A window is a Windows window, and this desktop is a Wayland session
+//! A window is made by a toolkit, and this runtime has none: the classes are
 //! without one. So what a script gets here is the object and the reason:
 //! the object is made, and every name of it says why it cannot work.
 
@@ -15,7 +15,7 @@ use std::time::Duration;
 /// A desktop that records what it was asked to do.
 ///
 /// The classes of the windows ask it nothing: a window is a Windows
-/// window, and this desktop is a Wayland session without one. The fake is
+/// window, and this runtime has no toolkit that makes one. The fake is
 /// here because `Desktop` is the sum of the twelve capabilities, and the
 /// runtime wants all of them.
 #[derive(Debug, Default)]
@@ -39,6 +39,27 @@ fn class_of(report: &Report, name: &str) -> String {
 /// The message the report carries.
 fn error_of(report: &Report) -> String {
     report.error.clone().unwrap_or_default()
+}
+
+/// The text a variable holds.
+fn text_of(report: &Report, name: &str) -> String {
+    report
+        .variables
+        .get(name)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
+}
+
+/// The whole number a variable holds.
+fn int_of(report: &Report, name: &str) -> i64 {
+    report
+        .variables
+        .get(name)
+        .and_then(|value| match value {
+            Value::Int(number) => Some(*number),
+            _ => None,
+        })
+        .unwrap_or_default()
 }
 
 impl Desktop for Fake {}
@@ -110,12 +131,15 @@ fn a_gui_is_made() {
 }
 
 #[test]
-fn a_gui_that_shows_itself_says_why_it_cannot() {
+fn a_gui_that_shows_itself_asks_the_desktop_for_a_window() {
+    // The window is made by the desktop, and the fake of this suite has none to
+    // make: `Show` reaches it and fails with its reason. On the box the same
+    // call draws a GTK3 window, which round 70 proved there.
     let report = run("window := Gui()\nwindow.Show()");
     assert!(!report.ok);
     assert_eq!(
         error_of(&report),
-        "Gui cannot show the window: a window is a Windows window, and this desktop is a Wayland session without one."
+        "this desktop cannot make a window of the script"
     );
     assert_eq!(report.error_line, Some(2));
 }
@@ -128,40 +152,74 @@ fn a_menu_is_made() {
 }
 
 #[test]
-fn a_menu_that_adds_an_item_says_why_it_cannot() {
+fn a_menu_that_adds_an_item_without_a_callback_answers_the_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: `bar.Add("File")` with
+    // no callback answers the empty text and adds a plain holder item. The
+    // old refusal ("the toolkit this tree draws with is not joined to it
+    // yet") predates the helper, which now draws menus.
     let report = run("bar := Menu()\nbar.Add(\"File\")");
-    assert!(!report.ok);
-    let error = error_of(&report);
-    assert!(
-        error.contains("Menu cannot add an item to the menu bar"),
-        "{error}"
-    );
-    assert!(error.contains("Wayland session without one"), "{error}");
-    assert_eq!(report.error_line, Some(2));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.error_line, None);
 }
 
 #[test]
-fn a_property_of_a_gui_says_why_it_cannot() {
-    let report = run("window := Gui()\ntitle := window.Title");
-    assert!(!report.ok);
-    let error = error_of(&report);
-    assert!(
-        error.contains("Gui cannot read or set the title of the window"),
-        "{error}"
-    );
-    assert_eq!(report.error_line, Some(2));
+fn the_state_methods_of_a_menu_answer_the_empty_text_and_change_the_item() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: Check, Uncheck,
+    // ToggleCheck, Enable, Disable, ToggleEnable, Rename, Delete, SetColor,
+    // SetIcon and Show all answer the empty text; Default and ClickCount are
+    // properties, read and written (`mb.Default := "&Edit"` reads back
+    // "&Edit", `mb.ClickCount := 2` reads back 2).
+    let report = run(concat!(
+        "Clicked(a, b, c)\n{\n}",
+        "\nbar := MenuBar()",
+        "\nbar.Add(\"&File\", Clicked)",
+        "\nbar.Add(\"&Edit\", Clicked)",
+        "\na := bar.Check(\"&File\")",
+        "\nb := bar.ToggleCheck(\"&File\")",
+        "\nc := bar.Disable(\"&Edit\")",
+        "\nd := bar.ToggleEnable(\"&Edit\")",
+        "\ne := bar.Rename(\"&File\", \"&Filer\")",
+        "\nf := bar.Delete(\"&Filer\")",
+        "\nbar.Default := \"&Edit\"",
+        "\ng := bar.Default",
+        "\nbar.ClickCount := 2",
+        "\nh := bar.ClickCount",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    for name in ["a", "b", "c", "d", "e", "f"] {
+        assert_eq!(text_of(&report, name), "");
+    }
+    assert_eq!(text_of(&report, "g"), "&Edit");
+    assert_eq!(int_of(&report, "h"), 2);
 }
 
 #[test]
-fn a_property_of_a_gui_that_is_written_says_why_it_cannot() {
-    let report = run("window := Gui()\nwindow.Title := \"the window\"");
+fn a_state_method_of_a_menu_on_an_item_that_is_not_there_fails() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the state methods are
+    // for an item that is there; this tree names the method and the item.
+    let report = run("bar := Menu()\nbar.Check(\"no-such\")");
     assert!(!report.ok);
-    let error = error_of(&report);
-    assert!(
-        error.contains("Gui cannot read or set the title of the window"),
-        "{error}"
-    );
-    assert_eq!(report.error_line, Some(2));
+    assert!(error_of(&report).contains("Check"), "{}", error_of(&report));
+}
+
+#[test]
+fn the_title_of_a_gui_asks_the_desktop_for_the_window() {
+    // The title is a question about a window, and the window is the desktop's:
+    // the fake of this suite has none to make, so reading and writing the title
+    // both reach it and fail with its reason. On the box the same two calls
+    // answer and set the title of a GTK3 window.
+    for script in [
+        "window := Gui()\ntitle := window.Title",
+        "window := Gui()\nwindow.Title := \"the window\"",
+    ] {
+        let report = run(script);
+        assert!(!report.ok);
+        assert_eq!(
+            error_of(&report),
+            "this desktop cannot make a window of the script"
+        );
+        assert_eq!(report.error_line, Some(2));
+    }
 }
 
 #[test]
@@ -280,7 +338,7 @@ fn the_owner_of_a_window_says_why_it_cannot() {
             )),
             "{error}"
         );
-        assert!(error.contains("Wayland session without one"), "{error}");
+        assert!(error.contains("toolkit"), "{error}");
     }
 }
 

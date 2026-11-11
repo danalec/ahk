@@ -326,6 +326,369 @@ pub trait Windows {
     fn windows(&mut self) -> Result<Vec<WindowInfo>, String> {
         Err("this desktop cannot list the windows".to_string())
     }
+    // ---- gui_is_open
+    /// Whether a window of the script is open.
+    ///
+    /// It is what makes the lazy open composable: `gui_open` refuses a second
+    /// window, so a member that needs one has to ask first whether there is one
+    /// already. Without it, the second `Show` of a script would be refused by
+    /// its own desktop.
+    fn gui_is_open(&mut self) -> bool {
+        false
+    }
+
+    // ---- gui_open
+    /// Open a window of the script's own, and answer the handle of it.
+    ///
+    /// This is the `Gui` of v2. The window is **not shown**: measured on the
+    /// binary of v2.0.19 on 2026-11-09, `Gui()` makes it and `Show()` puts it on
+    /// the screen, and a script may add to it in between.
+    fn gui_open(&mut self, _title: &str) -> Result<u64, String> {
+        Err("this desktop cannot make a window of the script".to_string())
+    }
+
+    // ---- gui_add
+    /// Add a control to a window of the script.
+    ///
+    /// The answer is the number that names the control and its `ClassNN`, which
+    /// is the file name of the kind and the count of that kind -- `Edit1` for the
+    /// first edit, whatever else was added before it. Measured on the binary of
+    /// v2.0.19 on 2026-11-09.
+    fn gui_add(&mut self, _handle: u64, _kind: &str, _text: &str) -> Result<(u64, String), String> {
+        Err("this desktop cannot add a control to a window of the script".to_string())
+    }
+
+    // ---- gui_combo_items
+    /// The items of a list-shaped control of the script's window, one per line.
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `ControlGetItems`
+    /// answers an array of them.
+    fn gui_combo_items(&mut self, _number: u64) -> Result<String, String> {
+        Err("this desktop cannot read the items of a list-shaped control".to_string())
+    }
+
+    // ---- gui_combo_add
+    /// Append an item to a list-shaped control. Measured on the same day:
+    /// `ControlAddItem("gamma", ...)` makes the array one longer.
+    fn gui_combo_add(&mut self, _number: u64, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot add an item to a list-shaped control".to_string())
+    }
+
+    // ---- gui_combo_select
+    /// Choose an item by its 1-based index or by its text. Returns the index.
+    /// Measured on the same day: `ControlChooseIndex(2, ...)` leaves the
+    /// control's `Value` at 2.
+    fn gui_combo_select(&mut self, _number: u64, _wanted: &str, _by_text: bool) -> Result<i64, String> {
+        Err("this desktop cannot choose an item of a list-shaped control".to_string())
+    }
+
+    // ---- gui_combo_choice
+    /// The chosen item as (index, text). Measured on the same day: nothing
+    /// chosen is (0, ""), and `ControlGetChoice` reads the text alone.
+    fn gui_combo_choice(&mut self, _number: u64) -> Result<(i64, String), String> {
+        Err("this desktop cannot read the choice of a list-shaped control".to_string())
+    }
+
+    // ---- gui_combo_delete
+    /// Remove an item by its 1-based index. Measured on the binary of v2.0.19
+    /// on 2026-11-10: `ControlDeleteItem(1, ...)` leaves the array one shorter.
+    fn gui_combo_delete(&mut self, _number: u64, _index: &str) -> Result<(), String> {
+        Err("this desktop cannot remove an item of a list-shaped control".to_string())
+    }
+
+    // ---- gui_combo_find
+    /// The 1-based index of the first item that is this text, or zero.
+    fn gui_combo_find(&mut self, _number: u64, _text: &str) -> Result<i64, String> {
+        Err("this desktop cannot find an item of a list-shaped control".to_string())
+    }
+
+    // ---- gui_combo_dropdown
+    /// Open or close the pop-up of a list-shaped control. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: `ControlShowDropDown` and
+    /// `ControlHideDropDown` both answer the empty text.
+    fn gui_combo_dropdown(&mut self, _number: u64, _show: bool) -> Result<(), String> {
+        Err("this desktop cannot open the pop-up of a list-shaped control".to_string())
+    }
+
+    // ---- gui_status_text
+    /// The text of the status bar of the script's window. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: `StatusBarGetText(1, WinTitle)`
+    /// answers it.
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        Err("this desktop cannot read the text of a status bar".to_string())
+    }
+
+    // ---- gui_list_add
+    /// Append a row of cells; answers its 1-based number.
+    fn gui_list_add(&mut self, _number: u64, _cells: &[String]) -> Result<i64, String> {
+        Err("this desktop cannot add a row to a list view".to_string())
+    }
+
+    // ---- gui_list_count
+    /// The number of rows.
+    fn gui_list_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the rows of a list view".to_string())
+    }
+
+    // ---- gui_list_text
+    /// The text of one cell, by 1-based row and column.
+    fn gui_list_text(&mut self, _number: u64, _row: i64, _col: i64) -> Result<String, String> {
+        Err("this desktop cannot read a cell of a list view".to_string())
+    }
+
+    // ---- gui_list_content
+    /// Every row, cells by tabs and rows by line breaks; `selected` limits it
+    /// to the row that is chosen.
+    fn gui_list_content(&mut self, _number: u64, _selected: bool) -> Result<String, String> {
+        Err("this desktop cannot read the content of a list view".to_string())
+    }
+
+    // ---- gui_list_modify
+    /// Change the cells of a row and select it; answers 1.
+    fn gui_list_modify(&mut self, _number: u64, _row: i64, _cells: &[String]) -> Result<i64, String> {
+        Err("this desktop cannot change a row of a list view".to_string())
+    }
+
+    // ---- gui_list_next
+    /// The row after this one, or zero when there is none.
+    fn gui_list_next(&mut self, _number: u64, _start: i64) -> Result<i64, String> {
+        Err("this desktop cannot read the next row of a list view".to_string())
+    }
+
+    // ---- gui_tree_add
+    /// Add an item under a parent (0 = a root); answers its id.
+    fn gui_tree_add(&mut self, _number: u64, _text: &str, _parent: i64, _options: &str) -> Result<i64, String> {
+        Err("this desktop cannot add an item to a tree view".to_string())
+    }
+
+    // ---- gui_tree_count
+    /// The number of items.
+    fn gui_tree_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the items of a tree view".to_string())
+    }
+
+    // ---- gui_tree_text
+    /// The text of an item.
+    fn gui_tree_text(&mut self, _number: u64, _item: i64) -> Result<String, String> {
+        Err("this desktop cannot read the text of an item of a tree view".to_string())
+    }
+
+    // ---- gui_tree_relation
+    /// A related item's id: "parent", "child", "next" or "prev".
+    fn gui_tree_relation(&mut self, _number: u64, _item: i64, _relation: &str) -> Result<i64, String> {
+        Err("this desktop cannot walk a tree view".to_string())
+    }
+
+    // ---- gui_tree_selection
+    /// The id of the selected item, or zero.
+    fn gui_tree_selection(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot read the selection of a tree view".to_string())
+    }
+
+    // ---- gui_tree_modify
+    /// Select or expand an item; answers its id.
+    fn gui_tree_modify(&mut self, _number: u64, _item: i64, _options: &str) -> Result<i64, String> {
+        Err("this desktop cannot change an item of a tree view".to_string())
+    }
+
+    // ---- gui_tree_delete
+    /// Remove an item.
+    fn gui_tree_delete(&mut self, _number: u64, _item: i64) -> Result<i64, String> {
+        Err("this desktop cannot delete an item of a tree view".to_string())
+    }
+
+    // ---- gui_second_value
+    /// A second, independent text slot on a control.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: on an Edit or a Text
+    /// control `Value` and `Text` are the SAME text, but a Hotkey keeps them
+    /// apart -- writing `hk.Text` does not change `hk.Value` and the other way
+    /// round. A Link is the other shape: its `Value` is always empty and
+    /// writing it is refused with "Invalid usage.", while `Text` is its
+    /// caption. This slot is the second string for those two kinds.
+    fn gui_second_value(&mut self, _number: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop has no second text slot for a control".to_string())
+    }
+
+    // ---- gui_control_pos
+    /// The place and size of a control of the script's window, relative to its
+    /// client area: (x, y, width, height).
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `ControlGetPos` with
+    /// four VarRef outputs answers the four numbers. The reference does NOT
+    /// hang on this name -- the earlier note was a call with plain strings.
+    fn gui_control_pos(&mut self, _number: u64) -> Result<(i64, i64, i64, i64), String> {
+        Err("this desktop cannot say where a control of the window is".to_string())
+    }
+
+    // ---- gui_menu_bar
+    /// Show a menu bar on the window of the script.
+    ///
+    /// The JSON is an array of `[name, callback]` entries. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: a `MenuBar` attached with
+    /// `Gui.Menu :=` shows at the top of the window.
+    fn gui_menu_bar(&mut self, _json: &str) -> Result<(), String> {
+        Err("this desktop cannot show a menu bar on the window of the script".to_string())
+    }
+
+    // ---- gui_caret
+    /// Where the caret of the text is, in the client coordinates of the
+    /// window of the script.
+    ///
+    /// `None` is no caret: no window, or nothing focused that holds one.
+    /// Measured on the binary of v2.0.19 on 2026-11-10: with no window
+    /// `CaretGetPos` answers 0 and the variables of the caller are left
+    /// untouched; with a focused Edit it answers 1 and the place of the
+    /// caret in the client area.
+    fn gui_caret(&mut self) -> Result<Option<(i64, i64)>, String> {
+        Err("this desktop cannot find the caret of the window".to_string())
+    }
+
+    // ---- gui_show
+    /// Put a window of the script on the screen.
+    fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
+        Err("this desktop cannot show a window of the script".to_string())
+    }
+
+    // ---- gui_destroy
+    /// Take a window of the script away.
+    fn gui_destroy(&mut self, _handle: u64) -> Result<(), String> {
+        Err("this desktop cannot take away a window of the script".to_string())
+    }
+
+    // ---- gui_value
+    /// Read the text of a control of a window of the script, or write it.
+    ///
+    /// The number is the one `gui_add` answered, which is the `Hwnd` of the
+    /// control. Measured on the binary of v2.0.19 on 2026-11-09: `Value` of a
+    /// control is read and written as text.
+    fn gui_value(&mut self, _number: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop cannot read the text of a control of the script".to_string())
+    }
+
+    // ---- gui_flag
+    /// Read a flag of a control of a window of the script, or write it.
+    ///
+    /// The flag is `"enabled"` or `"visible"`. Measured on the binary of v2.0.19
+    /// on 2026-11-09: both are integers of nought and one, read and written.
+    fn gui_flag(
+        &mut self,
+        _number: u64,
+        _name: &str,
+        _setting: Option<bool>,
+    ) -> Result<i64, String> {
+        Err("this desktop cannot read a flag of a control of the script".to_string())
+    }
+
+    // ---- gui_control_state
+    /// Set a state of a control of the script's window, named by its `ClassNN`.
+    ///
+    /// The states are `"visible"` and `"enabled"`.
+    fn gui_control_state(&mut self, _classnn: &str, _what: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot set a state of a control of the script".to_string())
+    }
+
+    // ---- gui_visibility
+    /// Show or hide a control of the script's window, named by its `ClassNN`.
+    fn gui_visibility(&mut self, _classnn: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot show or hide a control of the script".to_string())
+    }
+
+    // ---- gui_number_named
+    /// The number that names a control of the script's window, from its `ClassNN`.
+    fn gui_number_named(&mut self, _classnn: &str) -> Result<i64, String> {
+        Err("this desktop cannot find a control of the script by its name".to_string())
+    }
+
+    // ---- gui_focused
+    /// Which control of the script's window has the focus, as its `ClassNN`.
+    fn gui_focused(&mut self) -> Result<String, String> {
+        Err("this desktop cannot read the focus of a control of the script".to_string())
+    }
+
+    // ---- gui_selection
+    /// The text a control of the script has selected.
+    fn gui_selection(&mut self, _number: u64) -> Result<String, String> {
+        Err("this desktop cannot read the selection of a control of the script".to_string())
+    }
+
+    // ---- gui_cursor
+    /// Where the cursor of a control of the script is, as a place in its text.
+    fn gui_cursor(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot read the cursor of a control of the script".to_string())
+    }
+
+    // ---- gui_line_count
+    /// How many lines the text of a control of the script holds.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `EditGetLineCount` of a
+    /// control added with three lines answers 3.
+    fn gui_line_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the lines of a control of the script".to_string())
+    }
+
+    // ---- gui_option
+    /// Apply one option to a window of the script, with the sign the script wrote.
+    ///
+    /// The options a program controls under this compositor are `AlwaysOnTop`,
+    /// `Resize`, `Caption` and `Disabled`; the rest are refused with the reason.
+    fn gui_option(&mut self, _name: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot set an option of the window of the script".to_string())
+    }
+
+    // ---- gui_hide
+    /// Take a window of the script off the screen.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `Hide` answers the empty
+    /// text and takes no parameters.
+    fn gui_hide(&mut self) -> Result<(), String> {
+        Err("this desktop cannot hide the window of the script".to_string())
+    }
+
+    // ---- gui_focus
+    /// Put the focus on a control of a window of the script.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `Focus` answers the empty
+    /// text and takes no parameters.
+    fn gui_focus(&mut self, _number: u64) -> Result<(), String> {
+        Err("this desktop cannot put the focus on a control of the script".to_string())
+    }
+
+    // ---- gui_size
+    /// Set the size of a control of a window of the script.
+    ///
+    /// The **size** and not the place: measured on 2026-11-09, the window this
+    /// tree makes lays its controls out in order, and GTK gives a child of a
+    /// layout no place of its own.
+    fn gui_size(&mut self, _number: u64, _width: i64, _height: i64) -> Result<(), String> {
+        Err("this desktop cannot size a control of the script".to_string())
+    }
+
+    // ---- gui_events
+    /// Read the events of the windows of the script that have happened.
+    ///
+    /// The answer is the events **since the last time it was asked**, one name
+    /// each, and an empty answer is the common case and must cost almost
+    /// nothing. Measured on the binary of v2.0.19 on 2026-11-09: the events a
+    /// window of a script has are `close`, `escape`, and a click on a control.
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        Ok(Vec::new())
+    }
+
+    // ---- gui_title
+    /// Read the title of a window of the script, or write it.
+    fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop cannot say the title of a window of the script".to_string())
+    }
+
+    // ---- gui_checked
+    /// Whether a check box of the script is ticked, and ticking it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the `Value` of a check box
+    /// is a **number**, nought or one, and its `Text` is its label.
+    fn gui_checked(&mut self, _number: u64, _setting: Option<bool>) -> Result<i64, String> {
+        Err("this desktop cannot read the tick of a check box of the script".to_string())
+    }
+
 }
 
 /// A window of the session, as the window family of v2 reads it.

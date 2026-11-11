@@ -10702,11 +10702,15 @@ pub(crate) fn send(
 pub(crate) fn sleep(
     rt: &mut Runtime<'_>,
     values: &[Value],
-    _line: u32,
+    line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let millis = number_of(values, 0).clamp(0.0, 60_000.0) as u64;
     rt.sleep_ms(millis);
+    // An event that happened while the script slept is answered when it
+    // wakes. `Sleep` is the one statement of this runtime that waits, so it
+    // is the one place an event can be answered without a loop of its own.
+    rt.the_events_are_answered(line)?;
     Ok(Value::Int(millis as i64))
 }
 

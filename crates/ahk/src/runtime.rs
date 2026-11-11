@@ -1624,6 +1624,20 @@ pub struct Runtime<'a> {
     ///
     /// `throw` without a value throws it again, the way v2 does.
     caught_value: Option<Value>,
+    /// The windows of the script, as the objects a `Gui` made.
+    ///
+    /// A `Gui` keeps its event handlers in its own property table, and the place
+    /// that answers an event is a built-in -- `Sleep` -- which has the runtime
+    /// and no reference to any object. This is the list that bridges the two:
+    /// the object is put here when it is asked for something, and the drain walks
+    /// it looking for a handler for the event that arrived.
+    guis: Vec<Value>,
+    /// The objects that a script has asked the number of, with that number.
+    ///
+    /// `ObjPtr` answers the identity of an object and `ObjFromPtr` gives the object
+    /// back, so the number has to be the SAME for the same object for the life of the
+    /// run. Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips.
+    pointers: Vec<(Value, i64)>,
 }
 
 
@@ -1712,6 +1726,8 @@ impl<'a> Runtime<'a> {
             thrown_value: None,
             thread: None,
             exit_callbacks: Vec::new(),
+            guis: Vec::new(),
+            pointers: Vec::new(),
             error_callbacks: Vec::new(),
             try_active: 0,
             failure_hidden: false,
@@ -1789,6 +1805,8 @@ impl<'a> Runtime<'a> {
             thrown_value: None,
             thread: None,
             exit_callbacks: Vec::new(),
+            guis: Vec::new(),
+            pointers: Vec::new(),
             error_callbacks: Vec::new(),
             try_active: 0,
             failure_hidden: false,
@@ -15226,6 +15244,131 @@ impl<'a> Runtime<'a> {
         let stored = self.apply_assign(op, name, current, value, line)?;
         self.assign(name, stored.clone());
         Ok(stored)
+    }
+    /// Remember a window of the script, so that an event can find the handler.
+    ///
+    /// The same object is asked for many things, and it is remembered once.
+    pub fn remember_a_gui(&mut self, object: &Value) {
+        let already = self.guis.iter().any(|held| match (held, object) {
+            (Value::Object(first), Value::Object(second)) => std::rc::Rc::ptr_eq(first, second),
+            _ => false,
+        });
+        if !already {
+            self.guis.push(object.clone());
+        }
+    }
+
+    /// The windows of the script that have been remembered.
+    pub fn the_guis(&self) -> &[Value] {
+        &self.guis
+    }
+
+    /// Answer the events of the windows of the script that have happened.
+    ///
+    /// The helper speaks first, and what it said is read here -- one name each:
+    /// `close`, `escape`, or a click on a control. The handler is the function
+    /// the `Gui` kept for that name, and it is called by its **value**, which is
+    /// the one the function value carries: a closure has no name in v2, and
+    /// only the value of it can be called. An event with no handler is dropped
+    /// and not queued, because an event that happened before the handler
+    /// existed is not a thing a later handler expects to receive.
+    pub fn the_events_are_answered(&mut self, line: u32) -> Result<(), RuntimeError> {
+        let Ok(events) = self.desktop().gui_events() else {
+            return Ok(());
+        };
+        let mut pending: Vec<(Value, Vec<Value>)> = Vec::new();
+        for event in events {
+            let mut pieces = event.splitn(2, ':');
+            let name = pieces.next().unwrap_or("").to_lowercase();
+            let number = pieces.next().map(str::to_string);
+            if name.is_empty() {
+                continue;
+            }
+            // A menu event carries the name of the item that was chosen: the
+            // bar is kept on the window under `on:menu`, and the item's
+            // callback is called with (ItemName, ItemPos, MyMenu), the shape
+            // documented on v2.0.19 on 2026-11-10.
+            if name == "menu" {
+                let Some(item) = &number else { continue };
+                let found = self.the_guis().iter().find_map(|gui| {
+                    let Value::Object(window) = gui else {
+                        return None;
+                    };
+                    let menu = window.borrow().properties.get("on:menu")?.value.clone();
+                    let (function, position) =
+                        crate::classes::menu::the_callback_of(&menu, item, line)?;
+                    Some((
+                        function,
+                        vec![Value::Text(item.clone()), Value::Int(position), menu],
+                    ))
+                });
+                if let Some(found) = found {
+                    pending.push(found);
+                }
+                continue;
+            }
+            let key = format!("on:{name}");
+            let found = self.the_guis().iter().find_map(|gui| {
+                let Value::Object(window) = gui else {
+                    return None;
+                };
+                let window = window.borrow();
+                // A click is about one control of the window, and the control
+                // is the side that keeps the handler. Every other event is
+                // about the window itself.
+                let (holder, about) = match &number {
+                    Some(number) => {
+                        let held = window.properties.get(&format!("control:{number}"))?;
+                        (held.value.clone(), Some(held.value.clone()))
+                    }
+                    None => (gui.clone(), None),
+                };
+                let Value::Object(object) = &holder else {
+                    return None;
+                };
+                let handler = object.borrow().properties.get(&key)?.value.clone();
+                let Value::Object(_) = &handler else {
+                    return None;
+                };
+                Some((handler, about))
+            });
+            if let Some((function, about)) = found {
+                pending.push((function, about.into_iter().collect()));
+            }
+        }
+        for (function, arguments) in pending {
+            // The handler is the VALUE of the function and not its name: a
+            // closure has no name in v2, and only the value of it can be
+            // called.
+            if let Some(result) =
+                crate::classes::func::call_the_value(&function, &arguments, self, line)
+            {
+                result.map_err(|failure| crate::runtime::as_error(failure, line))?;
+            }
+        }
+        Ok(())
+    }
+
+
+    /// The number that names an object, giving it one if it has none.
+    ///
+    /// The same object always gets the same number, which is what makes
+    /// `ObjFromPtr` an inverse of `ObjPtr`.
+    pub fn the_pointer_of(&mut self, value: &Value) -> i64 {
+        let found = self.pointers.iter().position(|held| match (&held.0, value) {
+            (Value::Object(first), Value::Object(second)) => std::rc::Rc::ptr_eq(first, second),
+            _ => held.0 == *value,
+        });
+        let index = match found {
+            Some(index) => index,
+            None => {
+                self.pointers.push((value.clone(), 0));
+                self.pointers.len() - 1
+            }
+        };
+        // An address-shaped number, so that a script that prints it sees something
+        // that looks like what v2 prints. It is an identity, not an address.
+        0x1000 + index as i64
     }
 }
 

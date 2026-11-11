@@ -6,6 +6,7 @@
 //! is.
 
 pub mod desktop;
+pub mod gui;
 pub mod drives;
 pub mod files;
 pub mod hotkeys;

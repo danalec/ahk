@@ -47,6 +47,10 @@ struct Fake {
     /// The shortcut the fake made, when it made one: the target, the working
     /// directory, the arguments, the description and the icon.
     shortcut: Option<(String, String, String, String, String)>,
+    /// Whether the fake has a window of the script at all.
+    gui_open: bool,
+    /// The events the fake hands out when the runtime asks for them.
+    events: Vec<String>,
 }
 
 impl Desktop for Fake {}
@@ -197,6 +201,27 @@ impl Dialogs for Fake {
 }
 
 impl Windows for Fake {
+    // The window of the script: the fake makes one when the script asks for
+    // it, and it hands out the events it was given.
+    fn gui_is_open(&mut self) -> bool {
+        self.gui_open
+    }
+    fn gui_open(&mut self, _title: &str) -> Result<u64, String> {
+        self.gui_open = true;
+        Ok(1)
+    }
+    fn gui_add(&mut self, _handle: u64, _kind: &str, _text: &str) -> Result<(u64, String), String> {
+        Ok((1, "Button1".into()))
+    }
+    fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
+        Ok(())
+    }
+    fn gui_menu_bar(&mut self, _json: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        Ok(self.events.clone())
+    }
     // The windows of the fake: three of them, and the first one is the active
     // one. The ids and the class names are the shapes measured on the binary
     // of v2.0.19 on 2026-11-09: an id of the runtime, a title, and the class
@@ -5505,4 +5530,84 @@ fn a_shortcut_is_made_and_read_back() {
     assert_eq!(value_of(&report, "args"), Value::Text("--new-window".into()));
     assert_eq!(value_of(&report, "desc"), Value::Text("A text editor".into()));
     assert_eq!(value_of(&report, "icon"), Value::Text("gedit".into()));
+}
+
+#[test]
+fn choosing_a_menu_item_calls_its_callback_with_the_name_the_position_and_the_menu() {
+    // Documented on v2.0.19 on 2026-11-10: the callback of a menu item is
+    // called with (ItemName, ItemPos, MyMenu) -- the name of the item, its
+    // 1-based position, and the menu object the item was added to.
+    let mut desktop = Fake {
+        gui_open: true,
+        events: vec!["menu:&File".to_string()],
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "Chosen(ItemName, ItemPos, MyMenu)\n{\n    global seen\n    seen := ItemName \"|\" ItemPos \"|\" Type(MyMenu)\n}",
+            "\nmb := MenuBar()",
+            "\nmb.Add(\"&File\", Chosen)",
+            "\nmb.Add(\"&Edit\", Chosen)",
+            "\ng := Gui()",
+            "\ng.Menu := mb",
+            "\nSleep 10",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("&File|1|MenuBar".into())
+    );
+}
+
+#[test]
+fn choosing_a_menu_item_calls_a_closure_with_the_name_the_position_and_the_menu() {
+    // A closure has no name in v2, and only the value of it can be called:
+    // the callback of a menu item may be a closure, and it is called the
+    // way a function of the script is called.
+    let mut desktop = Fake {
+        gui_open: true,
+        events: vec!["menu:&File".to_string()],
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "mb := MenuBar()",
+            "\nmb.Add(\"&File\", (ItemName, ItemPos, MyMenu) => MsgBox(ItemName \"|\" ItemPos \"|\" Type(MyMenu)))",
+            "\ng := Gui()",
+            "\ng.Menu := mb",
+            "\nSleep 10",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["&File|1|MenuBar".to_string()]);
+}
+
+#[test]
+fn a_click_on_a_control_calls_the_handler_of_the_control() {
+    // The event names the control by its number, and the handler of the
+    // control is the one that is called -- with the control as its
+    // argument, the way v2 calls it.
+    let mut desktop = Fake {
+        gui_open: true,
+        events: vec!["click:1".to_string()],
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "Pressed(control)\n{\n    global seen\n    seen := Type(control)\n}",
+            "\ng := Gui()",
+            "\nb := g.Add(\"Button\", \"\", \"press me\")",
+            "\nb.OnEvent(\"Click\", Pressed)",
+            "\ng.Show()",
+            "\nSleep 10",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The control has no number of its own in the fake, so the event that
+    // the fake hands out names the control that the script made.
+    assert_eq!(value_of(&report, "seen"), Value::Text("Gui.Button".into()));
 }

@@ -4,11 +4,10 @@
 //! `Gui.StatusBar` are the parts of one. The script calls the menu
 //! `Menu`, and the binary calls it `Gui.Menu`: they are one table.
 //!
-//! All of them are shaped for Windows. A window is a Windows window, and
-//! this desktop is a Wayland session without one, so the objects are made
-//! -- a script may hold them -- and every name of them answers with the
-//! reason it cannot work here. A name that is not in the table is not a
-//! method of the class, and the runtime says so.
+//! A window is made by a GUI toolkit and not by a script runtime, but the
+//! helper of the box does make one, so the `Gui`, its controls, the list view
+//! and the status bar are answered here. The menu and the tree view are the
+//! parts the tree does not carry yet, and their names say so.
 
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -152,7 +151,7 @@ const TREEVIEW: &[(&str, &str)] = &[
 ///
 /// The script calls this class `Menu`, and the registry hands the module
 /// the two names.
-const MENU: &[(&str, &str)] = &[
+pub(crate) const MENU: &[(&str, &str)] = &[
     ("add", "add an item to the menu bar"),
     ("addstandard", "add the standard items to the menu bar"),
     ("check", "check an item of the menu bar"),
@@ -212,50 +211,55 @@ struct Windows {
 /// The classes of the windows.
 ///
 /// The reason is the same for all of them, and it is the reason of the
-/// whole family: a window is a Windows window, and this desktop is a
-/// Wayland session without one.
+/// whole family: a window is made by a toolkit, and the toolkit is there -- the
+/// helper `crates/ahk-box/helper/ahk-gui.py` draws a GTK3 window when it is told
+/// to over a pipe, and that was proven on the box in round 40 -- and **the class
+/// is not joined to it yet**. The reason says that, and not that no toolkit
+/// exists, which stopped being true when the helper landed.
+///
+/// The reason names no platform, because the obstacle is not one.
 const CLASSES: &[Windows] = &[
     Windows {
         class: "gui",
         name: "Gui",
         surface: GUI,
-        reason: "a window is a Windows window, and this desktop is a Wayland session without one",
+        reason: "a window is made by a toolkit, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "menu",
         name: "Menu",
         surface: MENU,
-        reason: "a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a menu is the menu bar of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.menu",
         name: "Menu",
         surface: MENU,
-        reason: "a menu is the menu bar of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a menu is the menu bar of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.control",
         name: "Gui.Control",
         surface: CONTROL,
-        reason: "a control is a control of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a control is a control of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.listview",
         name: "Gui.ListView",
         surface: LISTVIEW,
-        reason: "a list view is a control of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a list view is a control of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.statusbar",
         name: "Gui.StatusBar",
         surface: STATUSBAR,
-        reason: "a status bar is a control of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a status bar is a control of a window, and the toolkit this tree draws with is not joined to it yet",
     },
     Windows {
         class: "gui.treeview",
         name: "Gui.TreeView",
         surface: TREEVIEW,
-        reason: "a tree view is a control of a Windows window, and this desktop is a Wayland session without one",
+        reason: "a tree view is a control of a window, and the toolkit this tree draws with is not joined to it yet",
     },
 ];
 
@@ -333,7 +337,7 @@ pub(crate) fn construct(
 /// Measured on the binary of v2.0.19 on 2026-10-31: the options are the
 /// styles of the window, and the name of one is written in full and it
 /// does not know the case -- "Always" is not an option, and "caption" is.
-const THE_OPTIONS: [&str; 18] = [
+pub(super) const THE_OPTIONS: [&str; 18] = [
     "AlwaysOnTop",
     "Border",
     "Caption",
@@ -373,7 +377,7 @@ const THE_OPTIONS_THAT_NAME_A_WINDOW: [&str; 2] = ["Owner", "Parent"];
 /// `12x34` is not. The name of the option that is refused is the word
 /// without its sign, and the owner of a window and the parent of it are
 /// refused with the reason of the machine.
-fn the_options_are_read(options: &str, line: u32) -> Result<(), RuntimeFailure> {
+pub(super) fn the_options_are_read(options: &str, line: u32) -> Result<(), RuntimeFailure> {
     for word in options.split([' ', '\t']) {
         if word.is_empty() {
             continue;
@@ -400,7 +404,7 @@ fn the_options_are_read(options: &str, line: u32) -> Result<(), RuntimeFailure> 
                 .iter()
                 .find(|entry| entry.class == "gui")
                 .map(|entry| entry.reason)
-                .unwrap_or("a window is a Windows window");
+                .unwrap_or("a window is made by a toolkit");
             return Err(RuntimeFailure::Detailed(
                 RuntimeError {
                     message: format!(
@@ -481,11 +485,109 @@ fn the_failure_of_an_argument(
 pub(crate) fn call(
     class: &str,
     method: &str,
-    _this: &Value,
-    _arguments: &[Value],
-    _rt: &mut Runtime,
+    this: &Value,
+    arguments: &[Value],
+    rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // The methods of a `Gui.ListView`: a row of cells, read and written.
+    // Measured on the binary of v2.0.19 on 2026-11-10. The number of the
+    // control is the `Hwnd` property the object carries.
+    if class.eq_ignore_ascii_case("gui.listview") {
+        let number = super::the_number_of_a_control(this).unwrap_or(0);
+        let words: Vec<String> = arguments
+            .iter()
+            .map(|value| value.to_text())
+            .collect();
+        let outcome: Result<Value, String> = match method.to_lowercase().as_str() {
+            // `Add(Options, Col1, Col2, ...)`: the options come first.
+            "add" => rt
+                .desktop()
+                .gui_list_add(number, words.get(1..).unwrap_or(&[]))
+                .map(Value::Int),
+            "getcount" => rt.desktop().gui_list_count(number).map(Value::Int),
+            "gettext" => {
+                let row = words.first().and_then(|w| w.parse().ok()).unwrap_or(0);
+                let col = words.get(1).and_then(|w| w.parse().ok()).unwrap_or(0);
+                rt.desktop()
+                    .gui_list_text(number, row, col)
+                    .map(Value::Text)
+            }
+            "getcontent" => {
+                let selected = words
+                    .first()
+                    .map(|w| w.eq_ignore_ascii_case("selected"))
+                    .unwrap_or(false);
+                rt.desktop()
+                    .gui_list_content(number, selected)
+                    .map(Value::Text)
+            }
+            "modify" => {
+                let row = words.first().and_then(|w| w.parse().ok()).unwrap_or(0);
+                rt.desktop()
+                    .gui_list_modify(number, row, words.get(2..).unwrap_or(&[]))
+                    .map(Value::Int)
+            }
+            "getnext" => {
+                let start = words.first().and_then(|w| w.parse().ok()).unwrap_or(0);
+                rt.desktop().gui_list_next(number, start).map(Value::Int)
+            }
+            _ => return Some(Err(refused(class, method, line)?)),
+        };
+        return Some(outcome.map_err(|reason| {
+            RuntimeFailure::Error(RuntimeError { message: reason, line })
+        }));
+    }
+    // The methods of a `Gui.TreeView`: items with a parent, walked by ids.
+    // Measured on the binary of v2.0.19 on 2026-11-10. `SetText`, `SetIcon`,
+    // `SetImageList` and `SetParts` are in the extracted table but the binary
+    // has no such methods -- the table was read at the wrong place -- so they
+    // keep the refusal below.
+    if class.eq_ignore_ascii_case("gui.treeview") {
+        let number = super::the_number_of_a_control(this).unwrap_or(0);
+        let words: Vec<String> = arguments.iter().map(|value| value.to_text()).collect();
+        let number_at = |index: usize| -> i64 {
+            words.get(index).and_then(|w| w.parse().ok()).unwrap_or(0)
+        };
+        let item = number_at(0);
+        let outcome: Result<Value, String> = match method.to_lowercase().as_str() {
+            // `Add(Text, Parent, Options)`
+            "add" => rt
+                .desktop()
+                .gui_tree_add(
+                    number,
+                    words.first().map(String::as_str).unwrap_or(""),
+                    number_at(1),
+                    words.get(2).map(String::as_str).unwrap_or(""),
+                )
+                .map(Value::Int),
+            "getcount" => rt.desktop().gui_tree_count(number).map(Value::Int),
+            "gettext" => rt
+                .desktop()
+                .gui_tree_text(number, item)
+                .map(Value::Text),
+            "getparent" | "getchild" | "getnext" | "getprev" => {
+                let relation = &method.to_lowercase()[3..];
+                rt.desktop()
+                    .gui_tree_relation(number, item, relation)
+                    .map(Value::Int)
+            }
+            "getselection" => rt.desktop().gui_tree_selection(number).map(Value::Int),
+            "modify" => rt
+                .desktop()
+                .gui_tree_modify(
+                    number,
+                    item,
+                    words.get(1).map(String::as_str).unwrap_or(""),
+                )
+                .map(Value::Int),
+            "delete" => rt.desktop().gui_tree_delete(number, item).map(Value::Int),
+            _ => return Some(Err(refused(class, method, line)?)),
+        };
+        return Some(outcome.map_err(|reason| {
+            RuntimeFailure::Error(RuntimeError { message: reason, line })
+        }));
+    }
     Some(Err(refused(class, method, line)?))
 }
 
@@ -496,10 +598,18 @@ pub(crate) fn call(
 pub(crate) fn property(
     class: &str,
     name: &str,
-    _this: &Value,
-    _rt: &mut Runtime,
+    this: &Value,
+    rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+    // The handle of the window and of a control: a number of this runtime
+    // that names the object, stable for the life of the run. Measured on the
+    // binary of v2.0.19 on 2026-11-10: `GuiFromHwnd(g.Hwnd)` gives the same
+    // object back, so the number has to be one the runtime can invert -- and
+    // the identity table of `ObjPtr` already is that table.
+    if name.eq_ignore_ascii_case("hwnd") {
+        return Some(Ok(Value::Int(rt.the_pointer_of(this))));
+    }
     Some(Err(refused(class, name, line)?))
 }
 
@@ -536,6 +646,21 @@ fn refused(class: &str, name: &str, line: u32) -> Option<RuntimeFailure> {
         message: format!("{} cannot {what}: {}.", entry.name, entry.reason),
         line,
     }))
+}
+
+/// The refusal a `Menu` gives for a name of its surface that this tree does
+/// not carry yet, worded like the other classes' refusals.
+pub(crate) fn menu_refusal(name: &str, line: u32) -> Option<Result<Value, RuntimeFailure>> {
+    let what = MENU
+        .iter()
+        .find(|entry| entry.0 == name.to_lowercase())
+        .map(|entry| entry.1)?;
+    Some(Err(RuntimeFailure::Error(RuntimeError {
+        message: format!(
+            "Menu cannot {what}: the toolkit the helper draws with has no call for it yet."
+        ),
+        line,
+    })))
 }
 
 #[cfg(test)]
@@ -613,7 +738,7 @@ mod tests {
         for entry in CLASSES {
             assert!(!entry.surface.is_empty(), "{} has no names", entry.name);
             assert!(
-                entry.reason.contains("Wayland"),
+                entry.reason.contains("toolkit"),
                 "{} says no reason",
                 entry.name
             );

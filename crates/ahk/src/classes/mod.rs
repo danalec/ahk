@@ -36,6 +36,7 @@ pub(crate) mod error;
 pub(crate) mod file;
 pub(crate) mod func;
 pub(crate) mod gui;
+pub(crate) mod menu;
 pub(crate) mod hotkey;
 pub(crate) mod inputhook;
 pub(crate) mod map;
@@ -1091,7 +1092,7 @@ fn the_arity_failure_of_a_constructor(
 /// they. The hotkey is the one that is not a name of its own: the name
 /// `Hotkey` is a function of the dialect, and the class of a hotkey is
 /// the class of the object that the function makes.
-pub(crate) const TYPES: [&str; 26] = [
+pub(crate) const TYPES: [&str; 27] = [
     // The reference of a variable is a class of v2 too: measured on the
     // binary of v2.0.19 on 2026-11-10, Type(VarRef) is Class and
     //  := &x then  is VarRef is one.
@@ -1115,6 +1116,7 @@ pub(crate) const TYPES: [&str; 26] = [
     "integer",
     "map",
     "menu",
+    "menubar",
     "number",
     "object",
     "primitive",
@@ -1379,13 +1381,14 @@ pub(crate) fn object_with(class: &str, properties: Vec<(&str, Value)>) -> Value 
 ///
 /// The dialect spells some of them with more than one capital, and the
 /// name of the class is the name that the dialect uses.
-const THE_SPELLINGS: [(&str, &str); 7] = [
+const THE_SPELLINGS: [(&str, &str); 8] = [
     ("boundfunc", "BoundFunc"),
     ("clipboardall", "ClipboardAll"),
     ("closure", "Closure"),
     ("comobject", "ComObject"),
     ("comvalue", "ComValue"),
     ("inputhook", "InputHook"),
+    ("menubar", "MenuBar"),
     ("regexmatchinfo", "RegExMatchInfo"),
 ];
 
@@ -1537,7 +1540,22 @@ pub(crate) fn construct(
         "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
             Some(thread::construct(arguments, rt, line))
         }
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
+// ---- the dispatch of the menu
+        "menu" | "menubar" => {
+            // Measured on the binary of v2.0.19 on 2026-11-10: `Type` of a
+            // MenuBar answers "MenuBar", so the spelling the script used is
+            // the class of the object.
+            let spelling = class.to_string();
+            let made = match menu::construct(arguments, rt, line) {
+                Ok(made) => made,
+                Err(failure) => return Some(Err(failure)),
+            };
+            if let Value::Object(object) = &made {
+                object.borrow_mut().class = spelling;
+            }
+            Some(Ok(made))
+        }
+        "gui" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.statusbar" => {
             Some(gui::construct(class, arguments, rt, line))
         }
         _ => None,
@@ -1666,6 +1684,343 @@ pub(crate) fn call(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+
+    // A window of the script is remembered when it is asked for anything, which
+    // is where the runtime and the object are both in hand. The drain of the
+    // events needs the list, because a built-in has no reference to an object.
+    if class.eq_ignore_ascii_case("gui") {
+        rt.remember_a_gui(this);
+    }
+    // The two members of a `Gui` that only need a window to be there. Measured
+    // on the binary of v2.0.19 on 2026-11-09: `Show` and `Destroy` answer the
+    // **empty text**, and the window is opened on the first of them, because the
+    // construction is generic and cannot make one.
+    if class == "gui" && (method.eq_ignore_ascii_case("show") || method.eq_ignore_ascii_case("destroy")) {
+        if !rt.desktop().gui_is_open() {
+            if let Err(reason) = rt.desktop().gui_open("") {
+                return Some(Err(the_failure_with(&reason, "", line)));
+            }
+        }
+        let answer = if method.eq_ignore_ascii_case("show") {
+            rt.desktop().gui_show(0)
+        } else {
+            rt.desktop().gui_destroy(0)
+        };
+        return Some(match answer {
+            Ok(()) => Ok(Value::Text(String::new())),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // `Add` of a `Gui`: the control of the window, answered as an object whose
+    // class is the one v2 reports -- `Gui.Edit` for an `Edit` -- and whose
+    // `ClassNN` and `Hwnd` are properties of it. The object is written directly
+    // rather than made by the class table, because a control of a script's own
+    // window is not a class type of the runtime.
+    if class == "gui" && method.eq_ignore_ascii_case("add") {
+        let kind = arguments
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        // The third argument of `Add` is the text of the control, and for a
+        // list-shaped control it is an ARRAY of the items. Measured on the
+        // binary of v2.0.19 on 2026-11-10: `Add("DropDownList", "", ["one",
+        // "two"])` makes a ComboBox with those two. The helper reads them as
+        // lines of the text, so the array is joined here and the other kinds
+        // keep the plain text they had.
+        let text = match arguments.get(2) {
+            Some(Value::List(items)) => items
+                .iter()
+                .map(|item| item.to_text())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            Some(value @ Value::Object(_)) => {
+                let items = crate::classes::array::the_items(value);
+                if items.is_empty() {
+                    value.to_text()
+                } else {
+                    items
+                        .iter()
+                        .map(|item| item.to_text())
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                }
+            }
+            Some(value) => value.to_text(),
+            None => String::new(),
+        };
+        // The numeric controls (UpDown, Slider, Progress) carry a `Range` in
+        // the OPTIONS (the second argument) and, for a Slider or Progress, the
+        // starting value in the TEXT. Measured on the binary of v2.0.19 on
+        // 2026-11-10: `Add("UpDown", "Range1-10")` starts at 1, and
+        // `Add("Slider", "Range0-100", "50")` starts at 50. Both are handed
+        // to the helper as one string, which reads the range and the value.
+        let text = if matches!(
+            kind.to_lowercase().as_str(),
+            "updown" | "slider" | "progress"
+        ) {
+            let options = arguments
+                .get(1)
+                .map(|value| value.to_text())
+                .unwrap_or_default();
+            if options.is_empty() {
+                text
+            } else if text.is_empty() {
+                options
+            } else {
+                format!("{options} {text}")
+            }
+        } else {
+            text
+        };
+        return Some(match the_control_of_the_gui(&kind, &text, rt, line) {
+            Ok(made) => {
+                remember_the_control(this, &made);
+                Ok(made)
+            }
+            Err(failure) => Err(failure),
+        });
+    }
+    // The short spelling of the same question: `AddText` is `Add("Text", …)`.
+    // Its arguments are the options and then the text, so the text is the second.
+    if class == "gui"
+        && method.len() > 3
+        && method.is_char_boundary(3)
+        && method[..3].eq_ignore_ascii_case("add")
+    {
+        let kind = method[3..].to_string();
+        let text = arguments
+            .get(1)
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        return Some(match the_control_of_the_gui(&kind, &text, rt, line) {
+            Ok(made) => {
+                remember_the_control(this, &made);
+                Ok(made)
+            }
+            Err(failure) => Err(failure),
+        });
+    }
+    // `OnEvent` of a `Gui`: keep the function that answers an event of the
+    // window. Measured on the binary of v2.0.19 on 2026-11-09: it answers the
+    // empty text, an event the window does not have fails on the first
+    // parameter, and a second parameter that is not a function fails on the
+    // second. `Click` is an event of a control and not of the window.
+    if class == "gui" && method.eq_ignore_ascii_case("onevent") {
+        let event = arguments
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        let known = event.eq_ignore_ascii_case("close") || event.eq_ignore_ascii_case("escape");
+        if !known {
+            return Some(Err(the_failure_with(
+                "Parameter #1 of Gui.Prototype.OnEvent is invalid.",
+                "",
+                line,
+            )));
+        }
+        let handler = match arguments.get(1) {
+            Some(Value::Object(object)) if object.borrow().class.eq_ignore_ascii_case("func") => {
+                arguments[1].clone()
+            }
+            _ => {
+                return Some(Err(the_failure_with(
+                    "Parameter #2 of Gui.Prototype.OnEvent is invalid.",
+                    "",
+                    line,
+                )))
+            }
+        };
+        if let Value::Object(object) = this {
+            object.borrow_mut().properties.insert(
+                format!("on:{}", event.to_lowercase()),
+                crate::runtime::Property {
+                    name: format!("On{event}"),
+                    value: handler,
+                },
+            );
+        }
+        return Some(Ok(Value::Text(String::new())));
+    }
+    // `OnEvent` of a control of a window. Measured on the binary of v2.0.19 on
+    // 2026-11-09: the events are **per kind of control** -- a `Button` has
+    // `Click` and an `Edit` has `Change`, and neither has the other's, nor
+    // `Close` which is a window's. And **the callback's arity is checked**: a
+    // function that takes no parameters answers "Invalid callback function.",
+    // because v2 passes the control to a control's handler.
+    if class.to_lowercase().starts_with("gui.") && method.eq_ignore_ascii_case("onevent") {
+        let event = arguments
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        let known = the_events_of_a_control(class)
+            .iter()
+            .any(|held| held.eq_ignore_ascii_case(&event));
+        if !known {
+            return Some(Err(the_failure_with(
+                "Parameter #1 of Gui.Control.Prototype.OnEvent is invalid.",
+                "",
+                line,
+            )));
+        }
+        let handler = match arguments.get(1) {
+            Some(Value::Object(object)) if object.borrow().class.eq_ignore_ascii_case("func") => {
+                arguments[1].clone()
+            }
+            _ => {
+                return Some(Err(the_failure_with(
+                    "Parameter #2 of Gui.Control.Prototype.OnEvent is invalid.",
+                    "",
+                    line,
+                )))
+            }
+        };
+        let takes_one = match &handler {
+            Value::Object(object) => {
+                let object = object.borrow();
+                let number = |name: &str| {
+                    object
+                        .properties
+                        .get(name)
+                        .map(|held| held.value.to_text())
+                        .unwrap_or_default()
+                };
+                // A callback with a rest takes the control as well: the rest
+                // is not counted among the parameters of the function.
+                if number("isvariadic") == "1" {
+                    true
+                } else {
+                    number("maxparams").parse::<i64>().unwrap_or(0) >= 1
+                }
+            }
+            _ => false,
+        };
+        if !takes_one {
+            return Some(Err(the_failure_with("Invalid callback function.", "", line)));
+        }
+        if let Value::Object(object) = this {
+            object.borrow_mut().properties.insert(
+                format!("on:{}", event.to_lowercase()),
+                crate::runtime::Property {
+                    name: format!("On{event}"),
+                    value: handler,
+                },
+            );
+        }
+        return Some(Ok(Value::Text(String::new())));
+    }
+    // `Move` of a control: a place and a size, and only the size can be honoured.
+    // Measured on 2026-11-09: v2 answers the empty text and numbers the first
+    // parameter 2, because the first is the control the method is asked of. The
+    // window of this tree lays its controls out in order, so a place is refused
+    // with the reason rather than ignored -- a control that answers as if it had
+    // moved and had not is the worst kind of answer.
+    if class.to_lowercase().starts_with("gui.") && method.eq_ignore_ascii_case("move") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let given = |index: usize| {
+            arguments
+                .get(index)
+                .map(|value| !value.to_text().trim().is_empty())
+                .unwrap_or(false)
+        };
+        if given(0) || given(1) {
+            return Some(Err(the_failure_with(
+                "the window of this tree lays its controls out in order, so the place of a control cannot be set",
+                "",
+                line,
+            )));
+        }
+        if !given(2) && !given(3) {
+            return Some(Ok(Value::Text(String::new())));
+        }
+        let width = arguments.get(2).map(|v| v.to_text()).unwrap_or_default();
+        let height = arguments.get(3).map(|v| v.to_text()).unwrap_or_default();
+        let width: i64 = width.trim().parse().unwrap_or(-1);
+        let height: i64 = height.trim().parse().unwrap_or(-1);
+        return Some(match rt.desktop().gui_size(number, width, height) {
+            Ok(()) => Ok(Value::Text(String::new())),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // `Opt` of a window. Measured on the binary of v2.0.19 on 2026-11-09: an
+    // option of v2 answers the empty text and one that is not answers
+    // "Invalid option.". The reader of the gui module gives that validation; the
+    // four of the eighteen that this window can set are applied, and the rest are
+    // refused with the reason -- a window whose title bar belongs to the
+    // compositor is not one whose buttons a program sets.
+    if class.eq_ignore_ascii_case("gui") && method.eq_ignore_ascii_case("opt") {
+        let options = arguments
+            .first()
+            .map(|value| value.to_text())
+            .unwrap_or_default();
+        if let Err(failure) = gui::the_options_are_read(&options, line) {
+            return Some(Err(failure));
+        }
+        for word in options.split([' ', '\t']) {
+            let word = word.trim();
+            if word.is_empty() {
+                continue;
+            }
+            let on = !word.starts_with('-');
+            let name = word.trim_start_matches(['+', '-']);
+            let lower = name.to_lowercase();
+            let honoured = ["alwaysontop", "resize", "caption", "disabled"]
+                .iter()
+                .find(|held| lower.starts_with(*held));
+            let Some(honoured) = honoured.copied() else {
+                return Some(Err(the_failure_with(
+                    "the window of this tree cannot set that option",
+                    "",
+                    line,
+                )));
+            };
+            if let Err(reason) = rt.desktop().gui_option(honoured, on) {
+                return Some(Err(the_failure_with(&reason, "", line)));
+            }
+        }
+        return Some(Ok(Value::Text(String::new())));
+    }
+    // `Hide` of a window: it takes no parameters and answers the empty text.
+    // Measured on the binary of v2.0.19 on 2026-11-09.
+    if class.eq_ignore_ascii_case("gui") && method.eq_ignore_ascii_case("hide") {
+        if !arguments.is_empty() {
+            return Some(Err(the_failure_with(
+                "Too many parameters passed to function.",
+                "",
+                line,
+            )));
+        }
+        return Some(match rt.desktop().gui_hide() {
+            Ok(()) => Ok(Value::Text(String::new())),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // `Focus` of a control: it takes no parameters and answers the empty text.
+    // Measured on the binary of v2.0.19 on 2026-11-09.
+    if class.to_lowercase().starts_with("gui.") && method.eq_ignore_ascii_case("focus") {
+        if !arguments.is_empty() {
+            return Some(Err(the_failure_with(
+                "Too many parameters passed to function.",
+                "",
+                line,
+            )));
+        }
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_focus(number) {
+            Ok(()) => Ok(Value::Text(String::new())),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // `__Item` is the method behind the index syntax, and a script may
+    // call it by its name. The classes that have one answer it here.
+    if method.eq_ignore_ascii_case("__item") {
+        let key = arguments
+            .first()
+            .cloned()
+            .unwrap_or(Value::Text(String::new()));
+        if let Some(result) = item(class, &key, this, rt, line) {
+            return Some(result);
+        }
+    }
     // `__Item` is the method behind the index syntax, and a script may
     // call it by its name. The classes that have one answer it here.
     if method.eq_ignore_ascii_case("__item") {
@@ -1756,7 +2111,8 @@ fn call_once(
         // The methods of the base object are the methods of every object,
         // and they are answered by the runtime.
         "object" => rt.base_method(this, method, arguments, line),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
+        "menu" | "menubar" => menu::call(method, this, arguments, rt, line),
+        "gui" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.statusbar" => {
             gui::call(class, method, this, arguments, rt, line)
         }
         _ => None,
@@ -1794,6 +2150,97 @@ pub(crate) fn property(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
+// ---- the arms of property
+    // Measured on the binary of v2.0.19 on 2026-11-09: `g.Title` reads the title
+    // of the window, and `g.Title := "x"` writes it.
+    if class.eq_ignore_ascii_case("gui") && name.eq_ignore_ascii_case("title") {
+        return Some(the_title_of_the_gui(rt, None, line));
+    }
+    // `Value` of a control of a window of the script. Measured on the binary of
+    // v2.0.19 on 2026-11-09: it is read and written as text.
+    if class.eq_ignore_ascii_case("gui.button") && name.eq_ignore_ascii_case("value") {
+        return Some(Ok(Value::Text(String::new())));
+    }
+    // `Value` of a check box is whether it is TICKED, and it is a number and not a
+    // text -- measured on the binary of v2.0.19. Its `Text` is the label, and the
+    // shared arm below answers that, so this comes first.
+    if class.eq_ignore_ascii_case("gui.checkbox") && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_checked(number, None) {
+            Ok(checked) => Ok(Value::Int(checked)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // A Link's `Value` is always empty and writing it is refused; its `Text`
+    // is the caption and goes through the ordinary `gui_value` below. A
+    // Hotkey's `Text` is a SECOND, INDEPENDENT text -- measured on the binary
+    // of v2.0.19 on 2026-11-10: writing `hk.Text` leaves `hk.Value` alone.
+    if class.eq_ignore_ascii_case("gui.link") && name.eq_ignore_ascii_case("value") {
+        return Some(Ok(Value::Text(String::new())));
+    }
+    if class.eq_ignore_ascii_case("gui.hotkey") && name.eq_ignore_ascii_case("text") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_second_value(number, None) {
+            Ok(text) => Ok(Value::Text(text)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // A Tab's `Value` is the 1-based page number. Measured on the binary of
+    // v2.0.19 on 2026-11-10. The helper answers it as a text of digits; the
+    // script sees the whole number v2 sees.
+    if the_control_is_a_tab(class) && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_value(number, None) {
+            Ok(text) => Ok(Value::Int(text.parse().unwrap_or(0))),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // An UpDown, Slider or Progress has a `Value` that is an Integer; the
+    // UpDown shares it with its buddy Edit. Measured on the binary of v2.0.19
+    // on 2026-11-10.
+    if the_control_has_an_integer_value(class) && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_value(number, None) {
+            Ok(text) => Ok(Value::Int(text.parse().unwrap_or(0))),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // A list-shaped control has two different properties where the others
+    // have one. Measured on the binary of v2.0.19 on 2026-11-10: `Value` is
+    // the 1-based index of the chosen item (0 when none) and `Text` is the
+    // text of it; setting `Text` to an item's text chooses that item.
+    if the_control_is_a_combo(class)
+        && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
+    {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_combo_choice(number) {
+            Ok((index, text)) => Ok(if name.eq_ignore_ascii_case("value") {
+                Value::Int(index)
+            } else {
+                Value::Text(text)
+            }),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    if class.to_lowercase().starts_with("gui.")
+        && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
+    {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        return Some(match rt.desktop().gui_value(number, None) {
+            Ok(text) => Ok(Value::Text(text)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // `Enabled` and `Visible` of a control: integers of nought and one, read and
+    // written. Measured on the binary of v2.0.19 on 2026-11-09.
+    if class.to_lowercase().starts_with("gui.") && the_flag_of(name).is_some() {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let flag = the_flag_of(name).unwrap_or("enabled");
+        return Some(match rt.desktop().gui_flag(number, flag, None) {
+            Ok(value) => Ok(Value::Int(value)),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
     match class.to_lowercase().as_str() {
         "array" => array::property(name, this, rt, line),
         "buffer" => buffer::property(name, this, rt, line),
@@ -1812,7 +2259,8 @@ pub(crate) fn property(
             propref::property(class, name, this, line)
                 .or_else(|| typed::property(class, name, this, line))
         }
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
+        "menu" | "menubar" => menu::property(name, this, rt, line),
+        "gui" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.statusbar" => {
             gui::property(class, name, this, rt, line)
         }
         _ => None,
@@ -1852,6 +2300,149 @@ pub(crate) fn set_property(
     rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
+// ---- the arms of set_property
+    if class.eq_ignore_ascii_case("gui") && name.eq_ignore_ascii_case("title") {
+        let text = value.to_text();
+        return Some(match the_title_of_the_gui(rt, Some(&text), line) {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(failure),
+        });
+    }
+    if class.eq_ignore_ascii_case("gui.button") && name.eq_ignore_ascii_case("value") {
+        return Some(Err(the_failure_with("Invalid usage.", "", line)));
+    }
+    if class.eq_ignore_ascii_case("gui.checkbox") && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let text = value.to_text();
+        let on = !(text.is_empty() || text == "0" || text.eq_ignore_ascii_case("false"));
+        return Some(match rt.desktop().gui_checked(number, Some(on)) {
+            Ok(_) => Ok(()),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // Writing a Link's `Value` is refused by v2 with "Invalid usage."; a
+    // Hotkey's `Text` writes the second, independent string. Measured on the
+    // binary of v2.0.19 on 2026-11-10.
+    if class.eq_ignore_ascii_case("gui.link") && name.eq_ignore_ascii_case("value") {
+        return Some(Err(the_failure_with("Invalid usage.", "", line)));
+    }
+    if class.eq_ignore_ascii_case("gui.hotkey") && name.eq_ignore_ascii_case("text") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let text = value.to_text();
+        return Some(match rt.desktop().gui_second_value(number, Some(&text)) {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(the_failure_with(&failure, "", line)),
+        });
+    }
+    // Attaching a menu bar to the window: `Gui.Menu := MenuBarObject`.
+    // Measured on the binary of v2.0.19 on 2026-11-10: the answer is nothing
+    // the script reads, the menu bar shows at the top of the window, and a
+    // value that is not a menu is refused. The items go to the helper as
+    // JSON; choosing one is an event on the same channel as a click.
+    if class.eq_ignore_ascii_case("gui") && name.eq_ignore_ascii_case("menu") {
+        if !crate::classes::menu::is_a_menu(&value) {
+            return Some(Err(the_failure_with(
+                "Expected a MenuBar object.",
+                "",
+                line,
+            )));
+        }
+        // The JSON of the bar, built by the menu module itself.
+        let Some(Ok(Value::Text(json))) =
+            crate::classes::menu::call("the-bar-json", &value, &[], rt, line)
+        else {
+            return Some(Ok(()));
+        };
+        // The bar is kept on the window under a reserved key, so that a
+        // `menu:<name>` event from the helper can find the item and its
+        // callback. Measured on the docs of v2.0.19 on 2026-11-10: the
+        // callback of an item is called with (ItemName, ItemPos, MyMenu).
+        //
+        // The window is remembered here as well: the drain of the events
+        // looks for the window that holds the bar, and a script that only
+        // writes the bar never calls a method of the window.
+        rt.remember_a_gui(this);
+        if let Value::Object(window) = this {
+            crate::runtime::put(
+                &mut window.borrow_mut().properties,
+                "on:menu",
+                value.clone(),
+            );
+        }
+        // The bar is drawn on the window, so the window has to be there --
+        // the same rule the title and the controls follow.
+        if !rt.desktop().gui_is_open() {
+            if let Err(reason) = rt.desktop().gui_open("") {
+                return Some(Err(the_failure_with(&reason, "", line)));
+            }
+        }
+        return Some(match rt.desktop().gui_menu_bar(&json) {
+            Ok(()) => Ok(()),
+            Err(reason) => Err(the_failure_with(&reason, "", line)),
+        });
+    }
+    // Setting `Value` of a Tab chooses the page. Measured on the binary of
+    // v2.0.19 on 2026-11-10: a page that is not there is refused with
+    // "Invalid value.", not clamped. The helper does the bounds check and the
+    // transport wraps its answer, so the wording is unwrapped here -- v2 says
+    // exactly "Invalid value.".
+    if the_control_is_a_tab(class) && name.eq_ignore_ascii_case("value") {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let wanted = value.to_text();
+        return Some(match rt.desktop().gui_value(number, Some(&wanted)) {
+            Ok(_) => Ok(()),
+            Err(reason) => {
+                // The transport wraps the helper's answer; v2 says exactly
+                // "Invalid value." for a page that is not there.
+                let message = if reason.contains("Invalid value.") {
+                    "Invalid value.".to_string()
+                } else {
+                    reason
+                };
+                Err(the_failure_with(&message, "", line))
+            }
+        });
+    }
+    // Setting `Value` of a list-shaped control chooses by the 1-based index,
+    // and setting `Text` chooses by the item's text. Measured on the binary of
+    // v2.0.19 on 2026-11-10: `ddl.Value := 2` leaves the second item chosen
+    // and `ddl.Text := "gamma"` chooses the item with that text.
+    if the_control_is_a_combo(class)
+        && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
+    {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let wanted = value.to_text();
+        let by_text = name.eq_ignore_ascii_case("text");
+        return Some(match rt
+            .desktop()
+            .gui_combo_select(number, &wanted, by_text)
+        {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(the_failure_with(&failure, "", line)),
+        });
+    }
+    if class.to_lowercase().starts_with("gui.")
+        && (name.eq_ignore_ascii_case("value") || name.eq_ignore_ascii_case("text"))
+    {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let text = value.to_text();
+        return Some(match rt.desktop().gui_value(number, Some(&text)) {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(the_failure_with(&failure, "", line)),
+        });
+    }
+    if class.to_lowercase().starts_with("gui.") && the_flag_of(name).is_some() {
+        let number = the_number_of_a_control(this).unwrap_or(0);
+        let flag = the_flag_of(name).unwrap_or("enabled");
+        // v2 reads a written flag by its truth: nought and the empty text are
+        // false, and anything else is true.
+        let text = value.to_text();
+        let on = !(text.is_empty() || text == "0" || text.eq_ignore_ascii_case("false"));
+        return Some(match rt.desktop().gui_flag(number, flag, Some(on)) {
+            Ok(_) => Ok(()),
+            Err(failure) => Err(the_failure_with(&failure, "", line)),
+        });
+    }
     let written = match class.to_lowercase().as_str() {
         "array" => array::set_property(name, this, value, rt, line),
         "buffer" => buffer::set_property(name, this, value, rt, line),
@@ -1861,7 +2452,8 @@ pub(crate) fn set_property(
         "hotkey" => hotkey::set_property(name, this, value, rt, line),
         "map" => map::set_property(name, this, value, rt, line),
         "inputhook" => inputhook::set_property_the_extension(name, this, value, rt, line),
-        "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
+        "menu" | "menubar" => menu::set_property(name, this, &value, rt, line),
+        "gui" | "gui.control" | "gui.listview" | "gui.treeview" | "gui.statusbar" => {
             gui::set_property(class, name, this, value, rt, line)
         }
         _ => None,
@@ -1990,4 +2582,189 @@ pub(crate) fn the_reason_of_a_class_that_is_not_carried(class: &str) -> Option<&
         return Some("this runtime does not carry that class yet.");
     }
     None
+}
+
+
+// ---- the_events_of_a_control
+/// A property of a class type.
+///
+/// `None` means the name is not a property of this class: the runtime then
+/// looks in the property table of the object.
+/// The events a control of this kind has.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a `Button` has `Click` and
+/// an `Edit` has `Change`, and each refuses the other's. A `Text` has none.
+fn the_events_of_a_control(class: &str) -> &'static [&'static str] {
+    match class.to_lowercase().as_str() {
+        "gui.button" | "gui.checkbox" => &["Click"],
+        "gui.edit" => &["Change"],
+        _ => &[],
+    }
+}
+
+// ---- the_control_of_the_gui
+/// A control of a window of the script, as the object v2 reports.
+///
+/// The window is opened on the first control, since the construction of a `Gui`
+/// is generic and cannot make one. The object is written directly rather than
+/// made by the class table, because a control of a script's own window is not a
+/// class type of the runtime: its class is the name v2 gives it -- `Gui.Edit` for
+/// an `Edit` -- and `ClassNN` and `Hwnd` are properties of it.
+fn the_control_of_the_gui(
+    kind: &str,
+    text: &str,
+    rt: &mut Runtime,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
+    if !rt.desktop().gui_is_open() {
+        if let Err(reason) = rt.desktop().gui_open("") {
+            return Err(the_failure_with(&reason, "", line));
+        }
+    }
+    match rt.desktop().gui_add(0, kind, text) {
+        Ok((number, classnn)) => {
+            let mut properties = std::collections::BTreeMap::new();
+            properties.insert(
+                "classnn".to_string(),
+                crate::runtime::Property {
+                    name: "ClassNN".to_string(),
+                    value: Value::Text(classnn),
+                },
+            );
+            properties.insert(
+                "hwnd".to_string(),
+                crate::runtime::Property {
+                    name: "Hwnd".to_string(),
+                    value: Value::Int(number as i64),
+                },
+            );
+            Ok(Value::Object(std::rc::Rc::new(std::cell::RefCell::new(
+                crate::runtime::Object {
+                    class: format!("Gui.{}", kind),
+                    properties,
+                },
+            ))))
+        }
+        Err(reason) => Err(the_failure_with(&reason, "", line)),
+    }
+}
+
+// ---- the_control_is_a_tab
+/// Whether the class of a control is a Tab notebook.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: its `ClassNN` is
+/// `SysTabControl321` and its `Value` is the 1-based page number, with an
+/// out-of-range write refused as "Invalid value.".
+fn the_control_is_a_tab(class: &str) -> bool {
+    let tail = match class.rsplit_once('.') {
+        Some((_, tail)) => tail,
+        None => class,
+    };
+    tail.eq_ignore_ascii_case("tab")
+}
+
+// ---- the_control_has_an_integer_value
+/// Whether a control's `Value` is an Integer rather than a text.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: an UpDown is
+/// `msctls_updown321` and shares its number with the Edit added before it; a
+/// Slider is `msctls_trackbar321` and a Progress `msctls_progress321`, and
+/// both start at the number in the text (or the lower bound of the Range).
+fn the_control_has_an_integer_value(class: &str) -> bool {
+    let tail = match class.rsplit_once('.') {
+        Some((_, tail)) => tail,
+        None => class,
+    };
+    tail.eq_ignore_ascii_case("updown")
+        || tail.eq_ignore_ascii_case("slider")
+        || tail.eq_ignore_ascii_case("progress")
+}
+
+// ---- the_control_is_a_combo
+/// Whether the class of a control is one of the list-shaped kinds.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the `ClassNN` of a
+/// DropDownList is `ComboBox1`, and ComboBox and ListBox are the same family.
+fn the_control_is_a_combo(class: &str) -> bool {
+    let tail = match class.rsplit_once('.') {
+        Some((_, tail)) => tail,
+        None => class,
+    };
+    tail.eq_ignore_ascii_case("dropdownlist")
+        || tail.eq_ignore_ascii_case("combobox")
+        || tail.eq_ignore_ascii_case("listbox")
+}
+
+// ---- the_flag_of
+/// The flag of a control that a name of a property asks about.
+fn the_flag_of(name: &str) -> Option<&'static str> {
+    if name.eq_ignore_ascii_case("enabled") {
+        Some("enabled")
+    } else if name.eq_ignore_ascii_case("visible") {
+        Some("visible")
+    } else {
+        None
+    }
+}
+
+// ---- remember_the_control
+/// Keep a control on the window it belongs to.
+///
+/// The number that names it is the `Hwnd` it carries, which is the number the
+/// helper answered and the same number an event about it carries. A click says
+/// `click:<n>`, and this is how the drain finds the control -- and through it the
+/// handler -- from that number alone.
+fn remember_the_control(window: &Value, control: &Value) {
+    let number = match the_number_of_a_control(control) {
+        Some(number) => number,
+        None => return,
+    };
+    if let Value::Object(object) = window {
+        object.borrow_mut().properties.insert(
+            format!("control:{number}"),
+            crate::runtime::Property {
+                name: format!("Control{number}"),
+                value: control.clone(),
+            },
+        );
+    }
+}
+
+// ---- the_number_of_a_control
+/// The number that names a control of a window of the script.
+///
+/// It is the `Hwnd` the control object carries, which is the number `gui_add`
+/// answered. A value that is not such an object has none.
+pub(crate) fn the_number_of_a_control(this: &Value) -> Option<u64> {
+    if let Value::Object(object) = this {
+        if let Some(property) = object.borrow().properties.get("hwnd") {
+            if let Value::Int(number) = property.value {
+                return Some(number as u64);
+            }
+        }
+    }
+    None
+}
+
+// ---- the_title_of_the_gui
+/// The title of the window of a `Gui`: read it, or write it.
+///
+/// The window is opened on the first question about it, because the construction
+/// of a `Gui` is generic and cannot make one. Measured on the binary of v2.0.19
+/// on 2026-11-09: `g.Title` answers the title and `g.Title := "x"` writes it,
+/// both as text.
+fn the_title_of_the_gui(
+    rt: &mut Runtime,
+    setting: Option<&str>,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
+    if !rt.desktop().gui_is_open() {
+        if let Err(reason) = rt.desktop().gui_open("") {
+            return Err(the_failure_with(&reason, "", line));
+        }
+    }
+    match rt.desktop().gui_title(0, setting) {
+        Ok(title) => Ok(Value::Text(title)),
+        Err(reason) => Err(the_failure_with(&reason, "", line)),
+    }
 }
