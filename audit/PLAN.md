@@ -60,7 +60,16 @@ binary throws measured shape by shape. The box reads them through lsblk
 and udisksctl, and a zfs dataset -- the root of that box -- is a drive
 that is THERE with no label, which is what the binary answers for a
 present drive that carries none. The count is **770 values / 63
-refusals**: the refusals under seventy for the first time.
+refusals**: the refusals under seventy for the first time. **Rounds 8 and
+9 measured the styles and moved two more names** (`3d4c228`): the four
+Control style names stay refused on purpose -- the reference answers
+erratically for them on its own window (window or control "not found" for
+things that are there), and GTK carries no Win32 style bits, so any number
+would be a wrong value, which is the worst outcome -- while
+`WinActivateBottom` is the activation the window of the script already
+answers, and `Shutdown` takes the number the binary takes and throws its
+wording for a text, with the session of the machine deliberately left
+alone. The count is **771 values / 62 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
