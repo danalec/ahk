@@ -1,0 +1,30 @@
+Answer the tray of the session, and call the callback of a menu item by its value
+
+The icon of the script is in the tray of the session, and a click on it
+runs the item by default of the menu of the script. The AHK_X11 has no
+tray at all, and this is the piece that carries the tree past it.
+
+The helper of the tray had to serve the bus and not only the runner: the
+watcher asks the process for the properties of the item, and it asks it
+by the bus, so a helper that waits for the commands of the runner in a
+blocking read never answers it and the click is never delivered. The
+commands are read by the loop of GLib now, the answer of the helper is
+read and understood -- it is JSON, and a helper that stopped answering is
+a failure with a reason and not a hang -- and the property of the item is
+a variant: the watcher was answered with a failure for every property of
+it, and the icon was in the tray with no icon and no title. The helper
+lives as long as the desktop does, and the desktop takes it away with it:
+a script that ends takes its icon away with it.
+
+And the callback of a menu item is called by its value and not by its
+name: a closure has no name in v2, and the tree dropped every handler
+that was one -- the callback of a menu item, and the callback of an event
+of a window. The binary refuses a callback that cannot take the three
+parameters of the callback of a menu item, with "Invalid callback
+function.", and the check is at the Add and not when the item is chosen.
+The arity of a variadic function is the one of the binary: the parameters
+that come before the rest are counted, and the flag of the rest is one.
+
+Verified on the box on 2026-11-11: the item of the script is in the
+watcher of the session, and the report of a run whose icon was clicked
+says "clicked: &Open".

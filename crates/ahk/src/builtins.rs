@@ -4418,8 +4418,13 @@ pub(crate) fn tray_set_icon(
     rt.set_the_icon_of_the_script(canonical.clone(), number.unwrap_or(1));
     // The tray of the session shows the icon, when the session has one: a
     // desktop with no tray is not a failure of the call -- the icon of the
-    // script is set either way.
-    let _ = rt.desktop().tray_set_icon(&canonical);
+    // script is set either way. A tray that refused is said in the report.
+    let refused = rt.desktop().tray_set_icon(&canonical).err();
+    if let Some(reason) = refused {
+        rt.note(format!(
+            "the tray of the session did not take the icon: {reason}"
+        ));
+    }
     Ok(Value::Text(String::new()))
 }
 

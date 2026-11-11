@@ -9686,3 +9686,57 @@ The probes of the block are `egm-review/probe_accessor3.py`,
 
 The suite of the v1 has seven cases more (417). The suite of the v2 is the same
 (539), and the suite of the box is the same (84).
+
+## 243. The icon of the script is in the tray of the session, and a click on it runs the menu
+
+Measured on the box on 2026-11-11, the tray of the session is a real thing:
+the compositor of the box carries a watcher of the StatusNotifierItem, and
+the helper of the tray registers an item in it. The item of the script is
+in the watcher -- `RegisteredStatusNotifierItems` of `org.kde.StatusNotifierWatcher`
+carries `org.khronos.ahk.tray.p<pid>` -- and a click on it runs the item by
+default of the menu of the script: the report of the run says
+`"output":["clicked: &Open","done"]`.
+
+Three things made the round, and all three are about the helper.
+
+- **The loop of the helper is the loop of the bus.** The watcher asks the
+  process for the properties of the item, and it asks it by the bus -- so a
+  helper that waits for the commands of the runner in a blocking read never
+  answers the watcher, and the click is never delivered. The commands of
+  the runner are read by the loop of GLib now, and the answer of the start
+  is written when the item is in the watcher.
+- **The answer of the helper is read and understood.** The answer is JSON:
+  `{"ok": true}` when the helper took it, and `{"ok": false, "error":
+  "..."}` when it did not. The wait for it is bounded by five seconds --
+  a helper that stops answering is a failure with a reason, and not a hang
+  of the runtime -- and the reason of the helper is carried as it is.
+- **The property of the item is a variant.** The binding cannot turn a
+  text of Python into the value of a property of the bus, and the watcher
+  was answered with a failure for every property of the item: the icon of
+  the script was in the tray with no icon and no title.
+
+Two more things that the round found, both measured on the binary of
+AutoHotkey v2.0.19 on 2026-11-11.
+
+- **The callback of a menu item is called by its VALUE and not by its
+  name.** A closure has no name in v2, and the tree dropped every handler
+  that was one: the callback of a menu item, and the callback of an event
+  of a window. The handler is the value of the function now, and it is
+  called as a value -- the way `call_the_value` calls it.
+- **The callback of a menu item must be able to take three parameters.**
+  The binary refuses a callback that cannot: "Invalid callback function."
+  It refuses a callback of two parameters and one of four as well, and it
+  accepts one of three, one of two with a default, one with a rest and
+  one that is only a rest. The check is at the `Add` and not when the item
+  is chosen.
+
+And the arity of a variadic function, which the check needs: the binary
+counts the parameters that come BEFORE the rest -- a function of (a, b, c,
+Rest*) has three of them and not four -- and the flag of the rest is one.
+The tree counted the rest among them and never set the flag.
+
+The helper of the tray lives as long as the desktop does, and the desktop
+takes it away with it: a script that ends takes its icon away with it, and
+a helper that stays in the session is an icon of a script that is not
+running any more. The name of the bus carries the number of the process,
+so that two runs of a script do not fight over it.

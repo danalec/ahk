@@ -2241,6 +2241,34 @@ fn choosing_a_menu_item_calls_its_callback_with_the_name_the_position_and_the_me
     );
 }
 
+#[test]
+fn choosing_a_menu_item_calls_a_closure_with_the_name_the_position_and_the_menu() {
+    // A closure has no name in v2, and only the value of it can be called:
+    // the callback of a menu item may be a closure, and it is called the
+    // way a function of the script is called.
+    let mut desktop = Fake {
+        gui_open: true,
+        events: vec!["menu:&File".to_string()],
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "mb := MenuBar()",
+            "\nmb.Add(\"&File\", (ItemName, ItemPos, MyMenu) => MsgBox(ItemName \"|\" ItemPos \"|\" Type(MyMenu)))",
+            "\ng := Gui()",
+            "\ng.Menu := mb",
+            "\nSleep 10",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?} at line {:?}", report.error, report.error_line);
+    assert_eq!(
+        report.output,
+        vec!["&File|1|MenuBar".to_string()],
+        "the closure of the item is called with the three parameters"
+    );
+}
+
 /// The value of a variable, as a whole number.
 fn int_of(report: &Report, name: &str) -> i64 {
     match value_of(report, name) {

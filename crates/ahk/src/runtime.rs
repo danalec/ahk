@@ -2173,7 +2173,7 @@ impl<'a> Runtime<'a> {
         let Ok(events) = self.desktop().gui_events() else {
             return Ok(());
         };
-        let mut pending: Vec<(String, Vec<Value>)> = Vec::new();
+        let mut pending: Vec<(Value, Vec<Value>)> = Vec::new();
         for event in events {
             let mut pieces = event.splitn(2, ':');
             let name = pieces.next().unwrap_or("").to_lowercase();
@@ -2218,7 +2218,7 @@ impl<'a> Runtime<'a> {
                 let Some(function) = self.the_message_handler(number).cloned() else {
                     continue;
                 };
-                pending.push((function, vec![Value::Int(number)]));
+                pending.push((Value::Text(function), vec![Value::Int(number)]));
                 continue;
             }
             // A click on the icon of the tray is the item by default of the
@@ -2260,26 +2260,34 @@ impl<'a> Runtime<'a> {
                     return None;
                 };
                 let handler = object.borrow().properties.get(&key)?.value.clone();
-                let Value::Object(function) = &handler else {
+                let Value::Object(_) = &handler else {
                     return None;
                 };
-                let name = function
-                    .borrow()
-                    .properties
-                    .get("name")
-                    .map(|held| held.value.to_text())?;
-                if name.is_empty() {
-                    return None;
-                }
-                Some((name, about))
+                // The handler is the VALUE of the function and not its name:
+                // a closure has no name in v2, and only the value of it can
+                // be called.
+                Some((handler, about))
             });
             if let Some((function, about)) = found {
                 pending.push((function, about.into_iter().collect()));
             }
         }
         for (function, arguments) in pending {
-            self.call_function_by_name_with(&function, &arguments, line)
-                .map_err(|failure| crate::runtime::as_error(failure, line))?;
+            // A handler that is a value is called as a value: a closure has
+            // no name in v2, and only the value of it can be called. A
+            // handler that is a name is called by it.
+            match &function {
+                Value::Object(_) => {
+                    if let Some(result) =
+                        crate::classes::func::call_the_value(&function, &arguments, self, line)
+                    {
+                        result.map_err(|failure| crate::runtime::as_error(failure, line))?;
+                    }
+                }
+                _ => self
+                    .call_function_by_name_with(&function.to_text(), &arguments, line)
+                    .map_err(|failure| crate::runtime::as_error(failure, line))?,
+            }
         }
         Ok(())
     }
@@ -13642,16 +13650,26 @@ fn func_value(name: &str, function: &Function) -> Value {
         .iter()
         .filter(|parameter| parameter.default.is_none() && !parameter.variadic)
         .count();
+    // Measured on the binary of v2.0.19 on 2026-11-11: the most of a
+    // function with a rest are the parameters that come BEFORE it -- a
+    // function of (a, b, c, Rest*) has three of them and not four -- and
+    // the flag of the rest is one.
+    let variadic = function.parameters.iter().any(|parameter| parameter.variadic);
+    let most = function
+        .parameters
+        .iter()
+        .filter(|parameter| !parameter.variadic)
+        .count();
     let mut properties: BTreeMap<String, Property> = BTreeMap::new();
     put(&mut properties, "name", Value::Text(name.to_string()));
     put(&mut properties, "minparams", Value::Int(fewest as i64));
     put(
         &mut properties,
         "maxparams",
-        Value::Int(function.parameters.len() as i64),
+        Value::Int(most as i64),
     );
     put(&mut properties, "isbuiltin", Value::Int(0));
-    put(&mut properties, "isvariadic", Value::Int(0));
+    put(&mut properties, "isvariadic", Value::Int(if variadic { 1 } else { 0 }));
     Value::Object(Rc::new(RefCell::new(Object {
         class: "func".to_string(),
         properties,

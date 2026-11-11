@@ -153,9 +153,15 @@ pub struct LabDesktop {
     /// The program of the tray of the session, and the pipes of it.
     ///
     /// It is started with the first icon of the script and lives as long as
-    /// the desktop does.
+    /// the desktop does. The answers of the helper are read on a thread of
+    /// their own, so that the wait for one of them is bounded: a helper that
+    /// stops answering is a failure with a reason, and not a hang.
     #[cfg(target_os = "linux")]
-    tray: Option<(std::process::Child, std::process::ChildStdin, std::process::ChildStdout)>,
+    tray: Option<(
+        std::process::Child,
+        std::process::ChildStdin,
+        std::sync::mpsc::Receiver<String>,
+    )>,
     /// The state of the three lock lights, as the program set them.    ///
     /// The lamp of the PHYSICAL keyboard of the machine cannot be written
     /// without the privileges of the root -- `/sys/class/leds/input1::capslock/
@@ -170,6 +176,22 @@ pub struct LabDesktop {
 impl Default for LabDesktop {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// The desktop takes the tray of the session away with it.
+///
+/// The helper of the tray is a program of the machine, and it has to live
+/// as long as the desktop does: a script that ends takes its icon away
+/// with it, and a helper that stays in the session is an icon of a script
+/// that is not running any more.
+impl Drop for LabDesktop {
+    fn drop(&mut self) {
+        #[cfg(target_os = "linux")]
+        if let Some((mut child, _, _)) = self.tray.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
     }
 }
 
@@ -511,6 +533,10 @@ impl LabDesktop {
     /// StatusNotifierItem, and the helper of the tray registers an item in
     /// it. The item lives as long as the helper does, and the helper lives
     /// as long as the desktop does.
+    ///
+    /// The answer of the helper is read and understood: the answer of the
+    /// start is the answer of an item that the watcher holds, and a helper
+    /// that did not register is a failure with the reason of the helper.
     #[cfg(target_os = "linux")]
     fn tray_set_icon(&mut self, name: &str) -> Result<(), String> {
         if self.tray.is_none() {
@@ -525,19 +551,43 @@ impl LabDesktop {
                 .map_err(|error| format!("the tray of the session did not start: {error}"))?;
             let input = child.stdin.take().ok_or("the tray takes no input")?;
             let output = child.stdout.take().ok_or("the tray has no output")?;
-            self.tray = Some((child, input, output));
+            self.tray = Some((child, input, the_answers_of_the_tray(output)));
+            let answer = self.the_answer_of_the_tray()?;
+            the_tray_took(&answer)?;
         }
-        let Some((_, input, _)) = self.tray.as_mut() else {
+        let command = format!("{{\"op\": \"icon\", \"name\": {}}}\n", quoted(name));
+        {
+            let Some((_, input, _)) = self.tray.as_mut() else {
+                return Err("the tray of the session is not there".to_string());
+            };
+            input
+                .write_all(command.as_bytes())
+                .map_err(|error| format!("the tray of the session did not take the icon: {error}"))?;
+            input
+                .flush()
+                .map_err(|error| format!("the tray of the session did not take the icon: {error}"))?;
+        }
+        let answer = self.the_answer_of_the_tray()?;
+        the_tray_took(&answer)
+    }
+
+    /// The answer of the helper of the tray, read with a bound.
+    ///
+    /// The wait is bounded: the helper of the tray is a program of the
+    /// machine, and a program that stops answering is a failure with a
+    /// reason and not a hang of the runtime.
+    #[cfg(target_os = "linux")]
+    fn the_answer_of_the_tray(&mut self) -> Result<String, String> {
+        let Some((_, _, answers)) = self.tray.as_mut() else {
             return Err("the tray of the session is not there".to_string());
         };
-        let command = format!("{{\"op\": \"icon\", \"name\": {}}}\n", quoted(name));
-        input
-            .write_all(command.as_bytes())
-            .map_err(|error| format!("the tray of the session did not take the icon: {error}"))?;
-        input
-            .flush()
-            .map_err(|error| format!("the tray of the session did not take the icon: {error}"))?;
-        Ok(())
+        let answer = answers
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .map_err(|_| "the tray of the session stopped answering".to_string())?;
+        if answer.is_empty() {
+            return Err("the tray of the session ended before it answered".to_string());
+        }
+        Ok(answer)
     }
 
     /// The directory of the programs of the user, in the Windows of the raven.    ///
@@ -2759,10 +2809,10 @@ impl ahk::desktop::Machine for LabDesktop {
     fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
         crate::registry::create_key(key)
     }
-    fn tray_set_icon(&mut self, name: &str) -> Result<(), String> {
+    fn tray_set_icon(&mut self, _name: &str) -> Result<(), String> {
         #[cfg(target_os = "linux")]
         {
-            self.tray_set_icon(name)
+            self.tray_set_icon(_name)
         }
         #[cfg(not(target_os = "linux"))]
         {
@@ -3157,10 +3207,53 @@ fn the_events_of_the_window() -> std::path::PathBuf {
     std::env::temp_dir().join(format!("ahk-gui-events-{}", std::process::id()))
 }
 
+/// The answers of the helper of the tray, read on a thread of their own.
+///
+/// The thread owns the reader, so the wait for an answer is a receive with
+/// a timeout instead of a read that cannot be given up on.
+#[cfg(target_os = "linux")]
+fn the_answers_of_the_tray(
+    output: std::process::ChildStdout,
+) -> std::sync::mpsc::Receiver<String> {
+    use std::io::BufRead;
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut reader = std::io::BufReader::new(output);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    if sender.send(line.trim_end().to_string()).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    receiver
+}
+
+/// Whether the helper of the tray took what it was asked.
+///
+/// The answer of the helper is JSON: `{"ok": true}` when it took it, and
+/// `{"ok": false, "error": "..."}` when it did not. The reason of the
+/// helper is carried as it is: a tray of a session that has no watcher of
+/// the StatusNotifierItem says so.
+#[cfg(target_os = "linux")]
+fn the_tray_took(answer: &str) -> Result<(), String> {
+    if answer.contains("\"ok\": true") {
+        return Ok(());
+    }
+    Err(format!("the tray of the session refused: {answer}"))
+}
+
 /// Where the program that puts the icon of the script in the tray is.
 ///
 /// The two places of the helper of the window, in the same order: beside
 /// the binary, and under the crate as it was compiled.
+#[cfg(target_os = "linux")]
 fn the_helper_of_the_tray() -> Result<std::path::PathBuf, String> {
     let mut tried: Vec<String> = Vec::new();
     if let Ok(program) = std::env::current_exe() {

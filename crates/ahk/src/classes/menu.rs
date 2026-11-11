@@ -45,6 +45,12 @@ struct Item {
     /// The name of the function to call, or `None` for a submenu or a
     /// plain holder.
     callback: Option<String>,
+    /// The value of the function to call, when there is one.
+    ///
+    /// The name is not enough: a closure has no name in v2, and only the
+    /// value of it can be called. The name is kept as well, because the
+    /// helper of the window draws the bar and is told the name.
+    function: Option<Value>,
     /// The submenu attached under this item, if any.
     submenu: Option<Value>,
     /// Whether the item carries a check mark. Measured on the binary of
@@ -103,6 +109,7 @@ fn state(this: &Value, line: u32) -> Result<MenuState, RuntimeFailure> {
                         items.push(Item {
                             name,
                             callback: None,
+                            function: None,
                             submenu: Some(target.clone()),
                             checked,
                             enabled,
@@ -117,6 +124,7 @@ fn state(this: &Value, line: u32) -> Result<MenuState, RuntimeFailure> {
                         items.push(Item {
                             name,
                             callback: Some(callback),
+                            function: Some(target.clone()),
                             submenu: None,
                             checked,
                             enabled,
@@ -127,6 +135,7 @@ fn state(this: &Value, line: u32) -> Result<MenuState, RuntimeFailure> {
                     items.push(Item {
                         name,
                         callback: None,
+                        function: None,
                         submenu: None,
                         checked,
                         enabled,
@@ -136,6 +145,7 @@ fn state(this: &Value, line: u32) -> Result<MenuState, RuntimeFailure> {
                     items.push(Item {
                         name,
                         callback: Some(callback.clone()),
+                        function: None,
                         submenu: None,
                         checked,
                         enabled,
@@ -144,6 +154,7 @@ fn state(this: &Value, line: u32) -> Result<MenuState, RuntimeFailure> {
                 _ => items.push(Item {
                     name,
                     callback: None,
+                    function: None,
                     submenu: None,
                     checked,
                     enabled,
@@ -171,10 +182,11 @@ fn restore(this: &Value, menu: &MenuState) {
     let Value::Object(object) = this else { return };
     let mut entries: Vec<Value> = Vec::new();
     for item in &menu.items {
-        let target = match (&item.callback, &item.submenu) {
-            (Some(callback), _) => Value::Text(callback.clone()),
-            (None, Some(submenu)) => submenu.clone(),
-            (None, None) => Value::Text(String::new()),
+        let target = match (&item.function, &item.callback, &item.submenu) {
+            (Some(function), _, _) => function.clone(),
+            (None, Some(callback), _) => Value::Text(callback.clone()),
+            (None, None, Some(submenu)) => submenu.clone(),
+            (None, None, None) => Value::Text(String::new()),
         };
         entries.push(Value::List(vec![
             Value::Text(item.name.clone()),
@@ -262,11 +274,49 @@ pub(crate) fn is_a_menu(value: &Value) -> bool {
 /// Documented on v2.0.19 on 2026-11-10: the callback of a menu item is
 /// called with (ItemName, ItemPos, MyMenu) -- the name of the item, its
 /// 1-based position, and the menu object it was added to.
-pub(crate) fn the_callback_of(this: &Value, item: &str, line: u32) -> Option<(String, i64)> {
+///
+/// The callback is the **value** of the function and not its name: a
+/// closure has no name in v2, and only the value of it can be called. An
+/// item that was given a name and no value answers with the name, and the
+/// runtime calls it by it.
+pub(crate) fn the_callback_of(this: &Value, item: &str, line: u32) -> Option<(Value, i64)> {
     let menu = state(this, line).ok()?;
     let index = menu.items.iter().position(|held| held.name == item)?;
-    let callback = menu.items[index].callback.clone()?;
-    Some((callback, index as i64 + 1))
+    let held = &menu.items[index];
+    let function = match (&held.function, &held.callback) {
+        (Some(function), _) => function.clone(),
+        (None, Some(callback)) => Value::Text(callback.clone()),
+        (None, None) => return None,
+    };
+    Some((function, index as i64 + 1))
+}
+
+/// Whether a callback can take the three parameters of a menu item.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the callback of a
+/// menu item is called with (ItemName, ItemPos, MyMenu), and a callback
+/// that cannot take three parameters is refused with "Invalid callback
+/// function." -- a callback of two parameters and one of four are refused
+/// as well, and a callback with a rest is accepted, because a rest takes
+/// any number of parameters.
+fn takes_three(callback: &Value) -> bool {
+    let Value::Object(object) = callback else {
+        return false;
+    };
+    let object = object.borrow();
+    let number = |name: &str| {
+        object
+            .properties
+            .get(name)
+            .map(|held| held.value.to_text())
+            .unwrap_or_default()
+    };
+    if number("isvariadic") == "1" {
+        return true;
+    }
+    let fewest: i64 = number("minparams").parse().unwrap_or(0);
+    let most: i64 = number("maxparams").parse().unwrap_or(0);
+    fewest <= 3 && most >= 3
 }
 
 /// The name of the item by default of a menu, if the menu has one.
@@ -315,6 +365,7 @@ pub(crate) fn call(
                     menu.items.push(Item {
                         name,
                         callback: None,
+                        function: None,
                         submenu: Some(submenu.clone()),
                         checked: false,
                         enabled: true,
@@ -327,6 +378,12 @@ pub(crate) fn call(
                             line,
                         )));
                     };
+                    // The callback is called with the three parameters of a
+                    // menu item, and one that cannot take them is refused
+                    // here -- not when the item is chosen.
+                    if !takes_three(callback) {
+                        return Some(Err(fail("Invalid callback function.", line)));
+                    }
                     let function_name = object
                         .borrow()
                         .properties
@@ -336,6 +393,7 @@ pub(crate) fn call(
                     menu.items.push(Item {
                         name,
                         callback: Some(function_name),
+                        function: Some(callback.clone()),
                         submenu: None,
                         checked: false,
                         enabled: true,
@@ -344,6 +402,7 @@ pub(crate) fn call(
                 None => menu.items.push(Item {
                     name,
                     callback: None,
+                    function: None,
                     submenu: None,
                     checked: false,
                     enabled: true,

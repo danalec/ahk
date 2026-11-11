@@ -1667,11 +1667,20 @@ pub(crate) fn call(
         let takes_one = match &handler {
             Value::Object(object) => {
                 let object = object.borrow();
-                object
-                    .properties
-                    .get("maxparams")
-                    .map(|held| held.value.to_text() != "0")
-                    .unwrap_or(false)
+                let number = |name: &str| {
+                    object
+                        .properties
+                        .get(name)
+                        .map(|held| held.value.to_text())
+                        .unwrap_or_default()
+                };
+                // A callback with a rest takes the control as well: the rest
+                // is not counted among the parameters of the function.
+                if number("isvariadic") == "1" {
+                    true
+                } else {
+                    number("maxparams").parse::<i64>().unwrap_or(0) >= 1
+                }
             }
             _ => false,
         };

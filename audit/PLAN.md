@@ -238,6 +238,48 @@ system has no `GetCursorInfo` that answers, and the shape of the cursor
 stays a refusal with its own reason. The count is **815 values / 18
 refusals**.
 
+**Round 30 answered the tray** (`419fe24` and the round that follows it):
+the icon of the script is really in the tray of the session, and a click
+on it runs the item by default of the menu of the script. The AHK_X11 has
+no tray at all, and this is the piece that carries the tree past it.
+
+Measured on the box on 2026-11-11: the item of the script is registered
+in the watcher of the session -- `RegisteredStatusNotifierItems` of
+`org.kde.StatusNotifierWatcher` carries `org.khronos.ahk.tray.p<pid>` --
+and the report of a run whose icon was clicked says
+`"output":["clicked: &Open","done"]`.
+
+**The round found three defects, and every one of them was in the way the
+helper talks to the bus.** The helper was waiting for the commands of the
+runner in a blocking read, so the loop of GLib never ran and the watcher
+never got an answer: the click was never delivered. The watcher was
+answered with a failure for every property of the item, because the
+property getter answered with a text of Python where the bus wants a
+variant: the icon was in the tray with no icon and no title. And the
+helper outlived the script -- the pipe of its commands was closed with it
+and nothing woke the loop up, so the icon of a script that had ended
+stayed in the session.
+
+Two more things came out of the round, both measured on the binary of
+v2.0.19 on 2026-11-11, and both about the callback of a menu item.
+
+- **The callback is called by its VALUE and not by its name.** A closure
+  has no name in v2, and the tree dropped every handler that was one: the
+  callback of a menu item, and the callback of an event of a window. The
+  handler is the value of the function now, and it is called as a value.
+- **The callback must be able to take three parameters.** The binary
+  refuses a callback that cannot, with "Invalid callback function.": it
+  refuses two parameters and four as well, and it accepts three, two
+  with a default, three with a rest and only a rest. The check is at the
+  `Add` and not when the item is chosen.
+
+And the arity of a variadic function, which the check needs: the binary
+counts the parameters that come BEFORE the rest, and the flag of the rest
+is one. The tree counted the rest among them and never set the flag.
+
+The count does not move (the tray is not a name of the surface): **815
+values / 18 refusals**, sum 833, both platforms green, clippy clean.
+
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
 spelling (`Add` and every `Add*`), read and write its `Value`, `Text`, `Enabled`
