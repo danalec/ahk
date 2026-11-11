@@ -222,9 +222,23 @@ two trees have drifted, and a copy would have taken the drift with it.
 Measured on the box: the window opens, takes its controls, and an event
 reaches the handler of a control.
 
-The bus of the accessibility is the next family, and it is the one that
-carries the eighty-six names: `ControlGetText` and its kin read the
-controls of *another* window, and the window of the script is not that.
+The bus of the accessibility is ported too (2026-11-11): the `Control*`
+names read the controls of *another* window, and
+`crates/ahk-box/src/atspi.rs` is the bus that answers them. The port is a
+script as well (`audit/port-control-family.py` and
+`audit/port-control-cases.py`) -- the rows of the built-in table are in
+another order in the two trees, and a copy that took the order of the
+branch would have taken the names of the other rows with it. Measured on
+the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
+"hello from the port".
+
+**What the port has moved so far: the surface goes from 684 answers with
+a value and 149 refusals to 712 and 121.** The branch answers 815 and
+refuses 18, so **103 names are still to come**: the family of the windows
+of the machine (`WinMove`, `WinWait`, `WinGetText`, ...), the family of
+the focused edit (`EditGetLine`, `EditPaste`, ...), the registry and the
+drives, the tray, the COM objects, and the small ones (the lock lights,
+the cursor, the trash, the sound devices).
 
 The branch's own `audit/PLAN.md` says the gap matrix is 140/140 covered and
 that the tree answers 759 of 833 names; that is the number to beat.
