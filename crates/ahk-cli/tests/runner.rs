@@ -253,8 +253,8 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 779);
-    assert_eq!(report.number("refusals"), 54);
+    assert_eq!(report.number("values"), 793);
+    assert_eq!(report.number("refusals"), 40);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -276,10 +276,11 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(field_text(windows, "state"), "value");
     // And a name that the tree refuses carries the reason of the refusal.
     // `BlockInput` was the example until the family of the small commands
-    // was carried on 2026-11-11; `ComObjGet` is still refused.
+    // was carried on 2026-11-11, and `ComObjGet` until the family of the
+    // COM objects; `Edit` stays refused.
     let refused = entries
         .iter()
-        .find(|entry| field_text(entry, "name") == "ComObjGet")
+        .find(|entry| field_text(entry, "name") == "Edit")
         .expect("the name is in the report");
     assert_eq!(field_text(refused, "state"), "refusal");
     assert!(refused.get("reason").map(|v| v.is_string()).unwrap_or(false));

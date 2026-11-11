@@ -567,11 +567,13 @@ mod tests {
     #[test]
     fn a_refused_name_answers_with_its_reason() {
         // `WinActivate` was the example until the family of the windows was
-        // carried on 2026-11-11, and `BlockInput` until the family of the
-        // small commands was carried the same day: the name that is still
-        // refused with the blanket reason is `ComObjGet`, a name that is
-        // shaped for Windows through and through.
-        let answer = the_answer("ComObjGet");
+        // carried on 2026-11-11, `BlockInput` until the family of the small
+        // commands, and `ComObjGet` until the family of the COM objects --
+        // all on the same day. The name that stays refused with the blanket
+        // reason is `Edit`, and it stays one in the branch as well: the
+        // script of this runtime is read from the standard input, so it has
+        // no file for an editor to open.
+        let answer = the_answer("Edit");
         assert!(answer.starts_with("refusal: "), "{answer}");
         // The reason is the one the surface prints.
         assert_eq!(

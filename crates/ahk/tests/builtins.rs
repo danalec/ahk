@@ -3272,15 +3272,6 @@ fn the_take_away_of_a_property_answers_its_value() {
 }
 
 #[test]
-fn the_names_of_com_fail_with_the_reason() {
-    let report = run("a := ObjFromPtr(0)");
-    assert_eq!(
-        failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
-    );
-}
-
-#[test]
 fn mod_takes_the_remainder() {
     let report = run("a := Mod(7, 3)\nb := Mod(7.5, 2)\nc := Mod(-7, 3)");
     assert!(report.ok, "{:?}", report.error);
@@ -6817,4 +6808,158 @@ fn the_version_of_a_program_is_read_out_of_the_file_of_it() {
         value_of(&report, "noarg"),
         Value::Text("Parameter #1 of FileGetVersion must not be omitted in this case.".into())
     );
-}
+}
+
+#[test]
+fn the_com_of_the_machine_answers_the_shapes_the_binary_answers() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape of ComCall
+    // is (Method, Object, RetType), and the type of the return is looked at
+    // FIRST -- a type the dialect does not know throws "Invalid return
+    // type." -- and the ones it knows are the types of a native call, with
+    // the address of the value written after them. The object is looked at
+    // after it, and anything that is not a COM object throws "Parameter #2
+    // of ComCall is invalid.".
+    // ComObjFromPtr wants a number -- a text throws "Parameter #1 of
+    // ComObjFromPtr requires a Number, but received a String." -- and the
+    // null pointer throws "Parameter #1 of ComObjFromPtr is invalid."; a
+    // pointer that is not the null one makes the binary hang, and this
+    // runtime does not wait forever.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    ComCall(1, 12345)",
+            "\n}\ncatch as err\n{",
+            "\n    obj := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComCall(1, 12345, \"NoSuchType\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComCall(1, 12345, \"Int\")",
+            "\n}\ncatch as err\n{",
+            "\n    known := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComObjFromPtr(0)",
+            "\n}\ncatch as err\n{",
+            "\n    nil := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComObjFromPtr(\"x\")",
+            "\n}\ncatch as err\n{",
+            "\n    text := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "obj"),
+        Value::Text("Parameter #2 of ComCall is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Invalid return type.".into())
+    );
+    // A type the dialect knows passes, and the object is what fails then.
+    assert_eq!(
+        value_of(&report, "known"),
+        Value::Text("Parameter #2 of ComCall is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "nil"),
+        Value::Text("Parameter #1 of ComObjFromPtr is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "text"),
+        Value::Text(
+            "Parameter #1 of ComObjFromPtr requires a Number, but received a String.".into()
+        )
+    );
+}
+
+#[test]
+fn the_com_group_answers_the_wordings_the_binary_throws() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: ComObjGet of an empty
+    // string and of an Integer throw "(0x80070057) The parameter is
+    // incorrect."; ComObjActive of a class no program owns throws
+    // "(0x800401F3) Invalid class string"; ComObjType of an Integer answers
+    // the EMPTY text; ComObjQuery of an Integer throws "Parameter #1 of
+    // ComObjQuery is invalid."; and ComObjFlags, ComObjValue and
+    // ComObjConnect of an Integer throw "Parameter #1 of <name> requires a
+    // ComValue, but received an Integer.". ComObjFromPtr hangs on the binary
+    // and ComCall wants two parameters, so both stay refused.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "T(n, f)\n{\n    try\n    {\n        f.Call()\n        return \"ok\"\n    }\n    catch as err\n    {\n        return err.Message\n    }\n}",
+            "\na := T(\"get\", (() => ComObjGet(\"\")))",
+            "\nactive := T(\"active\", (() => ComObjActive(\"NoSuch.App.Xyz\")))",
+            "\nctype := ComObjType(123)",
+            "\nquery := T(\"query\", (() => ComObjQuery(123, \"x\")))",
+            "\nflags := T(\"flags\", (() => ComObjFlags(123)))",
+            "\nvalue := T(\"value\", (() => ComObjValue(123)))",
+            "\nconnect := T(\"connect\", (() => ComObjConnect(123)))",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    let value = |name: &str| {
+        report
+            .variables
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| panic!("{name} has no value"))
+    };
+    assert_eq!(
+        value("a"),
+        Value::Text("(0x80070057) The parameter is incorrect.".into())
+    );
+    assert_eq!(
+        value("active"),
+        Value::Text("(0x800401F3) Invalid class string".into())
+    );
+    assert_eq!(value("ctype"), Value::Text(String::new()));
+    assert_eq!(
+        value("query"),
+        Value::Text("Parameter #1 of ComObjQuery is invalid.".into())
+    );
+    for (variable, name) in [
+        ("flags", "ComObjFlags"),
+        ("value", "ComObjValue"),
+        ("connect", "ComObjConnect"),
+    ] {
+        let expected = format!(
+            "Parameter #1 of {name} requires a ComValue, but received an Integer."
+        );
+        assert_eq!(value(variable), Value::Text(expected), "{variable}");
+    }
+}
+
+#[test]
+fn the_pointers_of_the_objects_round_trip_through_the_table_of_identities() {
+    // The number `ObjPtr` mints is the identity the handles family reads,
+    // and `ObjFromPtr` gives the object back. `ObjPtrAddRef` wants an
+    // object, and `ObjRelease` refuses every call with the invalid
+    // parameter: this runtime keeps no count of references. A case of this
+    // tree -- the branch measures the wordings in the binary but pins the
+    // round trip in no case.
+    let report = run(concat!(
+        "m := Map(\"a\", 1)",
+        "\np := ObjPtr(m)",
+        "\nback := ObjFromPtr(p)",
+        "\nsame := back = m",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "same"), Value::Int(1));
+    let report = run("ObjPtrAddRef(\"x\")");
+    assert_eq!(failure_of(&report), "Expected an object but got a String.");
+    let report = run("ObjRelease(1)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of ObjRelease is invalid."
+    );
+}

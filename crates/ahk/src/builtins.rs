@@ -1037,81 +1037,81 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 2,
         max: 255,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_call,
     },
     Builtin {
         name: "ComObjActive",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_active,
     },
     Builtin {
         name: "ComObjConnect",
         kind: BuiltinKind::Function,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_connect,
     },
     Builtin {
         name: "ComObjFlags",
         kind: BuiltinKind::Function,
         min: 1,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_flags,
     },
     Builtin {
         name: "ComObjFromPtr",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_from_ptr,
     },
     Builtin {
         name: "ComObjGet",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_get,
     },
     Builtin {
         name: "ComObjQuery",
         kind: BuiltinKind::Function,
         min: 2,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_query,
     },
     Builtin {
         name: "ComObjType",
         kind: BuiltinKind::Function,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_type,
     },
     Builtin {
         name: "ComObjValue",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_value,
     },
     Builtin {
         name: "ControlAddItem",
@@ -1851,18 +1851,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_from_ptr,
     },
     Builtin {
         name: "ObjFromPtrAddRef",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_from_ptr_add_ref,
     },
     Builtin {
         name: "ObjGetBase",
@@ -1914,27 +1914,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_ptr,
     },
     Builtin {
         name: "ObjPtrAddRef",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_ptr_add_ref,
     },
     Builtin {
         name: "ObjRelease",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_add_ref,
     },
     Builtin {
         name: "ObjSetBase",
@@ -6003,18 +6003,31 @@ pub(crate) fn obj_set_capacity(
     Ok(Value::Int(1))
 }
 
-/// `ObjAddRef`: the reference count of an object, one more.
+/// `ObjAddRef` and `ObjRelease`: the reference count of an object.
 ///
-/// v2 counts the references of a COM object, and an object of a script
-/// has no such count: the built-in says that the parameter is invalid.
+/// v2 counts the references of a COM object, and an object of a script has no
+/// such count: the built-in says that the parameter is invalid. Measured on the
+/// binary of v2.0.19 on 2026-11-09: `ObjAddRef(1)` and `ObjRelease(1)` answer
+/// the same thing, "Parameter #1 of ObjAddRef is invalid." and "Parameter #1 of
+/// ObjRelease is invalid.".
+///
+/// The variant is the name: this one is `ObjAddRef` and the other is
+/// `ObjRelease`. They were inconsistent until round 23 -- `ObjAddRef` was
+/// carried and `ObjRelease` refused as a name of Windows, which is not the
+/// obstacle for either of them.
 pub(crate) fn obj_add_ref(
     _rt: &mut Runtime<'_>,
     _values: &[Value],
     line: u32,
-    _variant: u8,
+    variant: u8,
 ) -> Result<Value, RuntimeError> {
+    let name = if variant == 0 {
+        "ObjAddRef"
+    } else {
+        "ObjRelease"
+    };
     Err(RuntimeError {
-        message: crate::runtime::invalid_parameter(1, "ObjAddRef"),
+        message: crate::runtime::invalid_parameter(1, name),
         line,
     })
 }
@@ -14774,5 +14787,298 @@ pub(crate) fn file_get_version(
                 .to_string(),
             line,
         }),
+    }
+}
+
+// -- the COM group ------------------------------------------------------------------
+
+/// `ComObjGet`: the object of a COM class.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: an empty string and an
+/// Integer where the class string is wanted both throw "(0x80070057) The
+/// parameter is incorrect.". This platform has no COM class registry to
+/// resolve a class string against, so every call answers the same throw.
+pub(crate) fn com_obj_get(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "(0x80070057) The parameter is incorrect.".to_string(),
+        line,
+    })
+}
+
+/// `ComObjActive`: the COM object that a program has running.
+///
+/// Measured on the same day: a class string that no running program owns
+/// throws "(0x800401F3) Invalid class string". This platform has no running
+/// object table to look one up in, so every call answers the same throw.
+pub(crate) fn com_obj_active(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "(0x800401F3) Invalid class string".to_string(),
+        line,
+    })
+}
+
+/// `ComObjType`: the kind of a COM object.
+///
+/// Measured on the same day: an Integer where a COM object is wanted
+/// answers the EMPTY TEXT -- not a failure. This platform has no COM
+/// objects, so the empty text is the whole contract.
+pub(crate) fn com_obj_type(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
+/// `ComObjQuery`: an interface of a COM object.
+///
+/// Measured on the same day: an Integer where a COM object is wanted throws
+/// "Parameter #1 of ComObjQuery is invalid." -- a wording of its own, and
+/// not the one its siblings use.
+pub(crate) fn com_obj_query(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match values.first() {
+        Some(Value::Object(_)) => Err(RuntimeError {
+            message: "this platform has no COM: there is no object model for an interface to be asked of".to_string(),
+            line,
+        }),
+        _ => Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "ComObjQuery"),
+            line,
+        }),
+    }
+}
+
+/// The shape the three COM members that take an object share: the measured
+/// wording names the ComValue the argument is wanted to be, and an object
+/// that IS there goes to the honest refusal of the platform.
+macro_rules! com_object_argument {
+    ($name:literal, $function:ident) => {
+        pub(crate) fn $function(
+            _rt: &mut Runtime<'_>,
+            values: &[Value],
+            line: u32,
+            _variant: u8,
+        ) -> Result<Value, RuntimeError> {
+            match values.first() {
+                Some(Value::Object(_)) => Err(RuntimeError {
+                    message: "this platform has no COM: there is no object model behind the object the script holds".to_string(),
+                    line,
+                }),
+                other => Err(RuntimeError {
+                    message: crate::runtime::requires(
+                        1,
+                        $name,
+                        TypeName::ComValue,
+                        other.unwrap_or(&Value::Text(String::new())),
+                    ),
+                    line,
+                }),
+            }
+        }
+    };
+}
+
+com_object_argument!("ComObjFlags", com_obj_flags);
+com_object_argument!("ComObjValue", com_obj_value);
+com_object_argument!("ComObjConnect", com_obj_connect);
+
+
+/// `ComCall(Method, Object, RetType)`: call a method of a COM object.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ComCall Method, Object, RetType` -- the object is the second parameter
+/// and the type of the return is the third. The type is looked at **first**:
+/// a type that the dialect does not know throws "Invalid return type." --
+/// and the ones it knows are the types of a native call, with the address
+/// of the value written after them ("Int*" and "IntP" are read too).
+/// The object is looked at after it, and anything that is not a COM object
+/// throws "Parameter #2 of ComCall is invalid.".
+///
+/// The COM objects are objects of the component model of Windows, and this
+/// platform has no component model: there is no object of COM to call, so
+/// the call answers the failure of the object.
+pub(crate) fn com_call(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The type of the return is looked at before the object.
+    if let Some(kind) = values.get(2) {
+        if crate::dll::parse_type(&kind.to_text()).is_none() {
+            return Err(RuntimeError {
+                message: "Invalid return type.".to_string(),
+                line,
+            });
+        }
+    }
+    Err(RuntimeError {
+        message: "Parameter #2 of ComCall is invalid.".to_string(),
+        line,
+    })
+}
+
+/// `ComObjFromPtr(Ptr)`: the COM object of a pointer.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter
+/// wants a number, and a text throws "Parameter #1 of ComObjFromPtr
+/// requires a Number, but received a String."; the **null** pointer throws
+/// "Parameter #1 of ComObjFromPtr is invalid.".
+///
+/// A pointer that is not the null one makes the **binary hang** -- measured
+/// on 2026-11-11, the run was killed after ten seconds on
+/// `ComObjFromPtr(12345)`. There is no answer of it to match, and this
+/// runtime does not wait forever either.
+pub(crate) fn com_obj_from_ptr(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ComObjFromPtr", TypeName::Number, &first),
+            line,
+        });
+    }
+    let pointer = first.to_number_lenient() as i64;
+    if pointer == 0 {
+        return Err(RuntimeError {
+            message: "Parameter #1 of ComObjFromPtr is invalid.".to_string(),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "the binary of v2.0.19 hangs on this call -- measured on 2026-11-11 -- and this runtime does not wait forever: the COM objects are objects of the component model of Windows, and this platform has no component model.".to_string(),
+        line,
+    })
+}
+
+/// `ObjPtr(Object)` and `ObjFromPtr(Ptr)`: the number that names an object, and the
+/// object a number names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ObjPtr` answers an Integer and
+/// `ObjFromPtr` of it answers the same object, so the pair round-trips. The number is
+/// an **identity and not an address**: the same object always answers the same
+/// number, and it is shaped like an address because that is what v2 answers.
+pub(crate) fn obj_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            })
+        }
+    };
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+/// `ObjPtrAddRef(Object)` and `ObjFromPtrAddRef(Ptr)`: the pair of `ObjPtr` that also
+/// keeps a reference.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips, and a value
+/// that is not an object is refused as *"Expected an object but got an Integer."*
+///
+/// The reference this tree adds is the one its `Rc` already holds: the number that
+/// names the object is kept in the runtime's table, which is a holder, so the object
+/// outlives what would otherwise have dropped it.
+pub(crate) fn obj_ptr_add_ref(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            })
+        }
+    };
+    if !matches!(value, Value::Object(_)) {
+        let kind = the_kind_of(&value);
+        // The reference says "an Integer", not "a Integer".
+        let article = if kind.starts_with(['A', 'E', 'I', 'O', 'U']) {
+            "an"
+        } else {
+            "a"
+        };
+        return Err(RuntimeError {
+            message: format!("Expected an object but got {article} {kind}."),
+            line,
+        });
+    }
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+pub(crate) fn obj_from_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as i64;
+    match rt.the_object_of(number) {
+        Some(value) => Ok(value),
+        None => Err(RuntimeError {
+            message: format!(
+                "the number {number} does not name an object this script has asked about"
+            ),
+            line,
+        }),
+    }
+}
+
+pub(crate) fn obj_from_ptr_add_ref(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as i64;
+    match rt.the_object_of(number) {
+        Some(value) => Ok(value),
+        None => Err(RuntimeError {
+            message: format!(
+                "the number {number} does not name an object this script has asked about"
+            ),
+            line,
+        }),
+    }
+}
+
+/// The name of the kind of a value, for the message of a refusal.
+fn the_kind_of(value: &Value) -> &'static str {
+    match value {
+        Value::Int(_) => "Integer",
+        Value::Float(_) => "Float",
+        Value::Text(_) => "String",
+        Value::Object(_) => "Object",
+        _ => "value that is not an object",
     }
 }

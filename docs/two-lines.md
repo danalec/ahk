@@ -233,14 +233,30 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 779 and 54.** The branch answers 815 and
-refuses 18, so **36 names are still to come**: the COM objects and the
-pointers of them (14), the lists of icons and the list controls (6), the
-status bars (2), the tray (2, and a helper of their own), `MenuSelect`,
-`OnClipboardChange` -- beside the variables and the methods the branch
-answers and this tree still refuses. The styles are not in that count:
-they are refused in the branch too, and the port carries the same refusal
-now, with the reason of the family at the run.
+a value and 149 refusals to 793 and 40.** The branch answers 815 and
+refuses 18, so **22 names are still to come**: the lists of icons (3),
+the list controls and the status bars (3), the tray (2, and a helper of
+their own), `MenuSelect`, `ListViewGetContent`, `OnClipboardChange` --
+beside the variables and the methods the branch answers and this tree
+still refuses. The styles and `Edit` are not in that count: they are
+refused in the branch too, and the port carries the same refusals now,
+with the reasons of the families at the run.
+
+**The eleventh family is ported too (2026-11-11): the COM objects and
+the pointers of objects -- fourteen names, the biggest jump of the
+port.** This platform has no component model, and the family carries the
+wordings the binary of v2.0.19 was measured to throw: "(0x80070057) The
+parameter is incorrect." for `ComObjGet`, "(0x800401F3) Invalid class
+string" for `ComObjActive`, the empty text for `ComObjType`, "Invalid
+return type." for a `ComCall` whose return type the dialect does not
+know, and the honest refusal of the platform for the rest -- including
+`ComObjFromPtr` of a pointer that is not null, where the binary HANGS
+(measured on 2026-11-11) and this runtime does not wait forever. The
+five `Obj*` names are the identity table the handles family reads:
+measured on the box, `ObjPtr(Map(...))` mints 4096, `ObjFromPtr` gives
+the same object back, `ObjPtrAddRef("x")` throws "Expected an object but
+got a String." and `ObjRelease(1)` names itself -- the row's variant is
+the name.
 
 **The sixth family is ported too (2026-11-11): the names of the sound
 devices.** `SoundGetName` asks the mixer of the session -- `pactl`, the

@@ -12048,3 +12048,51 @@ blanket reason is `ComObjGet`.
 
 **The surface moves with the family: 775 answers with a value and 58 are
 refused become 779 and 54.**
+
+## 327. The COM objects answer the wordings the binary throws
+
+**The eleventh family of the port is fourteen names: the nine `Com*` and
+the five `Obj*`.** This platform has no component model, and the branch
+measured on the binary of v2.0.19 -- on 2026-11-10 and 2026-11-11 -- the
+exact wording each name throws; the port carries the wordings, not a COM:
+
+- `ComObjGet` throws "(0x80070057) The parameter is incorrect." -- there
+  is no class registry to resolve a class string against;
+- `ComObjActive` throws "(0x800401F3) Invalid class string" -- there is
+  no running object table to look one up in;
+- `ComObjType` answers the EMPTY TEXT, which is what the binary answers
+  for a value that is not a COM object;
+- `ComObjQuery`, `ComObjFlags`, `ComObjValue` and `ComObjConnect` name
+  the ComValue the argument is wanted to be, and an object that IS there
+  goes to the honest refusal of the platform -- the three last ones
+  through the `com_object_argument!` macro of the branch;
+- `ComCall` looks at the type of the return FIRST -- a type the dialect
+  does not know throws "Invalid return type." -- and then at the object,
+  which throws "Parameter #2 of ComCall is invalid.";
+- `ComObjFromPtr` wants a number, the null pointer is invalid, and a
+  pointer that is not null answers the reason of the binary that HANGS
+  on this call -- measured on 2026-11-11, the run was killed after ten
+  seconds -- and this runtime does not wait forever.
+
+**The five `Obj*` names are the identity table the handles family
+reads**: `ObjPtr` and `ObjPtrAddRef` mint the number of a value
+(`ObjPtrAddRef` only for an object: anything else throws "Expected an
+object but got a String."), and `ObjFromPtr` and `ObjFromPtrAddRef` give
+the object back -- a number that names nothing throws "the number N does
+not name an object this script has asked about". `ObjRelease` refuses
+with the invalid parameter: this runtime keeps no count of references.
+
+**The port carried an `obj_add_ref` of the master, which always named
+"ObjAddRef"; the swap for the version of the branch is what lets the row
+of `ObjRelease` -- whose variant is 1 -- name itself.** The case of the
+master that asked `ObjFromPtr(0)` for the blanket reason died with the
+refusal, and the two examples of the blanket refusal -- in `behavior.rs`
+and in the runner case -- moved to `Edit`, which stays refused in the
+branch as well.
+
+**Measured on the box on 2026-11-11**: every wording above, and the
+round trip `m := Map(); p := ObjPtr(m); ObjFromPtr(p) = m` answers 1
+with `p` = 4096, the first identity of the run.
+
+**The surface moves with the family: 779 answers with a value and 54 are
+refused become 793 and 40.**
