@@ -143,7 +143,19 @@ corrected the address of a text: two calls of `StrPtr` with the same text
 give two addresses, and the address of the storage of a buffer is the
 address of the memory of the runtime, which the allocator gives twice --
 so the address of a text is minted now, apart from the addresses of the
-objects. The count is **802 values / 31 refusals**.
+objects. The count is **802 values / 31 refusals**. **Round 22 read the
+version of a program of Windows** (`dd74969`): `FileGetVersion` answers
+the version as four numbers -- "10.0.26100.9818" for the notepad of
+Windows -- and the tree refused the name, saying that an ELF has no
+version resource to read. The refusal did not hold: the file is read as
+a program of Windows **wherever it is**, and the version is a resource
+of the file and not a thing of the machine that runs it. The reader is a
+module of its own -- the header of the DOS, the header of the PE, the
+table of the sections, the table of the resources (where the version is
+the resource of the kind sixteen) and the `VS_FIXEDFILEINFO` -- proved by
+a program of Windows made by the test and by the real one, which answers
+the same number on the Windows host and on the box. The count is
+**803 values / 30 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
