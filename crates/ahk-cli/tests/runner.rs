@@ -289,8 +289,8 @@ fn the_surface_flag_answers_with_json() {
     // The lock lights are the latest (round 16): the three Set*LockState
     // names answer, and the state they set is read back by
     // GetKeyState(<lock>, "T").
-    assert_eq!(report.number("values"), 811);
-    assert_eq!(report.number("refusals"), 22);
+    assert_eq!(report.number("values"), 813);
+    assert_eq!(report.number("refusals"), 20);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");

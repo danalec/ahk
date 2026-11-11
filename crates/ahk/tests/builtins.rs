@@ -1298,6 +1298,77 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_com_of_the_machine_answers_the_shapes_the_binary_answers() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape of ComCall
+    // is (Method, Object, RetType), and the type of the return is looked at
+    // FIRST -- a type the dialect does not know throws "Invalid return
+    // type." -- and the ones it knows are the types of a native call, with
+    // the address of the value written after them. The object is looked at
+    // after it, and anything that is not a COM object throws "Parameter #2
+    // of ComCall is invalid.".
+    // ComObjFromPtr wants a number -- a text throws "Parameter #1 of
+    // ComObjFromPtr requires a Number, but received a String." -- and the
+    // null pointer throws "Parameter #1 of ComObjFromPtr is invalid."; a
+    // pointer that is not the null one makes the binary hang, and this
+    // runtime does not wait forever.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    ComCall(1, 12345)",
+            "\n}\ncatch as err\n{",
+            "\n    obj := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComCall(1, 12345, \"NoSuchType\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComCall(1, 12345, \"Int\")",
+            "\n}\ncatch as err\n{",
+            "\n    known := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComObjFromPtr(0)",
+            "\n}\ncatch as err\n{",
+            "\n    nil := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComObjFromPtr(\"x\")",
+            "\n}\ncatch as err\n{",
+            "\n    text := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "obj"),
+        Value::Text("Parameter #2 of ComCall is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Invalid return type.".into())
+    );
+    // A type the dialect knows passes, and the object is what fails then.
+    assert_eq!(
+        value_of(&report, "known"),
+        Value::Text("Parameter #2 of ComCall is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "nil"),
+        Value::Text("Parameter #1 of ComObjFromPtr is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "text"),
+        Value::Text(
+            "Parameter #1 of ComObjFromPtr requires a Number, but received a String.".into()
+        )
+    );
+}
+
+#[test]
 fn the_name_of_a_sound_device_is_the_name_the_machine_gives_it() {
     // Measured on the binary of v2.0.19 on 2026-11-11: `SoundGetName` with no
     // component answers the name of the device that plays, and with the

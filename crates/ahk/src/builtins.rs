@@ -1024,9 +1024,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 2,
         max: 255,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_call,
     },
     Builtin {
         name: "ComObjActive",
@@ -1060,9 +1060,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 124,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_from_ptr,
     },
     Builtin {
         name: "ComObjGet",
@@ -4444,6 +4444,78 @@ pub(crate) fn callback_free(
     }
     Err(RuntimeError {
         message: "Parameter #1 of CallbackFree is invalid.".to_string(),
+        line,
+    })
+}
+
+/// `ComCall(Method, Object, RetType)`: call a method of a COM object.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ComCall Method, Object, RetType` -- the object is the second parameter
+/// and the type of the return is the third. The type is looked at **first**:
+/// a type that the dialect does not know throws "Invalid return type." --
+/// and the ones it knows are the types of a native call, with the address
+/// of the value written after them ("Int*" and "IntP" are read too).
+/// The object is looked at after it, and anything that is not a COM object
+/// throws "Parameter #2 of ComCall is invalid.".
+///
+/// The COM objects are objects of the component model of Windows, and this
+/// platform has no component model: there is no object of COM to call, so
+/// the call answers the failure of the object.
+pub(crate) fn com_call(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The type of the return is looked at before the object.
+    if let Some(kind) = values.get(2) {
+        if crate::dll::parse_type(&kind.to_text()).is_none() {
+            return Err(RuntimeError {
+                message: "Invalid return type.".to_string(),
+                line,
+            });
+        }
+    }
+    Err(RuntimeError {
+        message: "Parameter #2 of ComCall is invalid.".to_string(),
+        line,
+    })
+}
+
+/// `ComObjFromPtr(Ptr)`: the COM object of a pointer.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter
+/// wants a number, and a text throws "Parameter #1 of ComObjFromPtr
+/// requires a Number, but received a String."; the **null** pointer throws
+/// "Parameter #1 of ComObjFromPtr is invalid.".
+///
+/// A pointer that is not the null one makes the **binary hang** -- measured
+/// on 2026-11-11, the run was killed after ten seconds on
+/// `ComObjFromPtr(12345)`. There is no answer of it to match, and this
+/// runtime does not wait forever either.
+pub(crate) fn com_obj_from_ptr(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ComObjFromPtr", TypeName::Number, &first),
+            line,
+        });
+    }
+    let pointer = first.to_number_lenient() as i64;
+    if pointer == 0 {
+        return Err(RuntimeError {
+            message: "Parameter #1 of ComObjFromPtr is invalid.".to_string(),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "the binary of v2.0.19 hangs on this call -- measured on 2026-11-11 -- and this runtime does not wait forever: the COM objects are objects of the component model of Windows, and this platform has no component model.".to_string(),
         line,
     })
 }
