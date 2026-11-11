@@ -178,6 +178,83 @@ The same list for every desktop of the matrix:
 - **Measured (the box):** the X path answers "unknown", because the X
   server of the session is the rootless Xwayland of gamescope and it
   reports an empty list of clients.
-- **Not measured yet:** every other desktop of this list. The reasons of
-  the tree are written for them, and the VMs are what turns them into
-  measurements.
+- **Measured on the VM `AhkDesktopTest` (2026-11-11):** sway and i3.
+  The measurements are in section 5.
+- **Not measured yet:** GNOME, KDE, and the wlroots family beyond sway.
+
+## 5. The measurement of the VM `AhkDesktopTest` (2026-11-11)
+
+The VM is an Arch Linux (kernel 7.2.15) under QEMU with a **virtio-gpu**
+(the DRM device is `/dev/dri/card1`, the connector `Virtual-1`, and
+`WLR_RENDERER=pixman` drives it in software), 8 GB of RAM, 6 vCPUs, a
+bridged network, and no passthrough: the GPU of the host is the one the
+COSMIC session is using. The desktop is chosen by `/etc/ahk-session` and
+the session starts from the autologin of `tty1`: `sway`, or `startx i3`.
+
+**The suite is green on the VM**: `cargo test --workspace` passes every
+case, and the surface answers the same 754 names as on the workstation --
+the language does not depend on the compositor.
+
+### 5.1 sway 1.12 (wlroots) -- the item 2 of the list
+
+The compositor of the VM **does publish the portable listing**
+(`ext_foreign_toplevel_list_v1`): the tree lists its windows with no
+adapter at all. That is the answer the matrix was written to find out.
+
+| the question | the answer of the VM |
+|---|---|
+| `WinGetCount()` | **3** (three `foot` terminals tiled) |
+| the titles of the list | `tester@archlinux:~` three times |
+| `WinGetTitle("tester@archlinux")` | the title: the match by substring works |
+| `WinExist("zzz-nothing-zzz")` | 0 |
+| `WinWait("zzz-nothing-zzz", "", 1)` | 0, in 1012 ms |
+| `WinGetPos(...)` | **"the compositor did not say where this window is, so its place is not known"** -- sway does not publish the geometry of a window through the extension of COSMIC |
+| `WinActive("tester")` | 0, and **not** the reason -- see the open item below |
+| a `Gui` | opens, and its control is read: `ControlGetText("Edit1", ...)` answers "hello from sway" |
+| `EditGetCurrentCol(1)` | 16 |
+
+**The bus of the accessibility works in sway**: `at-spi-bus-launcher`
+starts with the session, and the `Control*` family reads the controls of
+the window of the script through it.
+
+**Open item, and it is the tree's and not the port's:** on a compositor
+that does not publish `zcosmic_toplevel_info_v1` the focus is not
+knowable, and the tree answers **0** where its own rule says it should
+answer the reason -- "the compositor does not publish
+zcosmic_toplevel_info_v1, so it can list its windows but cannot say which
+one has the focus" is written in the client and it is not reaching the
+script. The window of the VM is the first place where that path was
+walked: on the box the extension is always there.
+
+### 5.2 i3 4.25 (X11, Xorg 21.1) -- the item 5 of the list
+
+A real X server, which the box does not have (its X server is the
+rootless Xwayland of gamescope, and it reports an empty list of clients).
+
+| the question | the answer of the VM |
+|---|---|
+| `WinGetTitle()` | **"tester@archlinux:~"** -- the active window, read through `_NET_ACTIVE_WINDOW` |
+| `WinGetList()` / `WinGetCount()` | **the reason**: "the windows of this session are asked of the Wayland compositor, and this session is not one: the X11 server beside it is asked for the active window only, and not for the list of the windows." |
+| `WinExist("...")` | **the reason**: "the X server lists \"_NET_CLIENT_LIST(WINDOW): window id # 0xa0000c, 0x80000c, 0xc0000c\", which this runtime does not parse yet" |
+| `WinActive("...")` | 0 |
+
+**So the X11 path of the tree answers the title of the active window and
+refuses the rest, each with the reason it has.** The refusal is written
+in `crates/ahk-box/src/desktop.rs`, in the `window_active` of the box:
+the `_NET_CLIENT_LIST` is read and its list of ids is not parsed. It is
+a gap of the tree and not of the port, and the VM is now the place where
+it can be measured -- which the box never was.
+
+### 5.3 What the VM says about the matrix itself
+
+- The item 2 (wlroots) is **proven**: the portable listing is enough, and
+  the two things the listing does not carry -- the focus and the geometry
+  -- answer the reason of the compositor (the second one) and a zero
+  (the first one, which is the open item).
+- The item 5 (X11) is **proven to be a gap of the tree**: the X path was
+  written against the empty list of the Xwayland of gamescope, and a real
+  X server is the first one to show what it does with a list that is not
+  empty.
+- The window of the script and the bus of the accessibility do **not**
+  depend on the compositor: they worked in the two sessions of the VM,
+  and they work on the box.

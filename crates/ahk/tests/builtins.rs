@@ -1014,6 +1014,7 @@ impl Screen for Fake {
                 top: 0,
                 right: 1920,
                 bottom: 2160,
+                scale: 1,
             },
             Monitor {
                 name: "\\\\.\\DISPLAY2".into(),
@@ -1021,6 +1022,7 @@ impl Screen for Fake {
                 top: 0,
                 right: 3840,
                 bottom: 2160,
+                scale: 1,
             },
         ])
     }
