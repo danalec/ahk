@@ -11847,3 +11847,40 @@ that lists its windows** -- the id of the runtime on Wayland, the id of
 the X server on X11 -- which is the shape measured on the binary of
 v2.0.19 on 2026-11-09. Before the VM, the X11 path answered 1 and 0, the
 two values of a boolean, for a question whose answer is a window.
+
+## 321. The drives of the machine are the tools of the machine
+
+**The fifth family of the port is the drives** (`docs/two-lines.md`
+§5.2): the fourteen `Drive*` names of v2. The branch measured them on
+the binary on 2026-11-10 and answers them on Linux with the tools the
+machine has -- `df -Pk` for the space and the capacity in megabytes,
+`lsblk` for the list, the label, the serial and the kind of a device,
+`eject` and `udisksctl` for the hardware words, and the label tool of
+the filesystem (`e2label`, `mlabel`, `ntfslabel`) for `DriveSetLabel`.
+The port carries the ten methods of the `Machine` trait that replace the
+two generic ones of the master (`drive_type`, `drive_status`), the
+`DriveSpace` struct, the fourteen handlers, the two wordings of the
+machine (`DRIVE_PATH`, `DRIVE_FILE`) and the nine cases of the family.
+
+**Measured on the box on 2026-11-11** (COSMIC, the root on zfs):
+`DriveGetList()` answers `zram0` and `vda` on two lines, `DriveGetSpaceFree("/")`
+answers 3936, `DriveGetCapacity("/")` answers 25158, `DriveGetType("/")`
+answers "Fixed", `DriveGetFilesystem("/")` answers "zfs", `DriveGetLabel("/")`
+answers the empty text (a zfs dataset carries no label the box can ask),
+`DriveGetStatus("/")` answers "Ready", and a drive that is not there
+fails with "(3) The system cannot find the path specified.".
+
+**Measured on the VM of the matrix on the same day** (i3 over Xorg, the
+root on btrfs): the same eight answers with the numbers of that machine
+-- `vda`, 34791, 40657, "Fixed", "btrfs", empty, "Ready" -- which is the
+measurement of the hand merge: **the X11 desktop of this tree answers
+the drive family by asking a desktop of the lab that is made only to
+answer it**, because the drives are of the machine and not of the
+session. The branch has no drive methods on its X11 desktop (it has no
+X11 desktop with a Machine impl at all), and the master had two of the
+old shape; the merge keeps the master's reach with the branch's answers.
+
+**The surface moves with the family: 754 answers with a value and 79 are
+refused become 761 and 72.** The tools the family needs are in the list
+of the services of the matrix: `df` and `lsblk` are of `util-linux`,
+`eject` too, and `udisksctl` is of `udisks2`.

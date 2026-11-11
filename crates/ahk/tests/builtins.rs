@@ -7,7 +7,7 @@
 use ahk::desktop::{
     Clipboard, WindowRef, WindowGeometry, WaitFor, ControlAnswer, ControlEdit, ControlFlag, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native, Network,
-    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WindowAnswer, WindowInfo,
+    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, DriveSpace, Timers, WindowAnswer, WindowInfo,
     Windows,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
@@ -163,6 +163,60 @@ impl Sound for Fake {
     }
 }
 impl Machine for Fake {
+    fn drive_set_label(&mut self, _path: &str, label: &str) -> Result<(), String> {
+        self.drive_label = Some(label.to_string());
+        Ok(())
+    }
+    fn drive_retract(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn drive_unlock(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn drive_lock(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn drive_eject(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn drive_status_cd(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        self.calls.push(("drive-list".into(), String::new()));
+        Ok(vec!["sda".to_string(), "sdb".to_string()])
+    }
+    fn drive_serial(&mut self, path: &str) -> Result<Option<String>, String> {
+        self.calls.push(("drive-serial".into(), path.to_string()));
+        Ok(if path == "/" {
+            Some("S3Z8NB0TA-1234".to_string())
+        } else {
+            None
+        })
+    }
+    fn drive_label(&mut self, path: &str) -> Result<Option<String>, String> {
+        self.calls.push(("drive-label".into(), path.to_string()));
+        // The same one drive, carrying the label the case asserts against.
+        Ok(if path == "/" {
+            self.drive_label.clone().or_else(|| Some("core".to_string()))
+        } else {
+            None
+        })
+    }
+    fn drive_space(&mut self, path: &str) -> Result<Option<DriveSpace>, String> {
+        self.calls.push(("drive-space".into(), path.to_string()));
+        // One drive at `/`, and every other path is a drive that is not there.
+        Ok(if path == "/" {
+            Some(DriveSpace {
+                free: 1000,
+                capacity: 4000,
+                filesystem: "ext4".to_string(),
+                kind: "Fixed".to_string(),
+            })
+        } else {
+            None
+        })
+    }
     // The addresses of the fake: the shape the binary answers, measured on
     // 2026-11-09 -- the texts of the addresses of the machine, and not the
     // address of the loopback.
@@ -190,12 +244,6 @@ impl Machine for Fake {
             }));
         }
         Err("(2) No such file or directory".to_string())
-    }
-    fn drive_type(&mut self, path: &str) -> Result<Option<String>, String> {
-        Ok((path == "/").then(|| "Fixed".to_string()))
-    }
-    fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
-        Ok((path == "/").then(|| "Ready".to_string()))
     }
 }
 impl Dialogs for Fake {
@@ -1954,54 +2002,6 @@ fn the_file_is_recycled_and_the_trash_is_emptied() {
     );
 }
 
-#[test]
-fn the_readings_of_a_drive_are_asked_of_the_desktop() {
-    // Measured on the binary of v2.0.19 on 2026-11-09: the capacity and the
-    // free space are counted in megabytes, the serial is a number, the
-    // filesystem and the label are texts, a drive that is not there is the
-    // empty text for the type and "Invalid" for the state, and the other
-    // readings of a drive that is not there are the failure of the machine.
-    let report = run(concat!(
-        "a := DriveGetType(\"/\")\n",
-        "b := DriveGetStatus(\"/\")\n",
-        "c := DriveGetFilesystem(\"/\")\n",
-        "d := DriveGetLabel(\"/\")\n",
-        "e := DriveGetSerial(\"/\")\n",
-        "f := DriveGetSpaceFree(\"/\")\n",
-        "g := DriveGetCapacity(\"/\")\n",
-        "h := DriveGetType(\"/no-such-path\")\n",
-        "i := DriveGetStatus(\"/no-such-path\")\n",
-    ));
-    assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "a"), Value::Text("Fixed".into()));
-    assert_eq!(value_of(&report, "b"), Value::Text("Ready".into()));
-    assert_eq!(value_of(&report, "c"), Value::Text("ext4".into()));
-    assert_eq!(value_of(&report, "d"), Value::Text(String::new()));
-    assert_eq!(int_of(&report, "e"), 42);
-    assert_eq!(int_of(&report, "f"), 100);
-    assert_eq!(int_of(&report, "g"), 200);
-    // A path that is not a drive is not a failure for the type and the state.
-    assert_eq!(value_of(&report, "h"), Value::Text(String::new()));
-    assert_eq!(value_of(&report, "i"), Value::Text("Invalid".into()));
-    // The five readings that answer with the failure of the machine say it.
-    assert_eq!(
-        failure_of(&run("a := DriveGetFilesystem(\"/no-such-path\")")),
-        "(2) No such file or directory"
-    );
-    // A machine without drive letters has no list of them to answer: measured on
-    // the binary of v2.0.19 on 2026-11-09, `DriveGetList` answers the letters of
-    // the drives of Windows ("BCDEFX" on the machine of the binary), and the
-    // volumes of this machine are named by the paths they are mounted at. The
-    // name therefore stays a refusal of the table, with the reason of it.
-    assert_eq!(
-        failure_of(&run("a := DriveGetList()")),
-        "this is a name of Windows, and this desktop is not Windows."
-    );
-    assert_eq!(
-        failure_of(&run("a := DriveGetType(Map())")),
-        "Parameter #1 of DriveGetType requires a String, but received a Map."
-    );
-}
 
 #[test]
 fn the_suspend_and_the_pause_are_a_state_of_the_run() {
@@ -6328,3 +6328,152 @@ fn a_compositor_that_lists_its_windows_without_the_focus_answers_the_reason() {
         "the compositor does not say which window has the focus"
     );
 }
+
+
+#[test]
+fn the_drive_family_answers_the_label_the_serial_the_list_and_the_hardware_words() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the label and the
+    // serial of a drive that is there answer as read, the list answers the
+    // drives with no argument and throws "Parameter #1 of DriveGetList is
+    // invalid." with one, and the readers throw "(3) The system cannot find
+    // the path specified." on a drive that is not there. The hardware
+    // operations -- eject, lock, unlock, retract -- throw the file wording
+    // "(2) The system cannot find the file specified." on a drive that is
+    // not there, and answer the empty text when the drive is there.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := DriveGetLabel(\"/\")",
+            "\nb := DriveGetSerial(\"/\")",
+            "\nc := DriveGetList()",
+            "\nd := DriveEject(\"/\")",
+            "\ne := DriveLock(\"/\")",
+            "\nf := DriveUnlock(\"/\")",
+            "\ng := DriveRetract(\"/\")",
+            "\nDriveSetLabel(\"/\", \"the label\")",
+            "\nh := DriveGetLabel(\"/\")",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("core".into()));
+    // A serial that does not read as a whole number rides as text.
+    assert_eq!(
+        value_of(&report, "b"),
+        Value::Text("S3Z8NB0TA-1234".into())
+    );
+    assert_eq!(value_of(&report, "c"), Value::Text("sda\nsdb".into()));
+    for name in ["d", "e", "f", "g"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()));
+    }
+    assert_eq!(value_of(&report, "h"), Value::Text("the label".into()));
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveGetLabel(\"no-such\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(3) The system cannot find the path specified.".into())
+    );
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveEject(\"no-such\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(2) The system cannot find the file specified.".into())
+    );
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveGetList(\"/\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("Parameter #1 of DriveGetList is invalid.".into())
+    );
+}
+
+#[test]
+fn drive_get_space_free_answers_the_free_megabytes() {
+    let report = run("x := DriveGetSpaceFree(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1000);
+}
+
+#[test]
+fn drive_get_capacity_answers_the_capacity_in_megabytes() {
+    let report = run("x := DriveGetCapacity(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 4000);
+}
+
+#[test]
+fn drive_get_space_free_of_a_drive_that_is_not_there_fails() {
+    let report = run("x := DriveGetSpaceFree(\"/nowhere\")");
+    assert!(!report.ok, "the script was expected to fail");
+    assert!(failure_of(&report).contains("is not there"));
+}
+
+#[test]
+fn drive_get_status_answers_ready_for_a_drive_that_is_there() {
+    let report = run("x := DriveGetStatus(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Ready".into())));
+}
+
+#[test]
+fn drive_get_status_of_a_drive_that_is_not_there_is_empty() {
+    let report = run("x := DriveGetStatus(\"/nowhere\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn drive_get_filesystem_answers_the_filesystem_of_the_machine() {
+    let report = run("x := DriveGetFilesystem(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("ext4".into())));
+}
+
+#[test]
+fn drive_get_type_answers_the_kind_in_the_word_of_v2() {
+    let report = run("x := DriveGetType(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("Fixed".into())));
+}
+
+#[test]
+fn drive_get_type_of_a_drive_that_is_not_there_is_empty() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `DriveGetType` of a
+    // drive that is not there is the empty text, and not a failure.
+    let report = run("x := DriveGetType(\"/nowhere\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}

@@ -2250,7 +2250,326 @@ fn the_program(command: &str, working_dir: &str) -> Command {
     program
 }
 
+/// The filesystem of the longest mount point that a path is under.
+///
+/// The table of the mounts of the machine is `/proc/self/mounts`, and the drive
+/// of a path is the longest mount point it is under: a path under `/home` is in
+/// the filesystem of `/home` and not in the one of `/`.
+fn the_filesystem_of(path: &str) -> Option<String> {
+    let table = std::fs::read_to_string("/proc/self/mounts").ok()?;
+    let mut best: Option<(usize, String)> = None;
+    for line in table.lines() {
+        let mut fields = line.split_whitespace();
+        let (_device, mount, filesystem) = (fields.next()?, fields.next()?, fields.next()?);
+        let under = path == mount
+            || (mount == "/" && path.starts_with('/'))
+            || (path.starts_with(mount) && path.as_bytes().get(mount.len()) == Some(&b'/'));
+        if !under {
+            continue;
+        }
+        let beaten = match &best {
+            None => true,
+            Some((length, _)) => mount.len() >= *length,
+        };
+        if beaten {
+            best = Some((mount.len(), filesystem.to_string()));
+        }
+    }
+    best.map(|(_, filesystem)| filesystem)
+}
+
+/// The device node that a path is on, from the first column of `df`.
+///
+/// A filesystem without a device behind it -- `overlay`, a `tmpfs` -- is not
+/// a drive a script can hold, and the answer is none.
+fn the_device_of(path: &str) -> Option<String> {
+    let output = Command::new("df").arg("-P").arg(path).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let source = text.lines().nth(1)?.split_whitespace().next()?.to_string();
+    if source == "overlay" || source.starts_with("tmpfs") {
+        return None;
+    }
+    Some(source)
+}
+
+/// The kind of a drive, in the word of v2, from the filesystem of it.
+///
+/// The words are the ones of v2. The mapping is the honest one for a Linux
+/// box: a network filesystem is a `Network` drive, an image of a disc is a
+/// `CDROM`, a memory filesystem is a `RAMDisk`, and everything else on the
+/// machine is `Fixed`.
+fn the_kind_of(filesystem: &str) -> String {
+    match filesystem {
+        "nfs" | "nfs4" | "cifs" | "smb3" | "sshfs" | "9p" | "afs" => "Network",
+        "iso9660" | "udf" => "CDROM",
+        "tmpfs" | "ramfs" | "devtmpfs" => "RAMDisk",
+        _ => "Fixed",
+    }
+    .to_string()
+}
+
 impl ahk::desktop::Machine for LabDesktop {
+    fn drive_set_label(&mut self, path: &str, label: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let device = match the_device_of(path) {
+            Some(device) => device,
+            None => return Err(format!("the drive of {path} is not there")),
+        };
+        // The tool that writes a label is the filesystem's: ext* carries
+        // e2label, the FAT family carries mlabel, and ntfs carries ntfslabel.
+        let filesystem = the_filesystem_of(path).unwrap_or_default();
+        let mut command = match filesystem.as_str() {
+            fs if fs.starts_with("ext") => {
+                let mut command = Command::new("e2label");
+                command.arg(&device).arg(label);
+                command
+            }
+            "vfat" | "msdos" | "fat" => {
+                let mut command = Command::new("mlabel");
+                command.arg("-i").arg(&device).arg(format!("::{label}"));
+                command
+            }
+            "ntfs" => {
+                let mut command = Command::new("ntfslabel");
+                command.arg(&device).arg(label);
+                command
+            }
+            other => {
+                return Err(format!(
+                    "the filesystem {other} of {path} has no label tool on this box"
+                ));
+            }
+        };
+        let output = command.output().map_err(|error| error.to_string())?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "the label of {path} was not written: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ))
+        }
+    }
+    fn drive_retract(&mut self, path: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let device = the_device_of(path).unwrap_or_else(|| path.to_string());
+        let output = Command::new("udisksctl")
+            .args(["power-off", "-b", &device])
+            .output();
+        match output {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => Err(format!(
+                "the drive of {path} was not spun down: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    fn drive_unlock(&mut self, path: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let device = the_device_of(path).unwrap_or_else(|| path.to_string());
+        let output = Command::new("udisksctl")
+            .args(["unlock", "-b", &device])
+            .output();
+        match output {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => Err(format!(
+                "the drive of {path} was not unlocked: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    fn drive_lock(&mut self, path: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let device = the_device_of(path).unwrap_or_else(|| path.to_string());
+        let output = Command::new("udisksctl")
+            .args(["lock", "-b", &device])
+            .output();
+        match output {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => Err(format!(
+                "the drive of {path} was not locked: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    fn drive_eject(&mut self, path: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let output = Command::new("eject").arg(path).output();
+        match output {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => Err(format!(
+                "the drive of {path} was not ejected: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    fn drive_status_cd(&mut self, path: &str) -> Result<Option<String>, String> {
+        let device = match the_device_of(path) {
+            Some(device) => device,
+            None => return Ok(None),
+        };
+        let output = Command::new("lsblk")
+            .args(["-no", "TYPE", &device])
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Ok(None);
+        }
+        let kind = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if kind != "rom" {
+            return Ok(None);
+        }
+        // A reader with no medium in it is open; one that cannot be asked is
+        // not ready. Neither state is measured on the binary: this box has no
+        // reader, so the answer for one that IS a reader is the honest one.
+        Ok(Some("not ready".to_string()))
+    }
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        box_tools_are_near()?;
+        // `-d` asks about the drives alone and not their partitions, and `-e 7`
+        // leaves the loop and ram devices out: the drives of the machine are
+        // the ones a script can hold and unmount.
+        let output = Command::new("lsblk")
+            .args(["-dno", "NAME", "-e", "7"])
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Err("the machine did not list its drives".to_string());
+        }
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::to_string)
+            .filter(|name| !name.is_empty())
+            .collect())
+    }
+    fn drive_serial(&mut self, path: &str) -> Result<Option<String>, String> {
+        let device = match the_device_of(path) {
+            Some(device) => device,
+            // A present drive without a device behind it carries no serial
+            // the box can read: the drive is there, the serial is empty.
+            None => {
+                return Ok(if std::path::Path::new(path).exists() {
+                    Some(String::new())
+                } else {
+                    None
+                })
+            }
+        };
+        // The serial lives on the DISK, and a path usually names a partition
+        // of it: walk up to the parent device when the partition says none.
+        let mut device = device;
+        for _ in 0..2 {
+            let output = Command::new("lsblk")
+                .args(["-no", "SERIAL", &device])
+                .output()
+                .map_err(|error| error.to_string())?;
+            if output.status.success() {
+                let serial = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !serial.is_empty() {
+                    return Ok(Some(serial));
+                }
+            } else if std::path::Path::new(path).exists() {
+                // A source that lsblk cannot read -- a zfs dataset -- is a
+                // drive that is THERE, and one that carries no serial.
+                return Ok(Some(String::new()));
+            }
+            let parent = Command::new("lsblk")
+                .args(["-no", "PKNAME", &device])
+                .output()
+                .map_err(|error| error.to_string())?;
+            if !parent.status.success() {
+                break;
+            }
+            let name = String::from_utf8_lossy(&parent.stdout).trim().to_string();
+            if name.is_empty() {
+                break;
+            }
+            device = format!("/dev/{name}");
+        }
+        Ok(None)
+    }
+    fn drive_label(&mut self, path: &str) -> Result<Option<String>, String> {
+        match the_device_of(path) {
+            Some(device) => {
+                let output = Command::new("lsblk")
+                    .args(["-no", "LABEL", &device])
+                    .output()
+                    .map_err(|error| error.to_string())?;
+                if !output.status.success() {
+                    // A source that lsblk cannot read -- a zfs dataset is the
+                    // root of this box -- is a drive that is THERE and that
+                    // carries no label the box can ask for.
+                    return Ok(if std::path::Path::new(path).exists() {
+                        Some(String::new())
+                    } else {
+                        None
+                    });
+                }
+                Ok(Some(
+                    String::from_utf8_lossy(&output.stdout).trim().to_string(),
+                ))
+            }
+            // A filesystem without a device behind it -- a zfs dataset is the
+            // root of this box -- is a drive that is THERE, and one that
+            // carries no label. Measured on the binary of v2.0.19 on
+            // 2026-11-10: a present drive answers its label, empty when it
+            // has none; only a drive that is not there throws.
+            None => Ok(if std::path::Path::new(path).exists() {
+                Some(String::new())
+            } else {
+                None
+            }),
+        }
+    }
+    fn drive_space(&mut self, path: &str) -> Result<Option<ahk::desktop::DriveSpace>, String> {
+        box_tools_are_near()?;
+        // The drive of a path is the filesystem that the path is on, and `df`
+        // is the tool that says it. `-P` is the POSIX form, which is one line
+        // per drive and a fixed order of the columns, and `-k` counts the
+        // blocks in a thousand bytes, which is the unit the answer is in.
+        let output = Command::new("df")
+            .arg("-Pk")
+            .arg(path)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            // A path whose drive cannot be read is a drive that is not there:
+            // the command that asked decides what that means, because v2 does
+            // not answer the same thing for every one of them.
+            return Ok(None);
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let fields: Vec<&str> = text
+            .lines()
+            .nth(1)
+            .unwrap_or_default()
+            .split_whitespace()
+            .collect();
+        if fields.len() < 4 {
+            return Err(format!("the machine did not describe the drive of {path}"));
+        }
+        let blocks: i64 = fields[1].parse().unwrap_or(0);
+        let available: i64 = fields[3].parse().unwrap_or(0);
+        let filesystem = the_filesystem_of(path).unwrap_or_default();
+        let kind = if filesystem.is_empty() {
+            String::new()
+        } else {
+            the_kind_of(&filesystem)
+        };
+        Ok(Some(ahk::desktop::DriveSpace {
+            free: available / 1024,
+            capacity: blocks / 1024,
+            filesystem,
+            kind,
+        }))
+    }
     fn executable(&mut self) -> Result<String, String> {
         crate::machine::executable()
     }
@@ -2290,12 +2609,6 @@ impl ahk::desktop::Machine for LabDesktop {
     }
     fn drive(&mut self, path: &str) -> Result<Option<ahk::desktop::Drive>, String> {
         crate::drives::drive(path)
-    }
-    fn drive_type(&mut self, path: &str) -> Result<Option<String>, String> {
-        crate::drives::drive_type(path)
-    }
-    fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
-        crate::drives::drive_status(path)
     }
 }
 

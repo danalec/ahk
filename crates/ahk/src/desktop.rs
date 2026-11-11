@@ -1645,7 +1645,100 @@ pub trait Sound {
 /// The folders are the ones the machine has. A folder that the machine
 /// does not have is not in the answer: the name that asks for it says
 /// so.
+/// The space of the drive that a path is on, in megabytes.
+///
+/// v2 answers the two numbers of a drive in megabytes, measured on the binary
+/// of v2.0.19 on 2026-11-09: `DriveGetSpaceFree("C:\")` answered `836675` and
+/// `DriveGetCapacity("C:\")` answered `3905969`, both whole numbers.
+///
+/// A drive of this tree is the filesystem that a path is on, because a Linux
+/// box has mount points and not the letters of a drive.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DriveSpace {
+    /// The space that is free, in megabytes.
+    pub free: i64,
+    /// The capacity of the drive, in megabytes.
+    pub capacity: i64,
+    /// The filesystem of the drive, as the machine names it: "ext4", "zfs".
+    pub filesystem: String,
+    /// The kind of the drive, in the word of v2: "Fixed", "Network",
+    /// "Removable", "CDROM", "RAMDisk" or "Unknown".
+    pub kind: String,
+}
+
 pub trait Machine {
+
+    /// Write a new label on the drive of a path.
+    fn drive_set_label(&mut self, _path: &str, _label: &str) -> Result<(), String> {
+        Err("this desktop cannot write the label of a drive".to_string())
+    }
+
+    /// Spin the drive of a path down.
+    fn drive_retract(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot spin a drive down".to_string())
+    }
+
+    /// Unlock the drive of a path.
+    fn drive_unlock(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot unlock a drive".to_string())
+    }
+
+    /// Lock the drive of a path against removal.
+    fn drive_lock(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot lock a drive".to_string())
+    }
+
+    /// Eject the drive of a path.
+    fn drive_eject(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot eject a drive".to_string())
+    }
+
+    /// The status of the drive a path is on, when that drive is a CD or DVD
+    /// reader. `None` is a drive that is not a reader.
+    ///
+    /// Measured on the binary of the same day: `DriveGetStatusCD` of a drive
+    /// that is not a reader throws "Failed".
+    fn drive_status_cd(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the status of a CD drive".to_string())
+    }
+
+    /// The drives of the machine, one name per line.
+    ///
+    /// Measured on the binary of the same day: `DriveGetList` answers the
+    /// drive letters run together -- a letter is one character, so no
+    /// separator is needed. A drive of this platform is a device name, which
+    /// is more than one character, so the names ride apart on newlines.
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        Err("this desktop cannot list the drives".to_string())
+    }
+
+    /// The serial of the drive that a path is on, as the machine writes it.
+    ///
+    /// Measured on the binary of the same day: `DriveGetSerial` of a drive
+    /// that is not there throws the same "(3) ..." as the label, and of a
+    /// drive that is there answers a whole number -- the volume serial of
+    /// Windows. The serial of a Linux drive is the string of the hardware,
+    /// so the shape is the machine's.
+    fn drive_serial(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the serial of a drive".to_string())
+    }
+
+    /// The label of the drive that a path is on.
+    ///
+    /// `None` is a drive that is not there. Measured on the binary of
+    /// v2.0.19 on 2026-11-10: `DriveGetLabel` of a drive that is not there
+    /// throws "(3) The system cannot find the path specified.".
+    fn drive_label(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the label of a drive".to_string())
+    }
+
+    /// The space of the drive that a path is on.
+    ///
+    /// `None` is a path whose drive is not there. A path that is there and a
+    /// drive whose space cannot be read is a failure with the reason.
+    fn drive_space(&mut self, _path: &str) -> Result<Option<DriveSpace>, String> {
+        Err("this desktop cannot tell the space of a drive".to_string())
+    }
     /// The path of the executable that is running the script.
     ///
     /// It is what `A_AhkPath` answers. A desktop that cannot tell says so,
@@ -1730,21 +1823,7 @@ pub trait Machine {
         Err("this desktop cannot say what a drive is".to_string())
     }
 
-    /// The kind of the drive that a path is on.
-    ///
-    /// `None` is a path that is not a drive of this machine: the binary
-    /// answers the empty text for it.
-    fn drive_type(&mut self, _path: &str) -> Result<Option<String>, String> {
-        Err("this desktop cannot say what kind a drive is".to_string())
-    }
 
-    /// The state of the drive that a path is on.
-    ///
-    /// `None` is a path that is not a drive of this machine: the binary
-    /// answers "Invalid" for it.
-    fn drive_status(&mut self, _path: &str) -> Result<Option<String>, String> {
-        Err("this desktop cannot say what state a drive is in".to_string())
-    }
 }
 
 /// A drive of the machine, as the `DriveGet` family of v2 reads it.

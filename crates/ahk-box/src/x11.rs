@@ -1467,6 +1467,36 @@ impl Hotkeys for X11Desktop {}
 impl Native for X11Desktop {}
 impl Sound for X11Desktop {}
 impl Machine for X11Desktop {
+    fn drive_space(&mut self, path: &str) -> Result<Option<ahk::desktop::DriveSpace>, String> {
+            crate::desktop::LabDesktop::new().drive_space(path)
+        }
+    fn drive_label(&mut self, path: &str) -> Result<Option<String>, String> {
+            crate::desktop::LabDesktop::new().drive_label(path)
+        }
+    fn drive_serial(&mut self, path: &str) -> Result<Option<String>, String> {
+            crate::desktop::LabDesktop::new().drive_serial(path)
+        }
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+            crate::desktop::LabDesktop::new().drive_list()
+        }
+    fn drive_status_cd(&mut self, path: &str) -> Result<Option<String>, String> {
+            crate::desktop::LabDesktop::new().drive_status_cd(path)
+        }
+    fn drive_eject(&mut self, path: &str) -> Result<(), String> {
+            crate::desktop::LabDesktop::new().drive_eject(path)
+        }
+    fn drive_lock(&mut self, path: &str) -> Result<(), String> {
+            crate::desktop::LabDesktop::new().drive_lock(path)
+        }
+    fn drive_unlock(&mut self, path: &str) -> Result<(), String> {
+            crate::desktop::LabDesktop::new().drive_unlock(path)
+        }
+    fn drive_retract(&mut self, path: &str) -> Result<(), String> {
+            crate::desktop::LabDesktop::new().drive_retract(path)
+        }
+    fn drive_set_label(&mut self, path: &str, label: &str) -> Result<(), String> {
+            crate::desktop::LabDesktop::new().drive_set_label(path, label)
+        }
     fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
         crate::network::ip_addresses()
     }
@@ -1478,12 +1508,6 @@ impl Machine for X11Desktop {
     }
     fn drive(&mut self, path: &str) -> Result<Option<ahk::desktop::Drive>, String> {
         crate::drives::drive(path)
-    }
-    fn drive_type(&mut self, path: &str) -> Result<Option<String>, String> {
-        crate::drives::drive_type(path)
-    }
-    fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
-        crate::drives::drive_status(path)
     }
 }
 impl Dialogs for X11Desktop {}

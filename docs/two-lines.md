@@ -233,11 +233,10 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 754 and 79.** The branch answers 815 and
-refuses 18, so **61 names are still to come**: the COM objects (9), the
-registry (5), the drives (7), the tray (3), the groups (4), the sound
-devices (2) and the small ones (the lock lights, the cursor, the trash,
-the IPs, the notify).
+a value and 149 refusals to 761 and 72.** The branch answers 815 and
+refuses 18, so **54 names are still to come**: the COM objects (9), the
+registry (5), the tray (3), the groups (4), the sound devices (2) and the
+small ones (the lock lights, the cursor, the trash, the IPs, the notify).
 
 **The fourth family is ported too (2026-11-11): the edit that has the
 focus.** The `Edit*` names take the *handle* of a control and read it
@@ -245,6 +244,17 @@ through the helper of the window. Measured on the box: `EditGetLine(1)`
 answers 1, `EditGetCurrentCol(1)` answers 20, `EditGetLineCount(1)`
 answers 1, `EditGetSelectedText(1)` answers "hello from the port" and
 `CaretGetPos()` answers 1.
+
+**The fifth family is ported too (2026-11-11): the drives of the
+machine.** The fourteen `Drive*` names answer through the tools of Linux
+-- `df`, `lsblk`, `eject`, `udisksctl` and the label tool of the
+filesystem. Measured on the box: `DriveGetList()` answers `zram0` and
+`vda`, `DriveGetSpaceFree("/")` answers 3936, `DriveGetType("/")` answers
+"Fixed", `DriveGetFilesystem("/")` answers "zfs" and `DriveGetStatus("/")`
+answers "Ready"; the same eight answers on the VM of the matrix, in the
+X11 session, with the numbers of that machine -- the X11 desktop answers
+the family by asking a desktop of the lab, because the drives are of the
+machine and not of the session.
 
 **And the round writes `docs/desktop-test-matrix.md`** -- what the tree
 asks of the desktop (the listing of the toplevels, the extension of
