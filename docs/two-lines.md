@@ -233,11 +233,24 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 747 and 86.** The branch answers 815 and
-refuses 18, so **68 names are still to come**: the family of the focused
-edit (`EditGetLine`, `EditPaste`, ...), the COM objects (9), the registry
-(5), the drives (7), the tray (3), and the small ones (the lock lights,
-the cursor, the trash, the sound devices, the IPs).
+a value and 149 refusals to 754 and 79.** The branch answers 815 and
+refuses 18, so **61 names are still to come**: the COM objects (9), the
+registry (5), the drives (7), the tray (3), the groups (4), the sound
+devices (2) and the small ones (the lock lights, the cursor, the trash,
+the IPs, the notify).
+
+**The fourth family is ported too (2026-11-11): the edit that has the
+focus.** The `Edit*` names take the *handle* of a control and read it
+through the helper of the window. Measured on the box: `EditGetLine(1)`
+answers 1, `EditGetCurrentCol(1)` answers 20, `EditGetLineCount(1)`
+answers 1, `EditGetSelectedText(1)` answers "hello from the port" and
+`CaretGetPos()` answers 1.
+
+**And the round writes `docs/desktop-test-matrix.md`** -- what the tree
+asks of the desktop (the listing of the toplevels, the extension of
+COSMIC, the bus of the accessibility, the GTK 3 of the helper, o X11 das
+sessões X), which desktop answers what, and how one VM can carry several
+of them.
 
 **The third family is ported too (2026-11-11): the windows of the
 machine.** The `Win*` names ask the compositor of the session, and the
