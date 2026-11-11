@@ -174,7 +174,16 @@ not. The list is looked at before the image, and the null handle is
 refused. The image is the one of the machine -- the same path that
 `LoadPicture` takes -- and the tree loads the icons of a program of
 Windows already, so an `IL_Add` of the shell32.dll answers 1 here, as
-the binary does. The count is **807 values / 26 refusals**.
+the binary does. The count is **807 values / 26 refusals**. **Round 25
+carried the icon of the script** (`d73fa15`): `TraySetIcon` puts it and
+the built-in variables carry it afterwards -- `A_IconFile` is the file
+and `A_IconNumber` the number of the icon in it -- and an icon that
+cannot be loaded is "Can't load icon."; the path that `A_IconFile`
+answers is the canonical one of the machine, with the drive in upper
+case, so the desktop grew a `canonical_path` of its own. `CallbackFree`
+came with it: a number throws "Parameter #1 of CallbackFree is
+invalid.", because the only callback the binary would let go is one it
+made itself. The count is **809 values / 24 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
