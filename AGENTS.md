@@ -11786,3 +11786,27 @@ that carries it has to find the dispatch: the construction of a class of
 the `ks` dialect goes through `classes::construct`, and the arm of the
 module of the class has to be reached before the generic one that makes
 the object of the class with nothing in it.
+
+## 320. The `ScriptProcess` class, and the arm that never ran
+
+The `ks` dialect carries the class `ScriptProcess` and its seven members
+(`HasExited`, `ExitCode`, `ExitTime`, `Kill`, `StdOut`, `StdErr` and
+`StdIn`). The object of it holds the pid of the process --
+`ScriptProcess(Pid)` -- and the state of the process is asked of the
+machine through two methods of the `Processes` trait:
+`the_state_of_a_process(pid)` and `kill_a_process(pid)`. The machine that
+cannot say is refused with the reason, and the code of a process that has
+not exited is unset, the way the v2.1 mode of KeySharp reads it.
+
+**An arm of a construction that is written inside the arm of another class
+never runs.** That is what happened twice: the arm of the construction of
+the `ScriptProcess` was written inside the `if` of the `PropRef`, and the
+object of the class was made by the generic path -- with **no property in
+it**. The symptom is exact: the read of a member was refused with "This
+value of type \"ScriptProcess\" has no property named \"HasExited\".", and
+the diagnosis -- the class of the object and the number of its properties
+-- said "the object of the class scriptprocess carries 0 properties and no
+pid".
+
+The arm of a class of the `ks` dialect goes where the arm of the `PropRef`
+is, and not inside it.

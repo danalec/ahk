@@ -391,7 +391,34 @@ pub struct WindowInfo {
 }
 
 /// The processes of the desktop.
+/// The state of a process.
+
+///
+
+/// The code and the moment are there when the process has exited; while it
+
+/// runs, they are not.
+
+#[derive(Debug, Clone)]
+
+pub struct ProcessState {
+
+    /// Whether the process has exited.
+
+    pub has_exited: bool,
+
+    /// The code it exited with, when it has exited.
+
+    pub exit_code: Option<i32>,
+
+    /// The moment it exited, as the text of the date and the time.
+
+    pub exit_time: Option<String>,
+
+}
+
 pub trait Processes {
+
     /// Run a command; return its exit code, stdout and stderr.
     fn run(&mut self, command: &str, window: &str) -> Result<(i32, String, String), String>;
 
@@ -429,6 +456,17 @@ pub trait Processes {
     /// warning of the environment is given when the variable is there, and the
     /// name that the environment does not have is a name that has no value.
     fn env_get(&mut self, _name: &str) -> Result<Option<String>, String> {
+    /// The state of a process, when the machine knows it.
+    ///
+    /// The answer is `None` when the machine does not know the process: it
+    /// is not one of its children and it does not know it. The code and
+    /// the moment are there when the process has exited, and they are not
+    /// while it runs.
+
+    /// Kill a process.
+    ///
+    /// The answer is a failure with the reason when the machine cannot do
+    /// it: a process that is not killed is never reported as killed.
         Err("this desktop cannot read the environment".to_string())
     }
 
@@ -519,6 +557,19 @@ pub trait Processes {
     ) -> Result<Option<u32>, String> {
         Err("this desktop cannot set the priority of a process".to_string())
     }
+    fn the_state_of_a_process(&mut self, _pid: u32) -> Result<Option<ProcessState>, String> {
+
+        Err("this desktop cannot say the state of a process".to_string())
+
+    }
+    /// Kill a process.
+    ///
+    /// The answer is a failure with the reason when the machine cannot do
+    /// it: a process that is not killed is never reported as killed.
+    fn kill_a_process(&mut self, _pid: u32) -> Result<(), String> {
+        Err("this desktop cannot kill a process".to_string())
+    }
+
 }
 
 /// The files of the desktop.

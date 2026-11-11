@@ -50,6 +50,25 @@ impl Pointer for Fake {
     }
 }
 impl Processes for Fake {
+    fn the_state_of_a_process(
+        &mut self,
+        pid: u32,
+    ) -> Result<Option<ahk::desktop::ProcessState>, String> {
+        // The process of the pid 1234 is the one that runs, and the one of
+        // the pid 1 is the one that has exited.
+        Ok(Some(ahk::desktop::ProcessState {
+            has_exited: pid != 1234,
+            exit_code: if pid == 1234 { None } else { Some(3) },
+            exit_time: if pid == 1234 {
+                None
+            } else {
+                Some("20261111120000".to_string())
+            },
+        }))
+    }
+    fn kill_a_process(&mut self, _pid: u32) -> Result<(), String> {
+        Ok(())
+    }
     fn run(&mut self, _command: &str, _window: &str) -> Result<(i32, String, String), String> {
         Ok((0, String::new(), String::new()))
     }
@@ -1010,4 +1029,46 @@ fn the_compilation_of_a_script_is_the_parse_of_it() {
     assert_eq!(line(&report, 1), "0");
     assert_eq!(line(&report, 2), "0");
     assert_eq!(line(&report, 3), "1");
+}
+
+#[test]
+fn the_members_of_the_process_answer_what_the_machine_says() {
+    // The state of a process is asked of the machine, and the machine that
+    // cannot say is refused with the reason.
+    let report = run_ks(concat!(
+        "p := ScriptProcess(1)\n",
+        "MsgBox p.HasExited\n",
+        "MsgBox p.ExitCode\n",
+        "MsgBox p.ExitTime\n",
+        "p.Kill()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "3");
+    assert_eq!(line(&report, 2), "20261111120000");
+}
+
+#[test]
+fn the_code_of_a_process_that_runs_is_unset() {
+    // The v2.1 mode of KeySharp reads the code of a process that has not
+    // exited as the value of unset.
+    let report = run_ks(concat!(
+        "q := ScriptProcess(1234)\n",
+        "MsgBox q.HasExited\n",
+        "MsgBox IsSet(q.ExitCode)\n",
+        "MsgBox IsSet(q.ExitTime)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+    assert_eq!(line(&report, 1), "0");
+    assert_eq!(line(&report, 2), "0");
+}
+
+#[test]
+fn the_process_that_the_machine_does_not_know_is_refused_with_the_reason() {
+    // The tree does not answer zero for a state it does not know.
+    let mut desktop = Fake;
+    let statements = ahk::parse("MsgBox ScriptProcess(7).HasExited\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
 }

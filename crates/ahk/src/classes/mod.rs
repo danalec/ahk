@@ -41,6 +41,7 @@ pub(crate) mod inputhook;
 pub(crate) mod map;
 pub(crate) mod regexmatchinfo;
 pub(crate) mod thread;
+pub(crate) mod scriptprocess;
 pub(crate) mod propref;
 pub(crate) mod typed;
 
@@ -1434,6 +1435,7 @@ const THE_KS_SPELLINGS: &[(&str, &str)] = &[
     ("struct", "Struct"),
     ("thread", "Thread"),
     ("propref", "PropRef"),
+("scriptprocess", "ScriptProcess"),
     ("argumenterror", "ArgumentError"),
     ("unsupportederror", "UnsupportedError"),
 ];
@@ -1501,6 +1503,12 @@ pub(crate) fn construct(
         if let Some(result) = error::construct_the_extension(class, arguments, rt, line) {
             return Some(result);
         }
+        if class.eq_ignore_ascii_case("scriptprocess") {
+
+            return scriptprocess::construct(class, arguments, rt, line);
+
+        }
+
         if class.eq_ignore_ascii_case("propref") {
             return propref::construct(class, arguments, rt, line);
 
@@ -1752,6 +1760,12 @@ fn call_once(
         "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
             thread::call(method, this, arguments, rt, line)
         }
+        "scriptprocess" if rt.dialect().carries_the_class_of_the_extension("scriptprocess") => {
+
+            scriptprocess::call(class, method, this, arguments, rt, line)
+
+        }
+
         "string" => the_member_of_a_text(method, this, arguments, rt, line),
         // The methods of the base object are the methods of every object,
         // and they are answered by the runtime.
@@ -1810,6 +1824,7 @@ pub(crate) fn property(
         "inputhook" => inputhook::property_the_extension(name, this, rt, line),
         _ if rt.dialect().carries_the_class_of_the_extension(class) => {
             propref::property(class, name, this, line)
+                .or_else(|| scriptprocess::property(class, name, this, rt, line))
                 .or_else(|| typed::property(class, name, this, line))
         }
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {

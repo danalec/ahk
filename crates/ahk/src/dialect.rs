@@ -2308,6 +2308,7 @@ impl Dialect for V2 {
             && (name.eq_ignore_ascii_case("thread")
                 || name.eq_ignore_ascii_case("propref")
                 || name.eq_ignore_ascii_case("argumenterror")
+                || name.eq_ignore_ascii_case("scriptprocess")
                 || name.eq_ignore_ascii_case("unsupportederror")
                 || crate::classes::typed::is_a_class(name))
     }
