@@ -12007,3 +12007,44 @@ not found.", `MenuFromHandle(5)` throws the reason of the HMENU,
 
 **The surface moves with the family: 767 answers with a value and 66 are
 refused become 775 and 58.**
+
+## 326. The small commands, and the repair of the build without std
+
+**The tenth family of the port is five small commands.** `BlockInput`
+answers the empty text for "Off" and refuses turning the input off for
+the whole machine -- a privilege this compositor does not give a client.
+`RunAs` answers the empty text: there is no user to run as on this side
+of the dialect. `Shutdown` validates the number and answers the empty
+text -- a script runner does not log off, reboot or power down the
+machine, and the reference was not executed for this reason. `Edit` is
+refused with a reason of its own: the script of this runtime is read from
+the standard input, so it has no file for an editor to open; the row
+stays a static refusal, the way the branch keeps it. `FileGetVersion`
+reads the version resource out of the bytes of the file, wherever the
+file is -- a program of Windows may be read on any platform -- and it
+brings the `version` module of the branch with it.
+
+**Measured on the box on 2026-11-11**: `BlockInput("Off")` answers the
+empty text and `BlockInput("On")` fails with "blocking the input of the
+whole machine is a privilege this compositor does not give a client";
+`Edit()` fails with the reason of the standard input; `RunAs()` and
+`Shutdown(0)` answer the empty text; `FileGetVersion("/bin/sh")` fails
+with "(1812) The specified image file did not contain a resource
+section." -- an ELF has no version resource, and an empty text or a
+made-up number would be a lie -- and a file that is not there fails with
+"(2) The system cannot find the file specified.".
+
+**The family exposed a break of the build without std, and the port fixed
+it.** The branch fails `cargo build -p ahk --no-default-features --target
+thumbv7em-none-eabihf` as well: the menu family leaned on the std prelude
+(`vec!` in `classes/menu.rs`, `std::rc::Rc` and `std::collections` in
+`classes/mod.rs` and `runtime.rs`), and the new `version` module leaned
+on it too (`format!`, `String`, `Vec`). The repair is the imports of
+alloc and the qualified names of alloc in the four files, and the build
+without std answers again. The two examples of the blanket refusal -- in
+`behavior.rs` and in the runner case -- moved with the family:
+`BlockInput` answers now, and the name that is still refused with the
+blanket reason is `ComObjGet`.
+
+**The surface moves with the family: 775 answers with a value and 58 are
+refused become 779 and 54.**

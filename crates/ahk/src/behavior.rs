@@ -567,9 +567,11 @@ mod tests {
     #[test]
     fn a_refused_name_answers_with_its_reason() {
         // `WinActivate` was the example until the family of the windows was
-        // carried on 2026-11-11: it answers with a value now, and the name
-        // that is still refused with the blanket reason is `BlockInput`.
-        let answer = the_answer("BlockInput");
+        // carried on 2026-11-11, and `BlockInput` until the family of the
+        // small commands was carried the same day: the name that is still
+        // refused with the blanket reason is `ComObjGet`, a name that is
+        // shaped for Windows through and through.
+        let answer = the_answer("ComObjGet");
         assert!(answer.starts_with("refusal: "), "{answer}");
         // The reason is the one the surface prints.
         assert_eq!(

@@ -2623,7 +2623,7 @@ fn the_control_of_the_gui(
     }
     match rt.desktop().gui_add(0, kind, text) {
         Ok((number, classnn)) => {
-            let mut properties = std::collections::BTreeMap::new();
+            let mut properties = alloc::collections::BTreeMap::new();
             properties.insert(
                 "classnn".to_string(),
                 crate::runtime::Property {
@@ -2638,7 +2638,7 @@ fn the_control_of_the_gui(
                     value: Value::Int(number as i64),
                 },
             );
-            Ok(Value::Object(std::rc::Rc::new(std::cell::RefCell::new(
+            Ok(Value::Object(Rc::new(RefCell::new(
                 crate::runtime::Object {
                     class: format!("Gui.{}", kind),
                     properties,

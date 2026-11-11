@@ -127,6 +127,7 @@ pub mod surface;
 pub mod text16;
 pub mod v1;
 pub mod variables;
+pub mod version;
 pub mod warnings;
 
 pub use ast::{AssignOp, BinaryOp, LiteralValue, Node, Parameter, UnaryOp};

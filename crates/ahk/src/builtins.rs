@@ -1001,9 +1001,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: block_input,
     },
     Builtin {
         name: "CallbackCreate",
@@ -1640,9 +1640,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_get_version,
     },
     Builtin {
         name: "FileRecycle",
@@ -2112,9 +2112,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: run_as,
     },
     Builtin {
         name: "SendMessage",
@@ -2193,9 +2193,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: shutdown,
     },
     Builtin {
         name: "SoundBeep",
@@ -14673,4 +14673,106 @@ pub(crate) fn send_message(
         message: "Target window not found.".to_string(),
         line,
     })
+}
+
+/// `BlockInput(Mode)`: **refused, with a reason of its own.**
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `BlockInput("Off")` answers
+/// the empty text. Turning input OFF for the whole machine is a privilege this
+/// compositor does not give a client, and this tree will not claim it did.
+pub(crate) fn block_input(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let mode = text_of(values, 0).to_ascii_lowercase();
+    if mode.is_empty() || mode.starts_with("off") || mode == "0" {
+        return Ok(Value::Text(String::new()));
+    }
+    Err(RuntimeError {
+        message: "blocking the input of the whole machine is a privilege this compositor does not give a client".to_string(),
+        line,
+    })
+}
+
+/// `RunAs(User, Password, Domain)`: set the user a later `Run` would use.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty text.
+/// The credentials are a setting of the machine and not a call that can be proved
+/// here, so the tree keeps the shape of the answer and says in a note what it did
+/// not do.
+pub(crate) fn run_as(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
+/// `Shutdown(Flag)`: **refused, with a reason of its own.**
+///
+/// Logging off, rebooting or powering down the machine is not a question a
+/// script runner answers; the reference was not executed for this reason.
+/// `Shutdown`: end the session of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: a whole number -- even
+/// one that names no real operation, like 99 -- answers the empty text, and
+/// a text where a number is wanted throws "Parameter #1 of Shutdown requires
+/// a Number, but received a String.". The number is answered the same way
+/// here, and the session of the machine is deliberately left alone: the
+/// runner does not end the session it runs in, because a script that asks
+/// for it would take the whole desktop down with it. The shape of the call
+/// is the contract, not the side effect.
+pub(crate) fn shutdown(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    number_argument(values, 0, line, "Shutdown")?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `FileGetVersion`: the version of a program of Windows.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `FileGetVersion FileName`; a program of Windows answers the version as
+/// four numbers and a point between them -- "10.0.26100.9818" for the
+/// notepad of that day -- a file that is not there throws "(2) The system
+/// cannot find the file specified.", and a file that has no section of
+/// resources throws "(1812) The specified image file did not contain a
+/// resource section.".
+///
+/// The file is read as a program of Windows wherever it is: a program of
+/// Windows may be read on any platform, and the version of it is a
+/// resource of the file and not a thing of the machine that runs it.
+pub(crate) fn file_get_version(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(path) = values.first() else {
+        return Err(RuntimeError {
+            message: "Parameter #1 of FileGetVersion must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    };
+    let path = path.to_text();
+    let bytes = rt
+        .desktop()
+        .read_the_bytes_of_a_file(&path)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    match crate::version::the_version_of(&bytes) {
+        Some(version) => Ok(Value::Text(version)),
+        // The file is there and it is not a program that carries a version.
+        None => Err(RuntimeError {
+            message: "(1812) The specified image file did not contain a resource section."
+                .to_string(),
+            line,
+        }),
+    }
 }

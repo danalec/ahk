@@ -15279,7 +15279,7 @@ impl<'a> Runtime<'a> {
     /// The same object is asked for many things, and it is remembered once.
     pub fn remember_a_gui(&mut self, object: &Value) {
         let already = self.guis.iter().any(|held| match (held, object) {
-            (Value::Object(first), Value::Object(second)) => std::rc::Rc::ptr_eq(first, second),
+            (Value::Object(first), Value::Object(second)) => Rc::ptr_eq(first, second),
             _ => false,
         });
         if !already {
@@ -15426,7 +15426,7 @@ impl<'a> Runtime<'a> {
     /// `ObjFromPtr` an inverse of `ObjPtr`.
     pub fn the_pointer_of(&mut self, value: &Value) -> i64 {
         let found = self.pointers.iter().position(|held| match (&held.0, value) {
-            (Value::Object(first), Value::Object(second)) => std::rc::Rc::ptr_eq(first, second),
+            (Value::Object(first), Value::Object(second)) => Rc::ptr_eq(first, second),
             _ => held.0 == *value,
         });
         let index = match found {
