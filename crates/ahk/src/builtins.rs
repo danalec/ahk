@@ -9740,12 +9740,24 @@ pub(crate) fn window_active(
     match rt.desktop().windows() {
         Ok(windows) => {
             let window = the_window_in(&windows, values.first())?;
-            return Ok(Value::Int(
-                match window {
-                    Some(window) if window.active => window.id,
-                    _ => 0,
-                },
-            ));
+            match window {
+                Some(window) if window.active => return Ok(Value::Int(window.id)),
+                // A window the listing has and that is not the active one is
+                // an answer, and so is a window the listing does not have. A
+                // listing with no active window at all is not: it is a
+                // compositor that lists its windows and does not say which
+                // one has the focus, and the question of the focus is the
+                // desktop's -- it answers with the reason when it cannot.
+                // Measured on the VM of the matrix on 2026-11-11: sway lists
+                // its three terminals and says nothing of the focus, and
+                // `WinActive` answered 0 where the rule of the tree says the
+                // reason.
+                Some(_) => {}
+                None if matches!(values.first(), Some(Value::Int(_))) => {
+                    return Ok(Value::Int(0))
+                }
+                None => {}
+            }
         }
         Err(reason) => {
             // A window of the listing that is not there is the answer of the
@@ -9766,7 +9778,23 @@ pub(crate) fn window_active(
         .window_active(&title, mode)
         .map_err(|e| desktop_failure(e, line))?
     {
-        WindowAnswer::Active => Ok(Value::Int(1)),
+        WindowAnswer::Active => {
+            // The id of the window that has the focus, when the desktop
+            // lists its windows: measured on the binary of v2.0.19 on
+            // 2026-11-09, the answer of `WinActive` is the id and not a
+            // truth. The listing is the one that carries the id; a desktop
+            // that says "active" without a listing leaves the one.
+            match rt.desktop().windows() {
+                Ok(windows) => Ok(Value::Int(
+                    windows
+                        .iter()
+                        .find(|window| window.active)
+                        .map(|window| window.id)
+                        .unwrap_or(1),
+                )),
+                Err(_) => Ok(Value::Int(1)),
+            }
+        }
         // A window that is not there is not the active one, and a window
         // that is there but is not in front is not the active one either.
         WindowAnswer::NotActive | WindowAnswer::Absent => Ok(Value::Int(0)),
@@ -9859,18 +9887,25 @@ pub(crate) fn win_get_title(
     };
     if let Ok(windows) = rt.desktop().windows() {
         let window = the_window_in(&windows, values.first())?;
-        let title = match window {
-            Some(window) => window.title,
+        match window {
+            Some(window) => {
+                let title = window.title;
+                // The pause of v2 follows a windowing function, and a delay of -1 is
+                // no pause at all.
+                let delay = crate::settings::the_win_delay();
+                if delay > 0 {
+                    rt.sleep_ms(delay as u64);
+                }
+                return Ok(Value::Text(title));
+            }
             None if asked => return Err(no_window(line)),
-            None => String::new(),
-        };
-        // The pause of v2 follows a windowing function, and a delay of -1 is
-        // no pause at all.
-        let delay = crate::settings::the_win_delay();
-        if delay > 0 {
-            rt.sleep_ms(delay as u64);
+            // A listing with no active window is not a session with no
+            // active window: the compositor may list its windows and not
+            // say which one has the focus. The question of the focus goes
+            // to the desktop, which answers the title of the active window
+            // where it can and the reason where it cannot.
+            None => {}
         }
-        return Ok(Value::Text(title));
     }
     if asked && matches!(values.first(), Some(Value::Int(_))) {
         let reason = rt.desktop().windows().err().unwrap_or_default();

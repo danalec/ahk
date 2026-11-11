@@ -117,6 +117,7 @@ and the *window of the script* need:
 | the toolkit of the helper | `gtk3` ✔ + `python-gobject` ✔ | the window of the script is drawn by a program of GTK 3 |
 | a bridge of AT-SPI for o Chromium | `chromium` ✔ with `--force-renderer-accessibility` | the Chromium does not expose its controls unless it is told to |
 | o cliente de X11 | `libx11` ✔ | the X path of the tree |
+| as ferramentas do X | `xorg-xprop` ✔, `xorg-xwininfo` ✔ | the client list, the active window and the state are `xprop`; the place and the size are `xwininfo`. Without them the X11 family answers "Target window not found." |
 | o compositor do COSMIC | `cosmic-comp` (AUR) | a referência |
 | o utilitário do bus | `systemd` ✔ (`busctl` ✔) | o `atspi.rs` fala com o bus por `busctl` |
 
@@ -209,7 +210,7 @@ adapter at all. That is the answer the matrix was written to find out.
 | `WinExist("zzz-nothing-zzz")` | 0 |
 | `WinWait("zzz-nothing-zzz", "", 1)` | 0, in 1012 ms |
 | `WinGetPos(...)` | **"the compositor did not say where this window is, so its place is not known"** -- sway does not publish the geometry of a window through the extension of COSMIC |
-| `WinActive("tester")` | 0, and **not** the reason -- see the open item below |
+| `WinActive("tester")` | **the reason** of the compositor (see 5.4): the listing is not the question of the focus |
 | a `Gui` | opens, and its control is read: `ControlGetText("Edit1", ...)` answers "hello from sway" |
 | `EditGetCurrentCol(1)` | 16 |
 
@@ -217,44 +218,68 @@ adapter at all. That is the answer the matrix was written to find out.
 starts with the session, and the `Control*` family reads the controls of
 the window of the script through it.
 
-**Open item, and it is the tree's and not the port's:** on a compositor
-that does not publish `zcosmic_toplevel_info_v1` the focus is not
-knowable, and the tree answers **0** where its own rule says it should
-answer the reason -- "the compositor does not publish
-zcosmic_toplevel_info_v1, so it can list its windows but cannot say which
-one has the focus" is written in the client and it is not reaching the
-script. The window of the VM is the first place where that path was
-walked: on the box the extension is always there.
-
 ### 5.2 i3 4.25 (X11, Xorg 21.1) -- the item 5 of the list
 
 A real X server, which the box does not have (its X server is the
 rootless Xwayland of gamescope, and it reports an empty list of clients).
+Since the fixes of 5.4 the client list of the server is parsed, so the
+X11 path answers the whole family of the windows:
 
 | the question | the answer of the VM |
 |---|---|
 | `WinGetTitle()` | **"tester@archlinux:~"** -- the active window, read through `_NET_ACTIVE_WINDOW` |
-| `WinGetList()` / `WinGetCount()` | **the reason**: "the windows of this session are asked of the Wayland compositor, and this session is not one: the X11 server beside it is asked for the active window only, and not for the list of the windows." |
-| `WinExist("...")` | **the reason**: "the X server lists \"_NET_CLIENT_LIST(WINDOW): window id # 0xa0000c, 0x80000c, 0xc0000c\", which this runtime does not parse yet" |
-| `WinActive("...")` | 0 |
+| `WinGetCount()` | **5** -- the three terminals of the session and the two of i3 |
+| `WinGetList()` | the ids of the X server: `8388620`, `10485772`, ... with their titles |
+| `WinExist("tester@archlinux")` | **8388620** -- the id of the first window that matches |
+| `WinExist("zzz-nothing-zzz")` | 0 -- absent, and not a failure |
+| `WinActive("tester@archlinux")` | **16777228** -- the id of the window that has the focus |
+| `WinGetPos(...)` | **2,18,250,778** -- the corner and the size that `xwininfo` says |
+| `WinGetMinMax(...)` | 0 -- neither maximized nor minimized |
 
-**So the X11 path of the tree answers the title of the active window and
-refuses the rest, each with the reason it has.** The refusal is written
-in `crates/ahk-box/src/desktop.rs`, in the `window_active` of the box:
-the `_NET_CLIENT_LIST` is read and its list of ids is not parsed. It is
-a gap of the tree and not of the port, and the VM is now the place where
-it can be measured -- which the box never was.
+**The X11 path needs two tools of the X server beside `libX11`**:
+`xprop` (the client list, the active window, the state) and `xwininfo`
+(the place and the size). Both are in the list of the services below; a
+VM without `xwininfo` answers the geometry with "Target window not
+found.", which is how the absence of the tool looks from the script.
 
 ### 5.3 What the VM says about the matrix itself
 
-- The item 2 (wlroots) is **proven**: the portable listing is enough, and
-  the two things the listing does not carry -- the focus and the geometry
-  -- answer the reason of the compositor (the second one) and a zero
-  (the first one, which is the open item).
-- The item 5 (X11) is **proven to be a gap of the tree**: the X path was
-  written against the empty list of the Xwayland of gamescope, and a real
-  X server is the first one to show what it does with a list that is not
-  empty.
+- The item 2 (wlroots) is **proven**: the portable listing is enough for
+  the listing family, and the two things the listing does not carry --
+  the focus and the geometry -- answer the reason of the compositor,
+  both of them, since the fixes of 5.4.
+- The item 5 (X11) is **proven**: a real X server answers the whole
+  family of the windows through its client list, once the list is
+  parsed. The X path was written against the empty list of the Xwayland
+  of gamescope, and the VM is what showed both the gap and the fix.
 - The window of the script and the bus of the accessibility do **not**
   depend on the compositor: they worked in the two sessions of the VM,
   and they work on the box.
+
+### 5.4 The fixes the VM produced (2026-11-11)
+
+Three behaviours the VM measured and the tree then changed; all three
+are in `crates/ahk/src/builtins.rs` and `crates/ahk-box/src/desktop.rs`,
+and the case of the first is in `crates/ahk/tests/builtins.rs`:
+
+- **The listing is not the question of the focus.** `WinActive` and
+  `WinGetTitle()` asked the listing first and answered 0 and the empty
+  text when no window of the listing carried the focus -- which on sway
+  is always, because the focus is not in the portable listing. The
+  handlers now fall through to the question of the focus when the
+  listing has no active window, and the desktop answers the reason of
+  the compositor: "the compositor does not publish
+  zcosmic_toplevel_info_v1, so it can list its windows but cannot say
+  which one has the focus." Measured again on the VM after the fix.
+- **The client list of the X server is parsed.** `_NET_CLIENT_LIST` was
+  read and refused with "which this runtime does not parse yet". The
+  parse is `the_x_ids_in` and `x11_windows` in the box: the ids of the
+  server, the `_NET_WM_NAME` of each one and the `_NET_ACTIVE_WINDOW`
+  for the focus. `WinGetList`, `WinGetCount`, `WinExist` and `WinActive`
+  answer on X11 since then.
+- **The place and the state of an X11 window are `xwininfo` and
+  `xprop`.** `WinGetPos` reads the absolute corner and the size out of
+  `xwininfo -id`, and `WinGetMinMax` reads `WM_STATE` (iconic is the
+  minimized one) and the two maximized atoms of `_NET_WM_STATE`. A VM
+  without `xwininfo` shows why the tool belongs to the list of the
+  services: the geometry answers "Target window not found."

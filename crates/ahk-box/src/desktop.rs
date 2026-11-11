@@ -151,6 +151,70 @@ impl Default for LabDesktop {
 }
 
 impl LabDesktop {
+    // ---- the_x_ids_in
+    /// The ids of a window list of the X server.
+    ///
+    /// Measured on the VM of the matrix on 2026-11-11: `xprop -root
+    /// _NET_CLIENT_LIST` answers `_NET_CLIENT_LIST(WINDOW): window id #
+    /// 0xa0000c, 0x80000c, 0xc0000c`, and `_NET_ACTIVE_WINDOW` answers one
+    /// id -- or `window id # 0x0` when no window of the server has the
+    /// focus, and the zero is not a window. The ids are the ones of the X
+    /// server, and they are the ids the tree answers for the windows of an
+    /// X11 session: they are stable while the window lives, which a place
+    /// in the stacking order is not.
+    fn the_x_ids_in(text: &str) -> Vec<i64> {
+        let Some((_, after)) = text.split_once('#') else {
+            return Vec::new();
+        };
+        after
+            .split(',')
+            .filter_map(|id| {
+                let id = id.trim().trim_start_matches("0x");
+                i64::from_str_radix(id, 16).ok().filter(|id| *id != 0)
+            })
+            .collect()
+    }
+
+    // ---- x11_windows
+    /// The windows of an X11 session: the client list of the X server, the
+    /// title of each window and the one that has the focus.
+    fn x11_windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
+        let Some(display) = x_display() else {
+            return Err(no_window_list_reason());
+        };
+        let listing = self.run(
+            &format!("DISPLAY={display} xprop -root _NET_CLIENT_LIST 2>/dev/null || true"),
+            "",
+        )?;
+        let ids = Self::the_x_ids_in(&listing.1);
+        let active = self.run(
+            &format!("DISPLAY={display} xprop -root _NET_ACTIVE_WINDOW 2>/dev/null || true"),
+            "",
+        )?;
+        let active_id = Self::the_x_ids_in(&active.1).first().copied().unwrap_or(0);
+        let mut windows = Vec::new();
+        for id in ids {
+            let output = self.run(
+                &format!("DISPLAY={display} xprop -id {id} _NET_WM_NAME WM_NAME 2>/dev/null || true"),
+                "",
+            )?;
+            let title = output
+                .1
+                .lines()
+                .filter_map(|line| line.split_once(" = "))
+                .map(|(_, value)| value.trim().trim_matches('"').to_string())
+                .find(|value| !value.is_empty())
+                .unwrap_or_default();
+            windows.push(ahk::desktop::WindowInfo {
+                id,
+                title,
+                class: String::new(),
+                active: id == active_id,
+            });
+        }
+        Ok(windows)
+    }
+
     // ---- gui_title_is
     /// Whether the title names the window the script made.
     fn gui_title_is(&mut self, title: &str) -> bool {
@@ -1068,9 +1132,59 @@ impl ahk::desktop::Windows for LabDesktop {
         if wayland_session() {
             return self.wayland_geometry(title, mode);
         }
-        Err("this desktop tells where the windows of a Wayland session are, and this session \
-             is not Wayland"
-            .to_string())
+        // The place of a window of an X11 session is what `xwininfo` says of
+        // it. Measured on the VM of the matrix on 2026-11-11: the absolute
+        // upper-left corner and the size are the four numbers v2 answers,
+        // and the window is the one of the client list -- the active one
+        // when the question names nothing.
+        let windows = self.x11_windows()?;
+        let Some(id) = the_x_window_named(&windows, title, mode)? else {
+            return Ok(None);
+        };
+        let Some(display) = x_display() else {
+            return Err(no_window_list_reason());
+        };
+        let output = self.run(
+            &format!("DISPLAY={display} xwininfo -id {id} 2>/dev/null || true"),
+            "",
+        )?;
+        let mut x = None;
+        let mut y = None;
+        let mut width = None;
+        let mut height = None;
+        for line in output.1.lines() {
+            let line = line.trim();
+            let number = |prefix: &str| {
+                line.strip_prefix(prefix)
+                    .and_then(|rest| rest.trim().parse::<i64>().ok())
+            };
+            if let Some(value) = number("Absolute upper-left X:") {
+                x = Some(value);
+            }
+            if let Some(value) = number("Absolute upper-left Y:") {
+                y = Some(value);
+            }
+            if let Some(value) = number("Width:") {
+                width = Some(value);
+            }
+            if let Some(value) = number("Height:") {
+                height = Some(value);
+            }
+        }
+        match (x, y, width, height) {
+            (Some(x), Some(y), Some(width), Some(height)) => {
+                Ok(Some(ahk::desktop::WindowGeometry {
+                    x,
+                    y,
+                    width,
+                    height,
+                }))
+            }
+            // A window `xwininfo` does not know is a window whose place is
+            // not known: the same answer a compositor gives when it does
+            // not say the geometry.
+            _ => Ok(None),
+        }
     }
 
     // ---- window_min_max
@@ -1082,9 +1196,44 @@ impl ahk::desktop::Windows for LabDesktop {
         if wayland_session() {
             return self.wayland_min_max(title, mode);
         }
-        Err("this desktop tells whether a window of a Wayland session is maximized, and this \
-             session is not Wayland"
-            .to_string())
+        // The state of a window of an X11 session is what the properties of
+        // the server say: `WM_STATE` says the iconic state, which is the
+        // minimized one, and `_NET_WM_STATE` carries the two atoms of the
+        // maximized state. Measured on the VM of the matrix on 2026-11-11.
+        let windows = self.x11_windows()?;
+        let Some(id) = the_x_window_named(&windows, title, mode)? else {
+            return Ok(None);
+        };
+        let Some(display) = x_display() else {
+            return Err(no_window_list_reason());
+        };
+        let output = self.run(
+            &format!("DISPLAY={display} xprop -id {id} WM_STATE _NET_WM_STATE 2>/dev/null || true"),
+            "",
+        )?;
+        let mut minimized = false;
+        let mut maximized_vert = false;
+        let mut maximized_horz = false;
+        for line in output.1.lines() {
+            let line = line.trim();
+            if line == "Iconic State" {
+                minimized = true;
+            }
+            if line.starts_with("_NET_WM_STATE(ATOM)") {
+                maximized_vert = line.contains("_NET_WM_STATE_MAXIMIZED_VERT");
+                maximized_horz = line.contains("_NET_WM_STATE_MAXIMIZED_HORZ");
+            }
+        }
+        // A window that is both is answered as maximized, the way the
+        // Wayland path answers it: the maximized window is the one the user
+        // sees.
+        if maximized_vert && maximized_horz {
+            return Ok(Some(1));
+        }
+        if minimized {
+            return Ok(Some(-1));
+        }
+        Ok(Some(0))
     }
 
     // ---- window_wait
@@ -1262,26 +1411,26 @@ impl ahk::desktop::Windows for LabDesktop {
             return Ok(WindowAnswer::Unknown(no_window_list_reason()));
         }
 
-        // The X server of this box is the rootless Xwayland of gamescope,
-        // and it reports an empty client list: there is no way to ask it
-        // which windows exist.
-        let listing = self.run("xprop -root _NET_CLIENT_LIST 2>/dev/null || true", "")?;
-        let windows = listing.1.trim();
-        if windows.is_empty() || windows.ends_with("window id #") {
-            return Ok(WindowAnswer::Unknown(
-                "the X server on this box reports an empty client list (it is the rootless \
-                 Xwayland of gamescope), and the compositor exposes no window list to D-Bus: a \
-                 native Wayland window cannot be found this way. Use PixelSearch to check what \
-                 is on the screen."
-                    .to_string(),
-            ));
-        }
+        // The client list of the X server is the listing of an X11 session.
+        // Measured on the VM of the matrix on 2026-11-11: i3 answers the ids
+        // of the windows of the session in `_NET_CLIENT_LIST`, and
+        // `_NET_ACTIVE_WINDOW` says which one has the focus -- so a window
+        // that is there is an answer, and a window that is not there is
+        // absent, the same two answers the compositor gives.
+        let windows = self.x11_windows()?;
         if title.is_empty() {
-            return Ok(WindowAnswer::NotActive);
+            return Ok(empty_title());
         }
-        Ok(WindowAnswer::Unknown(format!(
-            "the X server lists {windows:?}, which this runtime does not parse yet"
-        )))
+        for window in &windows {
+            if title_matches(&window.title, title, mode)? {
+                return Ok(if window.active {
+                    WindowAnswer::Active
+                } else {
+                    WindowAnswer::NotActive
+                });
+            }
+        }
+        Ok(WindowAnswer::Absent)
     }
     fn windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
         // The windows of the box are the ones of the compositor: the session
@@ -1290,10 +1439,11 @@ impl ahk::desktop::Windows for LabDesktop {
         if wayland_session() {
             return self.wayland_windows();
         }
-        Err("the windows of this session are asked of the Wayland compositor, and this session is \
-             not one: the X11 server beside it is asked for the active window only, and not for \
-             the list of the windows."
-            .to_string())
+        // An X11 session lists its windows through the client list of the X
+        // server, and the list is parsed since 2026-11-11: before that the
+        // tree read the list and answered that it does not parse it, which
+        // the VM of the matrix showed to be a gap and not a design.
+        self.x11_windows()
     }
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
@@ -2774,10 +2924,16 @@ impl LabDesktop {
         title: &str,
         mode: ahk::desktop::TitleMatch,
     ) -> Result<WindowAnswer, String> {
+        // The focus is asked before the title is looked at: a compositor
+        // that does not say which window has the focus says that, and not
+        // that the title of the question is empty. Measured on the VM of
+        // the matrix on 2026-11-11: `WinActive()` with no title on sway
+        // answered the reason of the empty title, which is true but is
+        // not the reason the question has no answer.
+        let active = self.wayland()?.active()?;
         if title.is_empty() {
             return Ok(empty_title());
         }
-        let active = self.wayland()?.active()?;
         let Some(window) = active else {
             return Ok(WindowAnswer::Absent);
         };
@@ -2922,14 +3078,37 @@ fn not_linux() -> String {
 /// The answer to a question about a window with no title.
 ///
 /// v2 uses the last found window when the title is empty, and this
-/// runtime does not keep one.
-#[cfg(target_os = "linux")]
+/// runtime does not keep one. The gate of Linux is not on it: the X11
+/// path that reads the client list is compiled on every machine, and it
+/// answers the same reason there.
 fn empty_title() -> WindowAnswer {
     WindowAnswer::Unknown(
         "the title is empty, and v2 would use the last found window: this runtime does not keep \
          one."
             .to_string(),
     )
+}
+
+/// The window of an X11 session that a question names: the active one when
+/// the question names nothing, and the first one whose title matches when
+/// it names a title. The id it answers is the id of the X server, which the
+/// client list carries.
+fn the_x_window_named(
+    windows: &[ahk::desktop::WindowInfo],
+    title: &str,
+    mode: ahk::desktop::TitleMatch,
+) -> Result<Option<i64>, String> {
+    for window in windows {
+        let matches = if title.is_empty() {
+            window.active
+        } else {
+            title_matches(&window.title, title, mode)?
+        };
+        if matches {
+            return Ok(Some(window.id));
+        }
+    }
+    Ok(None)
 }
 
 /// Whether a title matches the one asked for.

@@ -252,6 +252,16 @@ COSMIC, the bus of the accessibility, the GTK 3 of the helper, o X11 das
 sessões X), which desktop answers what, and how one VM can carry several
 of them.
 
+**The VM of the matrix (`AhkDesktopTest`, in the Unraid host) then
+corrected three answers of the tree on 2026-11-11** -- section 5.4 of the
+matrix and section 320 of the notes: the question of the focus no longer
+hides behind the listing (sway answers the reason of the compositor, and
+not 0), the client list of the X server is parsed (the whole family of
+the windows answers on X11), and the place and the state of an X11
+window come from `xwininfo` and `xprop`. The surface does not move with
+them: the names were already answered; what changed is the answer of a
+real desktop, which only a second desktop could measure.
+
 **The third family is ported too (2026-11-11): the windows of the
 machine.** The `Win*` names ask the compositor of the session, and the
 two clients of the compositor had diverged -- the one of the tree of the

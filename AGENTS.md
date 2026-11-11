@@ -11804,3 +11804,46 @@ are refused become 754 and 79.** The command `Edit` -- the one that opens
 a file in an editor -- stays refused in this tree and in the branch, and
 for the same reason: the script of this runtime is read from the standard
 input, so it has no file for an editor to open.
+
+## 320. The VM of the matrix, and the three answers it corrected
+
+**The VM `AhkDesktopTest` is the second desktop of this tree.** It lives
+in the Unraid host (`192.168.0.10`), it is an Arch Linux under QEMU with
+a virtio-gpu and no passthrough, and it carries two sessions that the box
+cannot: sway 1.12 (wlroots) and i3 4.25 over Xorg 21.1. The session is
+chosen by `/etc/ahk-session` and starts from the autologin of `tty1`. Its
+address is `192.168.0.110`, and the matrix that names it is
+`docs/desktop-test-matrix.md`, section 5.
+
+**Three answers of the tree were wrong, and the VM is what said so.**
+Measured on 2026-11-11, and corrected in the same day:
+
+- **The listing is not the question of the focus.** `WinActive` and
+  `WinGetTitle()` asked the listing of the windows first, and on sway --
+  which lists its windows and publishes no `zcosmic_toplevel_info_v1` --
+  they answered 0 and the empty text: two wrong values with no word
+  about them. The handlers fall through to the question of the focus
+  when the listing has no active window, and the desktop answers the
+  reason of the compositor. The case is
+  `a_compositor_that_lists_its_windows_without_the_focus_answers_the_reason`.
+- **The client list of the X server is parsed now.** `_NET_CLIENT_LIST`
+  was read and refused with "which this runtime does not parse yet".
+  `the_x_ids_in` and `x11_windows` in the box parse it: the ids of the
+  server, the `_NET_WM_NAME` of each window, and `_NET_ACTIVE_WINDOW`
+  for the focus. `WinGetCount` answers 5 on the VM, `WinGetList` answers
+  the ids with their titles, `WinExist` answers the id of the match and
+  0 for a window that is not there.
+- **The place and the state of an X11 window are `xwininfo` and
+  `xprop`.** `WinGetPos` answers `2,18,250,778` for the focused terminal
+  of the VM, and `WinGetMinMax` answers 0 -- the iconic state of
+  `WM_STATE` is the minimized one, and the two maximized atoms of
+  `_NET_WM_STATE` are the maximized one. The two tools are dependencies
+  of the X11 path: a VM without `xwininfo` answers the geometry with
+  "Target window not found.", which is how the absence of a tool looks
+  from a script.
+
+**And `WinActive` answers the id of the active window on every desktop
+that lists its windows** -- the id of the runtime on Wayland, the id of
+the X server on X11 -- which is the shape measured on the binary of
+v2.0.19 on 2026-11-09. Before the VM, the X11 path answered 1 and 0, the
+two values of a boolean, for a question whose answer is a window.

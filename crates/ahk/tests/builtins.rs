@@ -7,7 +7,8 @@
 use ahk::desktop::{
     Clipboard, WindowRef, WindowGeometry, WaitFor, ControlAnswer, ControlEdit, ControlFlag, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native, Network,
-    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WindowInfo, Windows,
+    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WindowAnswer, WindowInfo,
+    Windows,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -58,6 +59,10 @@ struct Fake {
     combo_popup: bool,
     /// The text of the one status bar the fake carries.
     status_text: String,
+    /// Whether the compositor of the fake lists its windows and does not
+    /// say which one has the focus -- the sway of the VM of the matrix,
+    /// measured on 2026-11-11.
+    no_focus: bool,
     /// The rows of the one list view the fake carries.
     list_rows: Vec<Vec<String>>,
     list_selected: i64,
@@ -333,6 +338,42 @@ impl Windows for Fake {
             WaitFor::NotActive => Ok((!present).then(|| title.to_string())),
             WaitFor::Close => Ok((!present).then(|| title.to_string())),
         }
+    }
+
+    /// Whether the window is the active one: the fake knows which of its
+    /// windows is active, unless it is the compositor that lists its
+    /// windows and does not say the focus -- then the answer is the
+    /// reason, the way the desktop of the box answers it.
+    fn window_active(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<WindowAnswer, String> {
+        if self.no_focus {
+            return Ok(WindowAnswer::Unknown(
+                "the compositor does not say which window has the focus".to_string(),
+            ));
+        }
+        let active = Windows::windows(self)?.into_iter().find(|window| window.active);
+        let Some(active) = active else {
+            return Ok(WindowAnswer::Absent);
+        };
+        Ok(if title.is_empty() || active.title.contains(title) {
+            WindowAnswer::Active
+        } else {
+            WindowAnswer::NotActive
+        })
+    }
+
+    /// The title of the window that has the focus, when the fake knows it.
+    fn active_window_title(&mut self) -> Result<Option<String>, String> {
+        if self.no_focus {
+            return Err("the compositor does not say which window has the focus".to_string());
+        }
+        Ok(Windows::windows(self)?
+            .into_iter()
+            .find(|window| window.active)
+            .map(|window| window.title))
     }
 
 
@@ -747,7 +788,7 @@ impl Windows for Fake {
                 id: 101,
                 title: "Steam".into(),
                 class: "steam_app".into(),
-                active: true,
+                active: !self.no_focus,
             },
             WindowInfo {
                 id: 102,
@@ -6257,4 +6298,33 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
     // The variables stay as they were.
     assert_eq!(int_of(&report, "x"), -1);
     assert_eq!(int_of(&report, "y"), -1);
-}
+}
+
+#[test]
+fn a_compositor_that_lists_its_windows_without_the_focus_answers_the_reason() {
+    // Measured on the VM of the matrix on 2026-11-11: sway publishes the
+    // portable listing of the toplevels and no extension that says which
+    // window has the focus. `WinActive` answered 0 there and `WinGetTitle`
+    // the empty text -- two wrong values with no word about them, which is
+    // the worst outcome of the tree. The listing is not the question of the
+    // focus: the question goes to the desktop, and the desktop answers with
+    // the reason when it cannot say.
+    let mut desktop = Fake {
+        no_focus: true,
+        ..Default::default()
+    };
+    let report = run_on("WinActive(\"Steam\")", &mut desktop);
+    assert_eq!(
+        failure_of(&report),
+        "WinActive cannot answer: the compositor does not say which window has the focus"
+    );
+    let mut desktop = Fake {
+        no_focus: true,
+        ..Default::default()
+    };
+    let report = run_on("WinGetTitle()", &mut desktop);
+    assert_eq!(
+        failure_of(&report),
+        "the compositor does not say which window has the focus"
+    );
+}
