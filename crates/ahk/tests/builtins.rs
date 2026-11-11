@@ -1280,6 +1280,55 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_move_of_a_control_answers_the_shapes_the_binary_answers() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+    // `ControlMove X, Y, W, H, Control, WinTitle` -- the control is the
+    // FIFTH parameter, and a call that leaves it out is refused with
+    // "Parameter #5 of ControlMove must not be omitted in this case."; the
+    // first parameter is a number, and a text throws "Parameter #1 of
+    // ControlMove requires a Number, but received a String."; and a control
+    // or a window that is not there throws "Target window not found.".
+    // A call that names a control that IS there hangs the binary, and this
+    // tree does not wait forever.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    ControlMove(\"10\", \"20\", \"30\", \"40\")",
+            "\n}\ncatch as err\n{",
+            "\n    missing := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ControlMove(\"x\", \"20\", \"30\", \"40\", \"Edit1\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ControlMove(\"10\", \"20\", \"30\", \"40\", \"NotThere\")",
+            "\n}\ncatch as err\n{",
+            "\n    target := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "missing"),
+        Value::Text("Parameter #5 of ControlMove must not be omitted in this case.".into())
+    );
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text(
+            "Parameter #1 of ControlMove requires a Number, but received a String.".into()
+        )
+    );
+    assert_eq!(
+        value_of(&report, "target"),
+        Value::Text("Target window not found.".into())
+    );
+}
+
+#[test]
 fn the_version_of_a_program_is_read_out_of_the_file_of_it() {
     // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
     // `FileGetVersion FileName`; a program of Windows answers the version as

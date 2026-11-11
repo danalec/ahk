@@ -1303,7 +1303,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
         handler: control_move,
     },
@@ -10609,25 +10609,57 @@ pub(crate) fn edit_paste(
     Ok(Value::Text(String::new()))
 }
 
-/// `ControlMove(X, Y, W, H, Control)`: moves a control of a window.
+/// `ControlMove(X, Y, W, H, Control, WinTitle)`: moves a control of a window.
 ///
-/// **Refused, and with a reason narrower than the blanket one.** Measured on the
-/// binary of v2.0.19 on 2026-11-09: every one of the four numbers is required -- a
-/// call that leaves one out is refused as *"Parameter #N of ControlMove requires a
-/// Number, but received an empty string"* -- so **there is no size-only form**, and
-/// every call asks for a place. The window of this tree lays its controls out in
-/// order, so a place cannot be set: unlike the `Move` of a control (round 122),
-/// which has an honourable half, this name has none.
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ControlMove X, Y, W, H, Control, WinTitle` -- the **control is the
+/// fifth parameter**, and a call that leaves it out is refused with
+/// "Parameter #5 of ControlMove must not be omitted in this case."; the
+/// first parameter is a number, and a text throws "Parameter #1 of
+/// ControlMove requires a Number, but received a String."; and a control
+/// or a window that is not there throws "Target window not found.".
+///
+/// **A call that names a control that IS there hangs the binary.** Measured
+/// on 2026-11-11: `ControlMove("10", "20", "100", "30", "Edit1", "title")`
+/// on a window of the script never came back, and the run was killed after
+/// ten seconds. There is no answer of the binary to match, and this runtime
+/// does not wait forever either -- so the call that names a control that is
+/// there answers the reason of this tree.
 pub(crate) fn control_move(
-    _rt: &mut Runtime<'_>,
-    _values: &[Value],
+    rt: &mut Runtime<'_>,
+    values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    Err(RuntimeError {
-        message: "the window of this tree lays its controls out in order, so the place of a control cannot be set, and this name has no form that asks for a size alone".to_string(),
-        line,
-    })
+    // The control is the fifth parameter, and the binary wants it.
+    if values.len() < 5 {
+        return Err(RuntimeError {
+            message: "Parameter #5 of ControlMove must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    }
+    // The first parameter is the place, and it is a number: a text that
+    // holds no number is refused, and a text that holds one is taken as it
+    // is -- the binary answers "Target window not found." for a call whose
+    // place is the text "10".
+    number_argument(values, 0, line, "ControlMove")?;
+    // The target: the window of the script by its title, and the control of
+    // it by its ClassNN.
+    let title = text_of(values, 5);
+    the_window_of_the_script(rt, &title, line)?;
+    let classnn = text_of(values, 4);
+    match rt.desktop().gui_number_named(&classnn) {
+        Ok(_) => Err(RuntimeError {
+            message: "the binary of v2.0.19 hangs on this call -- measured on 2026-11-11 -- and this runtime does not wait forever: the window of this tree lays its controls out in order, so the place of a control cannot be set.".to_string(),
+            line,
+        }),
+        // A control that is not there is the failure of the target.
+        Err(_) => Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        }),
+    }
 }
 
 /// `WinSetTitle(NewTitle, WinTitle)`: rename a window of the script.
