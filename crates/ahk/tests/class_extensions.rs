@@ -488,3 +488,60 @@ fn the_dialect_of_the_v2_does_not_have_the_accessor_names() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }
+
+#[test]
+fn the_thread_of_the_singleton_names_the_facts_of_the_one_thread() {
+    // The documentation of KeySharp: the main thread is launched
+    // automatically, it is active, it is interruptible, and the thread
+    // underneath the oldest one is the empty text.
+    let report = run_ks(concat!(
+        "t := Thread()\n",
+        "MsgBox t.Id\n",
+        "MsgBox t.Index\n",
+        "MsgBox t.IsActive\n",
+        "MsgBox t.Kind\n",
+        "MsgBox t.IsInterruptible\n",
+        "MsgBox t.Underlying\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "1");
+    assert_eq!(line(&report, 3), "Auto");
+    assert_eq!(line(&report, 4), "1");
+    assert_eq!(line(&report, 5), "");
+}
+
+#[test]
+fn the_exit_of_the_thread_stops_the_script_with_the_code() {
+    // The documentation of KeySharp: `Exit` on the current thread exits
+    // immediately, and the code of it is the exit code of the process.
+    let report = run_ks(concat!(
+        "t := Thread()\n",
+        "t.Exit(3)\n",
+        "MsgBox \"never\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty());
+}
+
+#[test]
+fn the_code_of_a_thread_that_has_not_exited_is_unset() {
+    // The v2.1 mode reads the exit code of a thread that runs as unset.
+    let report = run_ks(concat!(
+        "t := Thread()\n",
+        "MsgBox IsSet(t.ExitCode)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+}
+
+#[test]
+fn the_dialect_of_the_v2_does_not_have_the_class() {
+    // The surface of the v2.0.19 stays pure: `Thread` is a command of the
+    // v2 and not a class, and the tree refuses the script that makes one.
+    let mut desktop = Fake;
+    let statements = ahk::parse("t := Thread()\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}

@@ -11360,3 +11360,32 @@ Verified on 2026-11-11 with six cases of its own
 (`tests/class_extensions.rs` now carries 29). The scorecard moves:
 60 of 138 = 43.5 % of the platform-neutral Keysharp surface, from
 23.2 % -- the whole section of the accessors is carried.
+
+## 305. The Thread of the KeySharp dialect, and the one thread of this runtime
+
+The fifth block of the dialect of KeySharp carries its `Thread` class: the
+current pseudo-thread as an object. This runtime runs one script in one
+thread, so there is exactly one thread to describe, and the facts of it
+are the ones of the run: the kind of it is `Auto`, it is active, it is
+interruptible, it is not critical and not paused, and the thread
+underneath it is none -- the empty text, the way KeySharp answers for the
+oldest thread. The elapsed time is read live at every access, the way
+KeySharp reads it.
+
+`Thread()` makes the object, and the members answer: the twelve properties
+(`Id`, `Index`, `IsActive`, `Kind`, `Elapsed`, `Priority`, `AllowTimers`,
+`Critical`, `Paused`, `IsInterruptible`, `Underlying`, `ExitCode`) and the
+method `Exit`, which stops the script the way `ExitApp` does, with the
+code the caller names. The code of a thread that has not exited reads as
+unset, which is the v2.1 mode the dialect of KeySharp speaks.
+
+The class exists only in the `ks` dialect: the v2.0.19 has `Thread` as a
+command, and the tree refuses the script that makes one there. The class
+is asked of the dialect, and the dispatch of the construction, of the
+method and of the property gates on the answer.
+
+Verified on 2026-11-11 with four cases of its own
+(`tests/class_extensions.rs` now carries 33): `Thread().Exit(3)` ends the
+script with the code 3, and the code of a thread that runs is unset. The
+scorecard moves: 73 of 138 = 52.9 % of the platform-neutral Keysharp
+surface, from 43.5 % -- past the half.

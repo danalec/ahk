@@ -40,6 +40,7 @@ pub(crate) mod hotkey;
 pub(crate) mod inputhook;
 pub(crate) mod map;
 pub(crate) mod regexmatchinfo;
+pub(crate) mod thread;
 
 /// The methods of the class types, with the name v2 spells them and
 /// the number of the arguments they take.
@@ -1474,6 +1475,9 @@ pub(crate) fn construct(
         "clipboardall" => Some(clipboard::construct(arguments, rt, line)),
         "hotkey" => Some(hotkey::construct(arguments, rt, line)),
         "map" => Some(map::construct(arguments, rt, line)),
+        "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
+            Some(thread::construct(arguments, rt, line))
+        }
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             Some(gui::construct(class, arguments, rt, line))
         }
@@ -1653,6 +1657,9 @@ fn call_once(
         "hotkey" => hotkey::call(method, this, arguments, rt, line),
         "map" => map::call(method, this, arguments, rt, line),
         "regexmatchinfo" => regexmatchinfo::call(method, this, arguments, rt, line),
+        "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
+            thread::call(method, this, arguments, rt, line)
+        }
         // The methods of the base object are the methods of every object,
         // and they are answered by the runtime.
         "object" => rt.base_method(this, method, arguments, line),
@@ -1704,6 +1711,9 @@ pub(crate) fn property(
         "hotkey" => hotkey::property(name, this, rt, line),
         "map" => map::property(name, this, rt, line),
         "regexmatchinfo" => regexmatchinfo::property(name, this, rt, line),
+        "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
+            thread::property(name, this, rt, line)
+        }
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::property(class, name, this, rt, line)
         }
@@ -1833,6 +1843,7 @@ pub fn names(class: &str) -> Vec<&'static str> {
         "gui.treeview" => gui::names("gui.treeview"),
         "inputhook" => inputhook::NAMES.to_vec(),
         "regexmatchinfo" => regexmatchinfo::names(),
+        "thread" => thread::names(),
         "class" => THE_CLASS_VALUE.to_vec(),
         "object" => THE_BASE_OBJECT
             .iter()

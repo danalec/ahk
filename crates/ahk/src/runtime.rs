@@ -1978,7 +1978,7 @@ impl<'a> Runtime<'a> {
     }
 
     /// The milliseconds since the run started.
-    fn elapsed_ms(&self) -> u64 {
+    pub(crate) fn elapsed_ms(&self) -> u64 {
         self.clock.now_ms().saturating_sub(self.started_ms)
     }
 
@@ -10799,6 +10799,7 @@ impl<'a> Runtime<'a> {
         // 2026-11-02.
         if self.classes.contains_key(&name.to_lowercase())
             || self.dialect.carries_the_class_of_the_runtime(name)
+            || self.dialect.carries_the_class_of_the_extension(&name)
         {
             return self.construct(name, arguments, line);
         }

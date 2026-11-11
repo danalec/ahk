@@ -305,7 +305,9 @@ fn state_of(
             // A class type is a name that a script reads as the class.
             // Measured on the binary of v2.0.19 on 2026-10-31: the class
             // is read, and the call of it is a call of its own.
-            if classes::is_a_name_of_a_class(name) {
+            if classes::is_a_name_of_a_class(name)
+                || dialect.carries_the_class_of_the_extension(name)
+            {
                 return State::Value;
             }
             State::Pending(reason_of_pending(pending, kind, class, name))

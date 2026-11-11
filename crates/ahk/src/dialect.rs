@@ -549,6 +549,16 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// Whether the dialect adds the class of this name.
+    ///
+    /// The `ks` dialect adds the classes of KeySharp that the tree carries:
+    /// the `Thread` of the pseudo-thread, of which this runtime has the
+    /// main one. The v2.0.19 has `Thread` as a command, and the class does
+    /// not exist there.
+    fn carries_the_class_of_the_extension(&self, name: &str) -> bool {
+        let _ = name;
+        false
+    }
     /// Whether the dialect adds the built-in variable of this name.
     ///
     /// The variables of the extensions of KeySharp are not in the table of
@@ -2276,6 +2286,11 @@ impl Dialect for V2 {
         self.keysharp && crate::extensions::carries_the_variable(name)
     }
 
+    fn carries_the_class_of_the_extension(&self, name: &str) -> bool {
+        // The extensions of KeySharp are behind the `--dialect=ks`, and the
+        // v2.0.19 has Thread as a command and not as a class.
+        self.keysharp && name.eq_ignore_ascii_case("thread")
+    }
     fn the_builtin_of_the_extension(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
         // The extensions of KeySharp are behind the `--dialect=ks`, and the
         // v2.0.19 does not carry them.
