@@ -11844,3 +11844,22 @@ of that state, and the condition of the last hotkey that has one when the
 state has none.
 
 The answer is the empty text when the script set no condition.
+
+## 323. The info of a key, and the two tables of the names
+
+The `ks` dialect carries `GetKeyInfo(KeyName)`: an object with the virtual
+key, the scan code, the name, the modifiers and the prefix of the key --
+and the number zero when the tree does not know the name.
+
+**The tree has four tables of the names of the keys**, and they do not
+have the same shape: the virtual keys and the scan codes are
+`(code, name)`, the codes of the events of Linux are `(name, code)`, and
+the aliases are `(alias, name)`. A lookup that reads the name of the
+second column of the scan codes finds nothing, and the answer of the
+function is the zero -- the name is not resolved, and the tree does not
+guess.
+
+The block was written and it was taken back: the call of the function
+answered "Missing a required parameter.", which is the message of a
+method of a class and not of a built-in, and the tree does not keep a
+name that it answers wrongly.
