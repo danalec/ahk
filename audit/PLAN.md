@@ -90,7 +90,15 @@ the EMPTY text, `ComObjQuery` throws a wording of its own, and
 `ComObjFlags`/`ComObjValue`/`ComObjConnect` require a ComValue.
 `ComObjFromPtr` hangs on the binary and `ComCall` wants two parameters,
 so both stay refused -- a shape without a measurement has no wording to
-carry. The count is **784 values / 49 refusals**.
+carry. The count is **784 values / 49 refusals**. **Round 13 moved four
+more** (`16b0388`): `WinMoveBottom` -- an earlier note said GTK removed
+the call that lowers a window, which is true of GTK 4, but the helper
+draws with GTK 3, which carries it -- `WinMinimizeAll` and
+`WinMinimizeAllUndo`, whose shape is the contract and whose effect is
+carried for the window of the script alone, and the `Shutdown` row, which
+still carried variant 100 from before its handler answered, so the
+surface counted it as a refusal while the runtime answered it. The count
+is **788 values / 45 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
