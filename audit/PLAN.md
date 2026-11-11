@@ -128,7 +128,14 @@ the helper with the handler registered for it -- while `PostMessage`,
 `SendMessage` and `WinSetRegion` take the number of a window and answer
 "Target window not found." for every one of them, the window of the
 script included, because the messages go to the windows of other
-programs. The count is **800 values / 33 refusals**.
+programs. The count is **800 values / 33 refusals**. **Round 20 gave a
+text an address** (`3ca530c`): `StrPtr(String)` answers the address of a
+**copy** of the text -- two calls with the same text give two addresses --
+and `StrGet` of it reads the text back while `StrPut` into it writes. An
+address that names nothing answers the empty text, where the tree used to
+refuse it: the answer the binary gives is the empty one. The copy is a
+buffer of the runtime and the address is the one of its storage, the same
+one `Buffer.Ptr` answers. The count is **801 values / 32 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
