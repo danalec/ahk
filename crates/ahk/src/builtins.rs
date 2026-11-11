@@ -1015,9 +1015,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 0,
         max: 2,
-        variant: 132,
-        parameters: &[Parameter::Reference, Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[Parameter::Reference, Parameter::Reference],
+        handler: caret_get_pos,
     },
     Builtin {
         name: "ComCall",
@@ -8049,6 +8049,37 @@ fn window_target(
         });
     }
     Ok((text_of(values, 0), crate::settings::title_match_mode()))
+}
+
+/// `CaretGetPos`: where the caret of the text is.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with a focused Edit it
+/// answers 1 and writes the place of the caret into the two variables of the
+/// caller; with no window, or nothing focused that holds a caret, it answers
+/// 0 and the variables stay as they were. A call with no variables at all
+/// still answers the one or the zero.
+pub(crate) fn caret_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let caret = rt
+        .desktop()
+        .gui_caret()
+        .map_err(|e| desktop_failure(e, line))?;
+    match caret {
+        Some((x, y)) => {
+            if let Some(value) = values.first() {
+                rt.write_reference(value, Value::Int(x));
+            }
+            if let Some(value) = values.get(1) {
+                rt.write_reference(value, Value::Int(y));
+            }
+            Ok(Value::Int(1))
+        }
+        None => Ok(Value::Int(0)),
+    }
 }
 
 /// `WinGetID`: the identifier of the first window that matches.

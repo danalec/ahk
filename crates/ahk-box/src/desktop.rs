@@ -1423,6 +1423,19 @@ impl ahk::desktop::Windows for LabDesktop {
         }
     }
 
+    fn gui_caret(&mut self) -> Result<Option<(i64, i64)>, String> {
+        let said = self.the_gui_says("{\"op\": \"caret\"}")?;
+        // "value": null is no caret; "value": [x, y] is the place of it.
+        if said.contains("\"value\": null") {
+            return Ok(None);
+        }
+        let get = |name: &str| {
+            the_number_in(&said, name)
+                .ok_or_else(|| format!("the place of the caret was not read: {said}"))
+        };
+        Ok(Some((get("\"x\": ")?, get("\"y\": ")?)))
+    }
+
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
     }

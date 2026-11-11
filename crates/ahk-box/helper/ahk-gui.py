@@ -1482,6 +1482,35 @@ def the_menu_choose(index):
     answer({"ok": True})
 
 
+def the_caret():
+    """Where the caret of the text is, in the client coordinates of the window.
+
+    `CaretGetPos` of v2. Measured on the binary of v2.0.19 on 2026-11-10: with
+    a focused Edit it answers the place of the caret in the client area, and
+    with nothing that holds a caret it answers nothing. Here the focused
+    widget is asked: an Entry carries its caret at the layout offset of its
+    cursor position, and a widget that has no text has no caret at all.
+    """
+    if state["window"] is None:
+        answer({"ok": True, "value": None})
+        return
+    focused = state["window"].get_focus()
+    if focused is None or not isinstance(focused, Gtk.Editable):
+        answer({"ok": True, "value": None})
+        return
+    text = focused.get_text()
+    position = focused.get_position()
+    # The cursor position is a count of characters; the layout counts bytes.
+    byte_index = len(text[:position].encode("utf-8"))
+    layout = focused.get_layout()
+    rect = layout.index_to_pos(byte_index)
+    offset_x, offset_y = focused.get_layout_offsets()
+    allocation = focused.get_allocation()
+    x = allocation.x + offset_x + rect.x // 1024
+    y = allocation.y + offset_y + rect.y // 1024
+    answer({"ok": True, "value": {"x": x, "y": y}})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -1667,6 +1696,8 @@ def handle(command):
         run_on_loop(lambda: the_menu_bar(command.get("items", [])))
     elif op == "menu-choose":
         run_on_loop(lambda: the_menu_choose(command.get("index", 0)))
+    elif op == "caret":
+        run_on_loop(the_caret)
     elif op == "add":
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))

@@ -791,6 +791,18 @@ pub trait Windows {
         Err("this desktop cannot show a menu bar on the window of the script".to_string())
     }
 
+    /// Where the caret of the text is, in the client coordinates of the
+    /// window of the script.
+    ///
+    /// `None` is no caret: no window, or nothing focused that holds one.
+    /// Measured on the binary of v2.0.19 on 2026-11-10: with no window
+    /// `CaretGetPos` answers 0 and the variables of the caller are left
+    /// untouched; with a focused Edit it answers 1 and the place of the
+    /// caret in the client area.
+    fn gui_caret(&mut self) -> Result<Option<(i64, i64)>, String> {
+        Err("this desktop cannot find the caret of the window".to_string())
+    }
+
     /// Put a window of the script on the screen.
     fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
         Err("this desktop cannot show a window of the script".to_string())
