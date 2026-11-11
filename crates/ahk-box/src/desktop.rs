@@ -40,7 +40,7 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ahk::desktop::{
     FileAnswer, FileOptions, Folders, Idle, InputAnswer, InputOptions, Processes, WindowAnswer,
@@ -135,6 +135,13 @@ pub struct LabDesktop {
     /// connection to the compositor is worth keeping.
     #[cfg(target_os = "linux")]
     wayland: Option<crate::wayland::Client>,
+    /// The program that draws tooltips, which is NOT the window of a `Gui`.
+    ///
+    /// `ToolTip` of v2 works with no window of the script at all, so the helper
+    /// that draws it is a process of its own. Keeping it apart from `gui` is what
+    /// lets a script show a tooltip and then make a `Gui` without being told
+    /// that a window is already there.
+    tooltip: Option<crate::gui::TheWindow>,
 }
 
 impl Default for LabDesktop {
@@ -215,6 +222,7 @@ impl LabDesktop {
     /// A desktop that has not yet opened anything.
     pub fn new() -> Self {
         Self {
+            tooltip: None,
             keyboard: None,
             pointer: None,
             gui: None,
@@ -438,6 +446,14 @@ fn shell_quote(value: &str) -> String {
     }
     out.push('"');
     out
+}
+
+/// The pause between two readings of the table of the processes.
+///
+/// The table is read twenty times a second: a change is seen quickly, and the
+/// loop costs the machine almost nothing while it waits.
+fn pause_before_the_next_look() {
+    std::thread::sleep(Duration::from_millis(20));
 }
 
 impl ahk::desktop::Desktop for LabDesktop {}
@@ -823,6 +839,93 @@ impl ahk::desktop::Pointer for LabDesktop {
 }
 
 impl ahk::desktop::Screen for LabDesktop {
+    // ---- screen_scale
+    fn screen_scale(&mut self) -> Result<i64, String> {
+        // The scale is a question for the toolkit, which is the helper's, and it
+        // needs no window: the session's scale is the monitor's.
+        if self.gui.is_none() {
+            let helper = the_helper_of_the_window()?;
+            self.gui = Some(crate::gui::TheWindow::open(&helper)?);
+        }
+        let window = self.gui.as_mut().ok_or("the helper of the window did not start")?;
+        let answer = window.send("{\"op\": \"scale\"}")?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the session gave no scale: {answer}"))
+    }
+
+    // ---- tooltip_show
+    fn tooltip_show(&mut self, text: &str, x: i64, y: i64) -> Result<i64, String> {
+        let command = format!(
+            "{{\"op\": \"tooltip\", \"text\": {}, \"x\": {}, \"y\": {}}}",
+            quoted(text),
+            x,
+            y
+        );
+        // A tooltip needs no window of the script, so it has a helper of its own
+        // and is started the first time one is shown. Measured on the binary of
+        // v2.0.19 on 2026-11-10: showing one answers a number even with no Gui.
+        if self.tooltip.is_none() {
+            let helper = the_helper_of_the_window()?;
+            self.tooltip = Some(crate::gui::TheWindow::open(&helper)?);
+        }
+        let window = self
+            .tooltip
+            .as_mut()
+            .ok_or("the helper of the tooltip did not start")?;
+        let said = window.send(&command)?;
+        if !said.contains("\"ok\": true") {
+            return Err(format!("the tooltip was not shown: {said}"));
+        }
+        the_number_in(&said, "\"value\": ").ok_or_else(|| "the tooltip gave no number".to_string())
+    }
+
+    // ---- window_move
+    fn window_move(&mut self, x: i64, y: i64, width: i64, height: i64) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"window-move\", \"x\": {}, \"y\": {}, \"w\": {}, \"h\": {}}}",
+            x, y, width, height
+        );
+        self.the_gui_says(&command).map(|_| ())
+    }
+
+    // ---- gui_controls
+    fn gui_controls(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"controls\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_all_text
+    fn gui_all_text(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"all-text\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_opacity
+    fn gui_opacity(&mut self, setting: Option<i64>) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!("{{\"op\": \"opacity\", \"on\": {}}}", on),
+            None => "{\"op\": \"opacity\"}".to_string(),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the window of the script gave no opacity: {answer}"))
+    }
+
+    // ---- gui_paste
+    fn gui_paste(&mut self, number: u64, text: &str) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"paste\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the text was not put into the control: {answer}"))
+        }
+    }
+
     fn capture(
         &mut self,
         x: i64,
@@ -938,6 +1041,68 @@ impl ahk::desktop::Screen for LabDesktop {
 }
 
 impl ahk::desktop::Windows for LabDesktop {
+    // ---- matching_windows
+    fn matching_windows(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        // The compositor of a Wayland session is the one that knows the
+        // windows, and the listing of them is the protocol it publishes. The
+        // X server beside it is the rootless Xwayland of gamescope, and it
+        // reports an empty client list, so there is nothing to read there.
+        if wayland_session() {
+            return self.wayland_matching(title, mode);
+        }
+        Err("this desktop lists the windows of a Wayland session, and this session is not \
+             Wayland"
+            .to_string())
+    }
+
+    // ---- window_geometry
+    fn window_geometry(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        if wayland_session() {
+            return self.wayland_geometry(title, mode);
+        }
+        Err("this desktop tells where the windows of a Wayland session are, and this session \
+             is not Wayland"
+            .to_string())
+    }
+
+    // ---- window_min_max
+    fn window_min_max(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        if wayland_session() {
+            return self.wayland_min_max(title, mode);
+        }
+        Err("this desktop tells whether a window of a Wayland session is maximized, and this \
+             session is not Wayland"
+            .to_string())
+    }
+
+    // ---- window_wait
+    fn window_wait(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+        timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        if wayland_session() {
+            return self.wayland_wait(title, mode, what, timeout_ms);
+        }
+        Err("this desktop waits for the windows of a Wayland session, and this session is not \
+             Wayland"
+            .to_string())
+    }
+
     // ---- control_text
     fn control_text(
         &mut self,
@@ -2384,6 +2549,209 @@ fn no_window_list_reason() -> String {
 /// question, and the answers arrive on the same connection.
 #[cfg(target_os = "linux")]
 impl LabDesktop {
+    // ---- wayland_matching
+    /// The windows whose title matches, by Wayland.
+    ///
+    /// The listing carries the identifier of a window and its application id,
+    /// and those are the id and the class that the `WinGet*` commands read.
+    #[cfg(target_os = "linux")]
+    fn wayland_matching(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        let windows = self.wayland()?.windows()?;
+        let mut matched = Vec::new();
+        for window in &windows {
+            // The empty title is every window: measured on the binary of
+            // v2.0.19 on 2026-11-09, `WinGetList()` answered the whole list.
+            if !title.is_empty() && !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            matched.push(ahk::desktop::WindowRef {
+                id: window.identifier.clone().unwrap_or_default(),
+                class: window.app_id.clone(),
+            });
+        }
+        Ok(matched)
+    }
+
+    // ---- wayland_geometry
+    /// Where the window is and how big it is, by Wayland.
+    ///
+    /// The geometry is the event of the version 2 of the COSMIC protocol, and
+    /// the client asks for that version or a later one. A window whose
+    /// geometry the compositor did not send is a failure with the reason: a
+    /// place that is not known is not a window at the origin.
+    #[cfg(target_os = "linux")]
+    fn wayland_geometry(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        if title.is_empty() {
+            return Ok(None);
+        }
+        let windows = self.wayland()?.windows()?;
+        for window in &windows {
+            if !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            let Some(geometry) = window.geometry else {
+                return Err("the compositor did not say where this window is, so its place is \
+                            not known"
+                    .to_string());
+            };
+            return Ok(Some(ahk::desktop::WindowGeometry {
+                x: i64::from(geometry.x),
+                y: i64::from(geometry.y),
+                width: i64::from(geometry.width),
+                height: i64::from(geometry.height),
+            }));
+        }
+        Ok(None)
+    }
+
+    // ---- wayland_min_max
+    #[cfg(target_os = "linux")]
+    fn wayland_min_max(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        if title.is_empty() {
+            return Ok(None);
+        }
+        let windows = self.wayland()?.windows()?;
+        for window in &windows {
+            if !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            // A window that is both is answered as maximized: the maximized
+            // window is the one the user sees, and the minimized state of it
+            // is not what the screen shows.
+            if window.maximized {
+                return Ok(Some(1));
+            }
+            if window.minimized {
+                return Ok(Some(-1));
+            }
+            return Ok(Some(0));
+        }
+        Ok(None)
+    }
+
+    // ---- wayland_wait
+    /// Wait for a condition about a window, by Wayland.
+    #[cfg(target_os = "linux")]
+    fn wayland_wait(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+        timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        loop {
+            if let Some(answer) = self.the_window_condition(title, mode, what)? {
+                return Ok(Some(answer));
+            }
+            if Instant::now() >= deadline {
+                return Ok(None);
+            }
+            pause_before_the_next_look();
+        }
+    }
+
+    // ---- wayland_monitors
+    /// Whether the window is maximized or minimized, by Wayland.    ///
+    /// The two states are entries of the state array of the COSMIC protocol,
+    /// the same array that says which window is the active one, so the answer
+    /// is already in what the client refreshes.
+    /// The monitors of the compositor, by Wayland.
+    ///
+    /// The compositor names its outputs and places them, and the name of one is
+    /// the name of `MonitorGetName`. The **size** of one is what its mode says,
+    /// and the mode event of this compositor is not arriving: measured on the
+    /// box on 2026-11-09, `/` answered `HDMI-A-1` for the name and a rectangle
+    /// of zeros for the bounds. So the extent of the session is used for the
+    /// size of an output that did not give one, and the plan records that this
+    /// is a gap and not a design.
+    #[cfg(target_os = "linux")]
+    fn wayland_monitors(&mut self) -> Result<Vec<ahk::desktop::Monitor>, String> {
+        let reported = self.wayland()?.monitors()?;
+        let (width, height) = LabDesktop::screen_size(self).map_err(|error| error.to_string())?;
+        Ok(reported
+            .into_iter()
+            .map(|monitor| {
+                let mut left = i64::from(monitor.left);
+                let mut top = i64::from(monitor.top);
+                let mut right = i64::from(monitor.right);
+                let mut bottom = i64::from(monitor.bottom);
+                if right <= left || bottom <= top {
+                    left = 0;
+                    top = 0;
+                    right = width;
+                    bottom = height;
+                }
+                ahk::desktop::Monitor {
+                    name: monitor.name,
+                    left,
+                    top,
+                    right,
+                    bottom,
+                    scale: i64::from(monitor.scale),
+                }
+            })
+            .collect())
+    }
+
+    // ---- the_window_condition
+    /// Whether the condition that a wait is about holds now.
+    ///
+    /// `Some` is the condition met, and the answer of the conditions about the
+    /// absence of a window is the empty text, because there is no window to
+    /// identify.
+    #[cfg(target_os = "linux")]
+    fn the_window_condition(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+    ) -> Result<Option<String>, String> {
+        use ahk::desktop::WaitFor;
+        // The empty title is no window at all: v2 falls back to the last found
+        // window, and this runtime keeps none.
+        if title.is_empty() {
+            return Ok(match what {
+                WaitFor::NotActive | WaitFor::Close => Some(String::new()),
+                WaitFor::Present | WaitFor::Active => None,
+            });
+        }
+        let windows = self.wayland()?.windows()?;
+        let mut found = None;
+        for window in &windows {
+            if title_matches(&window.title, title, mode)? {
+                found = Some(window.clone());
+                break;
+            }
+        }
+        Ok(match what {
+            WaitFor::Present => found.map(|window| window.identifier.unwrap_or_default()),
+            WaitFor::Active => found
+                .filter(|window| window.active)
+                .map(|window| window.identifier.unwrap_or_default()),
+            WaitFor::NotActive => match found {
+                Some(window) if window.active => None,
+                _ => Some(String::new()),
+            },
+            WaitFor::Close => match found {
+                Some(_) => None,
+                None => Some(String::new()),
+            },
+        })
+    }
+
     /// The client of the compositor.
     fn wayland(&mut self) -> Result<&mut crate::wayland::Client, String> {
         if self.wayland.is_none() {
@@ -2466,6 +2834,54 @@ impl LabDesktop {
 /// reason, and the box says that it is not Linux.
 #[cfg(not(target_os = "linux"))]
 impl LabDesktop {
+    // ---- wayland_matching
+    /// The windows whose title matches, on a platform that has no Wayland.
+    fn wayland_matching(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        Err(not_linux())
+    }
+
+    // ---- wayland_geometry
+    /// Where the window is, on a platform that has no Wayland.
+    fn wayland_geometry(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        Err(not_linux())
+    }
+
+    // ---- wayland_min_max
+    /// Whether the window is maximized, on a platform that has no Wayland.
+    fn wayland_min_max(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        Err(not_linux())
+    }
+
+    // ---- wayland_wait
+    /// Wait for a window, on a platform that has no Wayland.
+    fn wayland_wait(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+        _what: ahk::desktop::WaitFor,
+        _timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        Err(not_linux())
+    }
+
+    // ---- wayland_monitors
+    /// The monitors, on a platform that has no Wayland.
+    fn wayland_monitors(&mut self) -> Result<Vec<ahk::desktop::Monitor>, String> {
+        Err(not_linux())
+    }
+
     /// The title of the window that has the focus, by Wayland.
     fn wayland_active_title(&mut self) -> Result<Option<String>, String> {
         Err(not_linux())

@@ -1638,6 +1638,13 @@ pub struct Runtime<'a> {
     /// back, so the number has to be the SAME for the same object for the life of the
     /// run. Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips.
     pointers: Vec<(Value, i64)>,
+    /// The identifier of the window a `Win*` call last found.
+    ///
+    /// `WinGetIDLast` of v2 reads a piece of state that a `WinExist`,
+    /// `WinActivate` or `WinGetID` sets as a side effect. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: after `WinExist` finds a window,
+    /// `WinGetIDLast()` answers the same number as `WinGetID()`.
+    last_window: Option<String>,
 }
 
 
@@ -1726,6 +1733,7 @@ impl<'a> Runtime<'a> {
             thrown_value: None,
             thread: None,
             exit_callbacks: Vec::new(),
+            last_window: None,
             guis: Vec::new(),
             pointers: Vec::new(),
             error_callbacks: Vec::new(),
@@ -1805,6 +1813,7 @@ impl<'a> Runtime<'a> {
             thrown_value: None,
             thread: None,
             exit_callbacks: Vec::new(),
+            last_window: None,
             guis: Vec::new(),
             pointers: Vec::new(),
             error_callbacks: Vec::new(),
@@ -15370,6 +15379,16 @@ impl<'a> Runtime<'a> {
         // that looks like what v2 prints. It is an identity, not an address.
         0x1000 + index as i64
     }
+    /// Remember the window a `Win*` call just found.
+    pub fn remember_the_last_window(&mut self, id: &str) {
+        self.last_window = Some(id.to_string());
+    }
+
+    /// The identifier of the window a `Win*` call last found, if one was found.
+    pub fn the_last_window(&self) -> Option<&str> {
+        self.last_window.as_deref()
+    }
+
 }
 
 // -- the arithmetic -------------------------------------------------------------

@@ -30,7 +30,7 @@ use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
 };
 
 use ahk::desktop::Monitor;
-use super::Window;
+use super::{Geometry, Window};
 use super::protocols::client::{
     zcosmic_toplevel_handle_v1::{Event as CosmicEvent, ZcosmicToplevelHandleV1},
     zcosmic_toplevel_info_v1::{self, Event as CosmicInfoEvent, ZcosmicToplevelInfoV1},
@@ -41,6 +41,10 @@ use super::protocols::client::{
 /// The states are the ones of `xdg-toplevel`: maximized, minimized,
 /// activated, fullscreen and sticky.
 const ACTIVATED: u32 = 2;
+/// The state of a window that is maximized.
+const MAXIMIZED: u32 = 1;
+/// The state of a window that is minimized.
+const MINIMIZED: u32 = 4;
 
 /// How long the client waits for the state of the windows.
 ///
@@ -381,6 +385,16 @@ struct Toplevel {
     pending_app_id: Option<String>,
     /// Whether the window is the active one.
     active: bool,
+    /// Whether the window is maximized.
+    maximized: bool,
+    /// Whether the window is minimized.
+    minimized: bool,
+    /// Where the window is and how big it is, when the compositor said it.
+    ///
+    /// The `geometry` event of `zcosmic_toplevel_info_v1` carries it, and
+    /// the event arrives since the version 2 of that protocol -- which is
+    /// the version this client asks for.
+    geometry: Option<Geometry>,
     /// Whether the compositor has said the state of the window.
     state_seen: bool,
 }
@@ -393,6 +407,9 @@ impl Toplevel {
             title: self.title.clone(),
             app_id: self.app_id.clone(),
             active: self.active,
+            maximized: self.maximized,
+            minimized: self.minimized,
+            geometry: self.geometry,
         }
     }
 }
@@ -412,6 +429,8 @@ struct OutputState {
     width: i64,
     /// The number of the rows of the current mode.
     height: i64,
+    /// The scale of the output: how many pixels of it are in one point.
+    scale: i64,
     /// Whether the mode the compositor has said is the current one.
     current: bool,
 }
@@ -435,6 +454,7 @@ impl OutputState {
             top: self.y,
             right: self.x + self.width,
             bottom: self.y + self.height,
+            scale: self.scale,
         }
     }
 
@@ -485,8 +505,10 @@ impl Dispatch<WlOutput, ()> for State {
             } => output.take_mode(flags.into(), width, height),
             OutputEvent::Name { name } => output.name = name,
             OutputEvent::Description { description } => output.description = description,
-            // The scale and the transform of the output are not the
-            // rectangle of the monitor in the coordinates of the session.
+            // The scale of the output is not the rectangle of the monitor
+            // in the coordinates of the session: it is how many pixels of
+            // the output are in one point of it.
+            OutputEvent::Scale { factor } => output.scale = factor as i64,
             _ => {}
         }
     }
@@ -652,14 +674,43 @@ impl Dispatch<ZcosmicToplevelHandleV1, ()> for State {
             return;
         };
 
-        if let CosmicEvent::State { state: states } = event {
+        if let CosmicEvent::State { state: states } = &event {
             // The states are numbers, four bytes each, and the array
             // carries its length in bytes.
-            toplevel.active = states.chunks_exact(4).any(|state| {
-                u32::from_ne_bytes([state[0], state[1], state[2], state[3]]) == ACTIVATED
-            });
+            let mut active = false;
+            let mut maximized = false;
+            let mut minimized = false;
+            for chunk in states.chunks_exact(4) {
+                match u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]) {
+                    ACTIVATED => active = true,
+                    MAXIMIZED => maximized = true,
+                    MINIMIZED => minimized = true,
+                    _ => {}
+                }
+            }
+            toplevel.active = active;
+            toplevel.maximized = maximized;
+            toplevel.minimized = minimized;
             // The compositor has said the state of this window.
             toplevel.state_seen = true;
+        }
+
+        // The geometry of the window is the event of the version 2 of the
+        // protocol, and the client asks for that version or a later one.
+        if let CosmicEvent::Geometry {
+            x,
+            y,
+            width,
+            height,
+            ..
+        } = event
+        {
+            toplevel.geometry = Some(Geometry {
+                x,
+                y,
+                width,
+                height,
+            });
         }
     }
 }

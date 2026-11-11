@@ -1,11 +1,11 @@
 #!/usr/bin/python3
-"""Write the note of the port of the window into the notes of the tree.
+"""Write the note of the family of the windows into the notes of the tree.
 
 The note is a section of `AGENTS.md`, and the text of a file of the tree is
-edited by a script under `egm-review/` and not by a command of the shell.
-The script refuses to write the section twice.
+edited by a script under `audit/` and not by a command of the shell. The
+script refuses to write the section twice.
 
-    python egm-review/append-window-note.py
+    python audit/append-window-note.py
 """
 
 import pathlib
@@ -18,59 +18,51 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 NOTES = ROOT / "AGENTS.md"
 
 THE_NOTE = """
-## 316. The window of the script is drawn by the helper of the box
+## 318. The windows of the machine are asked of the compositor, and the place of one is not always known
 
-**The window is the desktop's, and the desktop of the box has one.** The
-helper `crates/ahk-box/helper/ahk-gui.py` draws a GTK3 window when it is
-told to over a pipe, and the transport
-(`crates/ahk-box/src/gui.rs`) is the pipe. The runtime asks for it
-through the `Windows` trait -- the fifty methods of it that the window
-needs -- and the class of the window (`crates/ahk/src/classes/gui.rs`)
-answers the names of v2 with them.
+**The `Win*` names of v2 ask the compositor of the session.** The tree of
+the owner carried a few of them already -- the listing, the title, the
+focus -- and refused the rest with the blanket reason of the names of
+Windows; the family came with the port of 2026-11-11.
 
-**And the menu that hangs on it is a class of its own** --
-`crates/ahk/src/classes/menu.rs` -- with the `MenuBar` spelling the
-dialect uses: `Type` of a `MenuBar` answers "MenuBar", and the menu is
-put on the window with `g.Menu := mb`.
-
-**The events are answered when the script waits.** The helper writes what
-happened to a file the runtime polls, and the drain reads it: the handler
-that the window kept is called **by its value**, because a closure has no
-name in v2 and only the value of it can be called. `Sleep` is the one
-statement of this runtime that waits, so it is the one place an event can
-be answered without a loop of its own.
+**The two clients of the compositor diverged, and the merge is by hand.**
+The client of the tree of the owner learned to name the windows of the
+session with a number (`windows_with_ids`), and the client of the branch
+learned where a window is (`geometry`, the event of the version 2 of
+`zcosmic_toplevel_info_v1`), in what state it is (maximized, minimized)
+and how many pixels of an output are in one point of it (`scale`). The
+merge is `audit/port-wayland-merge.py`: it writes the two texts that the
+two trees disagree about, and nothing is copied.
 
 Measured on the box on 2026-11-11, with this tree built there:
 
-- The window opens: `Gui()`, `Add("Text")`, `Add("Button")`, `Title :=`,
-  `Show()` and `Destroy()` all answer, and the report carries the
-  controls with their `ClassNN` (`Static1`, `Button1`) and their numbers.
-- The event reaches the handler: the event written into the file the
-  runtime polls is read by the `Sleep` that follows, and the handler of
-  the control is called with the control as its argument -- the output
-  is "[pressed [Gui.Button]]".
+- `WinGetCount()` answers **3** and `WinGetList()` answers the ids **1 2
+  3** -- the three windows of the session.
+- Their titles are "Gmail - Chromium", "Unlock Keyring" and "Steam".
+- `WinWait("zzz-nothing-zzz", "", 1)` answers **0** in **1012 ms**: the
+  wait of the family stops at the second that was asked for. The third
+  parameter is the timeout, and a call without it waits the cap.
+- `WinGetPos(&x, &y, &w, &h, "Steam")` fails with **"the compositor did
+  not say where this window is, so its place is not known"**. The geometry
+  is an event of the compositor, and this compositor did not send it for
+  that window. The answer is the reason and not a zero: a window at the
+  origin with no size is not the same as a window whose place is unknown.
 
-**And the port of it is a script and not a copy by hand.** The two trees
-have drifted -- the branch has the window, and the tree of the owner has
-the KeySharp dialect -- and a copy would have taken the drift with it.
-`egm-review/port-gui-window.py`, `egm-review/port-gui-class.py` and
-`egm-review/port-gui-names.py` read the branch and write the tree of the
-owner; they refuse to write anything when an anchor is not where it says
-it is, and they can be run twice.
+**And the surface moves with the family: 712 answers with a value and 121
+are refused become 747 and 86.**
 """
 
 
 def main():
     notes = read_lines(NOTES)
-    if any("## 316." in line for line in notes):
-        print("the note of the window is already there")
+    if any("## 318." in line for line in notes):
+        print("the note of the windows is already there")
         return 0
     notes.extend(THE_NOTE.split("\n"))
     write_lines(NOTES, notes)
-    print("the note of the window is written")
+    print("the note of the windows is written")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
-
+    raise SystemExit(main())

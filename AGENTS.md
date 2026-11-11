@@ -11738,3 +11738,37 @@ Measured on the box on 2026-11-11, with this tree built there:
 built-in table are in another order in the two trees, and a copy that took
 the order of the branch would have taken the names of the other rows with
 it.
+
+
+## 318. The windows of the machine are asked of the compositor, and the place of one is not always known
+
+**The `Win*` names of v2 ask the compositor of the session.** The tree of
+the owner carried a few of them already -- the listing, the title, the
+focus -- and refused the rest with the blanket reason of the names of
+Windows; the family came with the port of 2026-11-11.
+
+**The two clients of the compositor diverged, and the merge is by hand.**
+The client of the tree of the owner learned to name the windows of the
+session with a number (`windows_with_ids`), and the client of the branch
+learned where a window is (`geometry`, the event of the version 2 of
+`zcosmic_toplevel_info_v1`), in what state it is (maximized, minimized)
+and how many pixels of an output are in one point of it (`scale`). The
+merge is `audit/port-wayland-merge.py`: it writes the two texts that the
+two trees disagree about, and nothing is copied.
+
+Measured on the box on 2026-11-11, with this tree built there:
+
+- `WinGetCount()` answers **3** and `WinGetList()` answers the ids **1 2
+  3** -- the three windows of the session.
+- Their titles are "Gmail - Chromium", "Unlock Keyring" and "Steam".
+- `WinWait("zzz-nothing-zzz", "", 1)` answers **0** in **1012 ms**: the
+  wait of the family stops at the second that was asked for. The third
+  parameter is the timeout, and a call without it waits the cap.
+- `WinGetPos(&x, &y, &w, &h, "Steam")` fails with **"the compositor did
+  not say where this window is, so its place is not known"**. The geometry
+  is an event of the compositor, and this compositor did not send it for
+  that window. The answer is the reason and not a zero: a window at the
+  origin with no size is not the same as a window whose place is unknown.
+
+**And the surface moves with the family: 712 answers with a value and 121
+are refused become 747 and 86.**

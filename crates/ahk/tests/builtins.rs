@@ -5,7 +5,7 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, ControlAnswer, ControlEdit, ControlFlag, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
+    Clipboard, WindowRef, WindowGeometry, WaitFor, ControlAnswer, ControlEdit, ControlFlag, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
     ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native, Network,
     PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WindowInfo, Windows,
 };
@@ -269,6 +269,73 @@ impl Fake {
 }
 
 impl Windows for Fake {
+    // ---- matching_windows
+    /// The windows of the session are the ones the fake answers with its
+    /// own list: the family of the windows asks the desktop for them, and
+    /// the case of the suite is about the same windows.
+    fn matching_windows(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<WindowRef>, String> {
+        self.calls.push(("windows".into(), title.to_string()));
+        Ok(Windows::windows(self)
+            .map_err(|reason| reason)?
+            .into_iter()
+            .filter(|window| title.is_empty() || window.title.contains(title))
+            .map(|window| WindowRef {
+                id: window.id.to_string(),
+                class: window.class,
+            })
+            .collect())
+    }
+
+    /// The fake does not know where a window is.
+    fn window_geometry(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<WindowGeometry>, String> {
+        Ok(None)
+    }
+
+    /// The fake does not know whether a window is maximized.
+    fn window_min_max(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        Ok(None)
+    }
+
+    /// The wait of the family asks the desktop, and the fake answers with
+    /// the windows it has.
+    fn window_wait(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+        what: WaitFor,
+        _timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        self.calls.push(("wait".into(), title.to_string()));
+        let windows = Windows::windows(self).map_err(|reason| reason)?;
+        let present = windows
+            .iter()
+            .any(|window| title.is_empty() || window.title.contains(title));
+        match what {
+            WaitFor::Present => Ok(present.then(|| title.to_string())),
+            WaitFor::Active => Ok(windows
+                .iter()
+                .find(|window| {
+                    window.active && (title.is_empty() || window.title.contains(title))
+                })
+                .map(|window| window.title.clone())),
+            WaitFor::NotActive => Ok((!present).then(|| title.to_string())),
+            WaitFor::Close => Ok((!present).then(|| title.to_string())),
+        }
+    }
+
+
     // ---- gui_value
     fn gui_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
         if self.tab_pages > 0 {

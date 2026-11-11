@@ -2337,9 +2337,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tooltip,
     },
     Builtin {
         name: "TraySetIcon",
@@ -2364,27 +2364,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_activate,
     },
     Builtin {
         name: "WinActivateBottom",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_activate_bottom,
     },
     Builtin {
         name: "WinClose",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_close,
     },
     Builtin {
         name: "WinGetClass",
@@ -2400,27 +2400,36 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
-        parameters: &[Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: win_get_client_pos,
     },
     Builtin {
         name: "WinGetControls",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_controls,
     },
     Builtin {
         name: "WinGetControlsHwnd",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_controls_hwnd,
     },
     Builtin {
         name: "WinGetCount",
@@ -2438,7 +2447,7 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinGetID",
@@ -2472,45 +2481,54 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_min_max,
     },
     Builtin {
         name: "WinGetPID",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_pid,
     },
     Builtin {
         name: "WinGetPos",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
-        parameters: &[Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: win_get_pos,
     },
     Builtin {
         name: "WinGetProcessName",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_process,
     },
     Builtin {
         name: "WinGetProcessPath",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_process,
     },
     Builtin {
         name: "WinGetStyle",
@@ -2519,16 +2537,16 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinGetText",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 121,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_text,
     },
     Builtin {
         name: "WinGetTransColor",
@@ -2537,133 +2555,133 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_trans_color,
     },
     Builtin {
         name: "WinGetTransparent",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_transparent,
     },
     Builtin {
         name: "WinHide",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_hide,
     },
     Builtin {
         name: "WinKill",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_kill,
     },
     Builtin {
         name: "WinMaximize",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_maximize,
     },
     Builtin {
         name: "WinMinimize",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_minimize,
     },
     Builtin {
         name: "WinMinimizeAll",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_minimize_all,
     },
     Builtin {
         name: "WinMinimizeAllUndo",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_minimize_all_undo,
     },
     Builtin {
         name: "WinMove",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move,
     },
     Builtin {
         name: "WinMoveBottom",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move_bottom,
     },
     Builtin {
         name: "WinMoveTop",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move_top,
     },
     Builtin {
         name: "WinRedraw",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_redraw,
     },
     Builtin {
         name: "WinRestore",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_restore,
     },
     Builtin {
         name: "WinSetAlwaysOnTop",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_always_on_top,
     },
     Builtin {
         name: "WinSetEnabled",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_enabled,
     },
     Builtin {
         name: "WinSetExStyle",
@@ -2672,16 +2690,16 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinSetRegion",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_region,
     },
     Builtin {
         name: "WinSetStyle",
@@ -2690,16 +2708,16 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinSetTitle",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_title,
     },
     Builtin {
         name: "WinSetTransColor",
@@ -2708,61 +2726,61 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_trans_color,
     },
     Builtin {
         name: "WinSetTransparent",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_transparent,
     },
     Builtin {
         name: "WinShow",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_show,
     },
     Builtin {
         name: "WinWait",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait,
     },
     Builtin {
         name: "WinWaitActive",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_active,
     },
     Builtin {
         name: "WinWaitClose",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_close,
     },
     Builtin {
         name: "WinWaitNotActive",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_not_active,
     },
     // -- the hotkeys --------------------------------------------------------
     Builtin {
@@ -12829,3 +12847,950 @@ const TARGET_WINDOW: &str = "Target window not found.";
 /// Measured on the binary of v2.0.19 on 2026-11-09: `ControlGetText("x", "A")`
 /// -- a window that is there -- fails with this, and not with an empty text.
 const TARGET_CONTROL: &str = "Target control not found.";
+
+
+// ---- win_activate
+pub(crate) fn win_activate(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
+// ---- win_activate_bottom
+/// `WinActivateBottom`: activate the window at the bottom of the ones that
+/// match.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10, with two windows of the
+/// script matching one title: the BOTTOM one -- the first the script made --
+/// is the one that ends up active, and the call answers the empty text. This
+/// runtime makes one window of the script, so the bottom one that matches is
+/// the one there, and the activation is the same call `WinActivate` makes. A
+/// target that does not match the window of the script is "Target window not
+/// found.", the wording `WinActivate` answers for the same thing.
+pub(crate) fn win_activate_bottom(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
+// ---- win_close
+pub(crate) fn win_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_close_of_the_window(rt, values, line)
+}
+
+// ---- win_get_client_pos
+/// `WinGetClientPos`: the same place, of the part of the window that the
+/// program draws in.
+///
+/// A Wayland client does not draw its own frame -- the compositor does -- so
+/// the geometry that the compositor reports is the window the user sees, and
+/// it is the answer of both commands here. On Windows the two differ by the
+/// frame: measured on the binary of v2.0.19 on 2026-11-09, the frame was
+/// 819,479 1787x1262 and the client area 827,479 1771x1254.
+pub(crate) fn win_get_client_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    window_geometry_into(rt, values, line, "WinGetClientPos")
+}
+
+// ---- win_get_controls
+/// `WinGetControls(WinTitle)`: the `ClassNN` of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a window with a label, an edit and a
+/// button answers three items, `Static1`, `Edit1` and `Button1`, and a window that is not
+/// there answers *"Target window not found."*
+pub(crate) fn win_get_controls(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let joined = rt
+        .desktop()
+        .gui_controls()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let answers: Vec<Value> = if joined.is_empty() {
+        Vec::new()
+    } else {
+        joined
+            .split('\n')
+            .map(|name| Value::Text(name.to_string()))
+            .collect()
+    };
+    // The answer of v2 is an array, and this is how `StrSplit` makes one.
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
+}
+
+// ---- win_get_controls_hwnd
+/// `WinGetControlsHwnd(WinTitle)`: the handle of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers as many Integers as the
+/// window has controls. No channel of its own is needed: the names come from
+/// `WinGetControls` and the number of a name from the lookup of round 164.
+pub(crate) fn win_get_controls_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let joined = rt
+        .desktop()
+        .gui_controls()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let mut answers: Vec<Value> = Vec::new();
+    if !joined.is_empty() {
+        for name in joined.split('\n') {
+            let number = rt
+                .desktop()
+                .gui_number_named(name)
+                .map_err(|reason| desktop_failure(reason, line))?;
+            answers.push(Value::Int(number));
+        }
+    }
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
+}
+
+// ---- win_get_min_max
+/// `WinGetMinMax`: whether the window is maximized, minimized, or neither.
+///
+/// The answer is the number of v2: `1`, `-1` or `0`. A window that is not
+/// there is the failure of v2, measured on the binary of v2.0.19 on
+/// 2026-11-09.
+pub(crate) fn win_get_min_max(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    // The no-window call of v2 falls back to the last found window, and this
+    // runtime keeps none: it is the same failure v2 gives with nothing to
+    // fall back to.
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .window_min_max(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(answer) => Ok(Value::Int(answer)),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+// ---- win_get_pid
+/// `WinGetPID`: the process of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the **Integer** of
+/// the process, and a title that no window has is "Target window not found.".
+///
+/// The chain on this desktop is the accessibility bus: the registry names the
+/// applications, a window is a child of one and its `Name` is its title, and the
+/// bus answers the `PID` of a name -- measured on the box on 2026-11-09.
+pub(crate) fn win_get_pid(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .window_pid(&title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(pid) => Ok(Value::Int(pid)),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+    }
+}
+
+// ---- win_get_pos
+/// `WinGetPos`: where the window is and how big it is.
+pub(crate) fn win_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    window_geometry_into(rt, values, line, "WinGetPos")
+}
+
+// ---- win_get_process
+/// `WinGetProcessName` and `WinGetProcessPath`: the program of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the name is the file name of
+/// the program (`AutoHotkey64.exe`) and the path is the whole of it, and a title
+/// that no window has is "Target window not found.".
+///
+/// They ride the chain of `WinGetPID`: the window's title names an application on
+/// the accessibility bus, the bus answers its process, and the process table
+/// answers the name and the path -- which the `Processes` capability already
+/// reads.
+pub(crate) fn win_get_process(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    let pid = match rt
+        .desktop()
+        .window_pid(&title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(pid) => pid,
+        None => {
+            return Err(RuntimeError {
+                message: TARGET_WINDOW.into(),
+                line,
+            })
+        }
+    };
+    let number = pid.to_string();
+    let answer = if variant == 0 {
+        rt.desktop().process_name(Some(&number))
+    } else {
+        rt.desktop().process_path(Some(&number))
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        Some(text) => Ok(Value::Text(text)),
+        None => Err(RuntimeError {
+            message: "Target process not found.".into(),
+            line,
+        }),
+    }
+}
+
+// ---- win_get_text
+/// `WinGetText(WinTitle)`: the text of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a window with a label and an edit
+/// answers the two texts, one after the other, **each followed by a line break**, and a
+/// window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's.** This name was measured and
+/// refused in an earlier round for a foreign window, and that reason still holds: the
+/// accessibility tree of another program carries its title bar with its content and no
+/// rule separates them. Its own window has only the controls the script made.
+pub(crate) fn win_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_all_text()
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+// ---- win_get_transparent
+pub(crate) fn win_get_transparent(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_opacity(None)
+        .map(Value::Int)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+// ---- win_hide
+pub(crate) fn win_hide(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_the_window(rt, values, line, false)
+}
+
+// ---- win_kill
+pub(crate) fn win_kill(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_close_of_the_window(rt, values, line)
+}
+
+// ---- win_maximize
+pub(crate) fn win_maximize(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "maximize")
+}
+
+// ---- win_minimize
+pub(crate) fn win_minimize(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "minimize")
+}
+
+// ---- win_minimize_all
+/// `WinMinimizeAll` and `WinMinimizeAllUndo`: minimize every window of the
+/// session and undo it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: both answer the empty
+/// text. The effect reaches every window of the session, and the windows
+/// this runtime can act on are the ones of the script: the wayland client
+/// reads the listing of the compositor and carries no action that moves the
+/// windows of other programs. The shape of the call is the contract here --
+/// the same shape the binary answers -- and the effect is carried for the
+/// window of the script alone.
+pub(crate) fn win_minimize_all(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Ok(Value::Text(String::new()));
+    }
+    rt.desktop()
+        .gui_option("minimize", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- win_minimize_all_undo
+/// `WinMinimizeAllUndo`: put the minimized windows back.
+pub(crate) fn win_minimize_all_undo(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Ok(Value::Text(String::new()));
+    }
+    rt.desktop()
+        .gui_option("restore", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- win_move
+/// `WinMove(X, Y, Width, Height, WinTitle)`: move the script's own window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: moving the window the script
+/// made works and answers nothing. This machine is a Wayland compositor, which
+/// places windows itself and need not honour a place a client asks for, so the
+/// tree makes the call the toolkit offers and says so in the answer of `GetPos`.
+pub(crate) fn win_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let x = number_of(values, 0) as i64;
+    let y = number_of(values, 1) as i64;
+    let width = number_of(values, 2) as i64;
+    let height = number_of(values, 3) as i64;
+    let title = text_of(values, 4);
+    the_window_of_the_script(rt, &title, line)?;
+    rt.desktop()
+        .window_move(x, y, width, height)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- win_move_bottom
+/// `WinMoveBottom(WinTitle)`: send the window to the bottom of the order.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty
+/// text, and a window that is not there answers "Target window not found.".
+/// An earlier note said GTK removed the call that lowers a window -- that is
+/// true of GTK 4, and the helper draws with GTK 3, which carries it. On
+/// Wayland the compositor decides the order and may refuse the request; the
+/// request is the part a program owns, and the call is made either way.
+pub(crate) fn win_move_bottom(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "movebottom")
+}
+
+// ---- win_move_top
+/// `WinMoveTop(WinTitle)`: bring the script's window to the front.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It is the `activate`
+/// word of the option channel: presenting a window raises it.
+pub(crate) fn win_move_top(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
+// ---- win_redraw
+/// `WinRedraw(WinTitle)`: ask the script's window to draw itself again.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It is the `redraw`
+/// word of the option channel.
+pub(crate) fn win_redraw(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "redraw")
+}
+
+// ---- win_restore
+pub(crate) fn win_restore(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "restore")
+}
+
+// ---- win_set_always_on_top
+/// `WinSetAlwaysOnTop(Value, WinTitle)`: keep a window of the script above the rest.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, the
+/// first parameter must be a **Number**, and a window that is not there answers
+/// *"Target window not found."*
+///
+/// The script's own window again: what a compositor does with another program's
+/// window is not a program's to set, and its own is the `Opt("+AlwaysOnTop")` this
+/// tree already answers (round 132).
+pub(crate) fn win_set_always_on_top(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    let target = text_of(values, 1);
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    let current = rt
+        .desktop()
+        .gui_title(0, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    if !target.is_empty() && !current.contains(&target) {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    rt.desktop()
+        .gui_option("alwaysontop", on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- win_set_enabled
+/// `WinSetEnabled(Value, WinTitle)`: the sensitivity of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It goes through the
+/// `disabled` word of the option channel, which is the same state the other way up.
+pub(crate) fn win_set_enabled(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    let target = text_of(values, 1);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option("disabled", !on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- win_set_region
+/// `WinSetRegion`: the shape of a window, cut out of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: every target throws
+/// "Target window not found." -- the window of the script included -- because
+/// a region is a shape of Windows that this platform's windows do not have.
+pub(crate) fn win_set_region(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    })
+}
+
+// ---- win_set_title
+/// `WinSetTitle(NewTitle, WinTitle)`: rename a window of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text after
+/// renaming, and a window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's**: renaming someone else's
+/// window is not something a Wayland client can do, and the title of its own window
+/// is the `Title` this tree already answers (round 71).
+pub(crate) fn win_set_title(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let new_title = text_of(values, 0);
+    let target = text_of(values, 1);
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    let current = rt
+        .desktop()
+        .gui_title(0, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    // The default match mode of v2 is that the title CONTAINS the text, and the
+    // case matters; a window that does not match is not there.
+    if !target.is_empty() && !current.contains(&target) {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    rt.desktop()
+        .gui_title(0, Some(&new_title))
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- win_set_transparent
+/// `WinSetTransparent(Value, WinTitle)` and `WinGetTransparent(WinTitle)`: the
+/// opacity of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the set answers the empty text,
+/// the get answers the number that was set, `"Off"` means opaque, and a window that is
+/// not there answers *"Target window not found."*
+pub(crate) fn win_set_transparent(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 1);
+    the_window_of_the_script(rt, &target, line)?;
+    let written = text_of(values, 0);
+    // "Off" is what v2 means by opaque.
+    let setting = if written.eq_ignore_ascii_case("off") {
+        255
+    } else {
+        number_of(values, 0) as i64
+    };
+    rt.desktop()
+        .gui_opacity(Some(setting))
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- win_show
+pub(crate) fn win_show(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_the_window(rt, values, line, true)
+}
+
+// ---- win_style
+/// `WinGetStyle`, `WinSetStyle`, `WinGetExStyle` and `WinSetExStyle`: **refused, with a
+/// reason of their own.**
+///
+/// A window style is a number of Windows that says how a window is decorated and what
+/// it may do -- a thick frame, a system menu, a title bar. Under this compositor **the
+/// decoration belongs to the compositor and the client has no style number at all**:
+/// there is nothing to read and nothing to set, and the words of v2's style bits have
+/// no counterpart here.
+pub(crate) fn win_style(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "a window style is a number of Windows that says how a window is decorated, and under this compositor the decoration belongs to the compositor and a client has no style number at all".to_string(),
+        line,
+    })
+}
+
+// ---- win_trans_color
+/// `WinGetTransColor` and `WinSetTransColor`: **refused, with a reason of their own.**
+///
+/// A transparency COLOUR is a layered window of Windows: the colour is made invisible
+/// while the rest of the window stays opaque. What this tree answers is an **opacity**
+/// applied to the whole window, which is `WinSetTransparent` and `WinGetTransparent`
+/// and is a different thing. Answering the colour would be answering a different
+/// question than the one the script asked.
+pub(crate) fn win_trans_color(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "a transparency colour is a layered window of Windows, where one colour is made invisible; this tree sets an opacity for the whole window, which is WinSetTransparent and WinGetTransparent".to_string(),
+        line,
+    })
+}
+
+// ---- win_wait
+/// `WinWait`: wait for a window that matches to exist.
+///
+/// The answer of v2 is the identifier of the window, or the zero when the
+/// timeout ran out -- measured on the binary of v2.0.19 on 2026-11-09. The
+/// identifier of a Wayland window is a token, so it is text here.
+pub(crate) fn win_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match window_wait_into(rt, values, line, crate::desktop::WaitFor::Present)? {
+        Some(id) => Ok(Value::Text(id)),
+        None => Ok(Value::Int(0)),
+    }
+}
+
+// ---- win_wait_active
+/// `WinWaitActive`: wait for a window that matches to have the focus.
+pub(crate) fn win_wait_active(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match window_wait_into(rt, values, line, crate::desktop::WaitFor::Active)? {
+        Some(id) => Ok(Value::Text(id)),
+        None => Ok(Value::Int(0)),
+    }
+}
+
+// ---- win_wait_close
+/// `WinWaitClose`: wait for a matching window to be gone.
+pub(crate) fn win_wait_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let met = window_wait_into(rt, values, line, crate::desktop::WaitFor::Close)?.is_some();
+    Ok(Value::Int(if met { 1 } else { 0 }))
+}
+
+// ---- win_wait_not_active
+/// `WinWaitNotActive`: wait for no matching window to have the focus.
+///
+/// v2 answers `1` and `0` for this one, and not the identifier -- measured on
+/// the binary of v2.0.19 on 2026-11-09.
+pub(crate) fn win_wait_not_active(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let met = window_wait_into(rt, values, line, crate::desktop::WaitFor::NotActive)?.is_some();
+    Ok(Value::Int(if met { 1 } else { 0 }))
+}
+
+// ---- tooltip
+/// `ToolTip(Text, X, Y)`: show a small window of text, and answer its number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: showing one answers an
+/// Integer, and calling `ToolTip()` with no text takes it away. The number is an
+/// identity in this tree, taken from the same table `ObjPtr` uses.
+pub(crate) fn tooltip(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = text_of(values, 0);
+    if text.is_empty() {
+        rt.desktop()
+            .tooltip_show("", 0, 0)
+            .map_err(|e| desktop_failure(e, line))?;
+        return Ok(Value::Text(String::new()));
+    }
+    let x = number_of(values, 1) as i64;
+    let y = number_of(values, 2) as i64;
+    let number = rt
+        .desktop()
+        .tooltip_show(&text, x, y)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(number))
+}
+
+// ---- window_target
+/// The window that a `WinGet*` command asks about.
+///
+/// The parameters after the first are the text of the window and the two
+/// exclusions, and the desktop of the box has none of them.
+fn window_target(
+    values: &[Value],
+    line: u32,
+) -> Result<(String, crate::desktop::TitleMatch), RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    Ok((text_of(values, 0), crate::settings::title_match_mode()))
+}
+
+// ---- window_geometry_into
+/// The four places of a `WinGetPos`, written into the references of the call.
+fn window_geometry_into(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    // The four places of v2 are given by reference, and a value where a
+    // variable is wanted is refused the way v2 refuses it.
+    for index in 0..4 {
+        let Some(value) = values.get(index) else {
+            continue;
+        };
+        if !matches!(value, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(index + 1, name, "a VarRef", value),
+                line,
+            });
+        }
+    }
+    let title = text_of(values, 4);
+    // v2 falls back to the last found window when the window is left out, and
+    // this runtime keeps none: a call with no window is the failure that v2
+    // gives when it has nothing to fall back to, measured on the binary of
+    // v2.0.19 on 2026-11-09.
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    let mode = crate::settings::title_match_mode();
+    let geometry = rt
+        .desktop()
+        .window_geometry(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    let Some(geometry) = geometry else {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    };
+    let places = [geometry.x, geometry.y, geometry.width, geometry.height];
+    for (index, place) in places.iter().enumerate() {
+        if values.get(index).is_some() {
+            rt.write_reference(&values[index], Value::Int(*place));
+        }
+    }
+    // The answer of v2 is the empty text.
+    Ok(Value::Text(String::new()))
+}
+
+// ---- the_state_of_the_window
+/// `WinActivate`, `WinMinimize`, `WinMaximize` and `WinRestore` of the script's
+/// window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: all four answer the empty text,
+/// and a window that is not there answers *"Target window not found."*
+///
+/// They go through the option channel of round 132, which already asks the helper to
+/// act on the window, so none of them needs a method of its own.
+fn the_state_of_the_window(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    state: &str,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option(state, true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- the_close_of_the_window
+/// `WinClose(WinTitle)` and `WinKill(WinTitle)`: close the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the empty text, and a
+/// window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's**: round 31 reverted a
+/// `WinClose` because the compositor's toplevel listing publishes no close request,
+/// and that is still true of a foreign window. Its own is the `close` word of the
+/// option channel -- the helper made the window and can close it.
+fn the_close_of_the_window(rt: &mut Runtime<'_>, values: &[Value], line: u32) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option("close", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- the_visibility_of_the_window
+/// `WinHide(WinTitle)` and `WinShow(WinTitle)`: take the script's window off the
+/// screen and put it back.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the empty text, and
+/// a window that is not there answers *"Target window not found."*
+fn the_visibility_of_the_window(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    shown: bool,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let answer = if shown {
+        rt.desktop().gui_show(0)
+    } else {
+        rt.desktop().gui_hide()
+    };
+    answer.map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- window_wait_into
+/// Wait for the condition of a `WinWait` family command.
+fn window_wait_into(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    what: crate::desktop::WaitFor,
+) -> Result<Option<String>, RuntimeError> {
+    // The parameters after the seconds are the two exclusions, and they are
+    // not carried yet.
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the two exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    let mode = crate::settings::title_match_mode();
+    let timeout = window_wait_timeout(values);
+    rt.desktop()
+        .window_wait(&title, mode, what, timeout)
+        .map_err(|e| desktop_failure(e, line))
+}
+
+// ---- window_wait_timeout
+/// The seconds of a wait, in milliseconds.
+///
+/// The third parameter of v2 is the seconds. A call without it, or with a
+/// number that is not positive, waits the cap.
+fn window_wait_timeout(values: &[Value]) -> u64 {
+    let seconds = number_of(values, 2);
+    if seconds <= 0.0 {
+        return MAX_WINDOW_WAIT_MS;
+    }
+    (seconds * 1000.0).min(MAX_WINDOW_WAIT_MS as f64) as u64
+}
+
+// ---- MAX_WINDOW_WAIT_MS
+/// The longest a wait for a window may block.
+///
+/// It is the cap of `Sleep`, and it is there for the same reason: the runner's
+/// timeout is checked between two statements, so a call that blocked forever
+/// could not be stopped by it. The binary of v2.0.19 waits for a long time when
+/// the seconds are left out of a `WinWait`, measured on 2026-11-09; this
+/// runtime bounds it.
+const MAX_WINDOW_WAIT_MS: u64 = 60_000;

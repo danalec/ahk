@@ -1,0 +1,41 @@
+Port the family of the windows of the machine, and merge the two clients of the compositor
+
+The third family of the port (`docs/two-lines.md` §5.2): the windows. The
+`Win*` names of v2 move, show and close the windows of the session, and the
+tree of the owner refused every one of them with the blanket reason of the
+names of Windows.
+
+The port is:
+
+- The three answers the family needs (`WindowRef`, `WindowGeometry` and
+  `WaitFor`), the seven methods of the traits that carry it and the
+  twenty-eight answers of the box.
+- The thirty-four handlers of the family, the helpers they call and the
+  rows of the built-in table that answer to them. **A name that the tree of
+  the owner answers already is not taken away from it**: `WinGetID`,
+  `WinGetList`, `WinGetCount` and `WinGetClass` keep the handler of the
+  tree, and the port gives the names that the tree refused.
+- The two hooks of the runtime that remember the window that was asked for
+  last, so that `WinGetIDLast` answers about it.
+- The cases of the family, and the fake of the suite, which answers the
+  four questions of the compositor with the windows that the tree of the
+  owner already lists.
+
+**And the two clients of the compositor are merged by hand**
+(`audit/port-wayland-merge.py`). The client of the tree of the owner
+learned to name the windows of the session with a number, and the client
+of the branch learned where a window is, in what state it is, and the
+scale of an output. Neither is copied: the merge writes the two texts
+that the two trees disagree about -- the geometry of a window and the scale
+of an output -- and the client of the tree of the owner stays.
+
+**The surface moves with it: 712 answers with a value and 121 are refused
+become 747 and 86.**
+
+Measured on the box on 2026-11-11, with this tree built there:
+`WinGetCount()` answers 3 and `WinGetList()` answers the ids 1 2 3 -- the
+three windows of the session, "Gmail - Chromium", "Unlock Keyring" and
+"Steam". `WinWait("zzz-nothing-zzz", "", 1)` answers 0 in 1012 ms, and
+`WinGetPos` fails with the reason of the machine -- "the compositor did
+not say where this window is, so its place is not known" -- and not with a
+zero.

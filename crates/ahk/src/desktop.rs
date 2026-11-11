@@ -137,6 +137,66 @@ pub trait Pointer {
 
 /// The screen of the desktop.
 pub trait Screen {
+    /// Put a text into a control of the script at its cursor.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `EditPaste` takes the text
+    /// **first** and the handle second, as the whole family does.
+    fn gui_paste(&mut self, _number: u64, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot put a text into a control of the script".to_string())
+    }
+
+    /// The opacity of the window of the script, or set it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinSetTransparent` counts
+    /// from nought to 255, and `WinGetTransparent` answers the number that was set.
+    fn gui_opacity(&mut self, _setting: Option<i64>) -> Result<i64, String> {
+        Err("this desktop cannot read the opacity of the window of the script".to_string())
+    }
+
+    /// The text of every control of the script's window, each followed by a line break.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetText` of a window with a
+    /// label and an edit answers the two texts, one after the other, each with a break.
+    fn gui_all_text(&mut self) -> Result<String, String> {
+        Err("this desktop cannot read the text of the window of the script".to_string())
+    }
+
+    /// The size of the screen, in pixels.
+    ///
+    /// The width comes first and the height second, the way the two
+    /// variables of v2 ask for them.
+    /// The `ClassNN` of every control of the script's window, one per line.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetControls` answers the
+    /// three of a window with a label, an edit and a button, as `Static1`, `Edit1` and
+    /// `Button1`.
+    fn gui_controls(&mut self) -> Result<String, String> {
+        Err("this desktop cannot list the controls of the window of the script".to_string())
+    }
+
+    /// Move and size the window of the script. Measured on the binary of v2.0.19
+    /// on 2026-11-10: `WinMove` of the window the script made works and answers
+    /// nothing. A Wayland compositor places windows itself, so the call is the
+    /// one the toolkit offers and need not be honoured on the screen.
+    fn window_move(&mut self, _x: i64, _y: i64, _width: i64, _height: i64) -> Result<(), String> {
+        Err("this desktop cannot move the window of the script".to_string())
+    }
+
+    /// Show a small window of text, and answer the number that names it. An empty
+    /// text takes it away. Measured on the binary of v2.0.19 on 2026-11-10:
+    /// showing one answers an Integer and `ToolTip()` clears it.
+    fn tooltip_show(&mut self, _text: &str, _x: i64, _y: i64) -> Result<i64, String> {
+        Err("this desktop cannot show a tooltip".to_string())
+    }
+
+    /// The scale factor of the output, as the session reports it.
+    ///
+    /// `A_ScreenDPI` is 96 times this, the number v2 gives with the scale of the
+    /// session applied.
+    fn screen_scale(&mut self) -> Result<i64, String> {
+        Err("this desktop does not know the scale of the output".to_string())
+    }
+
     /// Capture a region of the screen into a file; return the path.
     fn capture(
         &mut self,
@@ -219,6 +279,11 @@ pub struct Monitor {
     pub right: i64,
     /// The bottom edge: one past the last row.
     pub bottom: i64,
+    /// The scale of the monitor: 1 is the ordinary one.
+    ///
+    /// It is how many pixels of the output are in one point of it, and
+    /// the compositor of the box does not always say it.
+    pub scale: i64,
 }
 
 impl Monitor {
@@ -339,7 +404,132 @@ pub enum ControlEdit {
     NoSuchControl,
 }
 
+/// A window of the desktop, as the listing of the windows describes it.
+///
+/// The two things that v2 reads of a window are the ones here: the identifier,
+/// which is what `WinGetID` answers and what the entries of `WinGetList` are,
+/// and the class, which is what `WinGetClass` answers.
+///
+/// The identifier of a Wayland window is a token that the compositor gives it,
+/// and not a number, so it is text here. Measured on the binary of v2.0.19 on
+/// 2026-11-09: the id of a window of Windows is a whole number, and a script
+/// that does arithmetic on it would not have the same thing on Wayland.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WindowRef {
+    /// The identifier the compositor gives the window, or the empty text when
+    /// it did not give one.
+    pub id: String,
+    /// The class of the window: the application id of it on Wayland, and the
+    /// class of the window on X11.
+    pub class: String,
+}
+
+/// Where a window is and how big it is.
+///
+/// The x and the y are the upper-left corner of the window, and not its
+/// center; the width and the height are of the window that the user sees.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WindowGeometry {
+    /// The left of the window.
+    pub x: i64,
+    /// The top of the window.
+    pub y: i64,
+    /// How wide the window is.
+    pub width: i64,
+    /// How tall the window is.
+    pub height: i64,
+}
+
+/// What a command of the `WinWait` family waits for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WaitFor {
+    /// A window that matches exists.
+    Present,
+    /// A window that matches exists and has the focus.
+    Active,
+    /// No window that matches has the focus.
+    NotActive,
+    /// No window that matches exists.
+    Close,
+}
+
 pub trait Windows {
+    /// Wait until a condition about a window holds.
+    ///
+    /// `Some` is the condition met, and the empty text is the answer of the
+    /// conditions that are about the absence of a window -- `NotActive` and
+    /// `Close` -- because there is no window to identify. `None` is the
+    /// timeout.
+    ///
+    /// The empty title is no window at all: v2 falls back to the last found
+    /// window, and this runtime keeps none, so the conditions that talk about
+    /// the absence of a window hold at once and the ones that talk about its
+    /// presence never do. Measured on the binary of v2.0.19 on 2026-11-09:
+    /// `WinWaitNotActive("no-such")` and `WinWaitClose("no-such")` answered
+    /// `1` at once, and `WinWait`/`WinWaitActive` answered `0` when the
+    /// timeout ran out.
+    fn window_wait(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+        _what: WaitFor,
+        _timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        Err("this desktop cannot wait for a window".to_string())
+    }
+
+    /// Whether a window is maximized, minimized, or neither.
+    ///
+    /// The answer is the number of v2: `1` for maximized, `-1` for minimized
+    /// and `0` for neither. `None` is a window that is not there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09, on a window of its
+    /// own: `0` before, `1` after `WinMaximize`, `0` after `WinRestore`, and
+    /// `-1` after `WinMinimize`.
+    fn window_min_max(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        Err("this desktop cannot tell whether a window is maximized".to_string())
+    }
+
+    /// Where the window is and how big it is.
+    ///
+    /// `None` is a window that is not there. A window that **is** there but
+    /// whose geometry the compositor did not describe is a failure with the
+    /// reason, and not a geometry of zeros: a script must be told that the
+    /// place is not known, and not be given a window at the origin.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetPos` writes
+    /// its four answers into four variables given by reference, and it
+    /// answers the empty text. A window that is not there is a failure --
+    /// "Target window not found." -- and a call with no window at all is the
+    /// same failure, because there is no last found window to fall back to.
+    fn window_geometry(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+    ) -> Result<Option<WindowGeometry>, String> {
+        Err("this desktop cannot tell where a window is".to_string())
+    }
+
+    /// The windows whose title matches, in the order the desktop lists them.
+    ///
+    /// The empty title matches every window. Measured on the binary of
+    /// v2.0.19 on 2026-11-09: `WinGetList()` and `WinGetList("")` both
+    /// answered every window of the desktop, and `WinGetCount()` with no
+    /// argument answered the number of them -- so an empty title is not "no
+    /// window", and it is not "the last found window" either, because this
+    /// runtime keeps none.
+    fn matching_windows(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+    ) -> Result<Vec<WindowRef>, String> {
+        Err("this desktop cannot list the windows".to_string())
+    }
+
     /// The text of a named control of the window with this title.
     ///
     /// This is the **accessibility** layer: AT-SPI is a D-Bus protocol, and
