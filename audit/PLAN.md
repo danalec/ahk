@@ -82,7 +82,15 @@ family** (`cc2e310`): `Hwnd` of a window and of a control answers a
 number this runtime mints, `GuiFromHwnd` and `GuiCtrlFromHwnd` give the
 same object back, and a handle that no window owns answers the empty
 text -- measured, not a failure. The count is **777 values / 56
-refusals**.
+refusals**. **Round 12 answered the COM group** (`5a8f75f`) -- seven of
+the nine names, each with the wording the binary throws measured shape
+by shape: `ComObjGet` throws (0x80070057), `ComObjActive` throws
+(0x800401F3) Invalid class string, `ComObjType` of a non-object answers
+the EMPTY text, `ComObjQuery` throws a wording of its own, and
+`ComObjFlags`/`ComObjValue`/`ComObjConnect` require a ComValue.
+`ComObjFromPtr` hangs on the binary and `ComCall` wants two parameters,
+so both stay refused -- a shape without a measurement has no wording to
+carry. The count is **784 values / 49 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
