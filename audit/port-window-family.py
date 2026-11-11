@@ -146,7 +146,6 @@ THE_BOX_WAYLAND = [
     "wayland_geometry",
     "wayland_min_max",
     "wayland_wait",
-    "wayland_monitors",
 ]
 
 # The helpers that only the block of Linux has.
@@ -382,6 +381,8 @@ def main():
             block.append("")
         at = the_line_of(box, r"^impl ahk::desktop::Desktop for LabDesktop", "the box")
         box = box[:at] + block + box[at:]
+    # 3d. The wait of the family measures the time with the clock of the
+    # machine, and the import of it is there.
     if "use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};" not in box:
         for index, line in enumerate(box):
             if line.rstrip("\r").startswith("use std::time::{"):
@@ -559,6 +560,8 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
 
 
 

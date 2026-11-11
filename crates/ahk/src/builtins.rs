@@ -1028,9 +1028,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 0,
         max: 2,
-        variant: 100,
-        parameters: &[Parameter::Reference, Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[Parameter::Reference, Parameter::Reference],
+        handler: caret_get_pos,
     },
     Builtin {
         name: "ComCall",
@@ -1561,61 +1561,61 @@ pub const BUILTINS: &[Builtin] = &[
         max: 0,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit,
     },
     Builtin {
         name: "EditGetCurrentCol",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_current_col,
     },
     Builtin {
         name: "EditGetCurrentLine",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_current_line,
     },
     Builtin {
         name: "EditGetLine",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_line,
     },
     Builtin {
         name: "EditGetLineCount",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_line_count,
     },
     Builtin {
         name: "EditGetSelectedText",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_selected_text,
     },
     Builtin {
         name: "EditPaste",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_paste,
     },
     Builtin {
         name: "FileCreateShortcut",
@@ -13794,3 +13794,188 @@ fn window_wait_timeout(values: &[Value]) -> u64 {
 /// the seconds are left out of a `WinWait`, measured on 2026-11-09; this
 /// runtime bounds it.
 const MAX_WINDOW_WAIT_MS: u64 = 60_000;
+
+
+// ---- caret_get_pos
+/// `CaretGetPos`: where the caret of the text is.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with a focused Edit it
+/// answers 1 and writes the place of the caret into the two variables of the
+/// caller; with no window, or nothing focused that holds a caret, it answers
+/// 0 and the variables stay as they were. A call with no variables at all
+/// still answers the one or the zero.
+pub(crate) fn caret_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let caret = rt
+        .desktop()
+        .gui_caret()
+        .map_err(|e| desktop_failure(e, line))?;
+    match caret {
+        Some((x, y)) => {
+            if let Some(value) = values.first() {
+                rt.write_reference(value, Value::Int(x));
+            }
+            if let Some(value) = values.get(1) {
+                rt.write_reference(value, Value::Int(y));
+            }
+            Ok(Value::Int(1))
+        }
+        None => Ok(Value::Int(0)),
+    }
+}
+
+// ---- edit_get_line_count
+/// `Sleep`: the pause, in milliseconds.
+/// `EditGetLineCount(Hwnd)`: how many lines the text of a control holds.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a control added with three
+/// lines answers 3. The handle of the control is the number that names it.
+pub(crate) fn edit_get_line_count(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    rt.desktop()
+        .gui_line_count(number)
+        .map(Value::Int)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+// ---- edit_get_line
+/// `EditGetLine(N, Hwnd)`: the text of the Nth line of a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: **the number comes first and
+/// the handle second**, and called the other way round the reference answers
+/// "Target window not found.", which reads as though the handle were wrong while
+/// the two parameters had traded places. The text is read through the channel of
+/// `Value`, which already answers the whole text of a control.
+pub(crate) fn edit_get_line(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = number_of(values, 0).max(1.0) as usize;
+    let number = number_of(values, 1) as u64;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let found = text.split('\n').nth(wanted - 1).unwrap_or("");
+    Ok(Value::Text(found.to_string()))
+}
+
+// ---- edit_get_current_line
+/// `EditGetCurrentLine(Hwnd)`: which line the cursor of a control is on.
+///
+/// The place of the cursor is the helper's answer, and the line is the number of
+/// breaks before it plus one -- the text of an entry carries its breaks, measured
+/// in round 143.
+pub(crate) fn edit_get_current_line(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    let cursor = rt
+        .desktop()
+        .gui_cursor(number)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let before: usize = (cursor.max(0) as usize).min(text.chars().count());
+    let breaks = text.chars().take(before).filter(|c| *c == '\n').count();
+    Ok(Value::Int(breaks as i64 + 1))
+}
+
+// ---- edit_get_current_col
+/// `EditGetCurrentCol(Hwnd)`: which column of its line the cursor is at.
+///
+/// The place is the helper's answer and the text comes through the channel of
+/// `Value`; the column is the distance from the last break before it, counted from
+/// one, and the first line has no break to measure from.
+pub(crate) fn edit_get_current_col(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    let cursor = rt
+        .desktop()
+        .gui_cursor(number)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let before: usize = (cursor.max(0) as usize).min(text.chars().count());
+    let seen: Vec<char> = text.chars().take(before).collect();
+    let column = match seen.iter().rposition(|held| *held == '\n') {
+        Some(at) => seen.len() - at,
+        None => seen.len() + 1,
+    };
+    Ok(Value::Int(column as i64))
+}
+
+// ---- edit_get_selected_text
+/// `EditGetSelectedText(Hwnd)`: the text a control of the script has selected.
+pub(crate) fn edit_get_selected_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    rt.desktop()
+        .gui_selection(number)
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+// ---- edit_paste
+/// `EditPaste(Text, Hwnd)`: put a text into a control of the script at its cursor.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the **text comes first** and
+/// the handle second, as the whole family does.
+pub(crate) fn edit_paste(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = text_of(values, 0);
+    let number = number_of(values, 1) as u64;
+    rt.desktop()
+        .gui_paste(number, &text)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+// ---- edit
+/// `Edit()`: **refused, with a reason of its own.**
+///
+/// The name takes no parameters -- measured on the binary of v2.0.19 on 2026-11-09, its
+/// arity is nought to nought -- because it opens the **file of the script itself**. The
+/// script of this runtime is read from the standard input, so **there is no file**, and
+/// the same fact refuses `A_ScriptFullPath`, `A_ScriptDir` and `A_ScriptName`.
+pub(crate) fn edit(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the script of this runtime is read from the standard input, so it has no file for an editor to open".to_string(),
+        line,
+    })
+}

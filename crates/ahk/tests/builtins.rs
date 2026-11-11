@@ -6211,3 +6211,48 @@ fn a_fake_with_a_combo() -> Fake {
         ..Default::default()
     }
 }
+
+
+#[test]
+fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: with a focused Edit it
+    // answers 1 and writes the client place of the caret into the two
+    // variables of the caller; with nothing that holds a caret it answers 0
+    // and the variables stay as they were.
+    let mut desktop = Fake {
+        gui_open: true,
+        caret: Some((63, 9)),
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "x := -1",
+            "\ny := -1",
+            "\ngot := CaretGetPos(&x, &y)",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "got"), 1);
+    assert_eq!(int_of(&report, "x"), 63);
+    assert_eq!(int_of(&report, "y"), 9);
+
+    let mut desktop = Fake {
+        gui_open: true,
+        caret: None,
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "x := -1",
+            "\ny := -1",
+            "\ngot := CaretGetPos(&x, &y)",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "got"), 0);
+    // The variables stay as they were.
+    assert_eq!(int_of(&report, "x"), -1);
+    assert_eq!(int_of(&report, "y"), -1);
+}

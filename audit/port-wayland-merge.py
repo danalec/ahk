@@ -27,6 +27,7 @@ WAYLAND = ROOT / "crates" / "ahk-box" / "src" / "wayland.rs"
 LINUX = ROOT / "crates" / "ahk-box" / "src" / "wayland" / "linux.rs"
 TRAIT = ROOT / "crates" / "ahk" / "src" / "desktop.rs"
 BOX = ROOT / "crates" / "ahk-box" / "src" / "desktop.rs"
+TESTS = ROOT / "crates" / "ahk" / "tests" / "builtins.rs"
 
 # The window of the compositor says where it is and in what state.
 THE_WINDOW = [
@@ -367,6 +368,15 @@ def main():
             "    }",
         ]
 
+    # 8. The fake of the suite answers two monitors, and the monitor of the
+    # trait carries the scale: the ordinary one.
+    tests = read_lines(TESTS)
+    if the_block(tests, ["            scale: 1,"]) is None:
+        for index, line in enumerate(tests):
+            if line.rstrip("\r").strip() == "bottom: 2160,":
+                tests.insert(index + 1, "                scale: 1,")
+        write_lines(TESTS, tests)
+
     write_lines(WAYLAND, wayland)
     write_lines(LINUX, linux)
     write_lines(TRAIT, trait)
@@ -377,4 +387,5 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
 

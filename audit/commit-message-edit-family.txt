@@ -1,0 +1,33 @@
+Port the family of the focused edit, and write the matrix of the desktops to test on
+
+The fourth family of the port (`docs/two-lines.md` §5.2): the edit that has
+the focus. The `Edit*` names of v2 read the caret, the line and the
+selection of an edit of the window of the script, and the tree of the owner
+refused every one of them with the blanket reason of the names of Windows.
+
+The port is the seven handlers and the rows of the table that answer to
+them: the capability was already there -- the methods of the `Screen` trait
+that answer these questions, and the operations of the helper of the
+window (`cursor`, `value`, `lines`, `selection` and `caret`).
+
+**The names take the handle of the control.** `EditGetCurrentLine` and its
+kin want one argument at least, and that argument is the handle -- the
+number that the helper knows the control by. A call without it fails with
+the reason of v2.
+
+**The surface moves with it: 747 answers with a value and 86 are refused
+become 754 and 79.**
+
+Measured on the box on 2026-11-11, with this tree built there, and a
+window of the script with one `Edit` that holds "hello from the port":
+`EditGetCurrentLine(1)` answers 1, `EditGetCurrentCol(1)` answers 20,
+`EditGetLineCount(1)` answers 1, `EditGetSelectedText(1)` answers "hello
+from the port" and `CaretGetPos()` answers 1.
+
+And the round writes `docs/desktop-test-matrix.md`: what the tree asks of
+the desktop (the portable listing of the toplevels, the extension of
+COSMIC, the bus of the accessibility, the GTK 3 of the helper, the X11 of
+the X sessions), which desktop answers what, and how one VM can carry
+several of them -- because the tree asks the compositor *of the session*,
+and a change that is proved against one compositor is proved against one
+compositor.
