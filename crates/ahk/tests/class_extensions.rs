@@ -23,7 +23,13 @@ impl Clipboard for Fake {}
 impl Desktop for Fake {}
 impl Dialogs for Fake {}
 
-impl Hotkeys for Fake {}
+impl Hotkeys for Fake {
+    fn register_hotkey(&mut self, name: &str) -> Result<String, String> {
+        // The Fake watches the keyboard: a hotkey of the script is
+        // registered, and the condition of it is kept.
+        Ok(name.to_string())
+    }
+}
 impl Keyboard for Fake {
     fn type_text(&mut self, _text: &str) -> Result<String, String> {
         Ok(String::new())
@@ -1085,4 +1091,25 @@ fn the_timers_of_the_script_are_objects() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "1");
     assert_eq!(line(&report, 1), "100");
+}
+
+#[test]
+fn the_condition_of_the_script_is_the_text_of_it() {
+    // The tree keeps the condition of a hotkey in one of the five forms it
+    // understands, and A_HotIf is the text of it.
+    let report = run_ks(concat!(
+        "#HotIf WinActive(\"a window\")\n",
+        "F1::MsgBox \"x\"\n",
+        "MsgBox A_HotIf\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "WinActive(\"a window\")");
+}
+
+#[test]
+fn the_script_that_set_no_condition_has_no_hotif() {
+    // The answer is the empty text when the script set no condition.
+    let report = run_ks("MsgBox A_HotIf\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "");
 }

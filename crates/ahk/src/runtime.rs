@@ -1632,6 +1632,23 @@ pub struct Runtime<'a> {
 
 
 impl<'a> Runtime<'a> {
+    pub(crate) fn the_hotif(&mut self) -> Option<String> {
+        // The condition of the next hotkey is the one the script set last,
+        // and it is the answer when the script set one and no hotkey took
+        // it yet.
+        if let Some(condition) = crate::hotkeys::the_condition_of_the_script(self) {
+            return Some(crate::hotkeys::the_text_of_a_condition(&condition));
+        }
+        // The condition of a hotkey is the one that applies to it, and the
+        // last one that has it is the condition of the script.
+        let mut answer = None;
+        for hotkey in self.hotkeys().iter() {
+            if let Some(condition) = &hotkey.condition {
+                answer = Some(crate::hotkeys::the_text_of_a_condition(condition));
+            }
+        }
+        answer
+    }
     /// The most statements one script may execute.
     ///
     /// The guard rail is for a script that runs away, not for a script
@@ -3129,6 +3146,11 @@ impl<'a> Runtime<'a> {
     }
 
     fn run_timers(&mut self) -> Result<(), RuntimeFailure> {
+    /// The condition that the script set with `HotIf`, as the text of it.
+    ///
+    /// The condition of a hotkey is one of the five forms the tree
+    /// understands, and the text is the way AHK writes it. The answer is
+    /// nothing when the script set no condition.
         let now = self.now_ms();
         let due: Vec<String> = self
             .timers

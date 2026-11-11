@@ -146,6 +146,7 @@ pub fn the_method_of(class: &str, member: &str) -> Option<(&'static str, i64, i6
 /// not in the table until they answer.
 pub const VARIABLES: &[&str] = &[
     "nowms",
+    "hotif",
     "timers",
     "nowutcms",
     "dirseparator",
@@ -235,6 +236,7 @@ pub const SURFACE_ROWS: &str = concat!(
     "variable\t\tA_DirSeparator\t\t\t\n",
     "variable\t\tA_NewLine\t\t\t\n",
     "variable\t\tA_NowMs\t\t\t\n",
+    "variable\t\tA_HotIf\t\t\t\n",
     "variable\t\tA_Timers\t\t\t\n",
     "variable\t\tA_NowUTCMs\t\t\t\n",
     "class\t\tThread\t\t\t\n",

@@ -122,6 +122,11 @@ pub struct Shared {
 /// window expects it.
 #[derive(Debug, Clone)]
 pub enum Condition {
+/// The text of a condition, the way AHK writes it.
+///
+/// The tree keeps the condition of a hotkey in one of the five forms it
+/// understands, and this is the text of it: the name of the function, or
+/// the window with the `WinActive` and the `WinExist` of v2.
     /// A function of the script: it is called when the hotkey is pressed.
     Function(String),
     /// The window with this title has to be the active one.
@@ -132,6 +137,15 @@ pub enum Condition {
     WindowNotActive(String),
     /// The window with this title has not to be there.
     WindowNotExist(String),
+}
+pub(crate) fn the_text_of_a_condition(condition: &Condition) -> String {
+    match condition {
+        Condition::Function(name) => name.clone(),
+        Condition::WindowActive(title) => format!("WinActive(\"{}\")", title),
+        Condition::WindowExists(title) => format!("WinExist(\"{}\")", title),
+        Condition::WindowNotActive(title) => format!("!WinActive(\"{}\")", title),
+        Condition::WindowNotExist(title) => format!("!WinExist(\"{}\")", title),
+    }
 }
 
 /// The spelling of a hotkey: what the script wrote.
@@ -552,6 +566,14 @@ pub(crate) fn register(
 ///
 /// The registry keeps it in an entry of its own, so that a script that
 /// sets a condition before it has a hotkey keeps the condition.
+/// The condition that the script set with `HotIf`, when it set one.
+///
+/// The condition of the next hotkey lives in the state the hotkeys share,
+/// and not in a hotkey: a script that sets a condition before it has a
+/// hotkey keeps the condition.
+pub(crate) fn the_condition_of_the_script(rt: &mut Runtime<'_>) -> Option<Condition> {
+    shared_of(rt).borrow().condition.clone()
+}
 fn shared_of(rt: &mut Runtime<'_>) -> Rc<RefCell<Shared>> {
     if let Some(entry) = rt.hotkeys().iter().find(|entry| entry.kind == Kind::State) {
         return entry.shared.clone();

@@ -11828,3 +11828,19 @@ The facts of a timer are the ones the runtime has: the name of the
 function it runs, the period and the moment of the last run. The
 KeySharp reads the last one in the `Enabled` of the object, and this tree
 does not carry a timer that can be turned off and on.
+
+## 322. The condition of the script, and the text of it
+
+The `ks` dialect carries the accessor `A_HotIf`: the condition that the
+script set with `HotIf`, as the text of it. The tree keeps the condition
+in one of the five forms it understands -- a function, `WinActive`,
+`WinExist`, and the two negations of them -- and the text is the way AHK
+writes it: `WinActive("a window")`.
+
+**The condition of the next hotkey lives in the state the hotkeys share,
+and not in a hotkey**: a script that sets a condition before it has a
+hotkey keeps the condition. The answer of the accessor is the condition
+of that state, and the condition of the last hotkey that has one when the
+state has none.
+
+The answer is the empty text when the script set no condition.
