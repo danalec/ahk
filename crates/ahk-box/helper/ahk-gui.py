@@ -1460,6 +1460,28 @@ def the_menu_bar(items):
     answer({"ok": True})
 
 
+def the_menu_choose(index):
+    """Choose a menu item of the bar the way a click does. A diagnostic.
+
+    A user's click on a menu item makes GTK emit `activate` on it, which is
+    the one path an event takes from the bar: the item's handler writes
+    `menu:<name>` into the events file. This op emits the same signal on the
+    item at the 0-based `index`, so the path can be exercised without knowing
+    where the compositor placed the window -- the hit-test of a real click is
+    the compositor's, and it is not ours to verify.
+    """
+    bar = state.get("menubar")
+    if bar is None:
+        answer({"ok": False, "error": "there is no menu bar"})
+        return
+    children = bar.get_children()
+    if index < 0 or index >= len(children):
+        answer({"ok": False, "error": "there is no item %d on the menu bar" % index})
+        return
+    children[index].emit("activate")
+    answer({"ok": True})
+
+
 def run_on_loop(what):
     GLib.idle_add(what)
     return False
@@ -1643,6 +1665,8 @@ def handle(command):
         run_on_loop(lambda: the_control_pos(command.get("id", 0)))
     elif op == "menu-bar":
         run_on_loop(lambda: the_menu_bar(command.get("items", [])))
+    elif op == "menu-choose":
+        run_on_loop(lambda: the_menu_choose(command.get("index", 0)))
     elif op == "add":
         run_on_loop(
             lambda: the_control(command.get("kind", ""), command.get("text", ""))
