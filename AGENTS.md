@@ -11912,3 +11912,36 @@ A VM that is to answer the family carries `pipewire` and
 
 **The surface moves with the family: 761 answers with a value and 72 are
 refused become 763 and 70.**
+
+## 323. The groups of windows are a state of the runtime
+
+**The seventh family of the port is the four `Group*` names.** A group is
+a set of window titles that outlives the statement that added it: the
+state lives in the runtime (`groups`, beside the last window), and the
+desktop is asked only when a group is activated -- for each title of the
+group, in the order they were added, until a window carries one. The
+branch measured the shape on the binary on 2026-11-10: `GroupAdd`,
+`GroupClose` and `GroupDeactivate` answer the empty text, and
+`GroupActivate` answers the identifier of the window it found, or zero.
+`GroupDeactivate` shares the handler of `GroupClose`, the way the branch
+does: the difference v2 makes between them is which windows are
+affected, and this runtime keeps no per-window state to tell them apart.
+
+**Measured on the box on 2026-11-11** (COSMIC): a group with the titles
+of the machines' windows activates the first one the compositor lists --
+the identifier of the toplevel, the base64 of the portable listing -- and
+a group with a title nothing carries, or a group that was closed,
+answers 0. **Measured on the VM of the matrix on the same day** (i3 over
+Xorg): the same group answers `8388620`, the id of the xterm in the
+client list of the X server.
+
+**And the VM asked for one hand merge more:** `matching_windows` -- the
+question a group activation makes -- was Wayland-only in the branch and
+in the master, and an X11 session failed it with the reason of the
+compositor. Since the client list of the X server is parsed (section
+320), the matching reads the same list: the X11 session answers the
+windows whose titles match, and the group family works in every session
+of the matrix.
+
+**The surface moves with the family: 763 answers with a value and 70 are
+refused become 767 and 66.**

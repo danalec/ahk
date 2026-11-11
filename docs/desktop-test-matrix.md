@@ -256,6 +256,12 @@ found.", which is how the absence of the tool looks from the script.
 - The window of the script and the bus of the accessibility do **not**
   depend on the compositor: they worked in the two sessions of the VM,
   and they work on the box.
+- One hand merge more came out of the groups family (2026-11-11):
+  `matching_windows` -- the question a `GroupActivate` makes -- was
+  Wayland-only in the branch and in the master, and an X11 session failed
+  it with the reason of the compositor. Since the client list is parsed,
+  the matching reads the same list: `GroupActivate` of a group that
+  carries the title of an xterm answers the id of the xterm, `8388620`.
 
 ### 5.4 The fixes the VM produced (2026-11-11)
 

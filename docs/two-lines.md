@@ -233,12 +233,12 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 763 and 70.** The branch answers 815 and
-refuses 18, so **52 names are still to come**: the COM objects (9), the
-registry (5), the tray (2, and a helper of their own), the groups (4),
-the styles (6) and the small ones (the callbacks, the messages, the
-lists of icons, the handles, `BlockInput`, `RunAs`, `Shutdown`,
-`FileGetVersion`, `OnClipboardChange`, `Edit`).
+a value and 149 refusals to 767 and 66.** The branch answers 815 and
+refuses 18, so **48 names are still to come**: the COM objects (9), the
+registry (5), the tray (2, and a helper of their own), the styles (6) and
+the small ones (the callbacks, the messages, the lists of icons, the
+handles, `BlockInput`, `RunAs`, `Shutdown`, `FileGetVersion`,
+`OnClipboardChange`, `Edit`).
 
 **The sixth family is ported too (2026-11-11): the names of the sound
 devices.** `SoundGetName` asks the mixer of the session -- `pactl`, the
@@ -248,6 +248,16 @@ Measured on the box: the playback device answers "Radeon High Definition
 Audio Controller Digital Stereo (HDMI) [ASUS VP278]" and the recording
 one the monitor of it; measured on the VM without a mixer: the reason of
 a machine with no `pactl`, and not a wrong name.
+
+**The seventh family is ported too (2026-11-11): the groups of windows.**
+The state is of the runtime -- a set of titles that outlives the
+statement -- and the desktop is asked only when a group activates.
+Measured on the box: the group activates the window of the compositor
+whose title it carries; measured on the VM in the X11 session: the same
+group answers `8388620`, the id of the xterm in the client list. And the
+VM asked for one hand merge more: `matching_windows`, the question a
+group activation makes, reads the client list of the X server now, where
+the branch and the master answered the reason of the compositor.
 
 **The fourth family is ported too (2026-11-11): the edit that has the
 focus.** The `Edit*` names take the *handle* of a control and read it

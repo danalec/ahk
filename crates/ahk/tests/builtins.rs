@@ -6550,4 +6550,36 @@ fn the_names_of_the_sound_that_are_windows_fail_with_the_reason() {
     let report = run("name := SoundGetName()");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(value_of(&report, "name"), Value::Text("Speakers".into()));
+}
+
+#[test]
+fn a_group_added_in_one_statement_is_read_in_a_later_one() {
+    // The fake of this tree names its windows the way the window family
+    // measured them -- "Steam", and the id 101 -- and not the way the fake
+    // of the branch names them.
+    let report = run(concat!(
+        "a := GroupAdd(\"mine\", \"Steam\")\n",
+        "b := GroupActivate(\"mine\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text(String::new())));
+    assert_eq!(report.variables.get("b"), Some(&Value::Text("101".into())));
+}
+
+#[test]
+fn a_group_that_was_not_added_answers_zero() {
+    let report = run("x := GroupActivate(\"missing\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn closing_a_group_takes_it_away() {
+    let report = run(concat!(
+        "GroupAdd(\"mine\", \"Steam\")\n",
+        "GroupClose(\"mine\")\n",
+        "x := GroupActivate(\"mine\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
 }

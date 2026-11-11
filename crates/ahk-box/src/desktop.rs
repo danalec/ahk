@@ -1148,9 +1148,22 @@ impl ahk::desktop::Windows for LabDesktop {
         if wayland_session() {
             return self.wayland_matching(title, mode);
         }
-        Err("this desktop lists the windows of a Wayland session, and this session is not \
-             Wayland"
-            .to_string())
+        // The client list of the X server answers the matching too, since
+        // the list is parsed: a group that activates on an X11 session looks
+        // its titles up in the same list the listing family reads. Measured
+        // on the VM of the matrix on 2026-11-11, where `GroupActivate` of a
+        // group with the title of an xterm answers the id of the xterm.
+        let windows = self.x11_windows()?;
+        let mut matched = Vec::new();
+        for window in &windows {
+            if title.is_empty() || title_matches(&window.title, title, mode)? {
+                matched.push(ahk::desktop::WindowRef {
+                    id: window.id.to_string(),
+                    class: window.class.clone(),
+                });
+            }
+        }
+        Ok(matched)
     }
 
     // ---- window_geometry
