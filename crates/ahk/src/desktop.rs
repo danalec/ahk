@@ -1619,6 +1619,70 @@ pub trait Machine {
         Err("this desktop cannot tell the space of a drive".to_string())
     }
 
+    /// The label of the drive that a path is on.
+    ///
+    /// `None` is a drive that is not there. Measured on the binary of
+    /// v2.0.19 on 2026-11-10: `DriveGetLabel` of a drive that is not there
+    /// throws "(3) The system cannot find the path specified.".
+    fn drive_label(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the label of a drive".to_string())
+    }
+
+    /// The serial of the drive that a path is on, as the machine writes it.
+    ///
+    /// Measured on the binary of the same day: `DriveGetSerial` of a drive
+    /// that is not there throws the same "(3) ..." as the label, and of a
+    /// drive that is there answers a whole number -- the volume serial of
+    /// Windows. The serial of a Linux drive is the string of the hardware,
+    /// so the shape is the machine's.
+    fn drive_serial(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the serial of a drive".to_string())
+    }
+
+    /// The drives of the machine, one name per line.
+    ///
+    /// Measured on the binary of the same day: `DriveGetList` answers the
+    /// drive letters run together -- a letter is one character, so no
+    /// separator is needed. A drive of this platform is a device name, which
+    /// is more than one character, so the names ride apart on newlines.
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        Err("this desktop cannot list the drives".to_string())
+    }
+
+    /// The status of the drive a path is on, when that drive is a CD or DVD
+    /// reader. `None` is a drive that is not a reader.
+    ///
+    /// Measured on the binary of the same day: `DriveGetStatusCD` of a drive
+    /// that is not a reader throws "Failed".
+    fn drive_status_cd(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the status of a CD drive".to_string())
+    }
+
+    /// Eject the drive of a path.
+    fn drive_eject(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot eject a drive".to_string())
+    }
+
+    /// Lock the drive of a path against removal.
+    fn drive_lock(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot lock a drive".to_string())
+    }
+
+    /// Unlock the drive of a path.
+    fn drive_unlock(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot unlock a drive".to_string())
+    }
+
+    /// Spin the drive of a path down.
+    fn drive_retract(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot spin a drive down".to_string())
+    }
+
+    /// Write a new label on the drive of a path.
+    fn drive_set_label(&mut self, _path: &str, _label: &str) -> Result<(), String> {
+        Err("this desktop cannot write the label of a drive".to_string())
+    }
+
     fn idle_times(&mut self) -> Result<Idle, String> {
         Err("this desktop cannot say how long the session has been idle".to_string())
     }

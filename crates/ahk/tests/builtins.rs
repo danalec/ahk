@@ -67,6 +67,8 @@ struct Fake {
     events: Vec<String>,
     /// The caret of the one focused edit, when there is one.
     caret: Option<(i64, i64)>,
+    /// The label of the one drive the fake carries, when there is one.
+    drive_label: Option<String>,
 }
 
 impl Desktop for Fake {}
@@ -148,6 +150,46 @@ impl Machine for Fake {
         } else {
             None
         })
+    }
+    fn drive_label(&mut self, path: &str) -> Result<Option<String>, String> {
+        self.calls.push(("drive-label".into(), path.to_string()));
+        // The same one drive, carrying the label the case asserts against.
+        Ok(if path == "/" {
+            self.drive_label.clone().or_else(|| Some("core".to_string()))
+        } else {
+            None
+        })
+    }
+    fn drive_serial(&mut self, path: &str) -> Result<Option<String>, String> {
+        self.calls.push(("drive-serial".into(), path.to_string()));
+        Ok(if path == "/" {
+            Some("S3Z8NB0TA-1234".to_string())
+        } else {
+            None
+        })
+    }
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        self.calls.push(("drive-list".into(), String::new()));
+        Ok(vec!["sda".to_string(), "sdb".to_string()])
+    }
+    fn drive_status_cd(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+    fn drive_eject(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn drive_lock(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn drive_unlock(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn drive_retract(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn drive_set_label(&mut self, _path: &str, label: &str) -> Result<(), String> {
+        self.drive_label = Some(label.to_string());
+        Ok(())
     }
 }
 impl Dialogs for Fake {
@@ -1144,6 +1186,96 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
     // The variables stay as they were.
     assert_eq!(int_of(&report, "x"), -1);
     assert_eq!(int_of(&report, "y"), -1);
+}
+
+#[test]
+fn the_drive_family_answers_the_label_the_serial_the_list_and_the_hardware_words() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the label and the
+    // serial of a drive that is there answer as read, the list answers the
+    // drives with no argument and throws "Parameter #1 of DriveGetList is
+    // invalid." with one, and the readers throw "(3) The system cannot find
+    // the path specified." on a drive that is not there. The hardware
+    // operations -- eject, lock, unlock, retract -- throw the file wording
+    // "(2) The system cannot find the file specified." on a drive that is
+    // not there, and answer the empty text when the drive is there.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := DriveGetLabel(\"/\")",
+            "\nb := DriveGetSerial(\"/\")",
+            "\nc := DriveGetList()",
+            "\nd := DriveEject(\"/\")",
+            "\ne := DriveLock(\"/\")",
+            "\nf := DriveUnlock(\"/\")",
+            "\ng := DriveRetract(\"/\")",
+            "\nDriveSetLabel(\"/\", \"the label\")",
+            "\nh := DriveGetLabel(\"/\")",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("core".into()));
+    // A serial that does not read as a whole number rides as text.
+    assert_eq!(
+        value_of(&report, "b"),
+        Value::Text("S3Z8NB0TA-1234".into())
+    );
+    assert_eq!(value_of(&report, "c"), Value::Text("sda\nsdb".into()));
+    for name in ["d", "e", "f", "g"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()));
+    }
+    assert_eq!(value_of(&report, "h"), Value::Text("the label".into()));
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveGetLabel(\"no-such\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(3) The system cannot find the path specified.".into())
+    );
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveEject(\"no-such\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(2) The system cannot find the file specified.".into())
+    );
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveGetList(\"/\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("Parameter #1 of DriveGetList is invalid.".into())
+    );
 }
 
 #[test]

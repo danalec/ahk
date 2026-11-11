@@ -271,8 +271,12 @@ fn the_surface_flag_answers_with_json() {
     // binary through the focused widget of the helper (round 5). `MenuSelect`
     // followed it: the reference throws a wording of its own for the window
     // that is not there and another for the menu of one that is (round 6).
-    assert_eq!(report.number("values"), 761);
-    assert_eq!(report.number("refusals"), 72);
+    // The drive family is the latest sweep: the label, the serial, the list,
+    // the status of a CD reader and the four hardware operations moved from
+    // the refusal to the value in one round (round 7), which took the
+    // refusals under seventy for the first time.
+    assert_eq!(report.number("values"), 770);
+    assert_eq!(report.number("refusals"), 63);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");

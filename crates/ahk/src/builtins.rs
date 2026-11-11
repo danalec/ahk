@@ -1420,9 +1420,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_eject,
     },
     Builtin {
         name: "DriveGetCapacity",
@@ -1447,27 +1447,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_label,
     },
     Builtin {
         name: "DriveGetList",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_list,
     },
     Builtin {
         name: "DriveGetSerial",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_serial,
     },
     Builtin {
         name: "DriveGetSpaceFree",
@@ -1492,9 +1492,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_status_cd,
     },
     Builtin {
         name: "DriveGetType",
@@ -1510,36 +1510,36 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_lock,
     },
     Builtin {
         name: "DriveRetract",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_retract,
     },
     Builtin {
         name: "DriveSetLabel",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_set_label,
     },
     Builtin {
         name: "DriveUnlock",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 128,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_unlock,
     },
     Builtin {
         name: "Edit",
@@ -8080,6 +8080,224 @@ pub(crate) fn caret_get_pos(
         }
         None => Ok(Value::Int(0)),
     }
+}
+
+/// The wording of a drive that is not there, measured on the binary of
+/// v2.0.19 on 2026-11-10: the readers of a drive -- the label and the serial
+/// -- throw the path wording, and the operations on the hardware -- eject,
+/// lock, unlock and retract -- throw the file wording. Both are the code of
+/// the system in front of what it says.
+const DRIVE_PATH: &str = "(3) The system cannot find the path specified.";
+const DRIVE_FILE: &str = "(2) The system cannot find the file specified.";
+
+/// `DriveGetLabel`: the label of the drive that a path is on.
+pub(crate) fn drive_get_label(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_label(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(label) => Ok(Value::Text(label)),
+        None => Err(RuntimeError {
+            message: DRIVE_PATH.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `DriveGetSerial`: the serial of the drive that a path is on.
+///
+/// Measured on the binary of the same day: `DriveGetSerial` of a drive that
+/// is there answers a whole number -- the volume serial of Windows. The
+/// serial of a Linux drive is the string of the hardware, so a serial that
+/// reads as a whole number is answered as one and the rest rides as text.
+pub(crate) fn drive_get_serial(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_serial(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(serial) => match serial.parse::<i64>() {
+            Ok(number) => Ok(Value::Int(number)),
+            Err(_) => Ok(Value::Text(serial)),
+        },
+        None => Err(RuntimeError {
+            message: DRIVE_PATH.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `DriveGetList`: the drives of the machine.
+///
+/// Measured on the binary of the same day: `DriveGetList` answers the drive
+/// letters run together -- a letter is one character, so no separator is
+/// needed -- and a call with an argument throws "Parameter #1 of
+/// DriveGetList is invalid.". A drive of this platform is a device name,
+/// which is more than one character, so the names ride apart on newlines.
+pub(crate) fn drive_get_list(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !values.is_empty() {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "DriveGetList"),
+            line,
+        });
+    }
+    let drives = rt
+        .desktop()
+        .drive_list()
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(drives.join("\n")))
+}
+
+/// `DriveGetStatusCD`: the status of the drive a path is on, when it is a
+/// CD or DVD reader.
+///
+/// Measured on the binary of the same day: `DriveGetStatusCD` of a drive
+/// that is not a reader throws "Failed".
+pub(crate) fn drive_get_status_cd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_status_cd(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(status) => Ok(Value::Text(status)),
+        None => Err(RuntimeError {
+            message: "Failed".to_string(),
+            line,
+        }),
+    }
+}
+
+/// The shape of the hardware operations -- eject, lock, unlock and retract:
+/// the drive has to be there first, and a drive that is not there throws the
+/// file wording. Measured on the binary of the same day.
+fn the_drive_for_the_operation(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+) -> Result<String, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_label(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(_) => Ok(path),
+        None => Err(RuntimeError {
+            message: DRIVE_FILE.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `DriveEject`: eject the drive of a path.
+pub(crate) fn drive_eject(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = the_drive_for_the_operation(rt, values, line)?;
+    rt.desktop()
+        .drive_eject(&path)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `DriveLock`: lock the drive of a path against removal.
+pub(crate) fn drive_lock(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = the_drive_for_the_operation(rt, values, line)?;
+    rt.desktop()
+        .drive_lock(&path)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `DriveUnlock`: unlock the drive of a path.
+pub(crate) fn drive_unlock(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = the_drive_for_the_operation(rt, values, line)?;
+    rt.desktop()
+        .drive_unlock(&path)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `DriveRetract`: spin the drive of a path down.
+pub(crate) fn drive_retract(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = the_drive_for_the_operation(rt, values, line)?;
+    rt.desktop()
+        .drive_retract(&path)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `DriveSetLabel`: write a new label on the drive of a path.
+///
+/// Measured on the binary of the same day: `DriveSetLabel` of a drive that
+/// is not there throws the path wording, like the readers do.
+pub(crate) fn drive_set_label(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_label(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(_) => {}
+        None => {
+            return Err(RuntimeError {
+                message: DRIVE_PATH.to_string(),
+                line,
+            })
+        }
+    }
+    let label = text_of(values, 1);
+    rt.desktop()
+        .drive_set_label(&path, &label)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
 }
 
 /// `WinGetID`: the identifier of the first window that matches.
