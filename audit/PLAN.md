@@ -183,7 +183,19 @@ answers is the canonical one of the machine, with the drive in upper
 case, so the desktop grew a `canonical_path` of its own. `CallbackFree`
 came with it: a number throws "Parameter #1 of CallbackFree is
 invalid.", because the only callback the binary would let go is one it
-made itself. The count is **809 values / 24 refusals**.
+made itself. The count is **809 values / 24 refusals**. **Round 26
+carried the names of the sound devices** (`64b7c1d`): the shape is
+`SoundGetName Component, Device` -- with no component the name of the
+device that plays, with the component one the name of the one that
+records, the component two the empty text, and a component that is not
+there "Component not found". The refusal of the tree said that the
+name of a device belongs to the system that runs it -- and it does, and
+the runtime asks the mixer of the session for it the way it already
+asks it for the volume, so the name is the name of the machine.
+`SoundGetInterface` came with it: it wants the identifier of the
+interface (a GUID) and this platform has no COM, so every GUID answers
+zero -- the way the binary answers for the interfaces it does not
+support. The count is **811 values / 22 refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
