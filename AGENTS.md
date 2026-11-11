@@ -11559,3 +11559,24 @@ Verified on 2026-11-11 with three cases of its own
 (`tests/class_extensions.rs` now carries 53). The scorecard moves:
 109 of 138 = 79.0 % of the platform-neutral Keysharp surface, from
 76.8 %.
+
+## 311. Where a member of a text is refused, and what the path is
+
+The `ks` dialect gives the class of the `String` two members that the
+v2.0.19 does not have: `StartsWith` and `EndsWith`. The comparison is the
+ordinal one -- the case matters -- and the answer is one when the text
+begins or ends with the other, and zero when it does not.
+
+**The dispatch of a member of a text does not go through the table of the
+classes.** Measured on 2026-11-11: the call of `x.StartsWith("a")` on a
+text of the script is refused with "This value of type \"String\" has no
+method named \"StartsWith\".", and the arm that asks
+`classes::call("string", ...)` -- the arm where the class of the runtime
+is asked -- is never reached. The path of the call of a member of a value
+that is not an object refuses before it asks the class, and that is where
+the two members have to be woven in.
+
+This is written here because the block was tried and the hypothesis was
+wrong: the arm in `classes::call` compiles, and the member is still
+refused. The tree was left as it was, at the 79.0 % of the scorecard,
+and the round that carries the two members will open that path.
