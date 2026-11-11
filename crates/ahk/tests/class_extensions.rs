@@ -545,3 +545,103 @@ fn the_dialect_of_the_v2_does_not_have_the_class() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }
+
+#[test]
+fn the_two_booleans_answer_the_numbers_of_the_dialect() {
+    let report = run_ks(concat!(
+        "MsgBox True\n",
+        "MsgBox False\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "1");
+    assert_eq!(line(&report, 1), "0");
+}
+
+#[test]
+fn the_thread_of_the_script_is_the_object_of_the_class() {
+    // The documentation of KeySharp: `A_Thread` is the current
+    // pseudo-thread as an object, and there is exactly one object per
+    // pseudo-thread, so the test for "am I in this one" is the identity.
+    let report = run_ks(concat!(
+        "MsgBox Type(A_Thread)\n",
+        "MsgBox A_Thread.Kind\n",
+        "MsgBox (A_Thread == Thread())\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "Thread");
+    assert_eq!(line(&report, 1), "Auto");
+    assert_eq!(line(&report, 2), "1");
+}
+
+#[test]
+fn the_hooks_of_the_machine_are_not_installed() {
+    // This runtime has no hook of the keyboard and none of the mouse, and
+    // the answer of "is it installed" is the truth of it.
+    let report = run_ks(concat!(
+        "MsgBox A_KeybdHookInstalled\n",
+        "MsgBox A_MouseHookInstalled\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+    assert_eq!(line(&report, 1), "0");
+}
+
+#[test]
+fn the_value_of_the_last_loop_of_the_registry_is_unset() {
+    // The dialect of v2 has no `Loop Reg`, so the loop never ran.
+    let report = run_ks("MsgBox IsSet(A_LoopRegValue)\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+}
+
+#[test]
+fn the_props_of_an_object_are_the_properties_of_it() {
+    let report = run_ks(concat!(
+        "class Thing {\n",
+        "    x := 1\n",
+        "}\n",
+        "obj := Thing()\n",
+        "names := \"\"\n",
+        "for name, value in Props(obj) {\n",
+        "    names := names name \",\"\n",
+        "}\n",
+        "MsgBox names\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "x,");
+}
+
+#[test]
+fn the_props_of_a_value_that_is_not_an_object_refuses_with_the_kind() {
+    let report = run_ks("MsgBox Props(42)\n");
+    assert!(!report.ok);
+    let message = report.error.clone().unwrap_or_default();
+    assert!(message.contains("Parameter #1 of Props requires an Object"), "{message}");
+}
+
+#[test]
+fn the_throw_of_a_value_is_taken_by_the_catch() {
+    // The documentation of KeySharp: the value is thrown, and the catch
+    // that takes it holds it.
+    let report = run_ks(concat!(
+        "caught := \"no\"\n",
+        "try {\n",
+        "    Throw(Error(\"boom\"))\n",
+        "} catch {\n",
+        "    caught := \"yes\"\n",
+        "}\n",
+        "MsgBox caught\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "yes");
+}
+
+#[test]
+fn the_dialect_of_the_v2_does_not_have_the_names() {
+    // The surface of the v2.0.19 stays pure: `Props` and `A_Thread` are
+    // not names of the v2, and the tree refuses the script that uses them.
+    let mut desktop = Fake;
+    let statements = ahk::parse("p := Props(1)\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}

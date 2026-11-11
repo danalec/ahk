@@ -41,10 +41,13 @@ pub(crate) fn names() -> Vec<&'static str> {
 /// has exactly one.
 pub(crate) fn construct(
     _arguments: &[Value],
-    _rt: &mut Runtime,
+    rt: &mut Runtime,
     _line: u32,
 ) -> Result<Value, RuntimeFailure> {
-    Ok(crate::classes::object_with("thread", vec![]))
+    // There is one thread, and it is the same object every time: the
+    // runtime holds it, so that `thr == A_Thread` is the test for
+    // "am I in this thread".
+    Ok(rt.the_current_thread())
 }
 
 /// A member of the `Thread`, as a property read.

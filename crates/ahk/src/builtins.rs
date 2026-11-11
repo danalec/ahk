@@ -11751,3 +11751,51 @@ pub(crate) fn the_function_in_the_dialect(
                 .filter(|builtin| builtin.kind == BuiltinKind::Function)
         })
 }
+
+/// `Throw(Value)`: throw the value, the way the `throw` statement does.
+///
+/// The documentation of KeySharp: the value is thrown, and the catch
+/// that takes it holds it. The value waits for the caller of the
+/// built-in, and the built-in fails the statement with it.
+pub(crate) fn ks_throw(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = values.first().cloned().unwrap_or(Value::Unset);
+    rt.throw_the_value(value);
+    Err(RuntimeError {
+        message: "the value was thrown".to_string(),
+        line,
+    })
+}
+
+/// `Props(Value)`: the properties of a value, as an iterator.
+///
+/// The documentation of KeySharp: the iterator gives the name of a
+/// property, and the value of a property that is a descriptor is the
+/// value of the property itself. A value that is not an object has no
+/// properties of its own, and the tree refuses it with the kind of it,
+/// the way KeySharp refuses it.
+pub(crate) fn ks_props(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = values.first().cloned().unwrap_or(Value::Unset);
+    let Some(pairs) = rt.the_properties_of_a_value(&value) else {
+        let kind = rt.the_type_of(&value);
+        return Err(RuntimeError {
+            message: format!(
+                "Parameter #1 of Props requires an Object, but received a {kind}."
+            ),
+            line,
+        });
+    };
+    Ok(crate::classes::enumerator::make(
+        pairs,
+        crate::classes::enumerator::Alone::TheKey,
+    ))
+}

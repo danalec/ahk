@@ -11389,3 +11389,37 @@ Verified on 2026-11-11 with four cases of its own
 script with the code 3, and the code of a thread that runs is unset. The
 scorecard moves: 73 of 138 = 52.9 % of the platform-neutral Keysharp
 surface, from 43.5 % -- past the half.
+
+## 306. The globals of the Ks that answer with a value, and the value that a built-in throws
+
+The sixth block of the dialect of KeySharp carries the names that answer
+without a machine behind them: the two booleans (`True` and `False` answer
+one and zero), the thread of the script as an object (`A_Thread` is the
+same object that `Thread()` makes, and there is exactly one), the two
+hooks of the keyboard and of the mouse (this runtime has none, so the
+answer of "is it installed" is the truth of it, which is that it is not),
+the value of the last `Loop Reg` (the dialect of v2 has no `Loop Reg`, so
+the loop never ran and the value is unset), the properties of a value
+(`Props` gives the iterator of them, the way `OwnProps` does) and the
+throw of a value (`Throw` throws it, the way the `throw` statement does).
+
+**A built-in that throws a value is a change of the runtime.** The handler
+of a built-in answers with a value or with a failure, and a value that the
+script threw is neither: it waits in the runtime, and the caller takes it
+when the handler has failed. The `throw` statement raised it before, and
+the function form of it is what the dialect of KeySharp adds.
+
+The class of the `VarRef` is carried as well: the tree knows the type of a
+reference (`Type(&x)` is `VarRef`), and the dialect of KeySharp names it
+as a class of its own.
+
+The properties of an object are the ones its class declares and the ones
+the script wrote in it; a value that is not an object of the script has no
+properties of its own, and `Props` refuses it with the kind of it, the way
+KeySharp refuses it.
+
+Verified on 2026-11-11 with eight cases of its own
+(`tests/class_extensions.rs` now carries 41). The scorecard moves:
+82 of 138 = 59.4 % of the platform-neutral Keysharp surface, from 52.9 %.
+The corpus of the pure language is unchanged: 87 of 162 in the v2.0.19 and
+93 of 162 in the v2.1, the same numbers as before the block.

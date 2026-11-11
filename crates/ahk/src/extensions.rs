@@ -165,6 +165,14 @@ pub const VARIABLES: &[&str] = &[
     "ksversion",
     "kscorepath",
     "guitheme",
+    // The two booleans, the thread of the script, the two hooks and the
+    // value of the last `Loop Reg`.
+    "true",
+    "false",
+    "thread",
+    "keybdhookinstalled",
+    "mousehookinstalled",
+    "loopregvalue",
 ];
 
 /// Whether the `ks` dialect carries the variable of this name.
@@ -252,6 +260,15 @@ pub const SURFACE_ROWS: &str = concat!(
     "variable\t\tA_Persistent\t\t\t\n",
     "variable\t\tA_ProcessArch\t\t\t\n",
     "variable\t\tA_WinActivateForce\t\t\t\n",
+    "variable\t\tA_KeybdHookInstalled\t\t\t\n",
+    "variable\t\tA_LoopRegValue\t\t\t\n",
+    "variable\t\tA_MouseHookInstalled\t\t\t\n",
+    "variable\t\tA_Thread\t\t\t\n",
+    "variable\t\tFalse\t\t\t\n",
+    "variable\t\tTrue\t\t\t\n",
+    "function\t\tProps\t\t\t\n",
+    "function\t\tThrow\t\t\t\n",
+    "class\t\tVarRef\t\t\t\n",
     "function\t\tATan2\t\t\t\n",
     "function\t\tSinh\t\t\t\n",
     "function\t\tCosh\t\t\t\n",
@@ -363,5 +380,23 @@ pub static KS_BUILTINS: &[crate::builtins::Builtin] = &[
         variant: 0,
         parameters: &[],
         handler: crate::builtins::ks_collect,
+    },
+    crate::builtins::Builtin {
+        name: "Throw",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 0,
+        max: 1,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_throw,
+    },
+    crate::builtins::Builtin {
+        name: "Props",
+        kind: crate::builtins::BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[crate::builtins::Parameter::Value],
+        handler: crate::builtins::ks_props,
     },
 ];

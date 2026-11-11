@@ -1594,6 +1594,12 @@ pub struct Runtime<'a> {
     hotkey_was_enabled: Vec<bool>,
     /// The code the script asked to stop with.
     exit_requested: Option<i32>,
+    /// The value that a built-in threw, waiting for the caller to take
+    /// it.
+    thrown_value: Option<Value>,
+    /// The one thread of the run, made the first time a script asks
+    /// for it.
+    thread: Option<Value>,
     /// The functions to call when the script ends.
     ///
     /// The script asks for them with `OnExit`, and the runtime calls them
@@ -1703,6 +1709,8 @@ impl<'a> Runtime<'a> {
             hotkey_is_exempt: Vec::new(),
             hotkey_was_enabled: Vec::new(),
             exit_requested: None,
+            thrown_value: None,
+            thread: None,
             exit_callbacks: Vec::new(),
             error_callbacks: Vec::new(),
             try_active: 0,
@@ -1778,6 +1786,8 @@ impl<'a> Runtime<'a> {
             hotkey_is_exempt: Vec::new(),
             hotkey_was_enabled: Vec::new(),
             exit_requested: None,
+            thrown_value: None,
+            thread: None,
             exit_callbacks: Vec::new(),
             error_callbacks: Vec::new(),
             try_active: 0,
@@ -3135,6 +3145,91 @@ impl<'a> Runtime<'a> {
     /// Stop the script with this code.
     pub(crate) fn exit_with(&mut self, code: i32) {
         self.exit_requested = Some(code);
+    }
+
+    /// The value that a built-in threw, waiting for the caller.
+    ///
+    /// A built-in answers with a value or with a failure, and a value
+    /// that the script threw is neither: it waits here, and the caller
+    /// takes it when the built-in has failed.
+    pub(crate) fn throw_the_value(&mut self, value: Value) {
+        self.thrown_value = Some(value);
+    }
+
+    /// The value that a built-in threw, if it threw one.
+    pub(crate) fn take_the_thrown_value(&mut self) -> Option<Value> {
+        self.thrown_value.take()
+    }
+
+    /// The one thread of the run: the pseudo-thread the script runs in.
+    ///
+    /// There is exactly one, and every answer of it is the same object,
+    /// so that `thr == A_Thread` is the test for "am I in this thread".
+    pub(crate) fn the_current_thread(&mut self) -> Value {
+        if let Some(thread) = &self.thread {
+            return thread.clone();
+        }
+        let thread = crate::classes::object("thread");
+        self.thread = Some(thread.clone());
+        thread
+    }
+
+    /// The properties of a value, the way `Props` names them.
+    ///
+    /// A value of the script owns the properties that its class declares
+    /// and the ones that the script wrote in it; anything else has no
+    /// properties of its own, and the answer is nothing.
+    pub(crate) fn the_properties_of_a_value(
+        &self,
+        target: &Value,
+    ) -> Option<Vec<(Value, Value)>> {
+        let Value::Object(object) = target else {
+            return None;
+        };
+        // The name of the class of the object: the object knows it, and the
+        // class of the script is the one that declares the properties.
+        let class = object.borrow().class.to_lowercase();
+        let definition = self.classes.get(&class)?;
+        let mut pairs: Vec<(Value, Value)> = Vec::new();
+        let mut named: Vec<String> = Vec::new();
+        for property in &definition.properties {
+            named.push(property.name.clone());
+        }
+        for access in definition.accessors.values() {
+            if !named
+                .iter()
+                .any(|name| name.eq_ignore_ascii_case(&access.name))
+            {
+                named.push(access.name.clone());
+            }
+        }
+        for name in named {
+            let value = object
+                .borrow()
+                .properties
+                .get(&name.to_lowercase())
+                .map(|property| property.value.clone())
+                .unwrap_or(Value::Unset);
+            pairs.push((Value::Text(name), value));
+        }
+        // The properties that the script wrote are own as well.
+        for (key, property) in object.borrow().properties.iter() {
+            if key.as_str() == BASE
+                || key.as_str() == CLASS_NAME
+                || key.as_str() == "prototype"
+                || key.starts_with('\u{1}')
+            {
+                continue;
+            }
+            if pairs
+                .iter()
+                .any(|(name, _)| name.to_text().eq_ignore_ascii_case(&property.name))
+            {
+                continue;
+            }
+            pairs.push((Value::Text(property.name.clone()), property.value.clone()));
+        }
+        Some(pairs)
     }
 
     /// A method of the base object, for the names that ask about an
@@ -8006,7 +8101,7 @@ impl<'a> Runtime<'a> {
     ///
     /// An object is named after its class, and the other values after their
     /// kind: "Integer", "String", "Object".
-    fn the_type_of(&self, value: &Value) -> String {
+    pub(crate) fn the_type_of(&self, value: &Value) -> String {
         // A class is a value of its own kind, and v2 names it "Class".
         if self.class_name_of(value).is_some() {
             return "Class".to_string();
@@ -12799,20 +12894,28 @@ impl<'a> Runtime<'a> {
                 ));
             }
         }
-        (builtin.handler)(self, values, line, builtin.variant).map_err(|error| {
+        let answered = (builtin.handler)(self, values, line, builtin.variant);
+        if let Err(error) = answered {
+            // A built-in that throws a value does not answer: the value
+            // waits for the caller, and the failure of the built-in is
+            // not the reason the script stopped.
+            if let Some(value) = self.take_the_thrown_value() {
+                return Err(RuntimeFailure::Thrown(value));
+            }
             // The failure of a built-in carries the name of the built-in
             // in the `What`, and the value of the parameter that failed
             // in the `Extra`.
             let extra = crate::builtins::the_extra_of(builtin.name, &error.message, values)
                 .unwrap_or_else(|| the_parameter_that_failed(&error.message, values));
-            RuntimeFailure::Detailed(
+            return Err(RuntimeFailure::Detailed(
                 error,
                 Detail {
                     what: builtin.name.to_string(),
                     extra,
                 },
-            )
-        })
+            ));
+        }
+        Ok(answered.unwrap())
     }
 
     /// The numbers that the arguments of the built-in hold.

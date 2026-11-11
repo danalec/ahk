@@ -1164,6 +1164,23 @@ fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeErr
         // The newline of the documentation is the one of the platform, and
         // `ReplaceLineEndings` defaults to the same one on every platform.
         "newline" => Ok(Value::Text("\n".to_string())),
+        // The two booleans of the dialect, spelled the way KeySharp
+        // spells them. The parser of the tree reads `true` and `false`
+        // as the literals they are, and the answer of the variable is
+        // the same number.
+        "true" => Ok(Value::Int(1)),
+        "false" => Ok(Value::Int(0)),
+        // The pseudo-thread the script runs in, as an object of the
+        // class `Thread`. There is exactly one, so the answer is the
+        // same object every time.
+        "thread" => Ok(rt.the_current_thread()),
+        // The hooks of the keyboard and of the mouse: this runtime has
+        // none, and the answer of "is the hook installed" is the truth
+        // of it, which is that it is not.
+        "keybdhookinstalled" | "mousehookinstalled" => Ok(Value::Int(0)),
+        // The value of the last `Loop Reg`: the dialect of v2 has no
+        // `Loop Reg`, so the loop never ran and the value is unset.
+        "loopregvalue" => Ok(Value::Unset),
         // The defaults of the hotstrings, read out of the defaults
         // KeySharp's manager starts with (HotstringManager.cs, read on
         // 2026-11-11): the flags of the case and the ending, the ending
