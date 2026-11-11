@@ -11580,3 +11580,30 @@ This is written here because the block was tried and the hypothesis was
 wrong: the arm in `classes::call` compiles, and the member is still
 refused. The tree was left as it was, at the 79.0 % of the scorecard,
 and the round that carries the two members will open that path.
+
+## 312. The two paths of a member of a text, and the one that is not there
+
+The `ks` dialect gives the class of the `String` two members that the
+v2.0.19 does not have: `StartsWith` and `EndsWith`. The comparison is the
+ordinal one -- the case matters -- and the answer is one when the text
+begins or ends with the other, and zero when it does not.
+
+**A member of a text has two paths, and the one that carries the call is
+not the one that carries the read.** Measured on 2026-11-11:
+
+- The *read* of a member of an object of the runtime goes through
+  `classes::call`, with the class of the value -- and the class of a value
+  that is not an object is the **empty text**, so the table of the classes
+  is asked with a name that is not in it.
+- The *call* of a member of a text (`"abc".StartsWith("a")`) does not
+  reach that table: the arm that was put in `call_a_method_of_an_object`
+  compiles, the tree builds, and the call is still refused with "This
+  value of type \"String\" has no method named \"StartsWith\".", because
+  the path that carries the call of a member of a value that is not an
+  object refuses before it asks anything.
+
+The round that carries the two members has to find that path -- the
+refusal is a `no_method`, and the `no_method` calls of the runtime are
+the places to look. The tree was left as it was, at the 79.0 % of the
+scorecard: a name that the surface lists and the runtime does not answer
+is a name that is not carried.
