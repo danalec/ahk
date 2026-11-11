@@ -6393,7 +6393,12 @@ impl<'a> Runtime<'a> {
         //
         // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Get("a")` and
         // `Map.Clear()` are refused.
-        if self.class_name_of(target).is_none() {
+        // The classes of the `ks` dialect answer their own static
+        // methods on the class value as well: `Struct.At` is a method
+        // of the class itself, the way KeySharp answers it.
+        if self.class_name_of(target).is_none()
+            || self.dialect.carries_the_class_of_the_extension(&class)
+        {
             if let Some(result) = crate::classes::call(&class, name, target, &values, self, line) {
                 return result;
             }

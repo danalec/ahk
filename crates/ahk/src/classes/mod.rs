@@ -1775,6 +1775,14 @@ fn call_once(
         "realthread" if rt.dialect().carries_the_class_of_the_extension("realthread") => {
             realthread::call(class, method, this, arguments, rt, line)
         }
+        // The static method of a typed class: `Struct.At` and the
+        // ones beside it. The guard is the dialect's, so the v2
+        // keeps refusing the name it does not have.
+        _ if rt.dialect().carries_the_class_of_the_extension(class)
+            && typed::is_a_class(class) =>
+        {
+            typed::the_static_call(class, method, arguments, line)
+        }
 
         "string" => the_member_of_a_text(method, this, arguments, rt, line),
         // The methods of the base object are the methods of every object,

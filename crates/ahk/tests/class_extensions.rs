@@ -1324,3 +1324,73 @@ fn the_empty_reference_points_at_no_variable() {
     assert_eq!(line(&report, 1), "1");
     assert_eq!(line(&report, 2), "done");
 }
+
+#[test]
+fn the_view_of_a_struct_carries_the_address_it_borrows() {
+    // The view of the empty struct at an address carries the address and
+    // nothing else: it has no field to read, and the tree never reads the
+    // memory it points at.
+    let report = run_ks(concat!(
+        "v := Struct.At(0x10000)\n",
+        "MsgBox v.Ptr\n",
+        "MsgBox ObjGetDataPtr(v)\n",
+        "MsgBox ObjGetDataSize(v)\n",
+        "ObjSetDataPtr(v, 0x20000)\n",
+        "MsgBox ObjGetDataPtr(v)\n",
+        "w := ObjCreateWithDataPtr(Struct, 0x30000)\n",
+        "MsgBox ObjGetDataPtr(w)\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "65536");
+    assert_eq!(line(&report, 1), "65536");
+    assert_eq!(line(&report, 2), "0");
+    assert_eq!(line(&report, 3), "131072");
+    assert_eq!(line(&report, 4), "196608");
+}
+
+#[test]
+fn the_data_pointer_of_an_object_that_borrows_none_is_refused() {
+    // The answers of KeySharp itself: "Operation failed." for an object
+    // with no external data, "Invalid class." for a class that is not a
+    // struct, and the parameter message for an address below 65536 that
+    // is not the null one. The typed number -- whose field would live in
+    // the memory -- is refused with the reason.
+    let report = run_ks("MsgBox ObjGetDataPtr(Map())\n");
+    assert!(!report.ok);
+    let report = run_ks("MsgBox ObjCreateWithDataPtr(Map, 0x10000)\n");
+    assert!(!report.ok);
+    let report = run_ks("MsgBox Int32.At(0x10000)\n");
+    assert!(!report.ok);
+    let report = run_ks("MsgBox Int32.At(5)\n");
+    assert!(!report.ok);
+    let report = run_ks("MsgBox ObjGetDataPtr(42)\n");
+    assert!(!report.ok);
+    let report = run_ks(concat!(
+        "MsgBox ObjGetDataSize(Map())\n",
+        "MsgBox ObjGetDataSize(Int32(5))\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "0");
+    assert_eq!(line(&report, 1), "4");
+}
+
+#[test]
+fn the_debug_tab_of_no_window_is_the_empty_text() {
+    // The ShowDebug of KeySharp does nothing when the script has no main
+    // window -- the call of it is the null-conditional in its source --
+    // and the runner of this tree has no window at all: the answer is the
+    // empty text and the run goes on.
+    let report = run_ks("ShowDebug()\nMsgBox \"done\"\n");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "done");
+}
+
+#[test]
+fn the_v2_has_no_view_of_a_struct() {
+    // The surface of the v2.0.19 stays pure: the view of a struct at an
+    // address is a name of the ks dialect alone.
+    let mut desktop = Fake;
+    let statements = ahk::parse("v := Struct.At(0x10000)\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}

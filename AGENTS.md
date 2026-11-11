@@ -11986,3 +11986,38 @@ and `ks_win_set_always_on_top`, the one of them orphaned when
 `WinSetAlwaysOnTop` moved to the v2 table -- went away with this round:
 rustc names them "never used", and a definition with no caller is a
 lie of a smaller kind.
+
+## 327. The borrowed address, and the static method of a class value
+
+The `ks` dialect carries the family of the data pointers of KeySharp --
+`ObjCreateWithDataPtr`, `ObjGetDataPtr`, `ObjGetDataSize` and
+`ObjSetDataPtr` -- beside `Struct.At` and `ShowDebug`, all read in the
+source of KeySharp on 2026-11-11 (`Objects.cs`, `Structs.cs`,
+`KeysharpEnhancements.cs`).
+
+**The tree never dereferences a borrowed address.** The instance that
+`Struct.At(address)` or `ObjCreateWithDataPtr(ClassObj, address)` makes
+carries the address under a reserved key, the way the state of every
+class of the tree travels, and that is all it does with it. The empty
+struct has no field to read, so the view of it is whole; a typed number
+-- whose field would live in the memory -- is refused with the reason.
+The refusals that KeySharp itself has are the ones the tree answers:
+"Operation failed." for an object that borrows no address, "Invalid
+class." for a class that is not a struct, and "Parameter #1 of Int32.At
+is invalid." for an address below 65536 that is not the null one (the
+check of KeySharp, which the empty struct passes: it has nothing to read
+at any address).
+
+**`ShowDebug()` is the empty text.** The source of KeySharp is
+`mainWindow?.ShowDebug()`: a script with no main window gets nothing,
+and the runner of this tree has no window at all. The answer is the one
+of a headless run of KeySharp, and no debug tab is pretended.
+
+**The gate of the static calls opened for the classes of the
+extension.** A method call on a class value went only to the instances
+of the runtime classes before this round: `classes::call` was behind
+`class_name_of(target).is_none()`, and a static method of a `ks` class
+-- `Struct.At` -- never reached the module of the class. The gate is now
+the one of the property path (section 324): the class value of an
+extension class reaches `classes::call` too, and the v2 keeps refusing
+the names it does not have, because the gate is the dialect's.

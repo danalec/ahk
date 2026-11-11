@@ -17,6 +17,7 @@
 //! The classes are of the `ks` dialect alone: the v2.0.19 has no typed
 //! number, and the tree refuses the script that makes one there.
 
+use alloc::format;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -124,6 +125,23 @@ pub(crate) fn property(
         }
         // The size of the field, in bytes.
         "size" => Some(Ok(Value::Int(size))),
+        // The address the view borrows. A struct that is not a view has
+        // no address of its own: the value of it lives in the object, and
+        // the refusal says so instead of answering a made-up number.
+        "ptr" => {
+            let Value::Object(object) = this else {
+                return None;
+            };
+            match object.borrow().value_of(THE_DATA_POINTER) {
+                Some(address) => Some(Ok(address)),
+                None => Some(Err(RuntimeFailure::Error(RuntimeError {
+                    message: format!(
+                        "the {class} of this tree holds its value in itself and has no address of its own"
+                    ),
+                    line,
+                }))),
+            }
+        }
         _ => None,
     }
 }
@@ -177,5 +195,93 @@ fn the_value_of(
 /// The key of the value of the field.
 const THE_VALUE: &str = "\u{1}typed value";
 
+/// The key the borrowed address is under.
+///
+/// The instance that `Struct.At` or `ObjCreateWithDataPtr` makes
+/// carries the address it borrows here. The tree never dereferences
+/// it: the address is the data of the script, and not a place the
+/// tree reads.
+pub(crate) const THE_DATA_POINTER: &str = "\u{1}data pointer";
+
 /// The key of the size of the field.
 const THE_SIZE: &str = "\u{1}typed size";
+
+/// The view of a struct at an address: the instance of the class that
+/// carries the address it borrows.
+///
+/// The check of the address is the one of KeySharp: an address below
+/// 65536 that is not the null one is the offset of a null pointer, and
+/// not the address of a struct -- unless the struct has no field at all,
+/// the empty one, which has nothing to read at any address. The view of
+/// a typed number is refused with the reason: the field of it would live
+/// in the memory, and the typed number of this tree holds its value in
+/// itself.
+pub(crate) fn the_view_at(
+    class: &str,
+    address: i64,
+    what: &str,
+    parameter: usize,
+    line: u32,
+) -> Option<Result<Value, RuntimeError>> {
+    let (spelled, size, kind) = the_class_of(class)?;
+    if (address as u64) < 65536 && address != 0 && size != 0 {
+        return Some(Err(RuntimeError {
+            message: format!("Parameter #{parameter} of {what} is invalid."),
+            line,
+        }));
+    }
+    if !matches!(kind, Kind::Struct) {
+        return Some(Err(RuntimeError {
+            message: format!(
+                "the {spelled} of this tree holds its value in itself and not in memory: a view of it at an address has no field to read"
+            ),
+            line,
+        }));
+    }
+    let Value::Object(object) = crate::classes::object(spelled) else {
+        return None;
+    };
+    object.borrow_mut().put(THE_VALUE, Value::Unset);
+    object.borrow_mut().put(THE_SIZE, Value::Int(size));
+    object
+        .borrow_mut()
+        .put(THE_DATA_POINTER, Value::Int(address));
+    Some(Ok(Value::Object(object)))
+}
+
+/// The static method of a typed class.
+///
+/// `Struct.At(address)` is the one KeySharp has: the view of the struct
+/// at the address. A name that is not a static method of the class is
+/// left to the rest of the dispatch.
+pub(crate) fn the_static_call(
+    class: &str,
+    method: &str,
+    arguments: &[Value],
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    let (spelled, _, _) = the_class_of(class)?;
+    if !method.eq_ignore_ascii_case("at") {
+        return None;
+    }
+    let what = format!("{spelled}.At");
+    let address = match arguments.first().and_then(|value| value.to_number()) {
+        Some(number) => number as i64,
+        None => {
+            let value = arguments.first().unwrap_or(&Value::Unset);
+            return Some(Err(RuntimeFailure::Error(RuntimeError {
+                message: crate::runtime::requires(
+                    1,
+                    &what,
+                    crate::runtime::TypeName::Number,
+                    value,
+                ),
+                line,
+            })));
+        }
+    };
+    match the_view_at(class, address, &what, 1, line)? {
+        Ok(value) => Some(Ok(value)),
+        Err(error) => Some(Err(RuntimeFailure::Error(error))),
+    }
+}

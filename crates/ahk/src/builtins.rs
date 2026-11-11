@@ -11914,6 +11914,195 @@ pub(crate) fn ks_get_key_info(
     ))
 }
 
+/// `ObjGetDataPtr`: the address of the structured data of an object.
+///
+/// The instance that `ObjCreateWithDataPtr` or `Struct.At` made carries
+/// the address it borrows, and the answer is it. Any other object is
+/// answered the way KeySharp answers it -- "Operation failed." -- and a
+/// value that is not an object is refused with the reason.
+pub(crate) fn ks_obj_get_data_ptr(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value,
+        None => return Err(RuntimeError { message: "Too few parameters passed to function.".to_string(), line }),
+    };
+    let Value::Object(object) = value else {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ObjGetDataPtr", TypeName::Object, value),
+            line,
+        });
+    };
+    match object
+        .borrow()
+        .value_of(crate::classes::typed::THE_DATA_POINTER)
+    {
+        Some(address) => Ok(address),
+        None => Err(RuntimeError {
+            message: "Operation failed.".to_string(),
+            line,
+        }),
+    }
+}
+
+/// `ObjGetDataSize`: the size of the structured data of an object.
+///
+/// The instance of a typed class answers the size of its field, and any
+/// other object answers zero -- the answer of KeySharp for an object
+/// that is not a struct.
+pub(crate) fn ks_obj_get_data_size(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value,
+        None => return Err(RuntimeError { message: "Too few parameters passed to function.".to_string(), line }),
+    };
+    let Value::Object(object) = value else {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ObjGetDataSize", TypeName::Object, value),
+            line,
+        });
+    };
+    let class = object.borrow().class.clone();
+    let size = match crate::classes::typed::the_class_of(&class) {
+        Some((_, size, _)) => size,
+        None => 0,
+    };
+    Ok(Value::Int(size))
+}
+
+/// `ObjSetDataPtr`: the address an instance borrows, set.
+///
+/// An object that borrows no address is refused with the answer of
+/// KeySharp: "Operation failed.".
+pub(crate) fn ks_obj_set_data_ptr(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value,
+        None => return Err(RuntimeError { message: "Too few parameters passed to function.".to_string(), line }),
+    };
+    let Value::Object(object) = value else {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ObjSetDataPtr", TypeName::Object, value),
+            line,
+        });
+    };
+    let address = match values.get(1).and_then(|value| value.to_number()) {
+        Some(number) => number as i64,
+        None => {
+            let second = values.get(1).unwrap_or(&Value::Unset);
+            return Err(RuntimeError {
+                message: crate::runtime::requires(2, "ObjSetDataPtr", TypeName::Number, second),
+                line,
+            });
+        }
+    };
+    let borrows = object
+        .borrow()
+        .value_of(crate::classes::typed::THE_DATA_POINTER)
+        .is_some();
+    if !borrows {
+        return Err(RuntimeError {
+            message: "Operation failed.".to_string(),
+            line,
+        });
+    }
+    object.borrow_mut().put(
+        crate::classes::typed::THE_DATA_POINTER,
+        Value::Int(address),
+    );
+    Ok(Value::Text(String::new()))
+}
+
+/// `ObjCreateWithDataPtr`: the instance of a class that borrows an
+/// address.
+///
+/// The class is the value of a typed class, and anything else is refused
+/// with the message of KeySharp: "Invalid class.". The address below
+/// 65536 that is not the null one is refused with the parameter message
+/// of KeySharp, and a typed number -- whose field would live in the
+/// memory -- is refused with the reason: the tree has no memory to read
+/// a field from.
+pub(crate) fn ks_obj_create_with_data_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let invalid = || RuntimeError {
+        message: "Invalid class.".to_string(),
+        line,
+    };
+    let name = match values.first() {
+        Some(Value::Object(object)) => {
+            match object.borrow().value_of(crate::runtime::CLASS_NAME) {
+                Some(Value::Text(name)) => name,
+                _ => return Err(invalid()),
+            }
+        }
+        _ => return Err(invalid()),
+    };
+    let class = match crate::classes::typed::the_class_of(&name) {
+        Some((_, _, _)) => name.to_lowercase(),
+        None => return Err(invalid()),
+    };
+    let address = match values.get(1).and_then(|value| value.to_number()) {
+        Some(number) => number as i64,
+        None => {
+            let second = values.get(1).unwrap_or(&Value::Unset);
+            return Err(RuntimeError {
+                message: crate::runtime::requires(
+                    2,
+                    "ObjCreateWithDataPtr",
+                    TypeName::Number,
+                    second,
+                ),
+                line,
+            });
+        }
+    };
+    match crate::classes::typed::the_view_at(
+        &class,
+        address,
+        "ObjCreateWithDataPtr",
+        2,
+        line,
+    ) {
+        Some(Ok(value)) => {
+            let _ = rt;
+            Ok(value)
+        }
+        Some(Err(error)) => Err(error),
+        None => Err(invalid()),
+    }
+}
+
+/// `ShowDebug`: the debug tab of the main window.
+///
+/// The runner of this tree has no main window, and the ShowDebug of
+/// KeySharp does nothing when the script has none -- the call of it is
+/// the null-conditional in its source. The answer is the empty text,
+/// the answer of a headless run of KeySharp: the tree has no debug tab,
+/// and it says nothing that is false about one.
+pub(crate) fn ks_show_debug(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
 /// `GetKeyboardLayout`: the name of the keyboard layout of the machine.
 ///
 /// The name is the one the platform gives it, and the empty text when the
