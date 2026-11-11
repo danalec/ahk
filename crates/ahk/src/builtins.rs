@@ -2276,9 +2276,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 133,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: str_ptr,
     },
     Builtin {
         name: "StrPut",
@@ -9236,6 +9236,62 @@ fn the_buffer_of_a_target(
     }
 }
 
+/// `StrPtr(String)`: the address of a text.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `StrPtr String` -- a **text**, and not a reference to one: a reference
+/// throws "Expected a String but got a VarRef." and a number throws
+/// "Expected a String but got an Integer." -- and the answer is the address
+/// of the text. Two calls with the same text give **two** addresses, so the
+/// address names a copy of the text and not the text itself.
+///
+/// The address is the one of a buffer that the runtime keeps, the same one
+/// `Buffer.Ptr` answers: `StrGet` of it reads the text back, and
+/// `StrPut` into it **writes** -- measured: `StrPut("bye", addr)` answers 8
+/// and the text of the address is "bye" afterwards.
+pub(crate) fn str_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(value) = values.first() else {
+        return Err(RuntimeError {
+            message: "Parameter #1 of StrPtr must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    };
+    let Value::Text(text) = value else {
+        return Err(RuntimeError {
+            message: crate::runtime::expected_type(TypeName::String, value.type_name()),
+            line,
+        });
+    };
+    // The copy is a buffer, and the address is the one of its storage: the
+    // runtime remembers it, so that `StrGet` and `StrPut` find it back.
+    //
+    // The bytes of the buffer are the ones of the text in the encoding of the
+    // dialect -- the UTF-16 with its terminator -- because that is what
+    // `StrPut` writes into it, and a buffer that cannot hold the write would
+    // refuse it.
+    let bytes = the_bytes_of_a_text(text, "CP0").ok_or_else(|| RuntimeError {
+        message: "Invalid Encoding.".to_string(),
+        line,
+    })?;
+    let buffer = crate::classes::buffer::of_bytes(bytes);
+    let address = crate::classes::buffer::ptr_of(&buffer, line).map_err(|failure| match failure {
+        crate::runtime::RuntimeFailure::Error(error) => error,
+        crate::runtime::RuntimeFailure::Detailed(error, _) => error,
+        _ => RuntimeError {
+            message: "the text did not get an address.".to_string(),
+            line,
+        },
+    })?;
+    rt.remember_a_buffer_at(address, buffer);
+    Ok(Value::Int(address))
+}
+
 /// `StrPut(Text, Target, Length, Encoding)`: count the bytes of a text, or
 /// write them into a Buffer.
 ///
@@ -9300,7 +9356,18 @@ pub(crate) fn str_get(
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
     let source = values.first().cloned().unwrap_or(Value::Int(0));
-    let buffer = the_buffer_of_a_target(rt, &source, line)?;
+    // An address that names no buffer is the empty text, and not a failure:
+    // measured on the binary of v2.0.19 on 2026-11-11, `StrGet(999999)`
+    // answers the empty text.
+    let buffer = match the_buffer_of_a_target(rt, &source, line) {
+        Ok(buffer) => buffer,
+        Err(failure) => {
+            if matches!(source, Value::Int(_)) {
+                return Ok(Value::Text(String::new()));
+            }
+            return Err(failure);
+        }
+    };
     let bytes = crate::classes::buffer::bytes_of(&buffer, line).map_err(|failure| match failure {
         crate::runtime::RuntimeFailure::Error(error) => error,
         crate::runtime::RuntimeFailure::Detailed(error, _) => error,

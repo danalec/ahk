@@ -1267,6 +1267,47 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
 }
 
 #[test]
+fn the_address_of_a_text_names_a_copy_of_it_that_can_be_read_and_written() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+    // `StrPtr String` -- a text and not a reference to one -- and the answer
+    // is the address of the text. Two calls with the same text give two
+    // addresses, so the address names a copy of the text. `StrGet` of the
+    // address reads the text back, with a length that cuts it, and
+    // `StrPut` into it writes: it answers the number of the bytes and the
+    // text of the address is the new one afterwards. An address that names
+    // nothing answers the empty text.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "addr := StrPtr(\"hello\")",
+            "\nback := StrGet(addr)",
+            "\ncut := StrGet(addr, 3)",
+            "\nzero := StrGet(addr, 0)",
+            "\nwrote := StrPut(\"bye\", addr)",
+            "\nafter := StrGet(addr)",
+            "\nnothing := StrGet(999999)",
+            "\nother := StrPtr(\"hello\")",
+            "\nsame := other = addr",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The address is a number.
+    assert!(matches!(value_of(&report, "addr"), Value::Int(_)));
+    assert_eq!(value_of(&report, "back"), Value::Text("hello".into()));
+    assert_eq!(value_of(&report, "cut"), Value::Text("hel".into()));
+    assert_eq!(value_of(&report, "zero"), Value::Text(String::new()));
+    // The write answers the number of the bytes -- the UTF-16 of the text and
+    // its terminator -- and the text is the new one.
+    assert_eq!(value_of(&report, "wrote"), Value::Int(8));
+    assert_eq!(value_of(&report, "after"), Value::Text("bye".into()));
+    // An address that names nothing is the empty text.
+    assert_eq!(value_of(&report, "nothing"), Value::Text(String::new()));
+    // Two calls with the same text give two addresses.
+    assert_eq!(value_of(&report, "same"), Value::Int(0));
+}
+
+#[test]
 fn the_messages_of_a_window_procedure_are_registered_and_the_rest_is_not_carried() {
     // Measured on the binary of v2.0.19 on 2026-11-11: OnMessage takes
     // (MsgNumber, Callback, MaxThreads) -- the callback is required -- and
@@ -4537,18 +4578,6 @@ fn an_empty_text_is_named_in_the_message_of_the_check() {
 }
 
 #[test]
-fn a_name_that_the_tree_does_not_carry_says_the_reason_of_the_machine_when_the_kind_fits() {
-    // `StrPtr` used to answer the blanket reason. On 2026-11-10 it was given
-    // one of its own: a pointer to a string is a value at a stable address, and
-    // the values of this runtime have none.
-    let report = run("a := StrPtr(\"x\")");
-    assert_eq!(
-        failure_of(&report),
-        "a pointer to a string would be a value at a stable address, and the values of this runtime have none."
-    );
-}
-
-#[test]
 fn the_kind_of_a_value_comes_before_the_parameter_that_may_not_be_left_out() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the dialect
     // converts the arguments before the body of the function runs.
@@ -5966,12 +5995,14 @@ fn str_put_writes_utf8_and_str_get_reads_it_with_the_encoding() {
 }
 
 #[test]
-fn str_get_of_an_address_no_buffer_answered_fails() {
+fn str_get_of_an_address_no_buffer_answers_the_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `StrGet(999999)` --
+    // an address that names no buffer -- answers the empty text, and not a
+    // failure. It was a failure before the StrPtr was carried: the answer
+    // the binary gives is the one here.
     let report = run("x := StrGet(99)");
-    assert_eq!(
-        failure_of(&report),
-        "the address 99 does not name a buffer this script has asked about"
-    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "x"), Value::Text(String::new()));
 }
 
 #[test]
