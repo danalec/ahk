@@ -257,6 +257,12 @@ const NO_SUCH_MACHINE_NAME: &str = "this runtime does not carry this name of the
 /// The error carries no line. The caller knows the line of the statement
 /// that asked, and puts it there.
 pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, RuntimeError>> {
+    // The variables the dialect adds beside the table of the v2.0.19 are
+    // asked first: the `ks` dialect carries the accessors of KeySharp, and
+    // the v2.0.19 does not have them.
+    if rt.dialect().carries_the_variable_of_the_extension(name) {
+        return Some(the_extension_value(name, rt));
+    }
     let name = spelled(name)?;
     match kind_of(&name)? {
         Kind::Known => Some(Ok(known_value(&name, rt))),
@@ -1113,5 +1119,53 @@ mod tests {
             lost.is_empty(),
             "these variables of v2 are not answered: {lost:?}"
         );
+    }
+}
+
+/// The value of a variable the `ks` dialect adds.
+///
+/// The four of them are the ones the tree answers honestly on every
+/// machine: the two clocks read the clock of the machine, and the two
+/// spellings are the ones the platform writes.
+fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
+    // The name arrives the way the script wrote it or the way the lookup
+    // normalized it: the two spellings are the same variable, so the match
+    // is on the name without the prefix either way.
+    let lowered = name.to_lowercase();
+    let bare = lowered
+        .strip_prefix("a_")
+        .unwrap_or(lowered.strip_prefix('a').unwrap_or(lowered.as_str()));
+    match bare {
+        // The documentation of KeySharp writes the two clocks as the number
+        // of v2 with the two digits of the fraction after it:
+        // "YYYYMMDDHH24MISS.ff".
+        "nowms" | "nowutcms" => match rt.wall_clock() {
+            Some(clock) => {
+                let date = if bare == "nowms" {
+                    &clock.local
+                } else {
+                    &clock.utc
+                };
+                Ok(Value::Text(alloc::format!(
+                    "{}.{:02}",
+                    crate::date::the_number_text(date),
+                    date.millisecond / 10
+                )))
+            }
+            None => Err(reason(crate::date::NO_DATE)),
+        },
+        // The documentation says the separator is `\` on Windows and `/`
+        // elsewhere, and that is what the platform says here too.
+        "dirseparator" => Ok(Value::Text(if cfg!(windows) {
+            "\\".to_string()
+        } else {
+            "/".to_string()
+        })),
+        // The newline of the documentation is the one of the platform, and
+        // `ReplaceLineEndings` defaults to the same one on every platform.
+        "newline" => Ok(Value::Text("\n".to_string())),
+        // The table and the dialect disagree about a name: the honest
+        // answer is that the tree does not carry it.
+        _ => Err(reason(crate::dialect::NOT_CARRIED_YET)),
     }
 }

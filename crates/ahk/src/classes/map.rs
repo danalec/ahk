@@ -109,6 +109,15 @@ pub(crate) fn call(
     let failure_with = |message: &str, extra: &str| {
         Some(Err(crate::classes::the_failure_with(message, extra, line)))
     };
+    // The member that the KeySharp extension adds: none of its names is a
+    // method of the v2.
+    if rt.dialect().carries_the_member_of_the_extension("map", &method) {
+        if method == "tostring" {
+            return Some(the_extension_tostring(this, rt, line));
+        }
+        return None;
+    }
+
     match method.as_str() {
         // `Set` and `__New` are the same thing in v2: both put the pairs
         // in, and both answer the map, so that the calls can be chained.
@@ -660,4 +669,28 @@ fn base_method(
 /// map, and the script never wrote it.
 fn own_property(object: &Rc<RefCell<Object>>, key: &str) -> bool {
     key != STATE && object.borrow().properties.contains_key(key)
+}
+
+/// The text the `ToString` of a `Map` is written with.
+///
+/// The documentation of KeySharp writes it as `[key: value, ...]`, and says
+/// the keys and the values are formatted the way `Array.ToString()` formats
+/// its elements: a text between quotes, a place without a value as `unset`.
+fn the_extension_tostring(this: &Value, rt: &mut Runtime, line: u32) -> Result<Value, RuntimeFailure> {
+    let Some(state) = state(this) else {
+        return Ok(Value::Text("[]".to_string()));
+    };
+    let entries = entries(&state.borrow());
+    let mut out = String::new();
+    out.push('[');
+    for (index, (key, value)) in entries.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&super::array::the_text_of_a_value(key, rt, line));
+        out.push_str(": ");
+        out.push_str(&super::array::the_text_of_a_value(value, rt, line));
+    }
+    out.push(']');
+    Ok(Value::Text(out))
 }

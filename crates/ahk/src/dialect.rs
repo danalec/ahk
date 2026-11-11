@@ -538,6 +538,16 @@ pub trait Dialect: Sync {
         false
     }
 
+    /// Whether the dialect adds the built-in variable of this name.
+    ///
+    /// The variables of the extensions of KeySharp are not in the table of
+    /// the v2.0.19, and the dialect of the v2.0.19 does not have them: the
+    /// `ks` dialect is the one that has them.
+    fn carries_the_variable_of_the_extension(&self, name: &str) -> bool {
+        let _ = name;
+        false
+    }
+
     /// The rows of the surface that the dialect adds to the table of the
     /// v2.0.19.
     ///
@@ -2247,6 +2257,12 @@ impl Dialect for V2 {
         } else {
             ""
         }
+    }
+
+    fn carries_the_variable_of_the_extension(&self, name: &str) -> bool {
+        // The extensions of KeySharp are behind the `--dialect=ks`, and the
+        // v2.0.19 does not carry them.
+        self.keysharp && crate::extensions::carries_the_variable(name)
     }
 
     fn accepts_a_bare_backslash(&self) -> bool {

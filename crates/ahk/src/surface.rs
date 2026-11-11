@@ -286,8 +286,15 @@ fn state_of(
             // of the v2 carries the name with the prefix and the table of
             // the v1 carries it with it too, and the dialect is the one that
             // knows the name that its own table holds.
-            if !dialect.carries_variable(name) {
+            // The variables the dialect adds beside the table of the v2.0.19
+            // are answered the same way: the `ks` dialect adds the accessors
+            // of KeySharp, and the surface of it lists them as values.
+            if !dialect.carries_variable(name) && !dialect.carries_the_variable_of_the_extension(name)
+            {
                 return State::Pending(reason_of_pending(pending, kind, class, name));
+            }
+            if dialect.carries_the_variable_of_the_extension(name) {
+                return State::Value;
             }
             match dialect.refusal_of_variable(name) {
                 None => State::Value,

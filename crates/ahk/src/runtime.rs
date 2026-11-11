@@ -1316,7 +1316,7 @@ struct Function {
     /// The name of the function, as the script wrote it.
     name: String,
     /// The parameters it takes.
-    parameters: Vec<Parameter>,
+    pub(crate) parameters: Vec<Parameter>,
     body: Vec<Node>,
     /// The declarations of the function.
     declarations: Declarations,
@@ -11471,6 +11471,39 @@ impl<'a> Runtime<'a> {
     /// out of the function itself, and not out of the object that holds it,
     /// because a closure keeps its function under a name of its own and the
     /// object does not carry the flags of the parameters.
+    /// The function that a function value holds, if the runtime knows it.
+    ///
+    /// A callback is the function itself: the metadata of it -- the names
+    /// of the parameters -- is read out of the function, and not out of the
+    /// object that holds it.
+    pub(crate) fn the_names_of_the_parameters_of_a_function(&self, value: &Value) -> Vec<String> {
+        let Value::Object(object) = value else {
+            return Vec::new();
+        };
+        let name = {
+            let borrowed = object.borrow();
+            match borrowed.value_of(CLOSURE).map(|value| value.to_text()) {
+                Some(kept) => kept,
+                None => borrowed
+                    .value_of("name")
+                    .map(|value| value.to_text())
+                    .unwrap_or_default(),
+            }
+        };
+        let function = self
+            .function_in_a_variable(&name)
+            .or_else(|| self.functions.get(&name.to_lowercase()).cloned());
+        match function {
+            Some(function) => function
+                .parameters
+                .iter()
+                .map(|parameter| parameter.name.clone())
+                .collect(),
+            None => Vec::new(),
+        }
+    }
+
+
     pub(crate) fn the_count_of_the_parameters_of_a_function(&self, value: &Value) -> usize {
         let Value::Object(object) = value else {
             return 0;

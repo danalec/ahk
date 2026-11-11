@@ -170,6 +170,17 @@ pub(crate) fn call(
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let method = method.to_lowercase();
+    // The member that the KeySharp extension adds: none of its names is a
+    // method of the v2.
+    if rt.dialect().carries_the_member_of_the_extension("file", &method) {
+        if method == "flush" {
+            // The writes of a file of this runtime reach the disk as the
+            // statements write them, so there is nothing to flush: the
+            // answer is the empty text, the way the writes answer.
+            return Some(Ok(Value::Text(String::new())));
+        }
+        return None;
+    }
     match method.as_str() {
         "read" => Some(read_text(this, arguments, rt, line)),
         "readline" => Some(read_line(this, rt, line)),

@@ -1191,11 +1191,17 @@ fn the_sign_of(value: &Value) -> f64 {
 /// quotes; an object is written with the answer of its own `ToString`, or
 /// with the name of its class when it has none; and an object whose
 /// `ToString` raises is written `<ERROR>`, the way the documentation says.
-fn the_text_of_an_element(item: &Value, rt: &mut Runtime, line: u32) -> String {
+pub(crate) fn the_text_of_an_element(item: &Value, rt: &mut Runtime, line: u32) -> String {
     let Some(value) = element_value(item) else {
         return "unset".to_string();
     };
-    match &value {
+    the_text_of_a_value(&value, rt, line)
+}
+
+/// The text a value is written with in a `ToString` answer, the way the
+/// documentation of KeySharp formats the elements of an `Array`.
+pub(crate) fn the_text_of_a_value(value: &Value, rt: &mut Runtime, line: u32) -> String {
+    match value {
         Value::Text(text) => {
             let mut out = String::from("\"");
             for character in text.chars() {

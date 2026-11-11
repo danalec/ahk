@@ -11267,3 +11267,34 @@ of the parameters of a callback is read out of the function itself, because
 a closure keeps its function under a name of its own and its object does
 not carry the flags. The scorecard moves: 12 of 138 = 8.7 % of the
 platform-neutral Keysharp surface, from 2.2 %.
+
+## 302. The second block of the extensions, and the prefix of a name
+
+The second block of the dialect of KeySharp carries five members and four
+accessors. The members: the `ToString` of a `Map`, which writes
+`[key: value, ...]` with the keys and the values formatted the way
+`Array.ToString()` formats its elements; the `IsClosure`, the `IsMethod`
+and the `Params` of a `Func`, which answer whether the function is a
+closure, whether it is the reference of a method, and the names of its
+parameters; and the `Flush` of a `File`, which answers the empty text,
+because the writes of this runtime reach the disk as the statements write
+them. The accessors: `A_NowMs` and `A_NowUTCMs`, which are the number of
+v2 with the two digits of the fraction after it; `A_DirSeparator`, which is
+`\` on Windows and `/` elsewhere; and `A_NewLine`, which is the newline of
+the platform.
+
+Two things the block taught, and both are about the prefix of a name. The
+variables arrive at the lookup spelled the way the script wrote them or
+normalized the way the table carries them, and the two spellings are the
+same variable -- so the match of the extension is on the name without the
+`A_` prefix either way. And the members are written in the table of the
+extensions with the class, so that the lookup of a member of a `Func` and
+the lookup of a member of an `Array` ask the same table.
+
+The metadata of a function is read out of the function itself, and not out
+of the object that holds it: a closure keeps its function under a name of
+its own, and the runtime resolves it. Verified on 2026-11-11: the
+`ToString` of `Map("a", 1, "b", "x")` answers `["a": 1, "b": "x"]`, and the
+`Params` of a closure of one parameter answers `["x"]`. The scorecard
+moves: 21 of 138 = 15.2 % of the platform-neutral Keysharp surface, from
+8.7 %.

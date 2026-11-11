@@ -40,6 +40,12 @@ pub(crate) fn call(
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let Value::Object(_) = this else { return None };
+    // The members that the KeySharp extension adds: none of their names is
+    // a method of the v2.
+    if rt.dialect().carries_the_member_of_the_extension("func", method) {
+        return the_extension_answer(method, this, rt, line);
+    }
+
     match method {
         // The call of the function the value holds. A method of a
         // class of the script is a reference to the method: the first
@@ -239,4 +245,37 @@ pub(crate) fn set_property(
     _line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
     None
+}
+
+/// The members the KeySharp extension adds to the `Func`.
+///
+/// The documentation of KeySharp says the three of them expose the
+/// metadata of the function: whether it is a closure, whether it is the
+/// reference of a method, and the names of its parameters.
+fn the_extension_answer(
+    method: &str,
+    this: &Value,
+    rt: &mut Runtime,
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    let Value::Object(object) = this else {
+        return None;
+    };
+    match method {
+        "isclosure" => Some(Ok(Value::Int(
+            object.borrow().value_of(crate::runtime::CLOSURE).is_some() as i64,
+        ))),
+        "ismethod" => Some(Ok(Value::Int(
+            object.borrow().value_of(crate::runtime::METHOD_CLASS).is_some() as i64,
+        ))),
+        "params" => {
+            let names: Vec<Value> = rt
+                .the_names_of_the_parameters_of_a_function(this)
+                .into_iter()
+                .map(Value::Text)
+                .collect();
+            Some(crate::classes::array::construct(&names, rt, line))
+        }
+        _ => None,
+    }
 }
