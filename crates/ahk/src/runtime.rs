@@ -64,6 +64,13 @@ pub use crate::desktop::{Desktop, Files, WindowAnswer};
 /// thing.
 const TEXT_ADDRESS_BASE: i64 = 0x2000_0000;
 
+/// The first address of a list of images.
+///
+/// The addresses of the objects are minted from `0x1000`, the ones of the
+/// texts from `0x2000_0000`, and the ones of the lists of images from here,
+/// so that the three never name the same thing.
+const IMAGE_LIST_ADDRESS_BASE: i64 = 0x3000_0000;
+
 /// The names of the variables that a loop keeps for itself.
 const THE_LOOP_VARIABLES: &[&str] = &[
     "index",
@@ -1207,6 +1214,15 @@ pub struct Runtime<'a> {
     message_handlers: BTreeMap<i64, String>,
     /// The number of the addresses minted for the texts.
     text_addresses: i64,
+    /// The lists of images of the script, and the images of each one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
+    /// the number that names the list, `IL_Add` answers the place of the
+    /// image in it -- one for the first -- and `IL_Destroy` answers one when
+    /// the list was there and zero when it was not.
+    image_lists: Vec<(i64, Vec<i64>)>,
+    /// The number of the lists of images that were made.
+    image_list_addresses: i64,
     /// The menu of the tray icon, made the first time a script asks for it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
@@ -1411,6 +1427,8 @@ impl<'a> Runtime<'a> {
             clipboard_watcher: None,
             message_handlers: BTreeMap::new(),
             text_addresses: 0,
+            image_lists: Vec::new(),
+            image_list_addresses: 0,
             tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
@@ -1484,6 +1502,8 @@ impl<'a> Runtime<'a> {
             clipboard_watcher: None,
             message_handlers: BTreeMap::new(),
             text_addresses: 0,
+            image_lists: Vec::new(),
+            image_list_addresses: 0,
             tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
@@ -2372,6 +2392,36 @@ impl<'a> Runtime<'a> {
         // The range is apart from the addresses of the objects, which the
         // runtime mints from `0x1000`.
         TEXT_ADDRESS_BASE + self.text_addresses
+    }
+
+    /// Make a list of images, and answer the number that names it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
+    /// the number that names the list it made.
+    pub fn make_an_image_list(&mut self) -> i64 {
+        self.image_list_addresses += 1;
+        let address = IMAGE_LIST_ADDRESS_BASE + self.image_list_addresses;
+        self.image_lists.push((address, Vec::new()));
+        address
+    }
+
+    /// Put an image in a list of images, and answer its place in it.
+    ///
+    /// `None` is a number that names no list of images.
+    pub fn put_an_image_in_a_list(&mut self, address: i64, image: i64) -> Option<i64> {
+        let list = self
+            .image_lists
+            .iter_mut()
+            .find(|(held, _)| *held == address)?;
+        list.1.push(image);
+        Some(list.1.len() as i64)
+    }
+
+    /// Take a list of images away, and say whether it was there.
+    pub fn take_an_image_list(&mut self, address: i64) -> bool {
+        let before = self.image_lists.len();
+        self.image_lists.retain(|(held, _)| *held != address);
+        before != self.image_lists.len()
     }
 
     /// Register the function `OnClipboardChange` named, or take it away.

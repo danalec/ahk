@@ -86,7 +86,13 @@ impl Pictures for Fake {
     ) -> Result<Option<u32>, String> {
         self.calls
             .push(("load-picture".into(), filename.to_string()));
-        Ok(Some(7))
+        // An image that is not there is not a failure: the answer is that
+        // there is no image.
+        if filename.contains("no-such") {
+            Ok(None)
+        } else {
+            Ok(Some(7))
+        }
     }
     fn image_search(
         &mut self,
@@ -1277,6 +1283,36 @@ fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
     // The variables stay as they were.
     assert_eq!(int_of(&report, "x"), -1);
     assert_eq!(int_of(&report, "y"), -1);
+}
+
+#[test]
+fn a_list_of_images_holds_the_images_that_were_put_in_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
+    // the number that names the list it made; `IL_Add` answers the place of
+    // the image in it -- one for the first -- and ZERO when the image could
+    // not be loaded, a file that is not there being not a failure; and
+    // `IL_Destroy` answers one when the list was there and zero when it was
+    // not.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "l := IL_Create(4, 4, 0)",
+            "\nfirst := IL_Add(l, \"/tmp/icon.png\")",
+            "\nsecond := ILAddMissing := IL_Add(l, \"/tmp/no-such-icon.png\")",
+            "\ngone := IL_Destroy(l)",
+            "\nagain := IL_Destroy(l)",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The list is named by a number.
+    assert!(matches!(value_of(&report, "l"), Value::Int(_)));
+    // The first image is the first, and the one that is not there is zero.
+    assert_eq!(value_of(&report, "first"), Value::Int(1));
+    assert_eq!(value_of(&report, "iladdmissing"), Value::Int(0));
+    // The list is there once, and not twice.
+    assert_eq!(value_of(&report, "gone"), Value::Int(1));
+    assert_eq!(value_of(&report, "again"), Value::Int(0));
 }
 
 #[test]

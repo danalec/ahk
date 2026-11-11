@@ -1708,27 +1708,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 4,
-        variant: 125,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_add,
     },
     Builtin {
         name: "IL_Create",
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 125,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_create,
     },
     Builtin {
         name: "IL_Destroy",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 125,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_destroy,
     },
     Builtin {
         name: "ListViewGetContent",
@@ -4367,6 +4367,96 @@ pub(crate) fn env_set(
             line,
         })?;
     Ok(Value::Text(value))
+}
+
+// -- the lists of images ------------------------------------------------------------
+
+/// `IL_Create(Width, Height, Grow)`: make a list of images.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers the number
+/// that names the list it made.
+pub(crate) fn il_create(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(rt.make_an_image_list()))
+}
+
+/// `IL_Add(ImageList, IconFile, IconIndex)`: put an image in a list of images.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers the place of
+/// the image in the list -- one for the first -- and **zero** when the image
+/// could not be loaded: a file that is not there, and a file that is not an
+/// image, are both zero and not a failure. The list is looked at first: a
+/// number that names no list is zero as well, and the **null** handle is
+/// refused with "Parameter #1 of IL_Add is invalid.". A first parameter
+/// that is not a number throws "Parameter #1 of IL_Add requires a Number,
+/// but received a String.".
+pub(crate) fn il_add(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "IL_Add", TypeName::Number, &first),
+            line,
+        });
+    }
+    let list = number_of(values, 0) as i64;
+    if list == 0 {
+        return Err(RuntimeError {
+            message: "Parameter #1 of IL_Add is invalid.".to_string(),
+            line,
+        });
+    }
+    let file = text_of(values, 1);
+    // The image is the one of the machine: the same path that `LoadPicture`
+    // takes, with the icon that the call names.
+    let icon = values.get(2).map(|value| value.to_number().unwrap_or(1.0) as i64);
+    let options = crate::desktop::PictureOptions {
+        width: None,
+        height: None,
+        icon,
+    };
+    // An image that cannot be loaded is zero, and not a failure -- the
+    // binary answers zero for a file that is not there and for a file that
+    // is not an image.
+    let image = rt.desktop().load_picture(&file, &options).ok().flatten();
+    let Some(image) = image else {
+        return Ok(Value::Int(0));
+    };
+    // A list that is not there is zero as well.
+    Ok(Value::Int(
+        rt.put_an_image_in_a_list(list, image as i64).unwrap_or(0),
+    ))
+}
+
+/// `IL_Destroy(ImageList)`: take a list of images away.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers **one** when
+/// the list was there and **zero** when it was not -- the null handle among
+/// them -- and a first parameter that is not a number throws "Parameter #1
+/// of IL_Destroy requires a Number, but received a String.".
+pub(crate) fn il_destroy(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "IL_Destroy", TypeName::Number, &first),
+            line,
+        });
+    }
+    let list = number_of(values, 0) as i64;
+    Ok(Value::Int(rt.take_an_image_list(list) as i64))
 }
 
 // -- the files of the disk ----------------------------------------------------------
