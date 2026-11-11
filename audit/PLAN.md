@@ -47,7 +47,13 @@ the one link outside our code is the compositor's hit-test of a physical
 click. **Round 5 moved `CaretGetPos` from the refusal to the value** --
 `b45c6b8`: the helper finds the focused widget, and an Entry carries its
 caret at the layout offset of the cursor position read through the pango
-layout; the count is now **760 values / 73 refusals** of 833.
+layout; the count is now **760 values / 73 refusals** of 833. **Round 6
+moved `MenuSelect`** (`9c1b419`) -- the v2 name of the v1
+`WinMenuSelectItem`: measured on the binary, a window that is not there
+throws "Target window not found." and the menu of one that is there throws
+"Non-existent or unsupported menu." for every shape (the reference avoids
+driving a menu from its own thread); the count is **761 values / 72
+refusals**.
 
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
