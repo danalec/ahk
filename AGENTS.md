@@ -11423,3 +11423,45 @@ Verified on 2026-11-11 with eight cases of its own
 82 of 138 = 59.4 % of the platform-neutral Keysharp surface, from 52.9 %.
 The corpus of the pure language is unchanged: 87 of 162 in the v2.0.19 and
 93 of 162 in the v2.1, the same numbers as before the block.
+
+## 307. The typed numbers of the KeySharp dialect, and the truncation that wraps
+
+The seventh block of the dialect of KeySharp carries the classes of the
+typed numbers: `Int8`, `UInt8`, `Int16`, `UInt16`, `Int32`, `UInt32`,
+`Int64`, `IntPtr`, `Float32` and `Float64`, and the `Struct` that is
+their base. A script that talks to a library of the machine has to say
+how wide a field is, and each of these classes is a struct of one field
+of that width.
+
+**The truncation wraps, and it is the truncation of the C#.** KeySharp
+writes the bytes with `unchecked((byte)l)`, so the number is cut to the
+width of the field and it wraps the way a cast wraps: 300 in a byte is 44,
+70000 in a word is 4464, and -1 in a byte is 255 when the field is
+unsigned and -1 when it is signed. The cast of a float to an integer
+saturates in Rust, so the number is cut to a whole number first and the
+width is applied after it -- the wrap is the one of the C#.
+
+The value of the field is the `__Value` of the object, and the size of
+the field is the `Size` of it: a byte is one, a word is two, a double is
+eight. The `Size` of the class answers the size of the layout of it, the
+way KeySharp answers it.
+
+**This runtime keeps the value and not the memory of it.** A struct of
+KeySharp lives in the memory of the process, and its `Ptr` is the address
+of it. This runtime has no memory for a struct, and the name refuses with
+the reason rather than answering an address that does not exist. The value
+is the truth of it: the width is the width, and the number that comes out
+is the number that fits.
+
+The classes are of the `ks` dialect alone: the v2.0.19 has no typed
+number, and the tree refuses the script that makes one there. The value
+of a class of the dialect is the class itself, the way it is for the
+classes of the runtime, and a class of the dialect answers its own
+properties on the class value as well -- `Int32.Size` is the size of the
+field of the class, the way KeySharp answers it.
+
+Verified on 2026-11-11 with four cases of its own
+(`tests/class_extensions.rs` now carries 45). The scorecard moves:
+93 of 138 = 67.4 % of the platform-neutral Keysharp surface, from 59.4 %
+-- and the corpus of the pure language is unchanged: 87 of 162 in the
+v2.0.19 and 93 of 162 in the v2.1.

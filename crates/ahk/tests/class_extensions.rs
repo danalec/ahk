@@ -645,3 +645,60 @@ fn the_dialect_of_the_v2_does_not_have_the_names() {
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
 }
+
+#[test]
+fn the_typed_numbers_cut_the_number_to_the_width_of_the_field() {
+    // The truncation is the one of the C# of KeySharp: the number is cast
+    // to the width of the field with `unchecked`, and it wraps the way a
+    // cast wraps -- 300 in a byte is 44, and 70000 in a word is 4464.
+    let report = run_ks(concat!(
+        "MsgBox Int8(300).__Value\n",
+        "MsgBox UInt8(300).__Value\n",
+        "MsgBox Int8(-1).__Value\n",
+        "MsgBox Int16(70000).__Value\n",
+        "MsgBox Int32(5).__Value\n",
+        "MsgBox Float64(1.5).__Value\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "44");
+    assert_eq!(line(&report, 1), "44");
+    assert_eq!(line(&report, 2), "-1");
+    assert_eq!(line(&report, 3), "4464");
+    assert_eq!(line(&report, 4), "5");
+    assert_eq!(line(&report, 5), "1.5");
+}
+
+#[test]
+fn the_size_of_a_typed_number_is_the_width_of_its_field() {
+    let report = run_ks(concat!(
+        "MsgBox Int32.Size\n",
+        "MsgBox UInt8.Size\n",
+        "MsgBox Float64.Size\n",
+        "MsgBox Struct.Size\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(line(&report, 0), "4");
+    assert_eq!(line(&report, 1), "1");
+    assert_eq!(line(&report, 2), "8");
+    assert_eq!(line(&report, 3), "0");
+}
+
+#[test]
+fn the_struct_of_no_field_has_no_value_of_its_own() {
+    // The message of KeySharp: the base of the typed numbers defines no
+    // value of its own.
+    let report = run_ks("MsgBox Struct().__Value\n");
+    assert!(!report.ok);
+    let message = report.error.clone().unwrap_or_default();
+    assert!(message.contains("This struct does not define __Value."), "{message}");
+}
+
+#[test]
+fn the_dialect_of_the_v2_does_not_have_the_typed_numbers() {
+    // The surface of the v2.0.19 stays pure: `Int32` is not a class of
+    // the v2, and the tree refuses the script that makes one.
+    let mut desktop = Fake;
+    let statements = ahk::parse("x := Int32(5)\n").expect("parses");
+    let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
+    assert!(!report.ok);
+}

@@ -2289,7 +2289,9 @@ impl Dialect for V2 {
     fn carries_the_class_of_the_extension(&self, name: &str) -> bool {
         // The extensions of KeySharp are behind the `--dialect=ks`, and the
         // v2.0.19 has Thread as a command and not as a class.
-        self.keysharp && name.eq_ignore_ascii_case("thread")
+        self.keysharp
+            && (name.eq_ignore_ascii_case("thread")
+                || crate::classes::typed::is_a_class(name))
     }
     fn the_builtin_of_the_extension(&self, name: &str) -> Option<&'static crate::builtins::Builtin> {
         // The extensions of KeySharp are behind the `--dialect=ks`, and the

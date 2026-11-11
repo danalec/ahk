@@ -4743,7 +4743,12 @@ impl<'a> Runtime<'a> {
             }
             return Some(builtin_value(builtin.name, builtin.min, builtin.max as u32));
         }
-        if self.classes.contains_key(&key) || crate::classes::is_type(&key) {
+        // The classes of the `ks` dialect are classes too, and the name of
+        // one is the class itself.
+        if self.classes.contains_key(&key)
+            || crate::classes::is_type(&key)
+            || self.dialect.carries_the_class_of_the_extension(&key)
+        {
             return self.class_value_of(&key);
         }
         None
@@ -4762,6 +4767,10 @@ impl<'a> Runtime<'a> {
         let value = if let Some(class) = self.classes.get(&key) {
             class_value(&key, class)
         } else if crate::classes::is_type(&key) {
+            crate::classes::class_value(&key)
+        } else if self.dialect.carries_the_class_of_the_extension(&key) {
+            // The classes of the `ks` dialect are classes too, and the value
+            // of one is the class itself.
             crate::classes::class_value(&key)
         } else {
             return None;
@@ -8842,7 +8851,11 @@ impl<'a> Runtime<'a> {
         // Measured on the binary of v2.0.19 on 2026-10-31: `Map.Count` is
         // refused with 'This value of type "Class" has no property named
         // "Count".'
-        if self.class_name_of(target).is_none() {
+        // The classes of the `ks` dialect answer their own properties on the
+        // class value as well: `Int32.Size` is the size of the field of the
+        // class, the way KeySharp answers it.
+        let ks_class = self.dialect.carries_the_class_of_the_extension(&class);
+        if self.class_name_of(target).is_none() || ks_class {
             // A member that is read with the parameters of the access --
             // `m.Len[2]` -- is answered by the class itself: the brackets
             // are the parameters of the getter, and not an index of the

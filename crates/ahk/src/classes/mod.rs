@@ -41,6 +41,7 @@ pub(crate) mod inputhook;
 pub(crate) mod map;
 pub(crate) mod regexmatchinfo;
 pub(crate) mod thread;
+pub(crate) mod typed;
 
 /// The methods of the class types, with the name v2 spells them and
 /// the number of the arguments they take.
@@ -1469,6 +1470,14 @@ pub(crate) fn construct(
     if let Some(converted) = the_conversion(class, arguments, rt, line) {
         return Some(converted);
     }
+    // The typed numbers of the `ks` dialect: a struct of one field, of
+    // the width the class names. The v2.0.19 has none of them, and the
+    // dialect is what says so.
+    if rt.dialect().carries_the_class_of_the_extension(class) {
+        if let Some(result) = typed::construct(class, arguments, rt, line) {
+            return Some(result);
+        }
+    }
     let made = match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
         "buffer" => Some(buffer::construct(arguments, rt, line)),
@@ -1714,6 +1723,9 @@ pub(crate) fn property(
         "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
             thread::property(name, this, rt, line)
         }
+        _ if rt.dialect().carries_the_class_of_the_extension(class) => {
+            typed::property(class, name, this, line)
+        }
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::property(class, name, this, rt, line)
         }
@@ -1844,6 +1856,7 @@ pub fn names(class: &str) -> Vec<&'static str> {
         "inputhook" => inputhook::NAMES.to_vec(),
         "regexmatchinfo" => regexmatchinfo::names(),
         "thread" => thread::names(),
+        _ if typed::is_a_class(class) => typed::names(),
         "class" => THE_CLASS_VALUE.to_vec(),
         "object" => THE_BASE_OBJECT
             .iter()
