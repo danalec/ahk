@@ -1048,6 +1048,11 @@ impl Screen for Fake {
 
 impl Processes for Fake {
     fn run(&mut self, command: &str, _window: &str) -> Result<(i32, String, String), String> {
+        // A program that writes to its error output answers with it: the
+        // error output of a program is not the output of the script.
+        if command.contains("noisy") {
+            return Ok((1, "the program wrote\n".into(), "the program complained\n".into()));
+        }
         Ok((0, format!("ran {command}\n"), String::new()))
     }
     fn env_get(&mut self, name: &str) -> Result<Option<String>, String> {
@@ -2266,6 +2271,29 @@ fn choosing_a_menu_item_calls_a_closure_with_the_name_the_position_and_the_menu(
         report.output,
         vec!["&File|1|MenuBar".to_string()],
         "the closure of the item is called with the three parameters"
+    );
+}
+
+#[test]
+fn the_error_output_of_a_program_is_a_note_and_not_the_output_of_the_script() {
+    // The complaint of the shell about a program that is not there is the
+    // message of the shell and not of the script: it must not end up in the
+    // output of the script, where a client reads it as what the script
+    // wrote.
+    let report = run("Run(\"noisy\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["the program wrote".to_string()],
+        "the output of the script is what the script and its programs wrote"
+    );
+    assert!(
+        report
+            .notes
+            .iter()
+            .any(|note| note.contains("the program complained")),
+        "the notes of the report: {:?}",
+        report.notes
     );
 }
 

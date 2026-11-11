@@ -167,14 +167,19 @@ CLASS_AREA = {
     "ComValue": "com",
     "Enumerator": "objects",
     "File": "files",
+    "Float": "core",
     "Func": "objects",
     "Gui": "gui",
     "Hotkey": "input",
     "InputHook": "input",
+    "Integer": "core",
     "Map": "objects",
     "Menu": "gui",
+    "Number": "core",
     "Object": "objects",
+    "Primitive": "core",
     "RegExMatchInfo": "objects",
+    "String": "core",
 }
 
 # The classes of the failures are the run of the script: they are what it

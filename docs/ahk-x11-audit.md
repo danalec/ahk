@@ -423,15 +423,24 @@ Ordered by severity. All **MEASURED**.
 The audit found that **seven documents** state numbers that the code contradicts.
 This is the errata list; nothing has been rewritten yet.
 
+**The numbers of the surface are closed** (2026-11-11, the branch
+`audit-ahk-x11-parity`): the six rows of the table that carry the numbers
+of the surface are the six that the round rewrote, and the tree answers
+**833 entries, 815 values, 18 refusals** for the v2 and **408 entries, 308
+values, 100 refusals** for the v1. The report of the capability is
+generated again, and a case of the suite reads it: the numbers of the
+document and the numbers of the tree cannot drift apart without the suite
+saying so.
+
 | Document | Says | Really | Note |
 |---|---|---|---|
-| `docs/v2-capability-report.md:5` | 828 entries / 638 values | **833 / 643** | |
-| `docs/ahk-gaps-report.md:19-20` | 828 / 405 names | **833 / 643** | the "405 names" column is a different metric; verify separately |
-| `docs/ahk-v1-dialect.md:1426` | 828 / 638 / 190 | **833 / 643 / 190** | refusal count is right |
-| `docs/dialects.md:73` | `total: 828, values: 638` | **833 / 643** | |
-| `docs/runner-and-report.md:310,340,343` | 828 / 638, and `entries` cut to 4 of 828 | **833 / 643** | |
-| `docs/ahk-x11-comparison.md:772` | 725 entries / 506 value / 219 refused | **833 / 643 / 190** | badly stale |
-| `docs/ahk-x11-comparison.md:355-356` | 93 real handlers / 253 `not_carried` | **165 real / 181 `not_carried`** | |
+| `docs/v2-capability-report.md:5` | 828 entries / 638 values | **833 / 815** | closed 2026-11-11: the report is generated again |
+| `docs/ahk-gaps-report.md:19-20` | 828 / 405 names | **833 / 408** | closed 2026-11-11: the v1 is 408 / 308 / 100 |
+| `docs/ahk-v1-dialect.md:1426` | 828 / 638 / 190 | **833 / 815 / 18** | closed 2026-11-11 |
+| `docs/dialects.md:73` | `total: 828, values: 638` | **833 / 815** | closed 2026-11-11 |
+| `docs/runner-and-report.md:310,340,343` | 828 / 638, and `entries` cut to 4 of 828 | **833 / 815** | closed 2026-11-11 |
+| `docs/ahk-x11-comparison.md:772` | 725 entries / 506 value / 219 refused | **833 / 815 / 18** | closed 2026-11-11: badly stale |
+| `docs/ahk-x11-comparison.md:355-356` | 93 real handlers / 253 `not_carried` | **the surface answers with a value or with the reason** | closed 2026-11-11: the table of the built-ins has no variant any more |
 | `docs/ahk-x11-comparison.md:343-346` | `Desktop` is "ten" capabilities | **fifteen** | `AGENTS.md` is right |
 | `docs/ahk-x11-comparison.md:404-405` | report keys list omits `warnings` | the payload has **10 keys**, `warnings` included | `docs/runner-and-report.md` has it right |
 | `docs/ahk-x11-comparison.md:358-366` | five `not_carried` variants, 0-4 | the surface uses **11** of 22 numbered reasons; **only variant 0 is live** | variants 1-4 have no user: hotkeys, dates, files all landed |

@@ -1,7 +1,7 @@
 # What is missing in the v1 and in the v2
 
 > **Measured.** The state of the tree is the one of the commit
-> `d41dec5` (the branch `port/v2-dialect`). The numbers come from the tree
+> `54dec5c` (the branch `audit-ahk-x11-parity`). The numbers come from the tree
 > itself: `ahk --surface --dialect=v1` and `ahk --surface --dialect=v2`, and
 > the comparisons are `egm-review/run_all_comparisons.py`, which runs the
 > script in the binary of the dialect and in the tree, and puts the two
@@ -16,9 +16,9 @@ against the binaries — the v1.1.37.02 and the v2.0.19.
 
 | | The v2 | The v1 |
 |---|---|---|
-| The names of the surface | 828 | 405 |
-| Answer with a value | 638 | 299 |
-| Refused with a reason | 190 | 106 |
+| The names of the surface | 833 | 408 |
+| Answer with a value | 815 | 308 |
+| Refused with a reason | 18 | 100 |
 | Pending (not carried yet) | 0 | 0 |
 | The refusals that are not the machine's | 0 | 0 |
 | The behaviour that differs from the binary | 0 measured | 0 measured, 1 known |

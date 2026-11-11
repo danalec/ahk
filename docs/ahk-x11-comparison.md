@@ -25,7 +25,7 @@ sense after saying **what each one is**:
 | Goal | Bring AutoHotkey **v1.0.24** (2004) to Linux/X11 | Bring AutoHotkey **v2.0.19** (2024) to Linux/Wayland, with portability |
 | Dialect | **Legacy v1**: `x = 1`, `MsgBox, texto`, `%var%`, pseudo-arrays | **v2.0.19**: `x := 1`, `MsgBox texto`, classes, objects, methods, `&` |
 | Language | Crystal 1.5.1 (single binary) | Rust (3 crates, `no_std` core) |
-| Surface | 226 v1 commands — 127 done (56%), 15 new, 11 removed, 70 to do | 725 entries of the surface of v2.0.19 — **93 built-ins with a real implementation**, 253 with a motivated refusal |
+| Surface | 226 v1 commands — 127 done (56%), 15 new, 11 removed, 70 to do | 833 entries of the surface of v2.0.19 — **815 answer with a value**, 18 are refused with the reason of the machine |
 | Windows | Full X11 (xdotool fork): activation, moving, resizing, minimizing, closing | Wayland: **motivated refusal** — the compositor does not expose a list of windows |
 | Injection | XTEST (through `x_do`) | **uinput** (our own keyboard and pointer) + `grim` for the screen |
 | GUI | GTK3 (windows, `MsgBox`, `InputBox`, `Menu`, `ToolTip`, `TrayTip`) | `Gui`/`Menu`/`Hotkey` **refused** with the reason |
@@ -333,8 +333,8 @@ ahk-cli  (runner)  →  ahk-box (primitivas do Linux)  →  ahk (linguagem)
 - **`ahk`** — lexer, AST, parser, runtime. **It does no I/O.** It compiles
   without `std`
   (`cargo build -p ahk --no-default-features --target thumbv7em-none-eabihf`).
-  The language is **v2.0.19**, read from the binary: 725 entries of surface
-  (644 distinct names), 11 class tables, operator table.
+  The language is **v2.0.19**, read from the binary: 833 entries of surface
+  (785 distinct names), 37 classes, operator table.
 - **`ahk-box`** — the box: uinput keyboard, uinput pointer, `grim`, `xprop`,
   `dlopen`, the *raven*, files.
 - **`ahk-cli`** — the runner: script on stdin, JSON report on stdout, pid file
@@ -347,39 +347,26 @@ implementor writes the ten.
 
 ### 3.2 What answers with a value, and what answers with the reason
 
-The table of built-ins (`crates/ahk/src/builtins.rs`) has **346 entries**. The
-measurement of today:
+The measurement of today (2026-11-11, the branch `audit-ahk-x11-parity`):
 
 | State | How many | What it is |
 |---|---|---|
-| A serious handler | **93** | The command works |
-| `not_carried` | **253** | The name exists and answers **with the reason** |
+| A value | **815** | The name does the thing |
+| A refusal with the reason | **18** | The name exists and answers **with the reason** |
 
-The five reasons of `not_carried`:
+The 18 refusals of the v2, by the reason:
 
-| Variant | Reason | Typical names |
+| How many | Reason | The names |
 |---|---|---|
-| 0 | *"this is a name of Windows, and this desktop is not Windows."* | `WinMove`, `ControlClick`, `ToolTip`, `SoundPlay`, `MenuSelect` |
-| 1 | *"this runtime has no hotkeys yet."* | `Hotkey`, `Hotstring`, `HotIf`, `HotIfWinActive` |
-| 2 | *"the clock of this runtime counts from an arbitrary origin, and it does not know the date."* | `FormatTime`, `DateAdd`, `DateDiff` |
-| 3 | *"this runtime is one script that ends when it ends, and it cannot do that."* | `Persistent`, `Reload`, `Suspend`, `Pause`, `OnExit` |
-| 4 | *"this desktop cannot serve that with the files it has."* | `FileCopy`, `FileMove`, `FileGetSize`, `IniRead`, `IniWrite`, `DirCopy` |
+| 7 | *"this is a name of Windows, and this desktop is not Windows."* | `Edit`, `WinGetStyle`, `WinSetStyle`, `WinGetExStyle`, `WinSetExStyle`, `WinGetTransColor`, `WinSetTransColor` |
+| 4 | *"these names act on a list-shaped control or a status bar, and this runtime makes no such control"* | `ControlGetStyle`, `ControlSetStyle`, `ControlGetExStyle`, `ControlSetExStyle` |
+| 7 | the reasons of the machine itself | `Critical`, `Thread`, `Pause`, `Reload`, `Suspend`, `Cursor`, `ScriptHwnd` |
 
-The 93 with a real implementation, by family: mathematics (`Abs`, `Ceil`,
-`Floor`, `Round`, `Max`, `Min`, `Mod`, `Sqrt`, `Exp`, `Ln`, `Log`, `Sin`,
-`Cos`, `Tan`, `ASin`, `ACos`, `ATan`, `Random`), text (`Chr`, `Ord`, `Format`,
-`StrLen`, `StrUpper`, `StrLower`, `SubStr`, `StrReplace`, `InStr`, `Trim`,
-`LTrim`, `RTrim`, `StrCompare`, `StrSplit`, `Sort`, `RegExMatch`,
-`RegExReplace`), objects (`Type`, `IsObject`, `HasProp`, `HasMethod`,
-`GetMethod`, `HasBase`, `IsSetRef`, `ObjGetBase`, `ObjSetBase`,
-`ObjOwnProps`, `ObjOwnPropCount`, `ObjHasOwnProp`, `ObjGetCapacity`,
-`ObjSetCapacity`, `ObjAddRef`), files (`FileAppend`, `FileDelete`,
-`FileExist`, `FileRead`, `DirCreate`, `DirDelete`, `DirExist`), screen and
-mouse (`PixelGetColor`, `PixelSearch`, `Screenshot`, `Click`, `MouseMove`,
-`MouseGetPos`), windows (`WinActive`, `WinExist`, `WinGetTitle`), and the rest
-(`MsgBox`, `Send`, `KeyWait`, `SendMode`, `SetKeyDelay`, `SetTimer`, `Sleep`,
-`Run`, `RunWait`, `Exit`, `ExitApp`, `EnvGet`, `EnvSet`, `SplitPath`,
-`VarSetStrCapacity`, `DllCall`).
+**The names that answer with a value are the whole of the rest**, and the
+report of the capability (`docs/v2-capability-report.md`) says how many of
+them there are in each area: the parser and the run, the files, the input,
+the windows, the screen, the native calls, the registry and the COM
+objects, and the core of the language.
 
 The **131 variables** of v2 are all carried: the 40 that the runtime knows
 (`A_AhkVersion`, `A_Index`, `A_ScreenWidth`, `A_ScreenHeight`, `A_TickCount`,
@@ -564,7 +551,7 @@ right method and the right signature — the body is missing.
 | 3 | **`NumGet` / `NumPut`** — over the `Buffer` class, which already exists and works | `builtins.rs`, `classes/buffer.rs` | **S** | Two names that v2 has, and that the `Buffer` already supports, come out of the refusal |
 | 4 | **Finish the `Files`** — `copy_file`, `move_file`, `copy_dir`, `move_dir`, `file_attributes`, `set_file_attributes`, `file_times`, `set_file_times`, `ini_read`, `ini_write`, `ini_delete` | `crates/ahk-box/src/desktop.rs` + `crates/ahk/src/files.rs` | **M** | `FileCopy`, `FileMove`, `FileGetAttrib`, `FileSetAttrib`, `FileGetTime`, `FileSetTime`, `IniRead`, `IniWrite`, `IniDelete` come out of the refusal. `std::fs` covers almost everything |
 | 5 | **`FormatTime` / `DateAdd` / `DateDiff`** — `system_wall_clock()` stopped returning `None` | `crates/ahk/src/date.rs` | **M** | The real date, and `A_Year`, `A_Month`, `A_Day`, `A_Hour`, `A_Min`, `A_Sec`, `A_MSec`, `A_Now`, `A_NowUTC` |
-| 6 | **`ahk --surface`** — a command that prints the table of 725 names with the state of each one (real / refusal / reason) | `crates/ahk-cli/src/main.rs` | **S** | It makes the debt visible; the measurement of today is 93/253 and it is in one line of code |
+| 6 | **`ahk --surface`** — a command that prints the table of 833 names with the state of each one (real / refusal / reason) | `crates/ahk-cli/src/main.rs` | **S** | It makes the debt visible; the measurement of today is 815/18 and it is in one line of code |
 
 Item 6 is the cheapest of all and the most useful: it turns "what is missing"
 from an opinion into a number.
@@ -738,7 +725,7 @@ suggestion above was written to be implemented **from scratch**, from the
 
 | Phase | Content | Verifiable result |
 |---|---|---|
-| **F0 — measure** | `ahk --surface`; the table of 725 names with the state | 93/253 today; the number becomes visible in every commit |
+| **F0 — measure** | `ahk --surface`; the table of 833 names with the state | 815/18 today; the number becomes visible in every commit |
 | **F1 — what is cheap** | Clipboard, Sound, `NumGet`/`NumPut`, the whole `Files`, `FormatTime`/`Date*` | ~25 names come out of the refusal; the `Clipboard` and the `Sound` get traits of their own |
 | **F2 — the hooks** | Hotkey backend (X11 and Wayland), `Hotstring`, the real `Hotkey` class | `Hotkey`, `Hotstring`, `HotIf*` come out of the refusal; a script starts reacting to keys |
 | **F3 — the screen** | X11 backend of windows (`xdotool`), trait `Accessibility` by AT-SPI | `WinExist`/`WinActive`/`WinGetText`/`Control*` get a real answer |
@@ -769,7 +756,7 @@ Abs                  function  value
 WinMove              command   refusal: this is a name of Windows, and this desktop is not Windows.
 Hotkey               command   value
 ...
-the surface of v2 has 725 entries: 506 answer with a value, 219 are refused, 0 are pending.
+the surface of v2 has 833 entries: 815 answer with a value, 18 are refused, 0 are pending.
 ```
 
 With that, "what is missing" stops being an opinion and becomes a number that
@@ -778,7 +765,7 @@ yet: it is the same information, in another format, and the command is the
 entry point.
 
 A second number deserves attention: **how many names of the surface of v2 are
-really implemented** — today 506 of 725 entries. The goal is not 725: v2 has
+really implemented** — today 815 of 833 entries. The goal is not 833: v2 has
 names that are Windows and that will not happen here. The honest goal is:
 *no name that the AHK_X11 does on Linux should be in the refusal for lack of
 implementation*. The AHK_X11 does ~127 v1 commands in a comparable
@@ -804,8 +791,7 @@ rule we propose.
   `crates/ahk-cli/src/main.rs`.
 - **Measurements of the box** — on the Linux box (Wayland, COSMIC).
   The full record is in the `AGENTS.md` (§13).
-- **Counts of this comparison** — 725 entries of surface (644 distinct names):
-  242 commands, 103 functions, 131 variables, 249 methods; 346 built-ins in the
-  table, 141 with a real handler and 205 with `not_carried`. Of the 725
-  entries, 506 answer with a value and 219 refuse with the reason — the
+- **Counts of this comparison** — 833 entries of surface (785 distinct names):
+  242 commands, 103 functions, 131 variables, 320 methods, 37 classes. Of the
+  833 entries, 815 answer with a value and 18 refuse with the reason — the
   `ahk --surface` is what counts.

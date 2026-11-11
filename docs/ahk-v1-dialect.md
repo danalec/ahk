@@ -1421,9 +1421,9 @@ number. The block of the number carried it, with the literal
 of a number (`crates/ahk/src/ast.rs`), the coercion of a text
 (`crates/ahk/src/v1/numbers.rs`) and the format of the integers.
 
-The surface of the v1 has **405** entries: **299** answer with a value,
-**106** are refused and none is pending. The surface of the v2 moved with
-the `ObjBindMethod`: **828** entries, **638** values, **190** refusals and
+The surface of the v1 has **408** entries: **308** answer with a value,
+**100** are refused and none is pending. The surface of the v2 moved with
+the `ObjBindMethod`: **833** entries, **815** values, **18** refusals and
 no pending.
 
 **The legacy assignment.** The `=` of the v1 assigns a text and not an

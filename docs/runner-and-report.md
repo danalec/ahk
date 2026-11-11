@@ -307,7 +307,7 @@ BlockInput command refusal: this is a name of Windows, and this desktop is not W
 CallbackCreate command refusal: this is a name of Windows, and this desktop is not Windows.
 ...
 ClipboardAll.Size method value
-the surface of v2 has 828 entries: 638 answer with a value, 190 are refused, 0 are pending.
+the surface of v2 has 833 entries: 815 answer with a value, 18 are refused, 0 are pending.
 ```
 
 A line is `name kind state`, and a name that is not answered with a
@@ -323,11 +323,11 @@ The three states are:
 | `refusal: <reason>` | The tree carries the name and refuses it, with the reason of the handler. |
 | `pending: <reason>` | The tree does not carry the name at all. The pending table says why. |
 
-Of the 190 refusals of the v2, 169 are one reason --
+Of the 18 refusals of the v2, 7 are one reason --
 `this is a name of Windows, and this desktop is not Windows.` -- and the
 rest are the names a runtime that is a script and not a desktop cannot
-answer: the registry, the tray icon, the window of the script, the
-listing of the variables.
+answer: the styles of a window, the threads, the cursor of the machine,
+the window of the script and the list-shaped controls.
 
 ```pwsh
 target\debug\ahk.exe --surface --json
@@ -337,10 +337,10 @@ The JSON is for the CI, and it carries the numbers of the summary and
 the state of every name:
 
 ```json
-{"dialect":"v2","total":828,"values":638,"refusals":190,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
+{"dialect":"v2","total":833,"values":815,"refusals":18,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
 ```
 
-(The `entries` array above is cut to four of its 828 members, and the
+(The `entries` array above is cut to four of its 833 members, and the
 four are not adjacent in the real output.)
 
 A row of the JSON is an object with `name`, `kind` and `state`, with

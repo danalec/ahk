@@ -280,6 +280,46 @@ is one. The tree counted the rest among them and never set the flag.
 The count does not move (the tray is not a name of the surface): **815
 values / 18 refusals**, sum 833, both platforms green, clippy clean.
 
+**Round 31 closed the last two defects of the audit** (§3.5): the numbers
+of the documents and the complaint of a shell.
+
+**The documents had the numbers of an older tree, and nothing said so.**
+The report of the capability is *generated* -- by
+`crates/ahk/reference/ahk-v2.0.19.areas.py` -- and it could not be
+generated any more: the surface grew five classes that the table of the
+areas did not know (`Float`, `Integer`, `Number`, `Primitive` and
+`String`), and the generator stops at the first name it does not know.
+The five classes are the classes of the values, and they are the core of
+the language.
+
+The seven documents that said 828 / 638 were rewritten with the numbers of
+the tree -- **833 entries, 815 values, 18 refusals** for the v2 and **408
+entries, 308 values, 100 refusals** for the v1 -- and a case of the suite
+reads the report of the capability and asks the tree for the numbers: when
+the tree grows, the report is generated again and the numbers of the other
+six are written again. The case was seen failing before it was seen
+passing.
+
+**And the complaint of a shell is not the output of the script.** The
+`Run` pushed the error output of the program into the output of the
+script, and the output of the report is what the script wrote: a client
+that reads it took the complaint of the shell about a program that is not
+there -- "sh: line 0: nonexistent: not found" -- for something the
+script had written. The error output of a program is said in the notes of
+the report now, where nothing is lost. Measured on the box on 2026-11-11:
+the output of the run is `["run: no failure at all"]` and the note says
+"the program wrote to its error output: sh: line 1:
+nonexistent-command-of-the-probe: command not found".
+
+**And two of the eight defects of the audit were never defects**: the
+`FileCopy` of a file that is not there answers "Failed" in the binary of
+v2.0.19 too, and the `ObjAddRef` refuses an object with "Parameter #1 of
+ObjAddRef is invalid." in the binary as well. The tree said the same
+words, and the audit had read a defect where the reference has none.
+
+The count does not move: **815 values / 18 refusals**, sum 833, both
+platforms green, clippy clean.
+
 **What is next**: the `Gui` frontier is **built**, and what remains in it is
 incremental. A script of this tree can make a window, add a control by either
 spelling (`Add` and every `Add*`), read and write its `Value`, `Text`, `Enabled`
@@ -530,6 +570,24 @@ run `#Requires AutoHotkey v2.0` cannot claim to be a v2 interpreter.
 6. The ungated shell-outs leak `sh: … not found` on a non-Linux host.
 7. `ObjRelease` refused while `ObjAddRef` is a value.
 8. The five documents that say 828/638 (see the audit §6).
+
+**Every one of the eight is closed on 2026-11-11, and two of them were
+never defects of the tree.** Measured on the binary of v2.0.19 on
+2026-11-11:
+
+- The `FileCopy` of a file that is not there answers **"Failed"** in the
+  binary too, and the `FileMove` as well: the tree says the same thing,
+  and the audit had read a defect that the reference does not have.
+- The `ObjAddRef` and the `ObjRelease` refuse an object with **"Parameter
+  #1 of ObjAddRef is invalid."** in the binary as well: the tree refuses
+  them the same way, and the audit had read a defect where there is none.
+
+The `#Requires`, the `ImageSearch` and the `DateAdd` were closed before,
+and the two of the round are the last ones: the **numbers of the
+documents** (round 31) and the **complaint of a shell** (round 31). The
+numbers of the surface are the ones of the tree: **833 entries, 815
+values, 18 refusals** for the v2 and **408 entries, 308 values, 100
+refusals** for the v1.
 
 ## 4. The round log
 

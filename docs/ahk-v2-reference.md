@@ -4,7 +4,7 @@ Every name of AutoHotkey v2.0.19, with what this runtime answers for it.
 
 The list is read out of the binary of v2.0.19 (`crates/ahk/reference/ahk-v2.0.19.surface.tsv`), and the state of each name is the answer of `ahk --surface`. The summary is:
 
-> **833 entries: 643 answer with a value, 190 are refused, 0 are pending.**
+> **833 entries: 815 answer with a value, 18 are refused, 0 are pending.**
 
 A name that answers with a value does the thing. A name that is refused is refused **with the reason** -- a question the desktop cannot answer fails, and it never answers `false`. A pending name is one the tree does not carry yet; the table of them is empty, because the port carries the whole of v2.
 

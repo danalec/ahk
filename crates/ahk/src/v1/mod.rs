@@ -1423,7 +1423,12 @@ fn run_or_wait_of_the_v1(
             rt.push_output(stdout.trim_end().to_string());
         }
         if !stderr.trim().is_empty() {
-            rt.push_output(stderr.trim_end().to_string());
+            // The error output of the program is not the output of the
+            // script: it is said in the notes of the report.
+            rt.note(format!(
+                "the program wrote to its error output: {}",
+                stderr.trim_end()
+            ));
         }
         // The code of the program is the `ErrorLevel` of the `RunWait`.
         rt.set_the_error_level(Value::Int(code as i64));

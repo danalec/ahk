@@ -10318,7 +10318,15 @@ pub(crate) fn run(
         rt.push_output(stdout.trim_end().to_string());
     }
     if !stderr.trim().is_empty() {
-        rt.push_output(stderr.trim_end().to_string());
+        // The error output of the program is not the output of the script:
+        // the console of the script is the standard output, and the
+        // complaint of the shell about a program that is not there belongs
+        // to the program and not to the script. It is said in the notes of
+        // the report, where nothing is lost.
+        rt.note(format!(
+            "the program wrote to its error output: {}",
+            stderr.trim_end()
+        ));
     }
     Ok(Value::Int(code as i64))
 }

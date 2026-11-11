@@ -411,10 +411,34 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     );
 }
 
+/// The report of the capability says the numbers the tree answers.
+///
+/// The documents of the tree carried the numbers of an older tree for
+/// months, and nothing said so: the report of the capability is generated
+/// by `crates/ahk/reference/ahk-v2.0.19.areas.py`, and the other four
+/// documents are written by hand. This case is the bell: when the tree
+/// grows, the report is regenerated and the numbers of the four are
+/// written again.
+#[test]
+fn the_report_of_the_capability_says_the_numbers_of_the_tree() {
+    let (_, report) = surface_json("v2");
+    let document = include_str!("../../../docs/v2-capability-report.md");
+    for (number, what) in [
+        (report.number("total"), "entries"),
+        (report.number("values"), "answer with a value"),
+        (report.number("refusals"), "are refused"),
+    ] {
+        let wanted = format!("**{number} {what}**");
+        assert!(
+            document.contains(&wanted),
+            "the report of the capability does not say {wanted}"
+        );
+    }
+}
+
 /// The names of the surface: the rows of the table, without the comments
 /// and without the line of column names.
-fn names_of_the_surface() -> usize {
-    SURFACE
+fn names_of_the_surface() -> usize {    SURFACE
         .lines()
         .filter(|line| {
             !line.trim().is_empty() && !line.starts_with('#') && !line.starts_with("kind\t")

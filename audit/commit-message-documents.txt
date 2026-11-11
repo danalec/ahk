@@ -1,0 +1,34 @@
+Give the documents the numbers of the tree, and keep the complaint of a shell out of the output of the script
+
+The audit had eight defects left, and the two of this round are the last
+ones: the numbers of the documents and the complaint of a shell.
+
+The seven documents that said 828 / 638 were rewritten with the numbers of
+the tree -- 833 entries, 815 values and 18 refusals for the v2, and 408
+entries, 308 values and 100 refusals for the v1 -- and the report of the
+capability is generated again: it could not be generated any more, because
+the surface grew five classes that the table of the areas did not know
+(Float, Integer, Number, Primitive and String -- the classes of the
+values, and the core of the language), and the generator stops at the
+first name it does not know.
+
+And a case of the suite reads the report of the capability and asks the
+tree for the numbers: when the tree grows, the report is generated again
+and the numbers of the other six are written again. The case was seen
+failing before it was seen passing.
+
+The `Run` pushed the error output of the program into the output of the
+script, and the output of the report is what the script wrote: a client
+that reads it took the complaint of the shell about a program that is not
+there for something the script had written. The error output of a program
+is said in the notes of the report now, where nothing is lost, and the
+same of the `RunWait` of the v1.
+
+Measured on the box on 2026-11-11: the output of the run is "run: no
+failure at all" and the note says "the program wrote to its error output:
+sh: line 1: nonexistent-command-of-the-probe: command not found".
+
+And two of the eight defects of the audit were never defects of the tree:
+the `FileCopy` of a file that is not there answers "Failed" in the binary
+of v2.0.19 too, and the `ObjAddRef` refuses an object with "Parameter #1
+of ObjAddRef is invalid." in the binary as well.
