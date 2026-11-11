@@ -2221,6 +2221,25 @@ impl<'a> Runtime<'a> {
                 pending.push((function, vec![Value::Int(number)]));
                 continue;
             }
+            // A click on the icon of the tray is the item by default of the
+            // menu of the script: the `A_TrayMenu` is the menu of the tray,
+            // and the item by default of it is the one that runs.
+            if name == "tray" {
+                let menu = self.the_tray_menu(line);
+                let Some(default) = crate::classes::menu::the_default_of(&menu) else {
+                    continue;
+                };
+                let (function, position) =
+                    match crate::classes::menu::the_callback_of(&menu, &default, line) {
+                        Some(found) => found,
+                        None => continue,
+                    };
+                pending.push((
+                    function,
+                    vec![Value::Text(default), Value::Int(position), menu],
+                ));
+                continue;
+            }
             let key = format!("on:{name}");
             let found = self.the_guis().iter().find_map(|gui| {
                 let Value::Object(window) = gui else {

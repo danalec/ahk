@@ -4415,7 +4415,11 @@ pub(crate) fn tray_set_icon(
         .desktop()
         .canonical_path(&file)
         .unwrap_or_else(|_| file.clone());
-    rt.set_the_icon_of_the_script(canonical, number.unwrap_or(1));
+    rt.set_the_icon_of_the_script(canonical.clone(), number.unwrap_or(1));
+    // The tray of the session shows the icon, when the session has one: a
+    // desktop with no tray is not a failure of the call -- the icon of the
+    // script is set either way.
+    let _ = rt.desktop().tray_set_icon(&canonical);
     Ok(Value::Text(String::new()))
 }
 

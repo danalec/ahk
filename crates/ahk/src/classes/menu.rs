@@ -269,6 +269,20 @@ pub(crate) fn the_callback_of(this: &Value, item: &str, line: u32) -> Option<(St
     Some((callback, index as i64 + 1))
 }
 
+/// The name of the item by default of a menu, if the menu has one.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the `Default` of a
+/// menu is the name of the item that runs when the menu is chosen without
+/// a name -- the `A_TrayMenu` of the script has "&Open" as its default.
+pub(crate) fn the_default_of(this: &Value) -> Option<String> {
+    let menu = state(this, 0).ok()?;
+    if menu.default.is_empty() {
+        None
+    } else {
+        Some(menu.default.clone())
+    }
+}
+
 /// Find an item by name; `None` when there is none, so the caller can turn
 /// it into the failure. Measured on the binary of v2.0.19 on 2026-11-10: the
 /// state methods are called for an item that is there.

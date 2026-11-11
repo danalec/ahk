@@ -150,8 +150,13 @@ pub struct LabDesktop {
     /// connection to the compositor is worth keeping.
     #[cfg(target_os = "linux")]
     wayland: Option<crate::wayland::Client>,
-    /// The state of the three lock lights, as the program set them.
+    /// The program of the tray of the session, and the pipes of it.
     ///
+    /// It is started with the first icon of the script and lives as long as
+    /// the desktop does.
+    #[cfg(target_os = "linux")]
+    tray: Option<(std::process::Child, std::process::ChildStdin, std::process::ChildStdout)>,
+    /// The state of the three lock lights, as the program set them.    ///
     /// The lamp of the PHYSICAL keyboard of the machine cannot be written
     /// without the privileges of the root -- `/sys/class/leds/input1::capslock/
     /// brightness` is root-only (measured on the box on 2026-11-11) -- and the
@@ -188,6 +193,8 @@ impl LabDesktop {
             raven: None,
             #[cfg(target_os = "linux")]
             wayland: None,
+            #[cfg(target_os = "linux")]
+            tray: None,
             lock_lights: [false; 3],
         }
     }
@@ -498,8 +505,42 @@ impl LabDesktop {
         )
     }
 
-    /// The directory of the programs of the user, in the Windows of the raven.
+    /// The icon of the script, in the tray of the session.
     ///
+    /// The compositor of the box carries a watcher of the
+    /// StatusNotifierItem, and the helper of the tray registers an item in
+    /// it. The item lives as long as the helper does, and the helper lives
+    /// as long as the desktop does.
+    #[cfg(target_os = "linux")]
+    fn tray_set_icon(&mut self, name: &str) -> Result<(), String> {
+        if self.tray.is_none() {
+            let program = the_helper_of_the_tray()?;
+            let mut child = Command::new("python3")
+                .arg(&program)
+                .env("AHK_EVENTS_FILE", the_events_of_the_window())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|error| format!("the tray of the session did not start: {error}"))?;
+            let input = child.stdin.take().ok_or("the tray takes no input")?;
+            let output = child.stdout.take().ok_or("the tray has no output")?;
+            self.tray = Some((child, input, output));
+        }
+        let Some((_, input, _)) = self.tray.as_mut() else {
+            return Err("the tray of the session is not there".to_string());
+        };
+        let command = format!("{{\"op\": \"icon\", \"name\": {}}}\n", quoted(name));
+        input
+            .write_all(command.as_bytes())
+            .map_err(|error| format!("the tray of the session did not take the icon: {error}"))?;
+        input
+            .flush()
+            .map_err(|error| format!("the tray of the session did not take the icon: {error}"))?;
+        Ok(())
+    }
+
+    /// The directory of the programs of the user, in the Windows of the raven.    ///
     /// The shell of the Windows of the raven does not answer with the path
     /// of the folder of the programs (measured on the box on 2026-11-11:
     /// `SHGetFolderPathA` leaves the block empty), and the environment of
@@ -2718,6 +2759,16 @@ impl ahk::desktop::Machine for LabDesktop {
     fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
         crate::registry::create_key(key)
     }
+    fn tray_set_icon(&mut self, name: &str) -> Result<(), String> {
+        #[cfg(target_os = "linux")]
+        {
+            self.tray_set_icon(name)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            Err("the tray of the session is a thing of the session of the box.".to_string())
+        }
+    }
     fn windows_directory(&mut self) -> Result<String, String> {
         #[cfg(target_os = "linux")]
         {
@@ -3104,6 +3155,32 @@ fn the_text_in(answer: &str, name: &str) -> Option<String> {
 /// compute the same name.
 fn the_events_of_the_window() -> std::path::PathBuf {
     std::env::temp_dir().join(format!("ahk-gui-events-{}", std::process::id()))
+}
+
+/// Where the program that puts the icon of the script in the tray is.
+///
+/// The two places of the helper of the window, in the same order: beside
+/// the binary, and under the crate as it was compiled.
+fn the_helper_of_the_tray() -> Result<std::path::PathBuf, String> {
+    let mut tried: Vec<String> = Vec::new();
+    if let Ok(program) = std::env::current_exe() {
+        if let Some(folder) = program.parent() {
+            let beside = folder.join("helper/ahk-tray.py");
+            if beside.is_file() {
+                return Ok(beside);
+            }
+            tried.push(beside.to_string_lossy().into_owned());
+        }
+    }
+    let under = Path::new(env!("CARGO_MANIFEST_DIR")).join("helper/ahk-tray.py");
+    if under.is_file() {
+        return Ok(under);
+    }
+    tried.push(under.to_string_lossy().into_owned());
+    Err(format!(
+        "the program that puts the icon of the script in the tray is not where it was looked for: {}",
+        tried.join(", ")
+    ))
 }
 
 /// Where the program that draws the windows of the script is.

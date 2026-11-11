@@ -1729,6 +1729,15 @@ pub trait Machine {
         Err("this desktop cannot tell the directory of the programs of the machine".to_string())
     }
 
+    /// Put the icon of the script in the tray of the session.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script in the tray, and the built-in variables carry
+    /// it afterwards.
+    fn tray_set_icon(&mut self, _name: &str) -> Result<(), String> {
+        Err("this desktop has no tray to put the icon of the script in".to_string())
+    }
+
     /// The label of the drive that a path is on.
     ///
     /// `None` is a drive that is not there. Measured on the binary of
