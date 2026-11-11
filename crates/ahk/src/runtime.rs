@@ -2510,6 +2510,21 @@ impl<'a> Runtime<'a> {
         self.notes.push(note.into());
     }
 
+    /// The name of the variables of the script, with their values as text.
+    ///
+    /// For `ListVars`: a window of v2 shows them, and this runtime shows what a
+    /// window would show in the `output` of the report, which is where a
+    /// `MsgBox` goes. The names are the keys the runtime keeps them under, which
+    /// are the names of the script without their case -- the script may write
+    /// `MyVar` and the key is `myvar`, and a listing that showed the key would
+    /// be wrong about the spelling.
+    pub fn variable_names(&self) -> Vec<(String, String)> {
+        self.variables
+            .iter()
+            .map(|(name, value)| (name.clone(), value.to_text()))
+            .collect()
+    }
+
     /// Find the functions and the classes the script defines, wherever
     /// they are.
     fn collect_functions(&mut self, statements: &[Node]) {

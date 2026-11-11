@@ -2386,6 +2386,32 @@ fn the_kind_of(filesystem: &str) -> String {
 }
 
 impl ahk::desktop::Machine for LabDesktop {
+
+    fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
+        crate::registry::create_key(key)
+    }
+
+    fn registry_delete_key(&mut self, key: &str) -> Result<(), String> {
+        crate::registry::delete_key(key)
+    }
+
+    fn registry_delete(&mut self, key: &str, name: &str) -> Result<(), String> {
+        crate::registry::delete(key, name)
+    }
+
+    fn registry_write(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        crate::registry::write(key, name, kind, value)
+    }
+
+    fn registry_value(&mut self, key: &str, name: &str) -> Result<Option<(String, String)>, String> {
+        crate::registry::value_of(key, name)
+    }
     fn drive_set_label(&mut self, path: &str, label: &str) -> Result<(), String> {
         box_tools_are_near()?;
         let device = match the_device_of(path) {

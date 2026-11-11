@@ -233,14 +233,25 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 800 and 33.** The branch answers 815 and
-refuses 18, so **15 names are still to come**: the tray (`TraySetIcon`
-and `TrayTip`, and a helper of their own) and the variables and methods
-the branch answers and this tree still refuses -- the directories of
-Windows, the shape of the cursor, the lights of the keyboard, the notify
-of the session. The styles and `Edit` are not in that count: they are
-refused in the branch too, and the port carries the same refusals now,
-with the reasons of the families at the run.
+a value and 149 refusals to 808 and 25.** The branch answers 815 and
+refuses 18, so **9 names are still to come**: the tray (`TraySetIcon`
+and `TrayTip`, and a helper of their own), `OnClipboardChange`, and the
+six variables (`A_IconFile`, `A_IconNumber`, `A_TrayMenu`, `A_WinDir`,
+`A_ProgramFiles`, `A_ScreenDPI`). In two names the port is AHEAD of the
+branch: `Pause` and `Suspend` answer with values here, where the branch
+refuses them. The styles and `Edit` are not in the count either: they
+are refused in the branch too, with the same reasons.
+
+**The thirteenth family is ported too (2026-11-11): the registry of the
+machine and the log trio -- eight names.** Windows has a registry and
+this platform has none, so the API is carried over a store of its own:
+the hives are folders and the keys are files under the config folder of
+the user, in the `registry` module of the box that came over whole.
+Measured on the box: the cycle create → write "42" → read "42" → delete
+→ "(2) The system cannot find the file specified." → delete key. The log
+trio: `ListLines` answers the setting that was there and writes the new
+one, `ListVars` puts a line per variable in the output of the report --
+the window of v2 does not exist here -- and `Persistent` answers zero.
 
 **The twelfth family is ported too (2026-11-11): the lists of images, the
 list controls and the status bars -- seven names.** `IL_Create` mints the

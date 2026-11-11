@@ -21,6 +21,7 @@ pub mod pictures;
 pub mod pointer;
 pub mod process;
 pub mod raven;
+pub mod registry;
 pub mod sys;
 pub mod trash;
 pub mod wayland;

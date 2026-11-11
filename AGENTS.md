@@ -12140,6 +12140,49 @@ one the fake of this tree has, and not "first".
 **The surface moves with the family: 793 answers with a value and 40 are
 refused become 800 and 33.**
 
+## 330. The registry is a store of the machine, and the log trio answers
+
+**The thirteenth family of the port is eight names: the five `Reg*` and
+the log trio (`ListLines`, `ListVars`, `Persistent`).**
+
+**Windows has a registry and this platform has none, so the branch
+carries the API over a store of its own, and the port carries the store**:
+the hives are folders and the keys are files, under the config folder of
+the user, in the `registry` module of the box. The shape of a key is the
+shape of the Windows one -- `HKCU\Software\X` -- and the hive is
+required; the values live in the file of the key, one per line, with the
+kind, the name and the text. The five methods of the trait refuse by
+default, the box delegates to the module, and the handlers answer the
+shapes the binary was measured to answer on 2026-11-11: `RegWrite` makes
+the key when it is not there, `RegRead` of a value that is not there
+throws "(2) The system cannot find the file specified." unless a default
+is given, and a kind that v2 does not carry throws "Parameter #2 of
+RegWrite is invalid.".
+
+**The log trio**: `ListLines` answers the setting that was there and
+writes the new one -- `A_ListLines` carries it; `ListVars` puts a line
+for each variable of the script in the `output` of the report, the one
+channel a script has to show things where v2 opens a window, and answers
+the empty text; `Persistent` answers zero and changes nothing, because
+this runtime is one script that ends when it ends.
+
+**Measured on the box on 2026-11-11**: the whole cycle of the registry --
+create, write "42", read "42" back, delete the value, "(2) The system
+cannot find the file specified." on the read again, delete the key -- and
+the trio: `ListLines(0)` answers 1 with `A_ListLines` at 0 after it,
+`Persistent()` answers 0, and `ListVars()` answers the empty text with
+nineteen lines of variables in the output.
+
+**The case of the master that pinned the refusals of the shape of the
+runtime lost three names** -- `Persistent`, `ListLines` and `ListVars`
+answer now -- and keeps `Critical`, `Thread` and `Reload`. `Pause` and
+`Suspend` are not in it: this tree carries them with values, where the
+branch refuses them, one of the two places where the port answers MORE
+than the branch.
+
+**The surface moves with the family: 800 answers with a value and 33 are
+refused become 808 and 25.**
+
 ## 329. The reasons of the refusals that remain are the ones of the branch
 
 The branch's pass of 2026-11-10 over the refusals gave each group of them

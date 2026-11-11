@@ -2067,45 +2067,45 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 0,
         max: 1,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_create_key,
     },
     Builtin {
         name: "RegDelete",
         kind: BuiltinKind::Function,
         min: 0,
         max: 2,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_delete,
     },
     Builtin {
         name: "RegDeleteKey",
         kind: BuiltinKind::Function,
         min: 0,
         max: 1,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_delete_key,
     },
     Builtin {
         name: "RegRead",
         kind: BuiltinKind::Function,
         min: 0,
         max: 3,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_read,
     },
     Builtin {
         name: "RegWrite",
         kind: BuiltinKind::Function,
         min: 0,
         max: 4,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_write,
     },
     Builtin {
         name: "RunAs",
@@ -3166,18 +3166,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 114,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_lines,
     },
     Builtin {
         name: "ListVars",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 115,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_vars,
     },
     Builtin {
         name: "LoadPicture",
@@ -3238,9 +3238,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 111,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: persistent,
     },
     Builtin {
         name: "Reload",
@@ -15347,4 +15347,352 @@ pub(crate) fn status_bar_wait(
         };
         rt.sleep_ms((left as u64).clamp(1, CLIP_POLL_MS));
     }
-}
+}
+
+/// The kinds of a value that the v2 carries.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: a kind that is not one
+/// of these throws "Parameter #2 of RegWrite is invalid.".
+const REGISTRY_KINDS: [&str; 5] = [
+    "REG_SZ",
+    "REG_EXPAND_SZ",
+    "REG_MULTI_SZ",
+    "REG_DWORD",
+    "REG_BINARY",
+];
+
+/// The name of the key of a registry call, and the failure when it is not
+/// there.
+///
+/// The place of the key is not the same in every call: `RegWrite` takes the
+/// value and the kind first, so its key is the third parameter.
+///
+/// The hive is **required**: measured on the binary of v2.0.19 on 2026-11-11,
+/// `RegCreateKey("Software\X")` throws "Parameter #1 of RegCreateKey is
+/// invalid." -- and so does the registry of another machine, whose name
+/// comes first and is not a hive.
+fn the_key_of(
+    values: &[Value],
+    index: usize,
+    name: &str,
+    line: u32,
+) -> Result<String, RuntimeError> {
+    let key = values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let hive = key.split('\\').next().unwrap_or("").trim().to_uppercase();
+    let known = matches!(
+        hive.as_str(),
+        "HKCU"
+            | "HKEY_CURRENT_USER"
+            | "HKLM"
+            | "HKEY_LOCAL_MACHINE"
+            | "HKU"
+            | "HKEY_USERS"
+            | "HKCR"
+            | "HKEY_CLASSES_ROOT"
+            | "HKCC"
+            | "HKEY_CURRENT_CONFIG"
+    );
+    if !known {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(index + 1, name),
+            line,
+        });
+    }
+    Ok(key)
+}
+
+/// The name of the value of a registry call.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: a name that is not
+/// given, and one that is given empty, throw "(161) The specified path is
+/// invalid." -- so the default value of a key is out of reach.
+fn the_value_name_of(
+    values: &[Value],
+    index: usize,
+    line: u32,
+) -> Result<String, RuntimeError> {
+    let name = values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if name.is_empty() {
+        return Err(RuntimeError {
+            message: NO_VALUE_NAME.to_string(),
+            line,
+        });
+    }
+    Ok(name)
+}
+
+/// `RegCreateKey`: make a key of the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers the empty
+/// text and makes the key; a key that is not given throws "Parameter #1 of
+/// RegCreateKey must not be omitted in this case."; and a key with no hive
+/// throws "Parameter #1 of RegCreateKey is invalid.".
+pub(crate) fn reg_create_key(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.is_empty() {
+        return Err(RuntimeError {
+            message: "Parameter #1 of RegCreateKey must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    }
+    let key = the_key_of(values, 0, "RegCreateKey", line)?;
+    rt.desktop()
+        .registry_create_key(&key)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `RegWrite`: write a value into the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `RegWrite Value, ValueType, KeyName, ValueName` -- the **value comes
+/// first** and the type is the second -- and the call answers the empty
+/// text. A key that is not given throws "Parameter #3 of RegWrite must not
+/// be omitted in this case." -- the key is checked before the kind -- a
+/// kind that is not one of the five throws "Parameter #2 of RegWrite is
+/// invalid.", a name of a value that is not given throws "(161) The
+/// specified path is invalid.", and the key is **made** when it is not
+/// there -- with its ancestors.
+pub(crate) fn reg_write(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() < 3 {
+        return Err(RuntimeError {
+            message: "Parameter #3 of RegWrite must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    }
+    let kind = text_of(values, 1).trim().to_uppercase();
+    if !REGISTRY_KINDS.contains(&kind.as_str()) {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(2, "RegWrite"),
+            line,
+        });
+    }
+    let key = the_key_of(values, 2, "RegWrite", line)?;
+    let name = the_value_name_of(values, 3, line)?;
+    // A value of REG_DWORD is a number, and the registry holds it as one.
+    let value = if kind == "REG_DWORD" {
+        format!("{}", number_argument(values, 0, line, "RegWrite")? as i64)
+    } else {
+        text_of(values, 0)
+    };
+    rt.desktop()
+        .registry_write(&key, &name, &kind, &value)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `RegRead`: the value of the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `RegRead KeyName, ValueName, Default`; a key that is not given throws
+/// "Parameter #1 of RegRead must not be omitted in this case."; a name of a
+/// value that is not given throws "(161) The specified path is invalid."; a
+/// value that is not there throws "(2) The system cannot find the file
+/// specified." unless a default is given, which is then the answer.
+pub(crate) fn reg_read(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.is_empty() {
+        return Err(RuntimeError {
+            message: "Parameter #1 of RegRead must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    }
+    let key = the_key_of(values, 0, "RegRead", line)?;
+    let name = the_value_name_of(values, 1, line)?;
+    match rt
+        .desktop()
+        .registry_value(&key, &name)
+        .map_err(|reason| desktop_failure(reason, line))?
+    {
+        Some((kind, value)) => {
+            // A value of REG_DWORD is a number, and the registry holds it as
+            // one: the binary answers 42 for the 42 that was written.
+            if kind == "REG_DWORD" {
+                Ok(match value.parse::<i64>() {
+                    Ok(number) => Value::Int(number),
+                    Err(_) => Value::Text(value),
+                })
+            } else {
+                Ok(Value::Text(value))
+            }
+        }
+        // The value is not there: the default is the answer when there is
+        // one, and the machine's failure is the answer when there is not.
+        None => match values.get(2) {
+            Some(default) => Ok(default.clone()),
+            None => Err(RuntimeError {
+                message: NOTHING_THERE.to_string(),
+                line,
+            }),
+        },
+    }
+}
+
+/// `RegDelete`: remove a value of the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `RegDelete KeyName, ValueName` and the call answers the empty text; a
+/// name of a value that is not given throws "(161) The specified path is
+/// invalid.".
+pub(crate) fn reg_delete(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.is_empty() {
+        return Err(RuntimeError {
+            message: "Parameter #1 of RegDelete must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    }
+    let key = the_key_of(values, 0, "RegDelete", line)?;
+    let name = the_value_name_of(values, 1, line)?;
+    rt.desktop()
+        .registry_delete(&key, &name)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `RegDeleteKey`: remove a key of the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `RegDeleteKey KeyName` and the call answers the empty text; a key that is
+/// not there throws "(2) The system cannot find the file specified.".
+pub(crate) fn reg_delete_key(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.is_empty() {
+        return Err(RuntimeError {
+            message: "Parameter #1 of RegDeleteKey must not be omitted in this case."
+                .to_string(),
+            line,
+        });
+    }
+    let key = the_key_of(values, 0, "RegDeleteKey", line)?;
+    rt.desktop()
+        .registry_delete_key(&key)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ListLines(Setting)`: the log of the lines that the script runs.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ListLines Setting`, where the setting is a **number** -- a text throws
+/// "Parameter #1 of ListLines requires a Number, but received a String." --
+/// and the answer is the **previous** setting: one when the log was on, and
+/// zero when it was off. The log is on by default, and the built-in variable
+/// `A_ListLines` carries it and may be written.
+///
+/// Without the setting the call shows the history of the lines in the window
+/// of the debugger of v2 and answers the previous setting too. This runtime
+/// has no debugger, so it answers the number and keeps the log.
+pub(crate) fn list_lines(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The setting that is there now is the one the call answers.
+    let before = match crate::settings::value_of("listlines") {
+        Some(Ok(Value::Int(on))) => Value::Int(on),
+        _ => Value::Int(1),
+    };
+    let Some(setting) = values.first() else {
+        return Ok(before);
+    };
+    if !matches!(setting, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ListLines", TypeName::Number, setting),
+            line,
+        });
+    }
+    let on = setting.to_number_lenient() != 0.0;
+    match crate::settings::write_of("listlines", &Value::Int(on as i64)) {
+        Some(Ok(_)) => Ok(before),
+        Some(Err(why)) => Err(RuntimeError { message: why, line }),
+        None => Err(RuntimeError {
+            message: "the log of the lines is not carried.".to_string(),
+            line,
+        }),
+    }
+}
+
+/// `ListVars`: show the variables of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the **empty
+/// text**, and it does not block. A window of v2 shows the variables; this
+/// runtime has one channel for what a script shows -- the `output` of the
+/// report, which is where a `MsgBox` goes -- so a line for each variable goes
+/// there, and the answer is the empty text.
+///
+/// **The names are the keys the runtime keeps**, which are the names of the
+/// script without their case. A script that writes `MyVar` is listed as `myvar`,
+/// and that is a difference from v2 that is written down rather than hidden.
+pub(crate) fn list_vars(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    for (name, value) in rt.variable_names() {
+        rt.push_output(format!("{name}[{value}]"));
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `Persistent`: whether the script keeps running after its auto-execute ends.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the Integer **0**.
+/// A script of this runtime is persistent by its nature -- the run is one script
+/// from its first line to its last, and there is no message loop for it to stay
+/// for -- so the answer is the zero v2 gives and the setting changes nothing.
+pub(crate) fn persistent(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(0))
+}
+
+/// The failure of the machine when a value has no name.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: a name of a value that
+/// is not given -- and one that is given empty -- throws "(161) The specified
+/// path is invalid.".
+const NO_VALUE_NAME: &str = "(161) The specified path is invalid.";
+
+/// The failure of the machine when a key or a value is not there.
+const NOTHING_THERE: &str = "(2) The system cannot find the file specified.";

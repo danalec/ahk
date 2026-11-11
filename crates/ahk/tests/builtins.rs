@@ -183,6 +183,60 @@ impl Sound for Fake {
     }
 }
 impl Machine for Fake {
+
+    fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
+        self.calls.push(("registry-create-key".into(), key.to_string()));
+        self.registry.entry(key.to_string()).or_default();
+        Ok(())
+    }
+
+    fn registry_delete_key(&mut self, key: &str) -> Result<(), String> {
+        self.calls.push(("registry-delete-key".into(), key.to_string()));
+        self.registry.remove(key);
+        Ok(())
+    }
+
+    fn registry_delete(&mut self, key: &str, name: &str) -> Result<(), String> {
+        self.calls
+            .push(("registry-delete".into(), format!("{key}|{name}")));
+        if let Some(values) = self.registry.get_mut(key) {
+            values.retain(|(_, held, _)| !held.eq_ignore_ascii_case(name));
+        }
+        Ok(())
+    }
+
+    fn registry_write(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        self.calls
+            .push(("registry-write".into(), format!("{key}|{name}|{kind}|{value}")));
+        let values = self.registry.entry(key.to_string()).or_default();
+        match values
+            .iter_mut()
+            .find(|(_, held, _)| held.eq_ignore_ascii_case(name))
+        {
+            Some(held) => {
+                held.0 = kind.to_string();
+                held.2 = value.to_string();
+            }
+            None => values.push((kind.to_string(), name.to_string(), value.to_string())),
+        }
+        Ok(())
+    }
+
+    fn registry_value(&mut self, key: &str, name: &str) -> Result<Option<(String, String)>, String> {
+        self.calls.push(("registry-value".into(), format!("{key}|{name}")));
+        let values = self.registry.get(key);
+        Ok(values.and_then(|held| {
+            held.iter()
+                .find(|(_, held, _)| held.eq_ignore_ascii_case(name))
+                .map(|(kind, _, value)| (kind.clone(), value.clone()))
+        }))
+    }
     fn drive_set_label(&mut self, _path: &str, label: &str) -> Result<(), String> {
         self.drive_label = Some(label.to_string());
         Ok(())
@@ -4657,8 +4711,11 @@ fn a_desktop_that_cannot_read_the_clipboard_fails_the_wait_with_the_reason() {
 
 #[test]
 fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thing() {
-    // The fourteen names of the shape shared one reason, and that reason
-    // hid fourteen different things.
+    // The names of the shape shared one reason, and that reason hid a
+    // different thing per name. `Persistent`, `ListLines` and `ListVars`
+    // left the list when the registry and the log trio were carried on
+    // 2026-11-11; `Pause` and `Suspend` are not here because this tree
+    // carries them with values, where the branch refuses them.
     for (name, source, reason) in [
         (
             "Critical",
@@ -4674,24 +4731,9 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "this runtime runs one script in one thread, and it cannot start another.",
         ),
         (
-            "Persistent",
-            "Persistent",
-            "this runtime is a script that ends when it ends, and it cannot be kept alive.",
-        ),
-        (
             "Reload",
             "Reload",
             "this runtime runs one script once, and it cannot run itself again.",
-        ),
-        (
-            "ListLines",
-            "ListLines",
-            "the lines are listed in a window of v2, and this runtime has no window to show them in.",
-        ),
-        (
-            "ListVars",
-            "ListVars",
-            "the variables are listed in a window of v2, and this runtime has no window to show them in.",
         ),
     ] {
         let report = run(source);
@@ -7057,4 +7099,144 @@ fn menu_select_fails_on_a_window_that_is_not_there_and_on_a_menu_it_cannot_reach
         value_of(&report, "seen"),
         Value::Text("Non-existent or unsupported menu.".into())
     );
-}
+}
+
+#[test]
+fn the_registry_of_the_machine_answers_the_shapes_the_binary_carries() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: RegWrite takes
+    // (Value, ValueType, KeyName, ValueName) -- the value comes first and
+    // the type is the second -- and answers the empty text; RegRead takes
+    // (KeyName, ValueName, Default) and answers "(2) The system cannot find
+    // the file specified." for a value that is not there, unless a default is
+    // given; a kind that is not one of the five throws "Parameter #2 of
+    // RegWrite is invalid."; and a key with no hive throws "Parameter #1 of
+    // RegCreateKey is invalid.".
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := RegCreateKey(\"HKCU\\Software\\AhkProbe\")",
+            "\nb := RegWrite(\"Value\", \"REG_SZ\", \"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nc := RegRead(\"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nd := RegWrite(42, \"REG_DWORD\", \"HKCU\\Software\\AhkProbe\", \"Num\")",
+            "\ne := RegRead(\"HKCU\\Software\\AhkProbe\", \"Num\")",
+            "\nf := RegRead(\"HKCU\\Software\\AhkProbe\", \"NoSuch\", \"fallback\")",
+            "\ng := RegDelete(\"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nh := RegDeleteKey(\"HKCU\\Software\\AhkProbe\")",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The calls that make and remove answer the empty text.
+    for name in ["a", "b", "g", "h"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()));
+    }
+    assert_eq!(value_of(&report, "c"), Value::Text("Value".into()));
+    // A value of REG_DWORD is a number.
+    assert_eq!(value_of(&report, "e"), Value::Int(42));
+    // A value that is not there is the default when there is one.
+    assert_eq!(value_of(&report, "f"), Value::Text("fallback".into()));
+
+    // A value that is not there and no default: the machine's failure.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "RegCreateKey(\"HKCU\\Software\\AhkProbe\")",
+            "\ntry\n{",
+            "\n    RegRead(\"HKCU\\Software\\AhkProbe\", \"NoSuch\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(2) The system cannot find the file specified.".into())
+    );
+
+    // A kind that is not one of the five, and a key with no hive.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    RegWrite(\"V\", \"BOGUS\", \"HKCU\\Software\\X\", \"N\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    RegCreateKey(\"Software\\X\")",
+            "\n}\ncatch as err\n{",
+            "\n    hive := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #2 of RegWrite is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "hive"),
+        Value::Text("Parameter #1 of RegCreateKey is invalid.".into())
+    );
+}
+
+#[test]
+fn the_log_of_the_lines_answers_the_setting_that_was_there() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+    // `ListLines Setting`, where the setting is a number -- a text throws
+    // "Parameter #1 of ListLines requires a Number, but received a String."
+    // -- and the answer is the PREVIOUS setting. The log is on by default,
+    // and the built-in variable A_ListLines carries it.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "first := ListLines(0)",
+            "\nstate := A_ListLines",
+            "\nsecond := ListLines(1)",
+            "\nthird := ListLines(0)",
+            "\ntry\n{",
+            "\n    ListLines(\"x\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The log is on by default, so the first call answers one.
+    assert_eq!(value_of(&report, "first"), Value::Int(1));
+    // And the variable carries the state the call left.
+    assert_eq!(value_of(&report, "state"), Value::Int(0));
+    // Every call answers the setting that was there before it.
+    assert_eq!(value_of(&report, "second"), Value::Int(0));
+    assert_eq!(value_of(&report, "third"), Value::Int(1));
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #1 of ListLines requires a Number, but received a String.".into())
+    );
+}
+
+#[test]
+fn the_variables_are_listed_in_the_output_and_the_script_may_stay_alive() {
+    // The window of v2 that lists the variables does not exist here: each
+    // variable goes as a line into the output of the report, the way a
+    // `MsgBox` goes, and the answer is the empty text. `Persistent`
+    // answers zero and changes nothing: this runtime is one script that
+    // ends when it ends. A case of this tree -- the branch carries the two
+    // names but pins neither in a case.
+    let report = run(concat!(
+        "answer := Persistent()",
+        "\nshown := ListVars()",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "answer"), Value::Int(0));
+    assert_eq!(value_of(&report, "shown"), Value::Text(String::new()));
+    assert!(
+        report.output.iter().any(|line| line.starts_with("answer[")),
+        "{:?}",
+        report.output
+    );
+}
