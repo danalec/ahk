@@ -232,15 +232,35 @@ branch would have taken the names of the other rows with it. Measured on
 the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
-**What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 811 and 22.** The branch answers 815 and
-refuses 18, so **6 names are still to come**: the tray (`TraySetIcon`
-and `TrayTip`, and the three variables that read it -- `A_IconFile`,
-`A_IconNumber`, `A_TrayMenu`) and `OnClipboardChange`. In two names the
-port is AHEAD of the branch: `Pause` and `Suspend` answer with values
-here, where the branch refuses them. The styles and `Edit` are not in
-the count either: they are refused in the branch too, with the same
-reasons.
+**What the port has moved: the surface goes from 684 answers with a
+value and 149 refusals to 817 and 16 -- and the port is DONE.** The
+branch answers 815 and refuses 18. Measured between the two binaries on
+2026-11-11, name by name, states and reasons: **831 of the 833 names
+answer the same state in both trees, and the 16 refusals that remain
+carry the same reasons**. The two differences are the port AHEAD of the
+branch: `Pause` and `Suspend` answer with values here, where the branch
+refuses them. The surface of the v1 is 308 and 100 -- the exact numbers
+the branch pins. Nothing is refused in the port that the branch
+answers; §5.2 is complete.
+
+**The fifteenth and last family is ported too (2026-11-11): the tray and
+the watcher of the clipboard -- six names.** `TraySetIcon` loads the icon
+before it sets it, keeps its canonical path and number in the runtime --
+which is what `A_IconFile` and `A_IconNumber` answer -- and puts it in
+the tray of the session through a helper of its own (`ahk-tray.py`, a
+StatusNotifierItem in the watcher of the compositor); a desktop with no
+tray is a note in the report, not a failure. `A_TrayMenu` answers the
+same Menu object for the life of the script, whose Default is "&Open".
+`TrayTip` is a notification of the session -- `notify-send` on the box.
+`OnClipboardChange` registers a function that the runtime calls with 1
+when the script itself writes `A_Clipboard`, the only change it can see.
+Measured on the box: the handler ran with 1, the icon of COSMIC took the
+PNG with no note of refusal, the menu answered "Menu|&Open", and an icon
+that is not there threw "Can't load icon.". The merge the family needed
+was in `func_value`: a function with a rest carries `IsVariadic` 1 and
+counts `MaxParams` before the rest, the way the branch measured on the
+binary -- without it the fat arrow of `(*) => 0` is not a callback a menu
+takes.
 
 **The fourteenth family is ported too (2026-11-11): three built-in
 variables.** `A_WinDir` and `A_ProgramFiles` are the machine's, and the

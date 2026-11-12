@@ -321,6 +321,12 @@ impl Machine for Fake {
     }
 }
 impl Dialogs for Fake {
+
+    fn notify(&mut self, title: &str, text: &str) -> Result<(), String> {
+        self.calls
+            .push(("notify".into(), format!("{title}|{text}")));
+        Ok(())
+    }
     fn input_box(
         &mut self,
         prompt: &str,
@@ -7240,3 +7246,101 @@ fn the_variables_are_listed_in_the_output_and_the_script_may_stay_alive() {
         report.output
     );
 }
+
+
+#[test]
+fn the_icon_of_the_script_is_the_one_that_was_put_in_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` answers
+    // the empty text, and the built-in variables carry the icon afterwards --
+    // A_IconFile is the file and A_IconNumber the number of the icon in it.
+    // An icon that cannot be loaded throws "Can't load icon." and the icon
+    // of the script stays as it was. A call with no argument answers the
+    // empty text and changes nothing.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "before := A_IconFile",
+            "\nbeforeNum := A_IconNumber",
+            "\nset := TraySetIcon(\"/tmp/icon.png\", 3)",
+            "\nafter := A_IconFile",
+            "\nafterNum := A_IconNumber",
+            "\ntry\n{",
+            "\n    TraySetIcon(\"/tmp/no-such-icon.png\")",
+            "\n}\ncatch as err\n{",
+            "\n    missing := err.Message",
+            "\n}",
+            "\nstill := A_IconFile",
+            "\nnothing := TraySetIcon()",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // Before the call there is no icon.
+    assert_eq!(value_of(&report, "before"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "beforenum"), Value::Int(0));
+    // The call answers the empty text, and the variables carry the icon.
+    assert_eq!(value_of(&report, "set"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "after"), Value::Text("/tmp/icon.png".into()));
+    assert_eq!(value_of(&report, "afternum"), Value::Int(3));
+    // An icon that cannot be loaded is the failure of the call, and the icon
+    // of the script stays as it was.
+    assert_eq!(
+        value_of(&report, "missing"),
+        Value::Text("Can't load icon.".into())
+    );
+    assert_eq!(value_of(&report, "still"), Value::Text("/tmp/icon.png".into()));
+    // A call with no argument changes nothing.
+    assert_eq!(value_of(&report, "nothing"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "still"), Value::Text("/tmp/icon.png".into()));
+}
+
+#[test]
+fn the_tray_tip_tells_the_user_something() {
+    let mut desktop = Fake::default();
+    let report = run_on("TrayTip(\"the text\", \"the title\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("notify".to_string(), "the title|the text".to_string())]
+    );
+}
+
+#[test]
+fn the_tray_tip_answers_nothing_the_script_reads() {
+    let report = run("x := TrayTip(\"the text\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn a_clipboard_change_calls_the_function_with_one() {
+    let report = run(concat!(
+        "Handler(Type) {\n    MsgBox \"called:\" Type\n}\n",
+        "r := OnClipboardChange(Handler, 1)\n",
+        "A_Clipboard := \"the new text\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("r"), Some(&Value::Text(String::new())));
+    assert_eq!(report.output, vec!["called:1"]);
+}
+
+#[test]
+fn a_clipboard_change_that_is_removed_is_not_called() {
+    let report = run(concat!(
+        "Handler(Type) {\n    MsgBox \"called:\" Type\n}\n",
+        "OnClipboardChange(Handler, 1)\n",
+        "OnClipboardChange(Handler, 0)\n",
+        "A_Clipboard := \"the new text\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty(), "{:?}", report.output);
+}
+
+#[test]
+fn a_clipboard_change_wants_a_function_not_a_text() {
+    let report = run("OnClipboardChange(\"Handler\", 1)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of OnClipboardChange requires an Object, but received a String."
+    );
+}

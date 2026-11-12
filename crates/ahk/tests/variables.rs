@@ -10,7 +10,7 @@ use ahk::desktop::{
     Pictures, Pointer, Processes, Screen, Sound, Timers, Windows,
 };
 use ahk::parse;
-use ahk::runtime::{Report, Runtime};
+use ahk::runtime::{Report, Runtime, Value};
 use std::time::Duration;
 
 /// A desktop that holds a clipboard of its own and answers the machine.
@@ -395,9 +395,6 @@ fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
     for name in [
         "A_Cursor",
         "A_ScriptHwnd",
-        // `A_IconFile` stays here while the tray is not carried: the branch
-        // answers it, and the loop of the branch lost the name there.
-        "A_IconFile",
     ] {
         let refusal = match ahk::variables::refusal_of(name) {
             Some(refusal) => refusal,
@@ -892,4 +889,44 @@ fn a_name_of_windows_refuses_with_the_reason_of_the_contract() {
     let report = run("MsgBox A_WinDir");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["C:\\Windows"]);
+}
+
+#[test]
+fn the_tray_variables_answer_the_icon_the_number_and_one_menu_object() {
+    let report = run(concat!(
+        "f := A_IconFile",
+        "\nn := A_IconNumber",
+        "\nt1 := A_TrayMenu",
+        "\nc := Type(t1)",
+        "\nd := t1.Default",
+        "\nt1.Add(\"&About\", (*) => 0)",
+        "\nt2 := A_TrayMenu",
+        "\ne := t1 == t2",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    let value = |name: &str| {
+        report
+            .variables
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| panic!("{name} has no value"))
+    };
+    assert_eq!(value("f"), Value::Text(String::new()));
+    assert_eq!(value("n"), Value::Int(0));
+    assert_eq!(value("c"), Value::Text("Menu".into()));
+    assert_eq!(value("d"), Value::Text("&Open".into()));
+    // The same object on every read: adding through t2 is adding through t1.
+    assert_eq!(value("e"), Value::Int(1));
+    let t1 = match value("t1") {
+        Value::Object(object) => object,
+        other => panic!("A_TrayMenu holds {other:?}"),
+    };
+    let t2 = match value("t2") {
+        Value::Object(object) => object,
+        other => panic!("A_TrayMenu holds {other:?}"),
+    };
+    assert!(
+        std::rc::Rc::ptr_eq(&t1, &t2),
+        "A_TrayMenu answered two different objects"
+    );
 }

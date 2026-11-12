@@ -253,8 +253,8 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 811);
-    assert_eq!(report.number("refusals"), 22);
+    assert_eq!(report.number("values"), 817);
+    assert_eq!(report.number("refusals"), 16);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -295,9 +295,11 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     // The names that the v1 has and the v2 does not are carried, and none of
     // them is pending: the surface of the v1 is complete. `A_WinDir`,
     // `A_ProgramFiles` and `A_ScreenDPI` answer with a value since the port
-    // of the variables of the machine, in both dialects, so the count of the
-    // values moved with the one of the v2.
-    assert_eq!(report.number("values"), 306);
+    // of the variables of the machine, and the tray variables of the v1 --
+    // `A_IconFile`, `A_IconNumber` and `A_TrayMenu` -- since the port of the
+    // tray, in both dialects, so the count of the values moved with the one
+    // of the v2 and is the one the branch pins.
+    assert_eq!(report.number("values"), 308);
     assert_eq!(report.number("pending"), 0);
     let entries = report.array("entries");
     let is_set = entries

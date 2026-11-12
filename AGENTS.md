@@ -12233,6 +12233,68 @@ dialects, and the runner pins 306 where it pinned 302.
 **The surface moves with the family: 808 answers with a value and 25 are
 refused become 811 and 22.**
 
+## 332. The tray is a helper of the session, and the port is done
+
+**The fifteenth family of the port is the last one: six names --
+`TraySetIcon`, `TrayTip`, `OnClipboardChange` and the three variables
+`A_IconFile`, `A_IconNumber` and `A_TrayMenu`.**
+
+**`TraySetIcon` loads the icon before it sets it** -- an icon that
+cannot be loaded is "Can't load icon." and the icon of the script stays
+as it was -- and keeps the canonical path of the file (the form the
+machine writes it in, which the new `canonical_path` of the files says)
+and the number of the icon in the runtime. The tray of the session
+shows the icon when the session has one: on the box a helper of its own
+(`ahk-tray.py`, which came over whole) registers a StatusNotifierItem
+with the watcher of the compositor, and lives as long as the desktop
+does, with its answers read on a thread of their own so a helper that
+stops answering is a failure with a reason and not a hang. **A desktop
+with no tray is a NOTE in the report, not a failure**: the icon of the
+script is set either way.
+
+**`A_TrayMenu` answers a Menu object -- the same one for the life of the
+script -- whose Default is "&Open"** before any item is added to it, and
+whose `Add` works like any menu's. `TrayTip` is a notification of the
+session: the box answers with `notify-send`, and the name answers the
+empty text. `OnClipboardChange` registers a function and the runtime
+calls it with 1 when the script itself writes `A_Clipboard` -- the only
+change this runtime can see, since it has no watcher of another
+program's clipboard -- and a second argument of zero removes it.
+
+**Measured on the box on 2026-11-11**: the registration answers empty,
+the write of `A_Clipboard` calls the handler with 1, `TraySetIcon` of a
+real PNG sets the icon -- and the tray of COSMIC took it, with no note
+of refusal -- `A_IconFile`/`A_IconNumber` answer the path and 1,
+`A_TrayMenu` answers a Menu whose Default is "&Open", `TrayTip` answers
+empty, and an icon that is not there throws "Can't load icon.".
+
+**The merge the family needed was in `func_value`**: the branch measures
+on the binary on 2026-11-11 that a function with a rest carries
+`IsVariadic` 1 and a `MaxParams` of the parameters BEFORE the rest --
+without it the fat arrow of `(*) => 0` is not a callback a menu takes.
+The port kept its own `PARAMETERS` property in the same function: it is
+the record of the by-reference parameters, which the branch does not
+have.
+
+**The surface moves with the family: 811 answers with a value and 22 are
+refused become 817 and 16, and the surface of the v1 becomes 308 and
+100 -- the exact numbers the branch pins.**
+
+## 333. The port is done, and the two lines are one tree apart of two names
+
+**Measured between the two binaries on 2026-11-11**: the surface of the
+port and the surface of the branch were diffed name by name, states and
+reasons. Of the 833 names of v2.0.19, **831 answer the same state in
+both trees, and the 16 refusals that remain carry the same reasons**.
+The two differences are the port AHEAD of the branch: `Pause` and
+`Suspend` answer with values here, where the branch refuses them with
+the reasons of the runtime's shape. Nothing is refused in the port that
+the branch answers.
+
+The plan of `docs/two-lines.md` §5.2 is complete: the fifteen families,
+in the order it names them, each one ported by an idempotent script
+under `audit/`, measured on the box, and committed with its cases.
+
 ## 329. The reasons of the refusals that remain are the ones of the branch
 
 The branch's pass of 2026-11-10 over the refusals gave each group of them

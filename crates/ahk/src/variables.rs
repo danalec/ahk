@@ -131,10 +131,6 @@ const NO_SCRIPT_HWND: &str =
 /// The desktop does not know the scale of the screen it shows.
 const NO_SCREEN_DPI: &str = "this desktop does not know the scale of the output.";
 
-/// The reason the tray icon is not answered.
-///
-/// The runtime has no tray icon.
-const NO_TRAY_ICON: &str = "this runtime has no tray icon.";
 
 /// The reason the directory where the run started is not answered.
 ///
@@ -500,11 +496,22 @@ fn read_the_clipboard(rt: &mut Runtime, line: u32) -> Result<String, RuntimeErro
         .map_err(|message| RuntimeError { message, line })
 }
 
+
+
+
+
 /// Put a text on the clipboard.
 fn put_on_the_clipboard(rt: &mut Runtime, text: &str, line: u32) -> Result<Value, RuntimeError> {
     rt.desktop()
         .clipboard_write(text)
         .map_err(|message| RuntimeError { message, line })?;
+    // A change the runtime can see: its own write. `OnClipboardChange` of v2
+    // calls the registered function with 1 for it. Measured on the binary of
+    // v2.0.19 on 2026-11-10. Another program's clipboard is not watched: this
+    // runtime has no watcher of the desktop, and the refusal says so.
+    if let Some(name) = rt.the_clipboard_watcher().map(str::to_string) {
+        rt.call_a_function_for_a_built_in(&name, &[Value::Int(1)], line)?;
+    }
     Ok(Value::Text(text.to_string()))
 }
 
@@ -731,6 +738,24 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         "lasterror" => Ok(Value::Int(0)),
         // There is no tray icon, so the icon of the script is not hidden.
         "iconhidden" => Ok(Value::Int(1)),
+        // Measured on the binary of v2.0.19 on 2026-11-10: A_IconFile of a
+        // script that set no icon answers the empty text, A_IconNumber
+        // answers zero, and A_TrayMenu answers a Menu object -- the same one
+        // for the life of the script, whose Default is "&Open" before any
+        // item is added.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon`
+        // puts the icon of the script, and the two variables carry it
+        // afterwards -- the file of it and the number of the icon in it.
+        "iconfile" => Ok(Value::Text(
+            rt.the_icon_of_the_script()
+                .map(|(file, _)| file.clone())
+                .unwrap_or_default(),
+        )),
+        "iconnumber" => Ok(Value::Int(
+            rt.the_icon_of_the_script().map(|(_, number)| *number).unwrap_or(0),
+        )),
+        "traymenu" => Ok(rt.the_tray_menu(0)),
         // The path of the executable that runs the script is the path of the
         // process, and the desktop is asked for it.
         "ahkpath" => rt
@@ -751,7 +776,6 @@ fn machine_refusal(name: &str) -> Option<&'static str> {
     Some(match name {
         "scripthwnd" => NO_SCRIPT_HWND,
         "screendpi" => NO_SCREEN_DPI,
-        "iconfile" | "iconnumber" | "traymenu" => NO_TRAY_ICON,
         _ => return None,
     })
 }

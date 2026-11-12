@@ -25,7 +25,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 pub(crate) use crate::date::{date_add, date_diff, format_time};
-pub(crate) use crate::dialogs::{dir_select, file_select, input_box};
+pub(crate) use crate::dialogs::{dir_select, file_select, input_box, tray_tip};
 use crate::dll::{Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue};
 pub(crate) use crate::files::{
     dir_copy, dir_move, download, file_append, file_copy, file_encoding, file_get_attrib,
@@ -1959,9 +1959,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: on_clipboard_change,
     },
     Builtin {
         name: "OnMessage",
@@ -2346,18 +2346,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tray_set_icon,
     },
     Builtin {
         name: "TrayTip",
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tray_tip,
     },
     Builtin {
         name: "WinActivate",
@@ -15695,4 +15695,93 @@ pub(crate) fn persistent(
 const NO_VALUE_NAME: &str = "(161) The specified path is invalid.";
 
 /// The failure of the machine when a key or a value is not there.
-const NOTHING_THERE: &str = "(2) The system cannot find the file specified.";
+const NOTHING_THERE: &str = "(2) The system cannot find the file specified.";
+
+/// `TraySetIcon(IconFile, IconNumber)`: the icon of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the call answers the
+/// empty text, and the built-in variables carry the icon afterwards --
+/// `A_IconFile` answers the path of the file and `A_IconNumber` the number
+/// of the icon in it. An icon that cannot be loaded throws **"Can't load
+/// icon."**, and the icon of the script is not changed. A call with no
+/// argument answers the empty text and changes nothing.
+///
+/// The path that the binary answers is the canonical one of Windows, which
+/// is in upper case; this tree answers the path as the script wrote it,
+/// because the path of a file is the path of the machine it is on.
+pub(crate) fn tray_set_icon(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(file) = values.first() else {
+        // A call with no argument changes nothing.
+        return Ok(Value::Text(String::new()));
+    };
+    let file = file.to_text();
+    let number = values.get(1).map(|value| value.to_number().unwrap_or(1.0) as i64);
+    let options = crate::desktop::PictureOptions {
+        width: None,
+        height: None,
+        icon: number,
+    };
+    // The icon is loaded before it is set: an icon that cannot be loaded is
+    // the failure of the call, and the icon of the script stays as it was.
+    // The binary does not tell the reasons apart -- every icon that cannot
+    // be loaded is "Can't load icon.".
+    let image = rt.desktop().load_picture(&file, &options).ok().flatten();
+    if image.is_none() {
+        return Err(RuntimeError {
+            message: "Can't load icon.".to_string(),
+            line,
+        });
+    }
+    let canonical = rt
+        .desktop()
+        .canonical_path(&file)
+        .unwrap_or_else(|_| file.clone());
+    rt.set_the_icon_of_the_script(canonical.clone(), number.unwrap_or(1));
+    // The tray of the session shows the icon, when the session has one: a
+    // desktop with no tray is not a failure of the call -- the icon of the
+    // script is set either way. A tray that refused is said in the report.
+    let refused = rt.desktop().tray_set_icon(&canonical).err();
+    if let Some(reason) = refused {
+        rt.note(format!(
+            "the tray of the session did not take the icon: {reason}"
+        ));
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `OnClipboardChange(Func, AddRemove)`: register a function for a change of
+/// the clipboard.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: a `Func` answers the empty
+/// text, a String is refused, and the function is called with 1 when the script
+/// itself writes `A_Clipboard`. This runtime has no watcher of ANOTHER program's
+/// clipboard -- its clipboard is a read and a write -- but its own write is a
+/// change it can see, so the function is called for that one.
+pub(crate) fn on_clipboard_change(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let callback = rt.the_callback_with_one_argument(
+        values.first(),
+        "OnClipboardChange",
+        line,
+    )?;
+    // Measured on the binary of v2.0.19 on 2026-11-10: a second argument of
+    // zero removes the function, and one (or none) registers it. The name
+    // answers the empty text either way. The function is called with 1 when
+    // the script itself writes `A_Clipboard` -- the only change this runtime
+    // can see, since it has no watcher of another program's clipboard.
+    let remove = match values.get(1) {
+        Some(value) => value.to_number().unwrap_or(1.0) <= 0.0,
+        None => false,
+    };
+    rt.set_the_clipboard_watcher(if remove { None } else { Some(callback.name) });
+    Ok(Value::Text(String::new()))
+}

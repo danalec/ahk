@@ -305,3 +305,32 @@ fn text_of(values: &[Value], index: usize) -> String {
         .map(|value| value.to_text())
         .unwrap_or_default()
 }
+
+
+/// `TrayTip`: tell the user something, without asking anything back.
+///
+/// v2 has three parameters: the text, the title, and the options that carry
+/// the icon and the duration. The text and the title are the two lines of the
+/// notification, and the options are the desktop's business, because the icon
+/// of a notification is the icon of the session the user is in.
+///
+/// The name is a Windows one -- a balloon in the notification area -- and the
+/// thing it does is not: a notification of the desktop reaches the same user
+/// with the same words, which is why `notify-send` is the answer of the box.
+pub fn tray_tip(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = text_of(values, 0);
+    let title = text_of(values, 1);
+    rt.desktop()
+        .notify(&title, &text)
+        .map_err(|reason| RuntimeError {
+            message: reason,
+            line,
+        })?;
+    // The answer of the `TrayTip` of v2 is nothing the script reads.
+    Ok(Value::Text(String::new()))
+}

@@ -131,6 +131,18 @@ pub struct LabDesktop {
     /// Windows, and there is no raven to ask.
     #[cfg(target_os = "linux")]
     raven: Option<crate::raven::Guests>,
+    /// The program of the tray of the session, and the pipes of it.
+    ///
+    /// It is started with the first icon of the script and lives as long as
+    /// the desktop does. The answers of the helper are read on a thread of
+    /// their own, so that the wait for one of them is bounded: a helper that
+    /// stops answering is a failure with a reason, and not a hang.
+    #[cfg(target_os = "linux")]
+    tray: Option<(
+        std::process::Child,
+        std::process::ChildStdin,
+        std::sync::mpsc::Receiver<String>,
+    )>,
     /// The client of the compositor, when the session is Wayland. It is
     /// opened with the first question about the windows and kept: the
     /// connection to the compositor is worth keeping.
@@ -331,6 +343,8 @@ impl LabDesktop {
             libraries: Libraries::new(),
             #[cfg(target_os = "linux")]
             raven: None,
+            #[cfg(target_os = "linux")]
+            tray: None,
             #[cfg(target_os = "linux")]
             wayland: None,
         }
@@ -580,6 +594,70 @@ impl LabDesktop {
             1,
         )
     }
+
+    /// The icon of the script, in the tray of the session.
+    ///
+    /// The compositor of the box carries a watcher of the
+    /// StatusNotifierItem, and the helper of the tray registers an item in
+    /// it. The item lives as long as the helper does, and the helper lives
+    /// as long as the desktop does.
+    ///
+    /// The answer of the helper is read and understood: the answer of the
+    /// start is the answer of an item that the watcher holds, and a helper
+    /// that did not register is a failure with the reason of the helper.
+    #[cfg(target_os = "linux")]
+    fn tray_set_icon(&mut self, name: &str) -> Result<(), String> {
+        if self.tray.is_none() {
+            let program = the_helper_of_the_tray()?;
+            let mut child = Command::new("python3")
+                .arg(&program)
+                .env("AHK_EVENTS_FILE", the_events_of_the_window())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|error| format!("the tray of the session did not start: {error}"))?;
+            let input = child.stdin.take().ok_or("the tray takes no input")?;
+            let output = child.stdout.take().ok_or("the tray has no output")?;
+            self.tray = Some((child, input, the_answers_of_the_tray(output)));
+            let answer = self.the_answer_of_the_tray()?;
+            the_tray_took(&answer)?;
+        }
+        let command = format!("{{\"op\": \"icon\", \"name\": {}}}\n", quoted(name));
+        {
+            let Some((_, input, _)) = self.tray.as_mut() else {
+                return Err("the tray of the session is not there".to_string());
+            };
+            input
+                .write_all(command.as_bytes())
+                .map_err(|error| format!("the tray of the session did not take the icon: {error}"))?;
+            input
+                .flush()
+                .map_err(|error| format!("the tray of the session did not take the icon: {error}"))?;
+        }
+        let answer = self.the_answer_of_the_tray()?;
+        the_tray_took(&answer)
+    }
+
+    /// The answer of the helper of the tray, read with a bound.
+    ///
+    /// The wait is bounded: the helper of the tray is a program of the
+    /// machine, and a program that stops answering is a failure with a
+    /// reason and not a hang of the runtime.
+    #[cfg(target_os = "linux")]
+    fn the_answer_of_the_tray(&mut self) -> Result<String, String> {
+        let Some((_, _, answers)) = self.tray.as_mut() else {
+            return Err("the tray of the session is not there".to_string());
+        };
+        let answer = answers
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .map_err(|_| "the tray of the session stopped answering".to_string())?;
+        if answer.is_empty() {
+            return Err("the tray of the session ended before it answered".to_string());
+        }
+        Ok(answer)
+    }
+
 }
 
 /// The codes the device announces.
@@ -2480,6 +2558,17 @@ fn the_kind_of(filesystem: &str) -> String {
 
 impl ahk::desktop::Machine for LabDesktop {
 
+    fn tray_set_icon(&mut self, _name: &str) -> Result<(), String> {
+        #[cfg(target_os = "linux")]
+        {
+            self.tray_set_icon(_name)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            Err("the tray of the session is a thing of the session of the box.".to_string())
+        }
+    }
+
     fn windows_directory(&mut self) -> Result<String, String> {
         #[cfg(target_os = "linux")]
         {
@@ -2847,6 +2936,46 @@ impl ahk::desktop::Network for LabDesktop {
 }
 
 impl ahk::desktop::Dialogs for LabDesktop {
+
+    fn notify(&mut self, title: &str, text: &str) -> Result<(), String> {
+        // The tool is `notify-send`, which is a tool of a Linux desktop. A
+        // host that has none of them says so, and does not let the shell
+        // answer "not found": the failure of the desktop is the failure the
+        // script sees.
+        box_tools_are_near()?;
+        // A notification of the session is what a `TrayTip` is on a Linux
+        // desktop: the same words, to the same person, in the corner of the
+        // same screen. The timeout is left to the session, which knows how
+        // long its own notifications stay.
+        let mut args: Vec<String> = Vec::new();
+        if !title.is_empty() {
+            args.push(format!("--app-name={title}"));
+        }
+        if !text.is_empty() {
+            args.push(text.to_string());
+        }
+        let command = format!(
+            "notify-send {}",
+            args.iter()
+                .map(|argument| shell_quote(argument))
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            let reason = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(if reason.is_empty() {
+                "the notification could not be shown: notify-send failed".to_string()
+            } else {
+                format!("the notification could not be shown: {reason}")
+            });
+        }
+        Ok(())
+    }
     fn input_box(
         &mut self,
         prompt: &str,
@@ -3938,3 +4067,73 @@ mod tests {
     }
 }
 
+
+
+/// The answers of the helper of the tray, read on a thread of their own.
+///
+/// The thread owns the reader, so the wait for an answer is a receive with
+/// a timeout instead of a read that cannot be given up on.
+#[cfg(target_os = "linux")]
+fn the_answers_of_the_tray(
+    output: std::process::ChildStdout,
+) -> std::sync::mpsc::Receiver<String> {
+    use std::io::BufRead;
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut reader = std::io::BufReader::new(output);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    if sender.send(line.trim_end().to_string()).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    receiver
+}
+
+/// Whether the helper of the tray took what it was asked.
+///
+/// The answer of the helper is JSON: `{"ok": true}` when it took it, and
+/// `{"ok": false, "error": "..."}` when it did not. The reason of the
+/// helper is carried as it is: a tray of a session that has no watcher of
+/// the StatusNotifierItem says so.
+#[cfg(target_os = "linux")]
+fn the_tray_took(answer: &str) -> Result<(), String> {
+    if answer.contains("\"ok\": true") {
+        return Ok(());
+    }
+    Err(format!("the tray of the session refused: {answer}"))
+}
+
+/// Where the program that puts the icon of the script in the tray is.
+///
+/// The two places of the helper of the window, in the same order: beside
+/// the binary, and under the crate as it was compiled.
+#[cfg(target_os = "linux")]
+fn the_helper_of_the_tray() -> Result<std::path::PathBuf, String> {
+    let mut tried: Vec<String> = Vec::new();
+    if let Ok(program) = std::env::current_exe() {
+        if let Some(folder) = program.parent() {
+            let beside = folder.join("helper/ahk-tray.py");
+            if beside.is_file() {
+                return Ok(beside);
+            }
+            tried.push(beside.to_string_lossy().into_owned());
+        }
+    }
+    let under = Path::new(env!("CARGO_MANIFEST_DIR")).join("helper/ahk-tray.py");
+    if under.is_file() {
+        return Ok(under);
+    }
+    tried.push(under.to_string_lossy().into_owned());
+    Err(format!(
+        "the program that puts the icon of the script in the tray is not where it was looked for: {}",
+        tried.join(", ")
+    ))
+}

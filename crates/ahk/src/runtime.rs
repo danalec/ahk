@@ -1667,6 +1667,27 @@ pub struct Runtime<'a> {
     /// drain of the events answers a `message:<number>` event of the helper
     /// with the handler that is registered here.
     message_handlers: BTreeMap<i64, String>,
+    /// The name of the function `OnClipboardChange` registered, if any.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a registered function
+    /// is called with 1 when the script itself writes `A_Clipboard`. This
+    /// runtime has no watcher of another program's clipboard, but its own
+    /// writes are a change it can see, so the callback is called for them.
+    clipboard_watcher: Option<String>,
+    /// The icon of the script: the file of it and the number of the icon.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script, and the built-in variables carry it
+    /// afterwards -- `A_IconFile` is the file and `A_IconNumber` the number
+    /// of the icon in it.
+    icon_of_the_script: Option<(String, i64)>,
+    /// The menu of the tray icon, made the first time a script asks for it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
+    /// a Menu object -- the SAME one for the life of the script -- whose
+    /// `Default` is "&Open" before any item is added to it, and whose `Add`
+    /// works like any menu's.
+    tray_menu: Option<Value>,
     /// The lists of images of the script, and the images of each one.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
@@ -1772,6 +1793,9 @@ impl<'a> Runtime<'a> {
             guis: Vec::new(),
             pointers: Vec::new(),
             message_handlers: BTreeMap::new(),
+            clipboard_watcher: None,
+            icon_of_the_script: None,
+            tray_menu: None,
             error_callbacks: Vec::new(),
             try_active: 0,
             failure_hidden: false,
@@ -1856,6 +1880,9 @@ impl<'a> Runtime<'a> {
             guis: Vec::new(),
             pointers: Vec::new(),
             message_handlers: BTreeMap::new(),
+            clipboard_watcher: None,
+            icon_of_the_script: None,
+            tray_menu: None,
             error_callbacks: Vec::new(),
             try_active: 0,
             failure_hidden: false,
@@ -2523,6 +2550,142 @@ impl<'a> Runtime<'a> {
             .iter()
             .map(|(name, value)| (name.clone(), value.to_text()))
             .collect()
+    }
+
+    /// The name of a `Func` that takes at least ONE parameter, for a callback
+    /// that is called with one value. `OnClipboardChange` is that shape:
+    /// measured on the binary of v2.0.19 on 2026-11-10, the function is called
+    /// with 1. `the_callback` asks for two, which is the shape of OnExit and
+    /// OnError, so this one is asked here instead.
+    pub(crate) fn the_callback_with_one_argument(
+        &self,
+        value: Option<&Value>,
+        name: &str,
+        line: u32,
+    ) -> Result<Callback, RuntimeError> {
+        let Some(value) = value else {
+            return Err(RuntimeError {
+                message: format!(
+                    "Parameter #1 of {name} requires an Object, but received nothing."
+                ),
+                line,
+            });
+        };
+        let Value::Object(object) = value else {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(1, name, "an Object", value),
+                line,
+            });
+        };
+        let object = object.borrow();
+        if object.class != "func" {
+            return Err(RuntimeError {
+                message: format!(
+                    "This value of type \"{}\" has no method named \"Call\".",
+                    value.type_name().name()
+                ),
+                line,
+            });
+        }
+        let function_name = match object.value_of("name") {
+            Some(Value::Text(text)) => text.clone(),
+            _ => String::new(),
+        };
+        let takes_one = match self.functions.get(&function_name.to_lowercase()) {
+            Some(function) => {
+                !function.parameters.is_empty()
+                    || function.parameters.iter().any(|parameter| parameter.variadic)
+            }
+            None => number_of(&object.properties, "maxparams") >= 1,
+        };
+        if !takes_one {
+            return Err(RuntimeError {
+                message: "Invalid callback function.".into(),
+                line,
+            });
+        }
+        Ok(Callback {
+            name: function_name,
+            line,
+        })
+    }
+
+    /// Call a function of the script by name, with the arguments, and give back
+    /// a `RuntimeError` -- the shape a built-in variable needs.
+    ///
+    /// `OnClipboardChange` uses this: a function registered for the clipboard
+    /// is called with `1` when the script itself writes `A_Clipboard`.
+    /// Measured on the binary of v2.0.19 on 2026-11-10.
+    pub(crate) fn call_a_function_for_a_built_in(
+        &mut self,
+        name: &str,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<(), RuntimeError> {
+        self.call_named(name, arguments, line, Route::Written)
+            .map(|_| ())
+            .map_err(|failure| match failure {
+                RuntimeFailure::Error(error) => error,
+                RuntimeFailure::Detailed(error, _) => error,
+                RuntimeFailure::Fatal(error) => error,
+                _ => RuntimeError {
+                    message: "the function of the clipboard change could not be called."
+                        .to_string(),
+                    line,
+                },
+            })
+    }
+
+    /// The menu of the tray icon, made the first time a script asks for it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
+    /// a Menu object -- the SAME one for the life of the script, so it is
+    /// made once and kept -- whose `Default` is "&Open" before any item is
+    /// added to it, and whose `Add` works like any menu's.
+    pub fn the_tray_menu(&mut self, line: u32) -> Value {
+        if let Some(menu) = &self.tray_menu {
+            return menu.clone();
+        }
+        let menu = crate::classes::menu::construct(&[], self, line)
+            .unwrap_or_else(|_| crate::classes::object_with("Menu", vec![]));
+        // The default of a fresh tray menu is the standard &Open item, which
+        // the binary answers even before the standard items are added.
+        let _ = crate::classes::menu::set_property(
+            "Default",
+            &menu,
+            &Value::Text("&Open".to_string()),
+            self,
+            line,
+        );
+        self.tray_menu = Some(menu.clone());
+        menu
+    }
+
+    /// Put the icon of the script, the way `TraySetIcon` does.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: the built-in
+    /// variables carry the icon afterwards.
+    pub fn set_the_icon_of_the_script(&mut self, file: String, number: i64) {
+        self.icon_of_the_script = Some((file, number));
+    }
+
+    /// The file of the icon of the script, and the number of the icon in it.
+    pub fn the_icon_of_the_script(&self) -> Option<&(String, i64)> {
+        self.icon_of_the_script.as_ref()
+    }
+
+    /// Register the function `OnClipboardChange` named, or take it away.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a second argument of
+    /// zero removes the callback, and one adds it; the name answers the empty
+    /// text either way.
+    pub fn set_the_clipboard_watcher(&mut self, name: Option<String>) {
+        self.clipboard_watcher = name;
+    }
+
+    /// The function to call when the script writes the clipboard, if any.
+    pub fn the_clipboard_watcher(&self) -> Option<&str> {
+        self.clipboard_watcher.as_deref()
     }
 
     /// Find the functions and the classes the script defines, wherever
@@ -15835,13 +15998,23 @@ fn func_value(name: &str, function: &Function) -> Value {
     let mut properties: BTreeMap<String, Property> = BTreeMap::new();
     put(&mut properties, "name", Value::Text(name.to_string()));
     put(&mut properties, "minparams", Value::Int(fewest as i64));
+    // Measured on the binary of v2.0.19 on 2026-11-11: the most of a
+    // function with a rest are the parameters that come BEFORE it -- a
+    // function of (a, b, c, Rest*) has three of them and not four -- and
+    // the flag of the rest is one.
+    let variadic = function.parameters.iter().any(|parameter| parameter.variadic);
+    let most = function
+        .parameters
+        .iter()
+        .filter(|parameter| !parameter.variadic)
+        .count();
     put(
         &mut properties,
         "maxparams",
-        Value::Int(function.parameters.len() as i64),
+        Value::Int(most as i64),
     );
     put(&mut properties, "isbuiltin", Value::Int(0));
-    put(&mut properties, "isvariadic", Value::Int(0));
+    put(&mut properties, "isvariadic", Value::Int(if variadic { 1 } else { 0 }));
     put(
         &mut properties,
         PARAMETERS,

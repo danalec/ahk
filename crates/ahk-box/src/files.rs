@@ -38,6 +38,10 @@ const FAILED: &str = "Failed";
 const KNOWN: [char; 4] = ['R', 'A', 'N', 'D'];
 
 impl ahk::desktop::Files for LabDesktop {
+
+    fn canonical_path(&mut self, path: &str) -> Result<String, String> {
+        canonical_path(path)
+    }
     fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
         let mut options = std::fs::OpenOptions::new();
         match mode.to_lowercase().as_str() {
@@ -1701,3 +1705,27 @@ mod tests {
         let _ = fs::remove_dir_all(&folder);
     }
 }
+
+
+/// The path of a file, in the form the machine writes it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts the
+/// icon of the script, and `A_IconFile` answers the path of it in the
+/// canonical form of the machine -- "C:\WINDOWS\System32\SHELL32.dll" for
+/// the shell32.dll that the script wrote in another case.
+///
+/// The canonical form is the absolute path, and the drive of it is written
+/// in upper case, the way Windows writes it. The links of the path are not
+/// followed: the path is the one the machine would open.
+pub fn canonical_path(path: &str) -> Result<String, String> {
+    let absolute = std::path::absolute(path).map_err(|error| error.to_string())?;
+    let mut text = absolute.to_string_lossy().into_owned();
+    // The drive of a path of Windows is written in upper case.
+    let mut letters = text.chars();
+    if let (Some(drive), Some(':')) = (letters.next(), letters.next()) {
+        if drive.is_ascii_alphabetic() {
+            text = format!("{}{}{}", drive.to_ascii_uppercase(), ':', &text[2..]);
+        }
+    }
+    Ok(text)
+}

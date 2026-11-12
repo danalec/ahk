@@ -1157,6 +1157,16 @@ pub trait Processes {
 
 /// The files of the desktop.
 pub trait Files {
+
+    /// The path of a file, in the form the machine writes it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script, and `A_IconFile` answers the path of it in
+    /// the canonical form of the machine -- "C:\WINDOWS\System32\SHELL32.dll"
+    /// for the shell32.dll that the script wrote in another case.
+    fn canonical_path(&mut self, _path: &str) -> Result<String, String> {
+        Err("this desktop cannot write the canonical form of a path".to_string())
+    }
     /// The directory the script is in.
     ///
     /// The name of the directory is a subfolder of the working directory
@@ -1688,6 +1698,15 @@ pub struct DriveSpace {
 
 pub trait Machine {
 
+    /// Put the icon of the script in the tray of the session.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script in the tray, and the built-in variables carry
+    /// it afterwards.
+    fn tray_set_icon(&mut self, _name: &str) -> Result<(), String> {
+        Err("this desktop has no tray to put the icon of the script in".to_string())
+    }
+
     /// The directory of the programs of the user, in the Windows of the machine.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-11: `A_ProgramFiles`
@@ -1937,6 +1956,20 @@ pub struct Drive {
 /// is asked: an option that v2 does not know is refused there, and the
 /// desktop is never asked about it.
 pub trait Dialogs {
+
+    /// Tell the user something, without asking anything back.
+    ///
+    /// The title is the first line of it and the text is the body. A desktop
+    /// that has no way to tell the user anything says so, and not `false`.
+    ///
+    /// The `TrayTip` of v2 is the name of this: on Windows it is a balloon in
+    /// the tray, and on a Linux desktop it is a notification of the session,
+    /// which is the same thing said to the same person. The refusal of the
+    /// tree used to call it a name of Windows, which was false: the box has
+    /// `notify-send` on it.
+    fn notify(&mut self, _title: &str, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot show a notification".to_string())
+    }
     /// Ask the user for a text.
     ///
     /// The answer carries the text the user typed and the way the
