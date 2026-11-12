@@ -1,0 +1,7 @@
+LIBRARY kernel32.dll
+EXPORTS
+    GetProcAddress
+    GetStdHandle
+    LoadLibraryW
+    ReadFile
+    WriteFile

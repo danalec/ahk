@@ -1,0 +1,23 @@
+[package]
+name = "ahk-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Run an ahk script on this machine: the script on stdin, the report on stdout"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/ahk-cli"
+keywords = ["autohotkey", "ahk", "scripting", "cli", "automation"]
+categories = ["command-line-utilities"]
+# The contracts of the review loop are working documents, not source.
+exclude = ["EGM.md", "src/EGM.md"]
+
+[[bin]]
+name = "ahk"
+path = "src/main.rs"
+
+[dependencies]
+ahk = { workspace = true }
+ahk-box = { workspace = true }

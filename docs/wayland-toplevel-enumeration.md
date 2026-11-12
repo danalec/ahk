@@ -1,0 +1,925 @@
+# Enumerating windows in a Wayland compositor
+
+> Technical guide and working example in Rust, with
+> `ext-foreign-toplevel-list-v1`.
+>
+> The code of this guide was **compiled and run** on the box of the laboratory
+> (the Linux box, Wayland, COSMIC). The real output is
+> in section 7.
+
+---
+
+## 1. The model: why Wayland has no list of windows
+
+Wayland was designed the other way around from X11. In X11, any client can
+ask the server for the whole tree of windows and receives the identifiers of
+all of them — that is a known security problem, and it is the reason why
+`xprop`/`xdotool`/`wmctrl` work in any X11 session without any permission.
+
+In Wayland, a client sees only **the surfaces it created itself**. The
+windows of the other programs belong to another client, and the compositor
+does not announce them to anybody. There is no `wl_display.get_windows()` and
+there never will be: the aim of the protocol is that a malicious client
+cannot discover what is on the screen of the user nor interfere with the
+windows of the others.
+
+The practical consequence is that **enumerating windows is a permission, not
+a right**. The compositor grants that permission through an extension
+protocol, and the client has to ask for it explicitly — and the compositor
+may refuse it.
+
+### 1.1 The two protocols that matter
+
+| Protocol | Lists | Controls | Who publishes it |
+|---|---|---|---|
+| `ext-foreign-toplevel-list-v1` | yes | **no** | a compositor that implements the listing |
+| `zwlr-foreign-toplevel-management-unstable-v1` | yes | **yes** | wlroots (Sway, Hyprland, Wayfire, riverlab, ...) |
+| `zcosmic_toplevel_manager_v1` | yes | **yes** | COSMIC |
+
+The difference is the whole point:
+
+- **`ext-foreign-toplevel-list-v1`** is the **minimal and portable**
+  protocol. The compositor hands out one *handle* for every mapped toplevel,
+  and the handle says what the window is: `title`, `app_id` and a stable
+  `identifier`. **There is not a single action request** — the client cannot
+  activate, move, minimize nor close anything. It is a protocol of
+  *observation*.
+- **`zwlr-foreign-toplevel-management-unstable-v1`** (and the equivalent of
+  COSMIC) adds the action requests: `activate`, `minimize`, `unmaximize`,
+  `maximize`, `close`, `move`, `resize`, besides the state events
+  (`activated`, `fullscreen`, `minimized`) and the output ones. It is a
+  protocol of *control*.
+
+The `ext-` is the **staging** version of the protocol, brought into
+wayland-protocols to replace the unstable `zwlr-`. It is the same design,
+without the power to act. The reason why the `ext-` exists is the same one
+that made X11 be considered unsafe: the list is useful, the control is
+dangerous, and a compositor may want to give the first and refuse the
+second.
+
+> **Measured on the box.** The compositor is `cosmic-comp`. It
+> publishes `ext_foreign_toplevel_list_v1` (version 1),
+> `zcosmic_toplevel_manager_v1`, `zcosmic_toplevel_info_v1`,
+> `ext_data_control_manager_v1`, `ext_workspace_manager_v1`,
+> `ext_foreign_toplevel_image_capture_source_manager_v1`,
+> `cosmic_a11y_manager_v1` and `wp_pointer_warp_v1`. It does **not** publish
+> `zwlr_foreign_toplevel_management_v1` — COSMIC is not wlroots — but it
+> publishes its equivalent, with the same powers.
+
+### 1.2 What this changes for our runtime
+
+The `AGENTS.md` said that `WinExist` and `WinActive` answered *"unknown"* on
+the box, because the Wayland compositor does not expose a list of windows to
+D-Bus and the Xwayland of gamescope reports an empty list. **That is still
+true for D-Bus, and it is not true for Wayland anymore**: the `cosmic-comp`
+publishes `ext_foreign_toplevel_list_v1`, and the program of this guide
+enumerates the windows of the box without any difficulty. What was missing
+was the Wayland-native path, not the permission.
+
+**That path is done.** The client lives in
+`crates/ahk-box/src/wayland.rs`, and `WinGetTitle`, `WinExist` and `WinActive`
+answer with a value on the box. Two things this guide does not cover and
+that the client had to learn:
+
+- **The active window comes from a second protocol.** The
+  `ext-foreign-toplevel-list-v1` does not say which of the windows has the
+  focus. The one that says is the `zcosmic-toplevel-info-v1`, which
+  *extends* the listing: `get_cosmic_toplevel` receives the handle of the
+  listing and returns a handle of COSMIC, and that one is the one that
+  carries the `state`. The correlation is by the handle, so it is exact —
+  and not a guess by the title.
+- **The `state` arrives one frame later.** The compositor says the state of
+  the window in its next refresh, and a refresh is a frame: measured on the
+  box, the answer was in the second question, ten milliseconds after the
+  first. The client waits — with a limit — before saying that the active
+  window is one or the other.
+
+The XML of the two protocols is vendored in `crates/ahk-box/protocols/`
+(MIT), and the bindings are generated by the `wayland-scanner` at compile
+time. The crate `cosmic-protocols` is GPL-3.0 and **not** a dependency of
+this tree: the behaviour is ported, the code is not copied.
+
+---
+
+## 2. `Cargo.toml`
+
+```toml
+[package]
+name = "wl-toplevels"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.71"
+description = "Enumerate Wayland toplevels with ext-foreign-toplevel-list-v1"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+anyhow = "1"
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-backend = "0.3"
+rustix = { version = "1", features = ["event"] }
+signal-hook = "0.3"
+
+[profile.release]
+opt-level = "s"
+lto = true
+```
+
+Three notes about the manifest:
+
+1. **`features = ["client", "staging"]` is mandatory.** The
+   `ext-foreign-toplevel-list-v1` is a *staging* protocol, and the crate
+   `wayland-protocols` hides the staging protocols behind that feature.
+   Without it, `wayland_protocols::ext::foreign_toplevel_list` does not even
+   exist, and the error is an `unresolved import` that says nothing about the
+   cause.
+2. **`wayland-scanner` is not a dependency.** The `wayland-protocols` already
+   brings the generated code; the `wayland-scanner` would only be needed for
+   a protocol that is not in the crate (see section 8).
+3. **`rustix`** comes in through the `event`: it is the `poll(2)` that the
+   `wayland-client` uses inside, and it is what allows waiting for the
+   compositor with a time limit instead of blocking forever.
+
+---
+
+## 3. `src/main.rs`
+
+```rust
+//! Enumerate the toplevel windows of a Wayland compositor.
+//!
+//! # The model of security
+//!
+//! The core of Wayland has no list of windows. A client sees only the
+//! surfaces it created itself; every other window belongs to another
+//! client, and the compositor does not tell anybody about them. There is
+//! no `wl_display.get_windows()`, and there never will be one: a window
+//! is not the business of the client that watches the screen.
+//!
+//! The enumeration is therefore a privilege, and the compositor grants it
+//! through an extension protocol. Two of them matter:
+//!
+//! * `ext-foreign-toplevel-list-v1` -- lists the toplevels and says what
+//!   they are (title, application id, stable identifier). It cannot do
+//!   anything to them.
+//! * `zwlr-foreign-toplevel-management-unstable-v1` -- lists them *and*
+//!   hands the client the power to act on them: activate, minimize,
+//!   maximize, close, move, resize.
+//!
+//! The compositor of the lab box is COSMIC, and it publishes its own
+//! equivalent of the second one, `zcosmic_toplevel_manager_v1`, with the
+//! same powers.
+//!
+//! This program uses the first one, because the question it answers is
+//! "which windows are there".
+//!
+//! # The events
+//!
+//! Binding the global starts the snapshot: the compositor sends one
+//! `toplevel` event for every mapped toplevel, and for each of them a
+//! handle that carries the properties. The protocol says that a roundtrip
+//! after the bind is what tells the client that the snapshot is complete:
+//!
+//! > Clients which only care about the current state can perform a
+//! > roundtrip after binding this global.
+//!
+//! After that, the same events carry the changes: a `toplevel` event is a
+//! window that was mapped, a `closed` event is a window that went away.
+//!
+//! The properties of a handle arrive one by one and are only to be applied
+//! when the `done` event confirms them, so that a title and an application
+//! id that change together are seen together.
+
+use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use anyhow::{Context, Result};
+use signal_hook::consts::SIGINT;
+use signal_hook::flag;
+use wayland_backend::client::WaylandError;
+use wayland_client::globals::{registry_queue_init, BindError, GlobalListContents};
+use wayland_client::protocol::wl_registry::{self, WlRegistry};
+use wayland_client::{event_created_child, Connection, Dispatch, EventQueue, Proxy, QueueHandle};
+use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
+    ext_foreign_toplevel_handle_v1::{Event as HandleEvent, ExtForeignToplevelHandleV1},
+    ext_foreign_toplevel_list_v1::{self, Event as ListEvent, ExtForeignToplevelListV1},
+};
+
+/// How long the loop waits for the compositor before it looks at the
+/// Ctrl+C flag again. Short enough to feel immediate, long enough not to
+/// spin on an idle desktop.
+const POLL_TIMEOUT: Duration = Duration::from_millis(100);
+
+/// How long the program waits for the `finished` that answers the `stop`
+/// request at the end.
+const STOP_TIMEOUT: Duration = Duration::from_millis(500);
+
+fn main() -> Result<()> {
+    // Ctrl+C does not kill the program: it sets the flag, and the loop
+    // looks at it between two waits. The alternative -- a signal handler
+    // that exits -- would leave the compositor with half a protocol.
+    let interrupted = Arc::new(AtomicBool::new(false));
+    flag::register(SIGINT, Arc::clone(&interrupted)).context("cannot install the Ctrl+C handler")?;
+
+    let conn = Connection::connect_to_env().context("cannot connect to the Wayland display")?;
+
+    // The registry is read here, and the queue that will carry the events
+    // is created with it.
+    let (globals, mut queue) =
+        registry_queue_init::<App>(&conn).context("cannot read the registry of the compositor")?;
+
+    let mut app = App::default();
+
+    // The global is the door to the list of the windows. A compositor that
+    // does not publish it does not let anybody list them, and there is no
+    // other way in.
+    match globals.bind::<ExtForeignToplevelListV1, _, _>(&queue.handle(), 1..=1, ()) {
+        Ok(list) => app.list = Some(list),
+        Err(BindError::NotPresent) => {
+            eprintln!(
+                "the compositor does not publish ext_foreign_toplevel_list_v1:\n\
+                 \x20 the windows cannot be listed through Wayland.\n\
+                 \x20 `wayland-info` says which globals it does publish."
+            );
+            // The program keeps running: a compositor is allowed to
+            // publish the global later, and the registry handler below
+            // picks it up when it does.
+        }
+        Err(e) => return Err(e).context("cannot bind ext_foreign_toplevel_list_v1"),
+    }
+
+    // The snapshot: one `toplevel` event for every mapped window, and the
+    // properties of each of them. The roundtrip is what says when it is
+    // over.
+    queue.roundtrip(&mut app).context("the roundtrip failed")?;
+    app.snapshot_done = true;
+    app.print_snapshot();
+
+    // The loop: wait for the compositor, dispatch what it sent, and look
+    // at the Ctrl+C flag in between.
+    while !interrupted.load(Ordering::Relaxed) {
+        wait_for_events(&queue, &conn, POLL_TIMEOUT)?;
+        queue.dispatch_pending(&mut app).context("cannot dispatch the events")?;
+    }
+
+    println!("\nCtrl+C: stopping.");
+
+    // The polite way out: ask the compositor to stop sending events, wait
+    // for the `finished` that answers the request, and then let the
+    // objects go. The connection is closed right after, so the wait is
+    // bounded.
+    if app.list.is_some() {
+        app.list.as_ref().expect("the list is there").stop();
+        conn.flush().context("cannot flush the connection")?;
+
+        let deadline = Instant::now() + STOP_TIMEOUT;
+        while !app.finished && Instant::now() < deadline {
+            wait_for_events(&queue, &conn, Duration::from_millis(50))?;
+            queue.dispatch_pending(&mut app).context("cannot dispatch the events")?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Wait for the compositor to say something, but not for longer than the
+/// timeout.
+///
+/// The read is prepared *before* the wait: the guard is what tells the
+/// other threads of the queue that somebody is reading, and dropping it
+/// cancels the prepared read. This is what keeps the event queue from
+/// being blocked: the program is never inside a read that it cannot leave.
+fn wait_for_events(
+    queue: &EventQueue<App>,
+    conn: &Connection,
+    timeout: Duration,
+) -> Result<()> {
+    let Some(guard) = queue.prepare_read() else {
+        // Another thread holds the read; there is nothing to wait for.
+        return Ok(());
+    };
+
+    // Send what we have before waiting, or the compositor never hears it.
+    conn.flush().context("cannot flush the connection")?;
+
+    let fd = guard.connection_fd();
+    let mut fds = [rustix::event::PollFd::new(&fd, rustix::event::PollFlags::IN)];
+    let deadline = rustix::event::Timespec {
+        tv_sec: timeout.as_secs() as i64,
+        tv_nsec: timeout.subsec_nanos() as i64,
+    };
+
+    let ready = match rustix::event::poll(&mut fds, Some(&deadline)) {
+        Ok(ready) => ready,
+        // A signal arrived while we waited -- the Ctrl+C, most likely.
+        // The loop looks at the flag and decides what to do about it; the
+        // wait itself was not a failure.
+        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => 0,
+        Err(e) => return Err(e).context("cannot wait for the compositor"),
+    };
+
+    if ready > 0 {
+        // The socket has something. Reading it puts the events in the
+        // queue; the handlers run in `dispatch_pending`.
+        if let Err(e) = guard.read() {
+            // Another thread took the events between the poll and the
+            // read. That is not an error.
+            let would_block = matches!(&e, WaylandError::Io(io) if io.kind() == std::io::ErrorKind::WouldBlock);
+            if !would_block {
+                return Err(e).context("cannot read the events of the compositor");
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// What the program knows about one toplevel.
+#[derive(Debug, Default)]
+struct Toplevel {
+    /// The stable identifier of the toplevel, when the compositor sends
+    /// one. It is the same string for the same window across processes, so
+    /// it is the one to show to a human and to write down.
+    identifier: Option<String>,
+    /// The title, as the compositor last confirmed it.
+    title: String,
+    /// The application id, as the compositor last confirmed it.
+    app_id: String,
+    /// Whether this is a toplevel whose properties are still coming.
+    fresh: bool,
+    /// The title that arrived and waits for the `done` that confirms it.
+    pending_title: Option<String>,
+    /// The application id that arrived and waits for its `done`.
+    pending_app_id: Option<String>,
+    /// The identifier that arrived; the compositor sends it only once.
+    pending_identifier: Option<String>,
+}
+
+impl Toplevel {
+    /// The line that describes this toplevel.
+    fn line(&self, id: u32) -> String {
+        format!(
+            "[0x{id:08x}] identifier={} title={:?} app_id={:?}",
+            self.identifier.as_deref().unwrap_or("-"),
+            self.title,
+            self.app_id,
+        )
+    }
+}
+
+/// The state of the program.
+#[derive(Default)]
+struct App {
+    /// The toplevels, by the numeric id of the handle that represents
+    /// them. The map is ordered, so that the snapshot is printed in a
+    /// stable order.
+    toplevels: BTreeMap<u32, Toplevel>,
+    /// The handles, kept alive on purpose: dropping a proxy destroys the
+    /// object on the server, and a destroyed handle is a handle that will
+    /// never send anything else.
+    handles: Vec<ExtForeignToplevelHandleV1>,
+    /// The list object, kept alive for the same reason.
+    list: Option<ExtForeignToplevelListV1>,
+    /// Whether the initial snapshot is over.
+    snapshot_done: bool,
+    /// Whether the compositor said it is done sending events.
+    finished: bool,
+}
+
+impl App {
+    /// Print the snapshot of the windows that are there.
+    fn print_snapshot(&self) {
+        println!("--- snapshot: {} mapped toplevel(s) ---", self.toplevels.len());
+        for (id, toplevel) in &self.toplevels {
+            println!("{}", toplevel.line(*id));
+        }
+        println!("--- the snapshot is over; the changes follow ---");
+    }
+}
+
+/// The registry: the list of the globals of the compositor.
+impl Dispatch<WlRegistry, GlobalListContents> for App {
+    fn event(
+        state: &mut Self,
+        proxy: &WlRegistry,
+        event: wl_registry::Event,
+        _data: &GlobalListContents,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        else {
+            return;
+        };
+
+        if interface != ExtForeignToplevelListV1::interface().name {
+            return;
+        }
+
+        // A compositor may publish the global after the program started.
+        // The version of the protocol is 1, and the compositor may
+        // announce a higher one; the program asks for the one it knows.
+        let list: ExtForeignToplevelListV1 = proxy.bind(name, version.min(1), qh, ());
+        state.list = Some(list);
+        println!("the compositor published {interface} (version {version}); it is bound now.");
+    }
+}
+
+/// The list: the windows that are there, and the ones that come.
+impl Dispatch<ExtForeignToplevelListV1, ()> for App {
+    fn event(
+        state: &mut Self,
+        _proxy: &ExtForeignToplevelListV1,
+        event: ListEvent,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        match event {
+            ListEvent::Toplevel { toplevel } => {
+                let id = toplevel.id().protocol_id();
+                let entry = state.toplevels.entry(id).or_default();
+                entry.fresh = true;
+                // The handle has to live as long as the program does.
+                state.handles.push(toplevel);
+            }
+            ListEvent::Finished => {
+                // The compositor answered the `stop` request; it will not
+                // send anything else on this object.
+                state.finished = true;
+            }
+            // The generated enum is `#[non_exhaustive]`: an event that a
+            // later version of the protocol adds lands here.
+            _ => {}
+        }
+    }
+
+    // The `toplevel` event creates the handle object, and a child object
+    // needs its user data before it can be used. The macro is what says
+    // which event creates which object, and what data it carries.
+    event_created_child!(App, ExtForeignToplevelListV1, [
+        ext_foreign_toplevel_list_v1::EVT_TOPLEVEL_OPCODE => (ExtForeignToplevelHandleV1, ()),
+    ]);
+}
+
+/// The handle: the properties of one window.
+impl Dispatch<ExtForeignToplevelHandleV1, ()> for App {
+    fn event(
+        state: &mut Self,
+        proxy: &ExtForeignToplevelHandleV1,
+        event: HandleEvent,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        let id = proxy.id().protocol_id();
+        // The snapshot flag is read before the borrow of the map, or the
+        // two borrows would fight.
+        let snapshot_done = state.snapshot_done;
+
+        let Some(toplevel) = state.toplevels.get_mut(&id) else {
+            // A handle of a window that was closed before we got here.
+            return;
+        };
+
+        let mut closed = false;
+
+        match event {
+            HandleEvent::Identifier { identifier } => {
+                toplevel.pending_identifier = Some(identifier);
+            }
+            HandleEvent::Title { title } => {
+                toplevel.pending_title = Some(title);
+            }
+            HandleEvent::AppId { app_id } => {
+                toplevel.pending_app_id = Some(app_id);
+            }
+            HandleEvent::Done => {
+                // The properties are confirmed: now they are the truth.
+                let mut changed = false;
+                if let Some(identifier) = toplevel.pending_identifier.take() {
+                    toplevel.identifier = Some(identifier);
+                    changed = true;
+                }
+                if let Some(title) = toplevel.pending_title.take() {
+                    toplevel.title = title;
+                    changed = true;
+                }
+                if let Some(app_id) = toplevel.pending_app_id.take() {
+                    toplevel.app_id = app_id;
+                    changed = true;
+                }
+                if !changed {
+                    return;
+                }
+
+                let fresh = toplevel.fresh;
+                toplevel.fresh = false;
+                if snapshot_done {
+                    // A window that was mapped after the snapshot is a
+                    // new one; a window that was already there only
+                    // changed.
+                    let mark = if fresh { "+" } else { "~" };
+                    println!("{mark} {}", toplevel.line(id));
+                }
+            }
+            HandleEvent::Closed => {
+                // The window is gone, and the compositor will not send
+                // anything else on this handle. The protocol asks the
+                // client to destroy the handle, and the window leaves
+                // the table.
+                println!("- {} closed", toplevel.line(id));
+                if let Some(pos) = state
+                    .handles
+                    .iter()
+                    .position(|handle| handle.id().protocol_id() == id)
+                {
+                    let handle = state.handles.remove(pos);
+                    handle.destroy();
+                }
+                closed = true;
+            }
+            // The generated enum is `#[non_exhaustive]`: an event that a
+            // later version of the protocol adds lands here.
+            _ => {}
+        }
+
+        if closed {
+            state.toplevels.remove(&id);
+        }
+    }
+}
+```
+
+---
+
+## 4. Compiling and running
+
+The crate is **Linux-only**: the `wayland-sys` uses `std::os::unix`, and so it
+does not compile on Windows. On the box:
+
+```sh
+# 1. copy the sources to the box first: a build without the copy
+#    compiles what the box still has, and the result is an old
+#    binary with no error.
+mkdir -p ~/src/wl-toplevels/src
+# copy Cargo.toml and src/main.rs into ~/src/wl-toplevels here
+
+# 2. the build (on the box, in the session of the user)
+cd ~/src/wl-toplevels && cargo build --release
+
+# 3. the run, in the session of the user
+cd ~/src/wl-toplevels && \
+    XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 \
+    ./target/release/wl-toplevels
+```
+
+In a normal graphical session (a terminal inside Wayland), it is enough:
+
+```sh
+cargo run --release
+```
+
+The `Connection::connect_to_env()` reads `WAYLAND_DISPLAY` and
+`XDG_RUNTIME_DIR`. Without `WAYLAND_DISPLAY`, it fails with *"cannot connect
+to the Wayland display"* — and that is the symptom of an `ssh` without the
+environment of the session, not an error of the program.
+
+**Ctrl+C** sets the flag, the loop sees it on the next turn, and the program
+leaves by the clean path: it asks for `stop`, waits for the `finished`, and
+closes the connection. The exit code is 0.
+
+---
+
+## 5. The events: what is snapshot and what is incremental
+
+This is the part that misleads, and the source of almost every mistake in
+this protocol.
+
+### 5.1 The initial snapshot
+
+```
+bind the global
+   │
+   ├── event  ext_foreign_toplevel_list_v1.toplevel   (handle #1)
+   │     ├── event  handle.identifier = "P6jNlxgK..."     ┐
+   │     ├── event  handle.title      = "Firefox"        ├─ the properties
+   │     ├── event  handle.app_id     = "firefox"        ┘
+   │     └── event  handle.done                          ← confirms
+   │
+   ├── event  ext_foreign_toplevel_list_v1.toplevel   (handle #2)
+   │     └── ... likewise ...
+   │
+   └── roundtrip (wl_display.sync)                        ← the snapshot is over
+```
+
+The compositor sends **one `toplevel` for every mapped toplevel**, and right
+after it the properties of each handle (`identifier`, `title`, `app_id`),
+followed by `done`.
+
+**The end of the snapshot is marked by the roundtrip, not by an event.** The
+protocol says exactly that:
+
+> Clients which only care about the current state can perform a roundtrip
+> after binding this global.
+
+A `wl_display.sync` that the compositor answers after it has processed
+everything that came before it guarantees that the events of the snapshot
+have already arrived. That is why the program does
+`queue.roundtrip(&mut app)?` right after the bind, and only then prints the
+table.
+
+> **Common mistake.** The `finished` event does **not** mark the end of the
+> snapshot. The `finished` is the answer to the `stop` request, and the
+> compositor only sends it after the client asks to stop receiving events.
+> Confusing the two gives a program that never prints the initial table.
+
+### 5.2 The properties are applied at the `done`
+
+The protocol is explicit: *"The configured state must not be applied
+immediately"* — the `title` and the `app_id` that arrive are **not** applied
+at the moment they arrive, but at the `done` that confirms them. That way, a
+title and an `app_id` that change together are seen together, and the
+program never shows an intermediate state that the user never saw.
+
+That is why the code has the fields `pending_title`, `pending_app_id` and
+`pending_identifier`: what arrived waits, and the `done` moves the pending
+one into the applied one.
+
+### 5.3 The incremental updates
+
+After the roundtrip, the same events come to mean another thing:
+
+| Event | Before the roundtrip | After the roundtrip |
+|---|---|---|
+| `toplevel` | a window of the inventory | **a new window** was mapped |
+| `identifier`/`title`/`app_id` | the initial properties | a property **changed** |
+| `done` | confirms the initial | confirms the change |
+| `closed` | — | **the window was closed** |
+
+The program tells the two regimes apart with the `snapshot_done` flag:
+during the snapshot, nothing is printed (the table is printed all at once,
+at the end); afterwards, each `done` prints the line with `+` (new window)
+or `~` (window that changed), and the `closed` prints `-`.
+
+The `identifier` deserves a note: it is **stable** and the compositor only
+sends it when the handle is created. It serves to say whether two handles
+are the same window, and it is the same value in different processes — it is
+the `id` that goes into a log and that is used later.
+
+### 5.4 `closed` and the destruction of the handle
+
+After the `closed`, the compositor sends nothing else on that handle, and
+the protocol asks the client to destroy it. The program does both things:
+it prints the line and calls `destroy()` on the handle, taking it out of
+the list.
+
+---
+
+## 6. How not to block the event queue
+
+`EventQueue::blocking_dispatch()` is the easy path, and it is the wrong one
+for a program that has to answer Ctrl+C: it blocks inside the `read(2)` of
+the socket, and the `SIGINT` reaches the process, but the program does not
+run again to see it.
+
+The right pattern is the **prepare-read** (that is what the documentation of
+the crate itself describes):
+
+1. `queue.prepare_read()` — returns a guard. This step does **not** block.
+   The guard is what coordinates with the other threads of the queue: only
+   one thread can read from the socket, and the guard guarantees that.
+2. `conn.flush()` — sends what is pending. Without this, a request made
+   before the wait never reaches the compositor.
+3. `poll(2)` on the `guard.connection_fd()`, **with a time limit**. The
+   `poll` with a timeout is what gives the program the chance to look at the
+   Ctrl+C flag even when the compositor is quiet.
+4. `guard.read()` — only when the `poll` said that there is data. The read
+   puts the events in the queue; the handlers run in `dispatch_pending()`.
+5. If the `poll` expired, the guard is dropped, and the `prepare_read` is
+   cancelled.
+
+The result is that **the program is never inside a read that it cannot
+leave**, and the loop is the same for the `poll` that expires and for the
+one that returns events.
+
+Two errors that only show up at runtime:
+
+- **`EINTR`.** The `SIGINT` interrupts the `poll(2)` and it returns
+  `ErrorKind::Interrupted`. If that is not handled, the program dies with
+  *"Interrupted system call"* instead of leaving cleanly. The code treats it
+  as "nothing happened", and the loop looks at the flag on the next turn.
+- **`WouldBlock` in the `read()`.** If another thread of the queue read the
+  events between the `poll` and the `read`, the `read` returns `WouldBlock`.
+  That is not an error either.
+
+And a trap of the protocol, not of Rust: **a Wayland proxy that is dropped
+destroys the object on the server.** That is why the program keeps the
+handles in `state.handles` and the object of the list in `state.list`:
+without that, the handle is destroyed at the moment it arrives, and the
+window leaves the inventory before it sends the `title`.
+
+---
+
+## 7. Expected output (measured on the box)
+
+Measured on the box of the laboratory (COSMIC, Wayland
+session), with a Chromium window and two terminals open:
+
+```
+--- snapshot: 3 mapped toplevel(s) ---
+[0xff000000] identifier=P6jNlxgKyYzywzlT0DEhIpIkDjEMuTq8 title="<host>/Login - Chromium" app_id="chromium"
+[0xff000001] identifier=KQhaYikN2lfsB10mfujYMPK32Ob48Dsi title="agy --dangerously-skip-permissions" app_id="kitty"
+[0xff000002] identifier=BmWetEuIFvUaMMZj4VWUow1Cp0pdriKd title="<user>@<host>:~" app_id="kitty"
+--- the snapshot is over; the changes follow ---
+```
+
+And, with a window that opens and closes while the program runs:
+
+```
++ [0xff000003] identifier=G5OripXB5z4rDaCWM0ovuxIEpHuzxRj5 title="wl-probe-2" app_id="kitty"
+- [0xff000003] identifier=G5OripXB5z4rDaCWM0ovuxIEpHuzxRj5 title="wl-probe-2" app_id="kitty" closed
+
+Ctrl+C: stopping.
+```
+
+The `identifier` has 32 printable ASCII characters, as the protocol
+promises. The `0xff000000` is the id of the Wayland object of the handle, and
+it only serves to tell handles apart inside the same session.
+
+---
+
+## 8. Limitations, and how to test the support
+
+### 8.1 If the compositor does not publish the global
+
+There is no enumeration possible through native Wayland. The program says
+that in the error output:
+
+```
+the compositor does not publish ext_foreign_toplevel_list_v1:
+ the windows cannot be listed through Wayland.
+ `wayland-info` says which globals it does publish.
+```
+
+And it keeps running, because a compositor may publish the global later;
+the registry handler picks it up when that happens.
+
+### 8.2 How to detect the support
+
+With the `wayland-info`, which is the canonical way -- the format of the
+output is this:
+
+```
+ext_foreign_toplevel_list_v1 (v1):
+    interface: 'ext_foreign_toplevel_list_v1'
+    version: 1
+```
+
+Without the `wayland-info` installed -- and on the box it is **not**
+installed -- the `WAYLAND_DEBUG=1` of any Wayland client prints the whole
+registry:
+
+```sh
+WAYLAND_DEBUG=1 <any-wayland-client> 2>&1 | grep 'wl_registry@.*global'
+```
+
+And what the box answers, in order:
+
+```
+wl_compositor, wl_subcompositor, wl_data_device_manager, wl_shm, wl_output,
+wl_seat, xdg_wm_base, xdg_activation_v1, wl_drm, wl_fixes,
+ext_foreign_toplevel_list_v1,          <-- the listing
+ext_data_control_manager_v1,           <-- the clipboard
+ext_workspace_manager_v1,              <-- the workspaces
+ext_foreign_toplevel_image_capture_source_manager_v1,   <-- the capture of one window
+ext_image_copy_capture_manager_v1, ext_output_image_capture_source_manager_v1,
+ext_idle_notifier_v1, ext_session_lock_manager_v1, ext_background_effect_manager_v1,
+zcosmic_toplevel_manager_v1,           <-- the control of the windows
+zcosmic_toplevel_info_v1, zcosmic_workspace_manager_v1, zcosmic_workspace_manager_v2,
+zcosmic_output_manager_v1, zcosmic_overlap_notify_v1, zcosmic_keyboard_layout_manager_v1,
+zwlr_output_manager_v1, zwlr_output_power_manager_v1, zwlr_layer_shell_v1,
+zwlr_data_control_manager_v1, zwp_* (the ones of wayland-protocols unstable),
+wp_pointer_warp_v1, wp_presentation, wp_fractional_scale_manager_v1, ...
+```
+
+### 8.3 The X11 and the XWayland are not the answer
+
+The `xprop`, the `xdotool` and the `wmctrl` keep working in an X11 session,
+and the XWayland exposes the X11 windows. But:
+
+- The XWayland only knows the **X11** windows. In a pure Wayland session, a
+  native client does not show up there.
+- On the box, the Xwayland is the one of gamescope (rootless) and reports a
+  list of clients that is **empty** — that is what the `AGENTS.md` records.
+- A program that resolves the enumeration through X11 stops working at the
+  moment the session becomes Wayland, and that is exactly what the box is.
+
+The Wayland-native path is the right one. The X11 stays as the *other*
+backend, for the machines that are still X11 — not as the universal one.
+
+### 8.4 Listing is not controlling
+
+`ext-foreign-toplevel-list-v1` **does not have a single action request**.
+With it the program knows that the window exists, what it is called and
+what its application is, and nothing more. It cannot activate it, nor close
+it, nor move it.
+
+For that one of the management protocols is needed:
+
+- `zwlr-foreign-toplevel_management_v1` on the **wlroots** compositors
+  (Sway, Hyprland, Wayfire, riverlab, ...). It brings `activate`, `close`,
+  `minimize`, `unmaximize`, `maximize`, `move`, `resize`, and the state
+  events (`activated`, `fullscreen`, `minimized`) and the output ones.
+- `zcosmic_toplevel_manager_v1` on **COSMIC**, which is the compositor of the
+  box. It brings `close`, `activate`, `set_maximized`/`unset_maximized`,
+  `set_minimized`/`unset_minimized`, `set_fullscreen`/`unset_fullscreen`,
+  `set_rectangle`, `set_sticky`/`unset_sticky`.
+
+The `zcosmic_toplevel_info_v1` adds to what the `ext-` gives: the `state`
+events (maximized, minimized, fullscreen) and `geometry` (the position and
+the size of the window), besides `output_enter`/`output_leave` and
+`workspace_enter`/`workspace_leave`.
+
+**These protocols are not portable between compositors.** It is the
+permanent tension of Wayland: the listing can be standardized, the control
+cannot, and each compositor does its own.
+
+### 8.5 The `identifier` is stable, but only while the window lives
+
+The protocol is explicit: the identifier *"is only valid as long as the
+toplevel is mapped"*, it cannot be reused, and it must carry an opaque
+generation value. It serves to join two handles to the same window, inside
+or between processes. It does not serve as a permanent identifier of an
+application.
+
+### 8.6 A protocol that is not in the `wayland-protocols`
+
+If one day a protocol that the crate does not bring is needed (the
+`zcosmic_toplevel_manager_v1` is one case), the path is the `wayland-scanner`:
+
+```toml
+[build-dependencies]
+wayland-scanner = "0.31"
+```
+
+```rust
+// build.rs
+fn main() {
+    wayland_scanner::generate_client_code("protocols/cosmic-toplevel-management-v1.xml");
+}
+```
+
+The XML of the protocol is the *specification*; the `cosmic-protocols` (the
+crate) is **GPL-3.0**, and this tree is **Apache 2.0**. The same rule of
+AHK_X11 applies: the protocol may be implemented, the code of the other
+project may not be copied. Generating the bindings from the XML with the
+`wayland-scanner` is writing our own code, and it is what should be done.
+
+---
+
+## 9. What this gives to the runtime
+
+The `AGENTS.md` (§7 and §23) says that `WinExist` and `WinActive` answer
+*"unknown"* on the box. The measurement says that **that
+refusal is not the only possible answer anymore**: the compositor of the box
+publishes the listing.
+
+The path into the tree, when the time comes:
+
+1. A new capability in `ahk::desktop` — `Windows` already exists and is
+   already refused; what is missing is the implementation of
+   `window_exists`, `window_active` and `window_title` behind the
+   `ext-foreign-toplevel-list-v1`, with a `foreign_toplevel_list` in the
+   `ahk-box`.
+2. An `ahk-box` that talks to Wayland. This is **not** the `ahk-box` of
+   today: the crate does not speak Wayland, and the compositor is another
+   thing. It can be a new dependency (`wayland-client` + `wayland-protocols`),
+   or a subprocess that talks to the compositor and answers in JSON.
+3. The `Clipboard`, which today refuses by omission of the trait, and which
+   the box resolves with `ext_data_control_manager_v1`.
+4. The capture of **one window** — `ext_foreign_toplevel_image_capture_source_manager_v1`
+   gives the image of a specific window, which the `grim` of today does not
+   give (the `grim` gives the whole screen).
+
+And a note of method: the `AGENTS.md` says that *"a question that cannot be
+answered fails, with the reason"*. The refusal of `WinExist` was right
+**while** there was no path. The measurement of today is the path, and the
+refusal becomes a wrong answer.
+
+---
+
+## 10. The sources
+
+- The protocol: <https://phil294.github.io/protocols/ext-foreign-toplevel-list-v1/>
+  and <https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml>
+- The crate: `wayland-client` 0.31.15, `wayland-protocols` 0.32.13,
+  `wayland-backend` 0.3.17, `wayland-scanner` 0.31.11, `rustix` 1.1.6.
+- The box: a Linux box running `cosmic-comp`, socket `wayland-1`.
+  Build in `~/src/wl-toplevels`, with Rust 1.98.1.
+- The record: the measurements of this guide.

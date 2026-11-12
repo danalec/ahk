@@ -1,0 +1,38 @@
+---
+# The dependency updates are read, and they are not applied by themselves.
+#
+# A workspace of an interpreter is not a place where a lock file should move
+# without a person: a new `wayland-client` or a new `serde` changes what the
+# crate compiles to, and the gate is the whole suite. So the schedule writes
+# the pull request, and the owner merges it or closes it.
+version: 2
+
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:17"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ""
+    groups:
+      # The dependencies that move together and that nobody reads one by one.
+      serde:
+        patterns:
+          - "serde*"
+      wayland:
+        patterns:
+          - "wayland-*"
+
+  # The actions of the workflow are a dependency too, and an action is code
+  # that runs with the repository's token.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: ""

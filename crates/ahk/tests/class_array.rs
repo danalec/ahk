@@ -1,0 +1,449 @@
+//! The `Array` class, against a fake desktop.
+//!
+//! An array never touches the machine: the desktop here is a fake that
+//! answers nothing, because nothing is asked of it.
+
+use ahk::desktop::{
+    Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
+    Pointer, Processes, Screen, Sound, Timers, Windows,
+};
+use ahk::parse;
+use ahk::runtime::{Report, Runtime};
+use std::time::Duration;
+
+/// A desktop that does nothing.
+#[derive(Debug, Default)]
+struct Fake;
+
+impl Desktop for Fake {}
+impl Pictures for Fake {}
+impl Network for Fake {}
+impl Sound for Fake {}
+impl Machine for Fake {}
+impl Dialogs for Fake {}
+
+impl Files for Fake {}
+
+impl Clipboard for Fake {}
+
+impl Timers for Fake {}
+
+impl Hotkeys for Fake {}
+
+impl Keyboard for Fake {
+    fn type_text(&mut self, _text: &str) -> Result<String, String> {
+        Ok(String::new())
+    }
+    fn press_key(&mut self, _name: &str, _modifiers: &[String]) -> Result<String, String> {
+        Ok(String::new())
+    }
+}
+
+impl Pointer for Fake {
+    fn click(&mut self, _x: i64, _y: i64, _button: &str, _count: u32) -> Result<String, String> {
+        Ok(String::new())
+    }
+}
+
+impl Screen for Fake {
+    fn capture(
+        &mut self,
+        _x: i64,
+        _y: i64,
+        _width: i64,
+        _height: i64,
+        _filename: &str,
+    ) -> Result<String, String> {
+        Ok(String::new())
+    }
+    fn pixel(&mut self, _x: i64, _y: i64) -> Result<String, String> {
+        Ok("#000000".into())
+    }
+}
+
+impl Windows for Fake {}
+
+impl Processes for Fake {
+    fn run(&mut self, _command: &str, _window: &str) -> Result<(i32, String, String), String> {
+        Ok((0, String::new(), String::new()))
+    }
+}
+
+impl Native for Fake {}
+
+/// A script, and the report of it.
+fn run(source: &str) -> Report {
+    let mut desktop = Fake;
+    let statements = parse(source).expect("parses");
+    Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements)
+}
+
+#[test]
+fn an_array_is_made_empty() {
+    let report = run("a := Array()\nMsgBox a.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn an_array_is_made_with_its_values() {
+    let report = run("a := Array(\"x\", \"y\")\nMsgBox a.Length . \" \" . a[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 x"]);
+}
+
+#[test]
+fn a_value_goes_at_the_end() {
+    let report = run("a := Array()\na.Push(\"x\")\nMsgBox a.Length . \" \" . a[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 x"]);
+}
+
+#[test]
+fn the_push_answers_the_array() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a `MsgBox` wants
+    // a text, and an array is not one: the class of the answer is read
+    // instead.
+    let report = run("a := Array()\nr := a.Push(\"x\")\nMsgBox r.__Class");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Array"]);
+}
+
+#[test]
+fn the_last_value_can_be_taken_away() {
+    let report = run("a := Array(\"x\", \"y\")\nMsgBox a.Pop() . \" \" . a.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["y 1"]);
+}
+
+#[test]
+fn taking_away_the_last_value_of_an_empty_array_is_an_error() {
+    let report = run("a := Array()\na.Pop()");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Array is empty."));
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_value_can_be_inserted_in_the_middle() {
+    let report = run(
+        "a := Array(\"x\", \"y\")\na.InsertAt(2, \"z\")\nMsgBox a[1] . \" \" . a[2] . \" \" . a[3]",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x z y"]);
+}
+
+#[test]
+fn a_value_can_be_inserted_at_the_end() {
+    let report = run(
+        "a := Array(\"x\")\na.InsertAt(0, \"z\")\nMsgBox a.Length . \" \" . a[1] . \" \" . a[2]",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 x z"]);
+}
+
+#[test]
+fn a_value_can_be_taken_away_from_the_middle() {
+    let report = run(
+        "a := Array(\"x\", \"y\", \"z\")\nMsgBox a.RemoveAt(2) . \" \" . a[2] . \" \" . a.Length",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["y z 2"]);
+}
+
+#[test]
+fn a_range_of_values_can_be_taken_away() {
+    let report = run(
+        "a := Array(\"x\", \"y\", \"z\")\nMsgBox a.RemoveAt(1, 2) . \" \" . a[1] . \" \" . a.Length",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2 z 1"]);
+}
+
+#[test]
+fn a_value_can_be_deleted_and_the_place_stays() {
+    let report =
+        run("a := Array(\"x\", \"y\")\nMsgBox a.Delete(1) . \" \" . a.Length . \" \" . a.Has(1)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x 2 0"]);
+}
+
+#[test]
+fn the_literal_of_an_array_may_have_a_place_without_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the literal may have
+    // a hole, and the hole is a comma that follows a comma. The hole is a
+    // place of the array, and it has no value of its own.
+    let report =
+        run("a := [1, , 3]\nMsgBox a.Length . \" \" . a.Has(2) . \" \" . a[1] . \" \" . a[3]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3 0 1 3"]);
+}
+
+#[test]
+fn the_place_without_a_value_of_the_literal_says_that_it_has_none() {
+    let report = run("a := [1, , 3]\nMsgBox a[2]");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Item has no value."));
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn the_place_without_a_value_that_is_the_last_one_is_dropped() {
+    // The commas at the end of the list add nothing, and the place that has
+    // no value of its own and that is the last one is dropped with them.
+    let report = run("a := [1, 2, , ]\nMsgBox a.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["2"]);
+    let report = run("a := [,]\nMsgBox a.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["0"]);
+}
+
+#[test]
+fn the_enumeration_leaves_the_variable_without_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: the place that has
+    // no value of its own is a turn of the enumeration too, and the turn has
+    // no value of its own: the variable of the loop is left without one, and
+    // the script that reads it is told that the variable has no value.
+    let report = run("a := [1, , 3]\nfor v in a\n    MsgBox v");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This global variable has not been assigned a value.")
+    );
+    assert_eq!(report.error_line, Some(3));
+}
+
+#[test]
+fn the_enumeration_names_the_variable_that_has_no_value() {
+    let report = run(
+        "try {\n    a := [1, , 3]\n    for v in a\n        MsgBox v\n} catch Any as e {\n    MsgBox e.Message \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec![
+            "1",
+            "This global variable has not been assigned a value. | v"
+        ]
+    );
+}
+
+#[test]
+fn the_enumeration_gives_the_key_of_the_place_that_has_no_value() {
+    // The key of the turn is the place of it, and it is there even when the
+    // value under it is not: the body that reads the key alone goes through
+    // the turn.
+    let report = run("a := [1, , 3]\nfor k, v in a\n    MsgBox k");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1", "2", "3"]);
+}
+
+#[test]
+fn the_variable_of_the_loop_gets_its_value_back() {
+    // Measured on the binary of v2.0.19 on 2026-11-01: v2 restores the
+    // variables of a loop when the loop ends, and the variable that had no
+    // value before it has no value after it either.
+    let report = run("v := 5\na := [1, , 3]\nfor v in a\n    break\nMsgBox v");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["5"]);
+}
+
+#[test]
+fn the_enumerator_that_the_script_holds_leaves_the_variable_without_a_value() {
+    // The turn that has no value of its own leaves the variable of the
+    // caller without one, and the script that reads it is told that the
+    // variable has no value.
+    let report = run(
+        "try {\n    a := [1, , 3]\n    e := a.__Enum(1)\n    e.Call(&v)\n    e.Call(&v)\n    MsgBox v\n} catch Any as e {\n    MsgBox e.Message \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["This global variable has not been assigned a value. | v"]
+    );
+}
+
+#[test]
+fn a_method_of_an_array_is_a_value() {
+    // Measured on the binary of v2.0.19 on 2026-10-29.
+    let report =
+        run("a := [1]\nf := a.Get\nMsgBox f.Name . \" \" . f.MinParams . \" \" . f.MaxParams");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["Array.Prototype.Get 2 3"]);
+}
+
+#[test]
+fn a_place_without_a_value_is_an_error() {
+    let report = run("a := Array(\"x\", \"y\")\na.Delete(1)\nMsgBox a[1]");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Item has no value."));
+    assert_eq!(report.error_line, Some(3));
+}
+
+#[test]
+fn the_default_answers_for_a_place_without_a_value() {
+    let report = run("a := Array(\"x\", \"y\")\na.Delete(1)\nMsgBox a.Get(1, \"none\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["none"]);
+}
+
+#[test]
+fn a_place_that_is_not_there_is_an_error() {
+    let report = run("a := Array(\"x\")\nMsgBox a[2]");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Invalid index."));
+    assert_eq!(report.error_line, Some(2));
+}
+
+#[test]
+fn a_place_that_is_not_a_number_is_an_error() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the place of an item
+    // is a number, and a value that is not one is not a place at all.
+    let report = run("a := Array(\"x\")\nMsgBox a[\"z\"]");
+    assert!(!report.ok);
+    assert_eq!(report.error.as_deref(), Some("Invalid index."));
+}
+
+#[test]
+fn a_place_that_is_a_number_of_a_text_is_a_place() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: a text that holds a
+    // number is a number, and a number with a point is taken as the whole
+    // one before it.
+    let report = run("a := Array(\"x\")\nMsgBox a[\"1\"]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x"]);
+    let report = run("a := Array(\"x\")\nMsgBox a[1.5]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x"]);
+}
+
+#[test]
+fn an_array_says_whether_it_has_a_value_at_a_place() {
+    let report = run("a := Array(\"x\")\nMsgBox a.Has(1) . \" \" . a.Has(2)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 0"]);
+}
+
+#[test]
+fn a_place_counts_from_the_end_when_it_is_negative() {
+    let report = run("a := Array(\"x\", \"y\")\nMsgBox a[-1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["y"]);
+}
+
+#[test]
+fn a_clone_is_a_copy_of_the_array() {
+    let report =
+        run("a := Array(\"x\")\nc := a.Clone()\nc.Push(\"y\")\nMsgBox a.Length . \" \" . c.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 2"]);
+}
+
+#[test]
+fn the_length_can_be_set() {
+    let report = run("a := Array(\"x\")\na.Length := 3\nMsgBox a.Length . \" \" . a.Has(2)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["3 0"]);
+}
+
+#[test]
+fn a_shorter_length_takes_the_places_at_the_end_away() {
+    let report =
+        run("a := Array(\"x\", \"y\", \"z\")\na.Length := 1\nMsgBox a.Length . \" \" . a[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 x"]);
+}
+
+#[test]
+fn the_capacity_can_be_set() {
+    let report = run("a := Array(\"x\")\na.Capacity := 10\nMsgBox a.Capacity");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["10"]);
+}
+
+#[test]
+fn a_capacity_below_the_length_takes_the_places_at_the_end_away() {
+    let report = run("a := Array(\"x\", \"y\", \"z\")\na.Capacity := 1\nMsgBox a.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1"]);
+}
+
+#[test]
+fn the_enumeration_is_in_the_order_of_the_values() {
+    // The enumeration of v2 is an enumerator, and it hands out the values
+    // one by one: the `Call` of it writes into the variable of the caller.
+    let report = run("a := Array(\"x\", \"y\")\ne := a.__Enum()\n\
+         first := \"\"\ne.Call(&first)\n\
+         second := \"\"\ne.Call(&second)\n\
+         MsgBox first . \",\" . second");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x,y"]);
+}
+
+#[test]
+fn the_enumeration_of_an_array_has_no_item_of_its_own() {
+    // Measured on the binary of v2.0.19 on 2026-10-31: the enumerator of
+    // v2 is not indexed: it has no `__Item`.
+    let report = run("a := Array(\"x\", \"y\")\nMsgBox a.__Enum()[1]");
+    assert!(!report.ok);
+    assert_eq!(
+        report.error.as_deref(),
+        Some("This value of type \"Enumerator\" has no property named \"__Item\".")
+    );
+}
+
+#[test]
+fn the_own_properties_of_an_array_are_the_ones_the_script_gave_it() {
+    // The own properties of v2 are an enumerator too, and the names are
+    // read one by one.
+    let report = run("a := Array()\na.DefineProp(\"x\", {Value: 7})\n\
+         names := a.OwnProps()\nfirst := \"\"\nnames.Call(&first)\n\
+         MsgBox first . \" \" . a.x");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["x 7"]);
+}
+
+#[test]
+fn an_array_knows_the_methods_it_has() {
+    let report =
+        run("a := Array()\nMsgBox a.HasMethod(\"Push\") . \" \" . a.HasMethod(\"Nothing\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["1 0"]);
+}
+
+#[test]
+fn the_failure_of_an_item_of_an_array_names_the_method_and_the_place() {
+    let report = run(
+        "try {\n    a := [1]\n    x := a[9]\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Invalid index. | Array.Prototype.__Item.Get | 9"]
+    );
+}
+
+#[test]
+fn the_delete_of_a_place_that_is_not_there_names_the_method() {
+    let report = run(
+        "try {\n    a := [1]\n    x := a.Delete(9)\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Parameter #1 of Array.Prototype.Delete is invalid. | Array.Prototype.Delete | 9"]
+    );
+}
+
+#[test]
+fn the_length_of_an_array_that_is_negative_names_the_property() {
+    let report = run(
+        "try {\n    a := [1]\n    a.Length := -1\n} catch Any as e {\n    MsgBox e.Message \" | \" e.What \" | \" e.Extra\n}",
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.output,
+        vec!["Invalid value. | Array.Prototype.Length.Set | "]
+    );
+}
