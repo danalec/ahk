@@ -5,7 +5,7 @@
 # SHA256SUMS of the release. The manifest installs only that portable
 # archive; the aarch64 one ships in the same release for the installer that
 # asks for it.
-PackageIdentifier: ahk-rs
+PackageIdentifier: danalec.ahk
 PackageVersion: 0.3.2
 MinimumOSVersion: 10.0.17763.0
 InstallerType: zip
