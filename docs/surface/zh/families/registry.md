@@ -52,18 +52,6 @@ FileAppend A_LoopRegName, "*"
 RegDelete "HKCU\Software\MyApp", "Setting"
 ```
 
-### RegDelete
-
-从运行器自己的注册表存储里删掉一个值；键本身保留。
-
-- **参数:** KeyName, ValueName
-- **返回:** 空文本
-- **错误:** "Parameter #1 of RegDelete must not be omitted in this case." when the key is left out; a key without a hive of the ten is an invalid parameter; "(2) The system cannot find the file specified." when the key is not there.
-
-```ahk
-RegDelete "HKCU\Software\MyApp", "Setting"
-```
-
 ### RegRead
 
 给出注册表中的值；这台机器没有注册表，树把 API 移植到自己的存储上——蜂巢是文件夹，键是文件，放在用户的配置目录下。
@@ -74,30 +62,6 @@ RegDelete "HKCU\Software\MyApp", "Setting"
 
 ```ahk
 v := RegRead("HKCU\Software\MyApp", "Setting", "default")
-```
-
-### RegRead
-
-给出注册表中的值；这台机器没有注册表，树把 API 移植到自己的存储上——蜂巢是文件夹，键是文件，放在用户的配置目录下。
-
-- **参数:** KeyName, ValueName, [Default]
-- **返回:** 该值的内容；值不存在时给出默认值
-- **错误:** "Parameter #1 of RegRead must not be omitted in this case." when the key is left out; "Parameter #1 of RegRead is invalid." when the name does not begin with a hive of the ten; "(2) The system cannot find the file specified." when the key or the value is not there and no default is given; a value with no name is "(161) The specified path is invalid."
-
-```ahk
-v := RegRead("HKCU\Software\MyApp", "Setting", "default")
-```
-
-### RegWrite
-
-把一个值写进运行器自己的注册表存储；键不存在时会被连同它的祖先一起建立。
-
-- **参数:** Value, ValueType, KeyName, ValueName
-- **返回:** 空文本
-- **错误:** "Parameter #3 of RegWrite must not be omitted in this case." when the key is left out; "Parameter #2 of RegWrite is invalid." when the kind is not one of the five of the dialect; "(161) The specified path is invalid." when the name of the value is left out; a key without a hive is an invalid parameter.
-
-```ahk
-RegWrite "value", "REG_SZ", "HKCU\Software\MyApp", "Setting"
 ```
 
 ### RegWrite

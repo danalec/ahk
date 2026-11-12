@@ -459,9 +459,13 @@ def the_behavior(out, lang, key, names):
     t = surface_i18n.t
     lines = []
     described = []
+    seen = set()
     for name in names:
+        if name.label in seen:
+            continue
         text = surface_behavior.behavior_of(name.label, lang)
         if text:
+            seen.add(name.label)
             described.append((name, text))
     if not described:
         return lines

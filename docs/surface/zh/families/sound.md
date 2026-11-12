@@ -37,30 +37,6 @@
 SoundBeep 1000, 200
 ```
 
-### SoundBeep
-
-播放一个音调；盒子自己没有扬声器，所以音调会写成 /tmp 下的波形文件，用 paplay 播放，然后删掉。
-
-- **参数:** [Frequency, Duration]
-- **返回:** 1
-- **错误:** a frequency outside the range is refused with "the frequency of a tone is between 37 and 32767."; a host without the mixer answers "the mixer refused: ... pactl: not found" and "the mixer could not play ...".
-
-```ahk
-SoundBeep 1000, 200
-```
-
-### SoundPlay
-
-用会话的混音器播放一个声音文件；v2 的音量、速度和音高没有被承载。
-
-- **参数:** File, [Options]
-- **返回:** 1
-- **错误:** the volume, the speed and the pitch are refused with "the volume, the speed and the pitch of a sound are not carried yet."; an empty path is "the sound file is missing."; a host without the mixer answers the reason of the player.
-
-```ahk
-SoundPlay "/usr/share/sounds/freedesktop/stereo/complete.oga"
-```
-
 ### SoundPlay
 
 用会话的混音器播放一个声音文件；v2 的音量、速度和音高没有被承载。

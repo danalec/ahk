@@ -146,18 +146,6 @@ for item in [1, 2]
 FileAppend Abs.__Class, "*"
 ```
 
-### Func
-
-函数的类：脚本里的函数、方法、lambda 或内置函数。这个类造不出来：`Func(...)` 回答“Invalid base.”；函数值的类就是 `Func`。
-
-- **参数:** nothing that makes it
-- **返回:** 函数值的类，作为文本
-- **错误:** the call of the class is refused with "Invalid base.".
-
-```ahk
-FileAppend Abs.__Class, "*"
-```
-
 ### Map.Get
 
 映射中某个键下面的值。
@@ -208,19 +196,6 @@ FileAppend a.Length, "*"
 ```ahk
 m := Map("x", 1)
 FileAppend m.Count, "*"
-```
-
-### Object
-
-类链的根：运行时的每个对象都是它。`Object()` 造出一个空对象，字面量 `{a: 1}` 造出一个带属性的对象。
-
-- **参数:** nothing
-- **返回:** 类为 `Object` 的对象
-- **错误:** nothing; a member that is not there is refused with the type of the value and the name of the member.
-
-```ahk
-o := Object()
-FileAppend o.__Class, "*"
 ```
 
 ### Object

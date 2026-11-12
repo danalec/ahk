@@ -289,18 +289,6 @@ Executa um comando e espera por ele. O que o comando escreveu na saída vai para
 Run "ls"
 ```
 
-### Run
-
-Executa um comando e espera por ele. O que o comando escreveu na saída vai para a saída do relatório.
-
-- **Parâmetros:** Command, [WorkingDir]
-- **Responde:** o código de saída do comando
-- **Erros:** more than two parameters are refused with "the options of the window and the pid of the process are not carried yet."
-
-```ahk
-Run "ls"
-```
-
 ### RunWait
 
 Executa um comando e espera por ele, do mesmo jeito que Run. O nome é a forma de função do mesmo tratador.
@@ -311,30 +299,6 @@ Executa um comando e espera por ele, do mesmo jeito que Run. O nome é a forma d
 
 ```ahk
 RunWait "ls"
-```
-
-### RunWait
-
-Executa um comando e espera por ele, do mesmo jeito que Run. O nome é a forma de função do mesmo tratador.
-
-- **Parâmetros:** Command, [WorkingDir]
-- **Responde:** o código de saída do comando
-- **Erros:** more than two parameters are refused with "the options of the window and the pid of the process are not carried yet."
-
-```ahk
-RunWait "ls"
-```
-
-### SysGet
-
-Devolve uma métrica do sistema; os números são os de GetSystemMetrics, e só as da tela são carregadas.
-
-- **Parâmetros:** Metric
-- **Responde:** a métrica, como inteiro
-- **Erros:** a metric of the window manager of Windows is refused with "SysGet(n) is a metric of the window manager of Windows, and this desktop does not have one."; a compositor that published no monitor answers "the compositor published no monitor, so the metric n of SysGet is not known."; a number that is not a metric at all is zero.
-
-```ahk
-w := SysGet(0)
 ```
 
 ### SysGet

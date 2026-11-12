@@ -52,18 +52,6 @@ Remove um valor do registro do store da runtime; a chave em si fica.
 RegDelete "HKCU\Software\MyApp", "Setting"
 ```
 
-### RegDelete
-
-Remove um valor do registro do store da runtime; a chave em si fica.
-
-- **Parâmetros:** KeyName, ValueName
-- **Responde:** o texto vazio
-- **Erros:** "Parameter #1 of RegDelete must not be omitted in this case." when the key is left out; a key without a hive of the ten is an invalid parameter; "(2) The system cannot find the file specified." when the key is not there.
-
-```ahk
-RegDelete "HKCU\Software\MyApp", "Setting"
-```
-
 ### RegRead
 
 Devolve o valor do registro; esta máquina não tem registro, e a árvore carrega a API sobre um store próprio: as hives são pastas e as chaves são arquivos, na pasta de configuração do usuário.
@@ -74,30 +62,6 @@ Devolve o valor do registro; esta máquina não tem registro, e a árvore carreg
 
 ```ahk
 v := RegRead("HKCU\Software\MyApp", "Setting", "default")
-```
-
-### RegRead
-
-Devolve o valor do registro; esta máquina não tem registro, e a árvore carrega a API sobre um store próprio: as hives são pastas e as chaves são arquivos, na pasta de configuração do usuário.
-
-- **Parâmetros:** KeyName, ValueName, [Default]
-- **Responde:** o valor, ou o padrão quando o valor não está lá
-- **Erros:** "Parameter #1 of RegRead must not be omitted in this case." when the key is left out; "Parameter #1 of RegRead is invalid." when the name does not begin with a hive of the ten; "(2) The system cannot find the file specified." when the key or the value is not there and no default is given; a value with no name is "(161) The specified path is invalid."
-
-```ahk
-v := RegRead("HKCU\Software\MyApp", "Setting", "default")
-```
-
-### RegWrite
-
-Escreve um valor no registro do store da runtime; a chave é criada quando não está lá, com os seus ancestrais.
-
-- **Parâmetros:** Value, ValueType, KeyName, ValueName
-- **Responde:** o texto vazio
-- **Erros:** "Parameter #3 of RegWrite must not be omitted in this case." when the key is left out; "Parameter #2 of RegWrite is invalid." when the kind is not one of the five of the dialect; "(161) The specified path is invalid." when the name of the value is left out; a key without a hive is an invalid parameter.
-
-```ahk
-RegWrite "value", "REG_SZ", "HKCU\Software\MyApp", "Setting"
 ```
 
 ### RegWrite

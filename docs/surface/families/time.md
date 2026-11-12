@@ -203,30 +203,6 @@ A moment written the way a format says. The date comes first and the format come
 FormatTime(A_Now, "yyyy-MM-dd")
 ```
 
-### FormatTime
-
-A moment written the way a format says. The date comes first and the format comes last; a text that carries no date at all is the date of the machine.
-
-- **Parameters:** Date, [Format]
-- **Answers:** the date written the way the format says
-- **Errors:** a date the dialect cannot read is an invalid parameter.
-
-```ahk
-FormatTime(A_Now, "yyyy-MM-dd")
-```
-
-### Min
-
-The smallest of the numbers.
-
-- **Parameters:** Number, [Number2], ...
-- **Answers:** the smallest of them
-- **Errors:** a value that is not a number is refused.
-
-```ahk
-Min(3, 7, 5)
-```
-
 ### Min
 
 The smallest of the numbers.

@@ -381,19 +381,6 @@ answer := InputBox("your name?", "hello")
 MsgBox answer.Value
 ```
 
-### InputBox
-
-Pede um texto ao usuário numa caixa da área de trabalho e devolve um objeto com o texto em Value e o modo de fechamento em Result.
-
-- **Parâmetros:** Prompt, [Title], [Options], [Default]
-- **Responde:** um objeto com as propriedades Value e Result, onde Result é "OK", "Cancel" ou "Timeout"
-- **Erros:** an option the dialect does not know is refused with "Invalid option.".
-
-```ahk
-answer := InputBox("your name?", "hello")
-MsgBox answer.Value
-```
-
 ### MsgBox
 
 Mostra uma mensagem. A árvore não tem janela própria, então o texto vai para a saída do relatório em vez de aparecer na tela, e a chamada devolve o mesmo texto.
@@ -404,30 +391,6 @@ Mostra uma mensagem. A árvore não tem janela própria, então o texto vai para
 
 ```ahk
 MsgBox "hello"
-```
-
-### MsgBox
-
-Mostra uma mensagem. A árvore não tem janela própria, então o texto vai para a saída do relatório em vez de aparecer na tela, e a chamada devolve o mesmo texto.
-
-- **Parâmetros:** Message, [Title], [Options]
-- **Responde:** o texto da mensagem
-- **Erros:** more than one parameter is refused with "the options, the title and the variable that takes the answer are not carried yet."
-
-```ahk
-MsgBox "hello"
-```
-
-### ToolTip
-
-Mostra uma pequena janela de texto num ponto da tela. Chamada sem texto, ela remove a janela.
-
-- **Parâmetros:** Text, [X], [Y], [Options]
-- **Responde:** o número que identifica a janela, ou texto vazio quando a janela é removida
-- **Erros:** the desktop reports the failure of the call.
-
-```ahk
-ToolTip "hello", 10, 10
 ```
 
 ### ToolTip
@@ -454,18 +417,6 @@ Manda uma notificação à área de trabalho com um texto e um título. O nome �
 TrayTip "done", "the script"
 ```
 
-### TrayTip
-
-Manda uma notificação à área de trabalho com um texto e um título. O nome é do Windows -- um balão na área de notificação -- mas a árvore manda uma notificação de mesa, que chega ao mesmo usuário com as mesmas palavras.
-
-- **Parâmetros:** Text, [Title], [Options]
-- **Responde:** texto vazio
-- **Erros:** the desktop reports the failure of the notification.
-
-```ahk
-TrayTip "done", "the script"
-```
-
 ### WinActivate
 
 Traz uma janela para a frente. Age na janela do próprio script: a listagem do compositor não publica um jeito de erguer a janela de outro programa.
@@ -476,30 +427,6 @@ Traz uma janela para a frente. Age na janela do próprio script: a listagem do c
 
 ```ahk
 WinActivate "Untitled"
-```
-
-### WinActivate
-
-Traz uma janela para a frente. Age na janela do próprio script: a listagem do compositor não publica um jeito de erguer a janela de outro programa.
-
-- **Parâmetros:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Responde:** nada
-- **Erros:** a window that is not there answers 'Target window not found.'; a window of another program cannot be activated this way.
-
-```ahk
-WinActivate "Untitled"
-```
-
-### WinActive
-
-A janela que tem o foco. O backend é uma sessão Wayland, e o compositor é quem sabe das janelas e qual delas está na frente.
-
-- **Parâmetros:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Responde:** o identificador da janela ativa, zero quando não há nenhuma
-- **Erros:** the text of the window and the exclusions are not carried yet; a compositor that does not publish the focus answers with the reason, and not with a guess.
-
-```ahk
-id := WinActive()
 ```
 
 ### WinActive
@@ -526,18 +453,6 @@ Fecha uma janela. Fecha a janela do próprio script: a listagem do compositor n�
 WinClose "Untitled"
 ```
 
-### WinClose
-
-Fecha uma janela. Fecha a janela do próprio script: a listagem do compositor não publica pedido de fechamento para a janela de outro programa.
-
-- **Parâmetros:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Responde:** nada
-- **Erros:** a window that is not there answers 'Target window not found.'; a window of another program cannot be closed this way.
-
-```ahk
-WinClose "Untitled"
-```
-
 ### WinExist
 
 Se existe uma janela com este título. As janelas são as do compositor, e um número nomeia uma delas.
@@ -548,30 +463,6 @@ Se existe uma janela com este título. As janelas são as do compositor, e um n�
 
 ```ahk
 if WinExist("Untitled")
-```
-
-### WinExist
-
-Se existe uma janela com este título. As janelas são as do compositor, e um número nomeia uma delas.
-
-- **Parâmetros:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Responde:** o identificador da janela que existe, zero quando não existe
-- **Erros:** a window that is not there is an answer and not a failure; a question the compositor cannot answer fails with its reason.
-
-```ahk
-if WinExist("Untitled")
-```
-
-### WinGetClass
-
-A classe da janela que casa com o título dado.
-
-- **Parâmetros:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Responde:** a classe da janela
-- **Erros:** a title that matches no window answers 'Target window not found.'; the text of the window and the exclusions are not carried yet.
-
-```ahk
-class := WinGetClass("Untitled")
 ```
 
 ### WinGetClass
@@ -646,18 +537,6 @@ Onde a janela está e quão grande ela é, como o compositor relata.
 WinGetPos "Untitled", , &x, &y, &w, &h
 ```
 
-### WinGetPos
-
-Onde a janela está e quão grande ela é, como o compositor relata.
-
-- **Parâmetros:** [WindowTitle] [, WinText, &X, &Y, &Width, &Height, ExcludeTitle, ExcludeText]
-- **Responde:** nada; o lugar e o tamanho são escritos nas variáveis de quem chama
-- **Erros:** the text of the window and the exclusions are not carried yet; a window that is not there answers 'Target window not found.'
-
-```ahk
-WinGetPos "Untitled", , &x, &y, &w, &h
-```
-
 ### WinGetProcessName
 
 Devolve o nome do programa de uma janela; ela segue a cadeia de WinGetPID: a janela nomeia um aplicativo no barramento, o barramento responde o processo e a tabela de processos responde o nome.
@@ -682,18 +561,6 @@ O título da janela ativa, ou da janela que casa com o texto dado.
 title := WinGetTitle()
 ```
 
-### WinGetTitle
-
-O título da janela ativa, ou da janela que casa com o texto dado.
-
-- **Parâmetros:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Responde:** o título da janela
-- **Erros:** a window that was named and is not there answers 'Target window not found.'; the text of the window and the exclusions are not carried yet.
-
-```ahk
-title := WinGetTitle()
-```
-
 ### WinHide
 
 Tira a janela do script da tela.
@@ -704,30 +571,6 @@ Tira a janela do script da tela.
 
 ```ahk
 WinHide "Untitled"
-```
-
-### WinHide
-
-Tira a janela do script da tela.
-
-- **Parâmetros:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Responde:** nada
-- **Erros:** a window that is not there answers 'Target window not found.'; a window of another program cannot be hidden this way.
-
-```ahk
-WinHide "Untitled"
-```
-
-### WinMaximize
-
-Maximiza a janela que o script criou, e apenas ela; quem faz isso é o auxiliar da caixa.
-
-- **Parâmetros:** WinTitle
-- **Responde:** o texto vazio
-- **Erros:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinMaximize "MyWindow"
 ```
 
 ### WinMaximize
@@ -754,18 +597,6 @@ Minimiza a janela que o script criou, e apenas ela: um cliente Wayland não mini
 WinMinimize "MyWindow"
 ```
 
-### WinMinimize
-
-Minimiza a janela que o script criou, e apenas ela: um cliente Wayland não minimiza a janela de outro programa.
-
-- **Parâmetros:** WinTitle
-- **Responde:** o texto vazio
-- **Erros:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has; the reason of the desktop when the helper refuses the state.
-
-```ahk
-WinMinimize "MyWindow"
-```
-
 ### WinMove
 
 Move e redimensiona a janela que o script criou; um compositor Wayland posiciona as janelas por conta própria e pode não aceitar o lugar pedido.
@@ -776,30 +607,6 @@ Move e redimensiona a janela que o script criou; um compositor Wayland posiciona
 
 ```ahk
 WinMove 100, 100, 800, 600, "MyWindow"
-```
-
-### WinMove
-
-Move e redimensiona a janela que o script criou; um compositor Wayland posiciona as janelas por conta própria e pode não aceitar o lugar pedido.
-
-- **Parâmetros:** X, Y, Width, Height, WinTitle
-- **Responde:** o texto vazio
-- **Erros:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinMove 100, 100, 800, 600, "MyWindow"
-```
-
-### WinRestore
-
-Devolve a janela do script do estado minimizado, e apenas essa janela.
-
-- **Parâmetros:** WinTitle
-- **Responde:** o texto vazio
-- **Erros:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinRestore "MyWindow"
 ```
 
 ### WinRestore
@@ -826,30 +633,6 @@ Renomeia a janela que o script criou; renomear a janela de outro programa não �
 WinSetTitle "New Title", "MyWindow"
 ```
 
-### WinSetTitle
-
-Renomeia a janela que o script criou; renomear a janela de outro programa não é algo que um cliente Wayland consiga fazer.
-
-- **Parâmetros:** NewTitle, WinTitle
-- **Responde:** o texto vazio
-- **Erros:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinSetTitle "New Title", "MyWindow"
-```
-
-### WinShow
-
-Põe a janela do script de volta na tela, depois de um `WinHide`.
-
-- **Parâmetros:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Responde:** nada
-- **Erros:** a window that is not there answers 'Target window not found.'; a window of another program cannot be shown this way.
-
-```ahk
-WinShow "Untitled"
-```
-
 ### WinShow
 
 Põe a janela do script de volta na tela, depois de um `WinHide`.
@@ -874,18 +657,6 @@ Espera que exista uma janela cujo título combine, e devolve o identificador del
 WinWait "Calculator", , 5
 ```
 
-### WinWait
-
-Espera que exista uma janela cujo título combine, e devolve o identificador dela; o identificador de uma janela Wayland é um token, e portanto texto.
-
-- **Parâmetros:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **Responde:** o identificador da janela como texto, ou 0 quando o tempo acabou
-- **Erros:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."; the wait is capped at sixty seconds when the timeout is left out.
-
-```ahk
-WinWait "Calculator", , 5
-```
-
 ### WinWaitActive
 
 Espera que uma janela cujo título combine tenha o foco, e devolve o identificador dela.
@@ -896,30 +667,6 @@ Espera que uma janela cujo título combine tenha o foco, e devolve o identificad
 
 ```ahk
 WinWaitActive "Calculator", , 5
-```
-
-### WinWaitActive
-
-Espera que uma janela cujo título combine tenha o foco, e devolve o identificador dela.
-
-- **Parâmetros:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **Responde:** o identificador da janela como texto, ou 0 quando o tempo acabou
-- **Erros:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."
-
-```ahk
-WinWaitActive "Calculator", , 5
-```
-
-### WinWaitClose
-
-Espera que uma janela cujo título combine desapareça, e diz se desapareceu.
-
-- **Parâmetros:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **Responde:** 1 quando a janela sumiu, 0 quando ela ainda está lá no fim do tempo
-- **Erros:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."
-
-```ahk
-WinWaitClose "Calculator", , 5
 ```
 
 ### WinWaitClose

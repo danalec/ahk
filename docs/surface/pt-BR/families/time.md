@@ -203,30 +203,6 @@ Um momento escrito do jeito que o formato diz. A data vem primeiro e o formato p
 FormatTime(A_Now, "yyyy-MM-dd")
 ```
 
-### FormatTime
-
-Um momento escrito do jeito que o formato diz. A data vem primeiro e o formato por último; um texto sem data nenhuma é a data da máquina.
-
-- **Parâmetros:** Date, [Format]
-- **Responde:** a data escrita do jeito que o formato diz
-- **Erros:** a date the dialect cannot read is an invalid parameter.
-
-```ahk
-FormatTime(A_Now, "yyyy-MM-dd")
-```
-
-### Min
-
-O menor dos números.
-
-- **Parâmetros:** Number, [Number2], ...
-- **Responde:** o menor deles
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Min(3, 7, 5)
-```
-
 ### Min
 
 O menor dos números.

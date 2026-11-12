@@ -43,15 +43,3 @@ The variable of the clipboard; the v2 spells it A_Clipboard and the v1 spells it
 ```ahk
 text := A_Clipboard
 ```
-
-### Clipboard
-
-The variable of the clipboard; the v2 spells it A_Clipboard and the v1 spells it Clipboard, and both are the same text. It is read with wl-paste on a Wayland session and with xclip or xsel on an X11 one, and written with wl-copy or xclip.
-
-- **Parameters:** --
-- **Answers:** the text on the clipboard
-- **Errors:** an empty clipboard is a value and not a failure; an X11 session with neither xclip nor xsel answers "the clipboard of an X11 session cannot be read: neither xclip nor xsel is installed on this machine"; a write calls the function registered for OnClipboardChange with 1, because the change the runtime can see is its own.
-
-```ahk
-text := A_Clipboard
-```

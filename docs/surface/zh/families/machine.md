@@ -289,18 +289,6 @@ ProcessWaitClose "firefox", 10
 Run "ls"
 ```
 
-### Run
-
-运行一条命令并等待它结束。命令写到输出上的内容进入报告的输出。
-
-- **参数:** Command, [WorkingDir]
-- **返回:** 命令的退出码
-- **错误:** more than two parameters are refused with "the options of the window and the pid of the process are not carried yet."
-
-```ahk
-Run "ls"
-```
-
 ### RunWait
 
 运行一条命令并等待它结束，与 Run 相同。这个名字是同一个处理器的函数形式。
@@ -311,30 +299,6 @@ Run "ls"
 
 ```ahk
 RunWait "ls"
-```
-
-### RunWait
-
-运行一条命令并等待它结束，与 Run 相同。这个名字是同一个处理器的函数形式。
-
-- **参数:** Command, [WorkingDir]
-- **返回:** 命令的退出码
-- **错误:** more than two parameters are refused with "the options of the window and the pid of the process are not carried yet."
-
-```ahk
-RunWait "ls"
-```
-
-### SysGet
-
-给出系统的一个度量；编号取自 GetSystemMetrics，只有与屏幕有关的那些被承载。
-
-- **参数:** Metric
-- **返回:** 该度量（整数）
-- **错误:** a metric of the window manager of Windows is refused with "SysGet(n) is a metric of the window manager of Windows, and this desktop does not have one."; a compositor that published no monitor answers "the compositor published no monitor, so the metric n of SysGet is not known."; a number that is not a metric at all is zero.
-
-```ahk
-w := SysGet(0)
 ```
 
 ### SysGet

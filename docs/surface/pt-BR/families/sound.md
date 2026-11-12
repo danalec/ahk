@@ -37,30 +37,6 @@ Toca um tom; a caixa não tem alto-falante próprio, então o tom vira um arquiv
 SoundBeep 1000, 200
 ```
 
-### SoundBeep
-
-Toca um tom; a caixa não tem alto-falante próprio, então o tom vira um arquivo wave em /tmp, é tocado com paplay e depois removido.
-
-- **Parâmetros:** [Frequency, Duration]
-- **Responde:** 1
-- **Erros:** a frequency outside the range is refused with "the frequency of a tone is between 37 and 32767."; a host without the mixer answers "the mixer refused: ... pactl: not found" and "the mixer could not play ...".
-
-```ahk
-SoundBeep 1000, 200
-```
-
-### SoundPlay
-
-Toca um arquivo de som com o mixer da sessão; o volume, a velocidade e o tom do v2 não são carregados.
-
-- **Parâmetros:** File, [Options]
-- **Responde:** 1
-- **Erros:** the volume, the speed and the pitch are refused with "the volume, the speed and the pitch of a sound are not carried yet."; an empty path is "the sound file is missing."; a host without the mixer answers the reason of the player.
-
-```ahk
-SoundPlay "/usr/share/sounds/freedesktop/stereo/complete.oga"
-```
-
 ### SoundPlay
 
 Toca um arquivo de som com o mixer da sessão; o volume, a velocidade e o tom do v2 não são carregados.

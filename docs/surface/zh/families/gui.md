@@ -381,19 +381,6 @@ answer := InputBox("your name?", "hello")
 MsgBox answer.Value
 ```
 
-### InputBox
-
-在桌面的对话框里向用户要一段文本，返回一个对象：Value 是输入的文本，Result 是对话框被关闭的方式。
-
-- **参数:** Prompt, [Title], [Options], [Default]
-- **返回:** 带 Value 和 Result 属性的对象，Result 是 "OK"、"Cancel" 或 "Timeout"
-- **错误:** an option the dialect does not know is refused with "Invalid option.".
-
-```ahk
-answer := InputBox("your name?", "hello")
-MsgBox answer.Value
-```
-
 ### MsgBox
 
 显示一条消息。这棵树没有自己的窗口，因此文本进入报告的输出，而不是显示在屏幕上；调用返回同样的文本。
@@ -404,30 +391,6 @@ MsgBox answer.Value
 
 ```ahk
 MsgBox "hello"
-```
-
-### MsgBox
-
-显示一条消息。这棵树没有自己的窗口，因此文本进入报告的输出，而不是显示在屏幕上；调用返回同样的文本。
-
-- **参数:** Message, [Title], [Options]
-- **返回:** 消息的文本
-- **错误:** more than one parameter is refused with "the options, the title and the variable that takes the answer are not carried yet."
-
-```ahk
-MsgBox "hello"
-```
-
-### ToolTip
-
-在屏幕的某个位置显示一个小文本窗口。不带文本调用时会把窗口移除。
-
-- **参数:** Text, [X], [Y], [Options]
-- **返回:** 标识该窗口的编号；移除窗口时返回空文本
-- **错误:** the desktop reports the failure of the call.
-
-```ahk
-ToolTip "hello", 10, 10
 ```
 
 ### ToolTip
@@ -454,18 +417,6 @@ ToolTip "hello", 10, 10
 TrayTip "done", "the script"
 ```
 
-### TrayTip
-
-向桌面发送一条带文本和标题的通知。这个名字来自 Windows（通知区里的气泡），但这棵树发送的是桌面通知，同样的用户会看到同样的内容。
-
-- **参数:** Text, [Title], [Options]
-- **返回:** 空文本
-- **错误:** the desktop reports the failure of the notification.
-
-```ahk
-TrayTip "done", "the script"
-```
-
 ### WinActivate
 
 把窗口置于最前。它作用于脚本自己的窗口：合成器的窗口列表没有提供把别的程序的窗口提到前面的办法。
@@ -476,30 +427,6 @@ TrayTip "done", "the script"
 
 ```ahk
 WinActivate "Untitled"
-```
-
-### WinActivate
-
-把窗口置于最前。它作用于脚本自己的窗口：合成器的窗口列表没有提供把别的程序的窗口提到前面的办法。
-
-- **参数:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **返回:** 无返回值
-- **错误:** a window that is not there answers 'Target window not found.'; a window of another program cannot be activated this way.
-
-```ahk
-WinActivate "Untitled"
-```
-
-### WinActive
-
-取得拥有焦点的窗口。后端是 Wayland 会话，合成器才知道有哪些窗口以及哪个在前。
-
-- **参数:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **返回:** 活动窗口的标识，没有时为 0
-- **错误:** the text of the window and the exclusions are not carried yet; a compositor that does not publish the focus answers with the reason, and not with a guess.
-
-```ahk
-id := WinActive()
 ```
 
 ### WinActive
@@ -526,18 +453,6 @@ id := WinActive()
 WinClose "Untitled"
 ```
 
-### WinClose
-
-关闭窗口。它关闭的是脚本自己的窗口：合成器的窗口列表没有为别的程序的窗口提供关闭请求。
-
-- **参数:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **返回:** 无返回值
-- **错误:** a window that is not there answers 'Target window not found.'; a window of another program cannot be closed this way.
-
-```ahk
-WinClose "Untitled"
-```
-
 ### WinExist
 
 判断是否存在某个标题的窗口。窗口来自合成器，数字标识其中一个。
@@ -548,30 +463,6 @@ WinClose "Untitled"
 
 ```ahk
 if WinExist("Untitled")
-```
-
-### WinExist
-
-判断是否存在某个标题的窗口。窗口来自合成器，数字标识其中一个。
-
-- **参数:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **返回:** 存在时返回该窗口的标识，不存在时为 0
-- **错误:** a window that is not there is an answer and not a failure; a question the compositor cannot answer fails with its reason.
-
-```ahk
-if WinExist("Untitled")
-```
-
-### WinGetClass
-
-取得与给定标题匹配的窗口的类。
-
-- **参数:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **返回:** 窗口的类
-- **错误:** a title that matches no window answers 'Target window not found.'; the text of the window and the exclusions are not carried yet.
-
-```ahk
-class := WinGetClass("Untitled")
 ```
 
 ### WinGetClass
@@ -646,18 +537,6 @@ pid := WinGetPID("Calculator")
 WinGetPos "Untitled", , &x, &y, &w, &h
 ```
 
-### WinGetPos
-
-取得窗口的位置和大小，数值来自合成器的报告。
-
-- **参数:** [WindowTitle] [, WinText, &X, &Y, &Width, &Height, ExcludeTitle, ExcludeText]
-- **返回:** 无返回值；位置和大小写入调用者的变量
-- **错误:** the text of the window and the exclusions are not carried yet; a window that is not there answers 'Target window not found.'
-
-```ahk
-WinGetPos "Untitled", , &x, &y, &w, &h
-```
-
 ### WinGetProcessName
 
 给出窗口所属程序的名称；它沿着 WinGetPID 的链条走：窗口在无障碍总线上找到应用，总线给出进程，进程表给出名称。
@@ -682,18 +561,6 @@ name := WinGetProcessName("Calculator")
 title := WinGetTitle()
 ```
 
-### WinGetTitle
-
-取得活动窗口的标题，或与给定文本匹配的窗口的标题。
-
-- **参数:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **返回:** 窗口的标题
-- **错误:** a window that was named and is not there answers 'Target window not found.'; the text of the window and the exclusions are not carried yet.
-
-```ahk
-title := WinGetTitle()
-```
-
 ### WinHide
 
 把脚本自己的窗口从屏幕上收起来。
@@ -704,30 +571,6 @@ title := WinGetTitle()
 
 ```ahk
 WinHide "Untitled"
-```
-
-### WinHide
-
-把脚本自己的窗口从屏幕上收起来。
-
-- **参数:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **返回:** 无返回值
-- **错误:** a window that is not there answers 'Target window not found.'; a window of another program cannot be hidden this way.
-
-```ahk
-WinHide "Untitled"
-```
-
-### WinMaximize
-
-最大化脚本自己创建的窗口，且只有这一个；由盒子里的辅助程序来完成。
-
-- **参数:** WinTitle
-- **返回:** 空文本
-- **错误:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinMaximize "MyWindow"
 ```
 
 ### WinMaximize
@@ -754,18 +597,6 @@ WinMaximize "MyWindow"
 WinMinimize "MyWindow"
 ```
 
-### WinMinimize
-
-最小化脚本自己创建的窗口，且只有这一个：Wayland 客户端无法最小化别的程序的窗口。
-
-- **参数:** WinTitle
-- **返回:** 空文本
-- **错误:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has; the reason of the desktop when the helper refuses the state.
-
-```ahk
-WinMinimize "MyWindow"
-```
-
 ### WinMove
 
 移动并调整脚本自己创建的窗口的大小；Wayland 合成器自己摆放窗口，未必会照客户要求的坐标来。
@@ -776,30 +607,6 @@ WinMinimize "MyWindow"
 
 ```ahk
 WinMove 100, 100, 800, 600, "MyWindow"
-```
-
-### WinMove
-
-移动并调整脚本自己创建的窗口的大小；Wayland 合成器自己摆放窗口，未必会照客户要求的坐标来。
-
-- **参数:** X, Y, Width, Height, WinTitle
-- **返回:** 空文本
-- **错误:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinMove 100, 100, 800, 600, "MyWindow"
-```
-
-### WinRestore
-
-把脚本自己的窗口从最小化状态恢复，且只有这一个窗口。
-
-- **参数:** WinTitle
-- **返回:** 空文本
-- **错误:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinRestore "MyWindow"
 ```
 
 ### WinRestore
@@ -826,30 +633,6 @@ WinRestore "MyWindow"
 WinSetTitle "New Title", "MyWindow"
 ```
 
-### WinSetTitle
-
-给脚本自己的窗口改名；Wayland 客户端无法给别的程序的窗口改名。
-
-- **参数:** NewTitle, WinTitle
-- **返回:** 空文本
-- **错误:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinSetTitle "New Title", "MyWindow"
-```
-
-### WinShow
-
-在 `WinHide` 之后，把脚本自己的窗口重新放回屏幕上。
-
-- **参数:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **返回:** 无返回值
-- **错误:** a window that is not there answers 'Target window not found.'; a window of another program cannot be shown this way.
-
-```ahk
-WinShow "Untitled"
-```
-
 ### WinShow
 
 在 `WinHide` 之后，把脚本自己的窗口重新放回屏幕上。
@@ -874,18 +657,6 @@ WinShow "Untitled"
 WinWait "Calculator", , 5
 ```
 
-### WinWait
-
-等待标题匹配的窗口出现，并给出它的标识符；Wayland 窗口的标识符是一个记号，所以是文本。
-
-- **参数:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **返回:** 窗口标识符（文本），超时则为 0
-- **错误:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."; the wait is capped at sixty seconds when the timeout is left out.
-
-```ahk
-WinWait "Calculator", , 5
-```
-
 ### WinWaitActive
 
 等待标题匹配的窗口获得焦点，并给出它的标识符。
@@ -896,30 +667,6 @@ WinWait "Calculator", , 5
 
 ```ahk
 WinWaitActive "Calculator", , 5
-```
-
-### WinWaitActive
-
-等待标题匹配的窗口获得焦点，并给出它的标识符。
-
-- **参数:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **返回:** 窗口标识符（文本），超时则为 0
-- **错误:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."
-
-```ahk
-WinWaitActive "Calculator", , 5
-```
-
-### WinWaitClose
-
-等待标题匹配的窗口消失，并回答它是否已经消失。
-
-- **参数:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **返回:** 窗口已消失为 1，超时时它还在则为 0
-- **错误:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."
-
-```ahk
-WinWaitClose "Calculator", , 5
 ```
 
 ### WinWaitClose

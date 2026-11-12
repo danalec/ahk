@@ -195,18 +195,6 @@ A distância até zero. Um inteiro continua inteiro.
 Abs(-3)
 ```
 
-### Abs
-
-A distância até zero. Um inteiro continua inteiro.
-
-- **Parâmetros:** Number
-- **Responde:** o número sem o seu sinal
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Abs(-3)
-```
-
 ### Ceil
 
 O número inteiro acima de um número.
@@ -217,30 +205,6 @@ O número inteiro acima de um número.
 
 ```ahk
 Ceil(1.2)
-```
-
-### Ceil
-
-O número inteiro acima de um número.
-
-- **Parâmetros:** Number
-- **Responde:** o inteiro, um float quando o número não era inteiro
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Ceil(1.2)
-```
-
-### Chr
-
-O caractere com um ponto de código.
-
-- **Parâmetros:** Code
-- **Responde:** o texto desse caractere
-- **Erros:** a code outside 0 to 0x10FFFF is an invalid parameter; a surrogate code is a text of its own.
-
-```ahk
-Chr(65)
 ```
 
 ### Chr
@@ -267,30 +231,6 @@ O cosseno de um ângulo, em radianos.
 Cos(0)
 ```
 
-### Cos
-
-O cosseno de um ângulo, em radianos.
-
-- **Parâmetros:** Number
-- **Responde:** um float, qualquer que tenha sido a entrada
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Cos(0)
-```
-
-### Exp
-
-e elevado ao número.
-
-- **Parâmetros:** Number
-- **Responde:** um float
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Exp(1)
-```
-
 ### Exp
 
 e elevado ao número.
@@ -313,30 +253,6 @@ O número inteiro abaixo de um número.
 
 ```ahk
 Floor(1.8)
-```
-
-### Floor
-
-O número inteiro abaixo de um número.
-
-- **Parâmetros:** Number
-- **Responde:** o inteiro, um float quando o número não era inteiro
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Floor(1.8)
-```
-
-### Format
-
-Um padrão com os valores dentro. O padrão é o do dialeto de referência: {1} é o primeiro argumento, um placeholder sem número pega o próximo, e {{ e }} são uma chave cada.
-
-- **Parâmetros:** Pattern, [Value1], [Value2], ...
-- **Responde:** o texto do padrão com os valores dentro
-- **Erros:** a placeholder that names an argument that is not there, or whose spec is not one the dialect reads, is left exactly as it was written; a value of a kind the spec does not want is refused.
-
-```ahk
-Format("{1} + {2} = {3}", 1, 2, 3)
 ```
 
 ### Format
@@ -414,18 +330,6 @@ Onde um texto está em outro texto. A posição conta a partir de um e é zero q
 InStr("hello", "ll")
 ```
 
-### InStr
-
-Onde um texto está em outro texto. A posição conta a partir de um e é zero quando o trecho procurado não está lá.
-
-- **Parâmetros:** Haystack, Needle, [CaseSense], [Start], [Occurrence]
-- **Responde:** a posição da ocorrência, ou 0 quando não há nenhuma
-- **Erros:** a needle that is empty is an invalid parameter; the logical case sense is an invalid parameter; a start or an occurrence of zero is an invalid parameter.
-
-```ahk
-InStr("hello", "ll")
-```
-
 ### IsNumber
 
 Se um valor é um número: um inteiro, um float, ou um texto que contém um. Um texto hexadecimal também é número.
@@ -436,18 +340,6 @@ Se um valor é um número: um inteiro, um float, ou um texto que contém um. Um 
 
 ```ahk
 IsNumber("42")
-```
-
-### IsObject
-
-Se um valor é um objeto. Tudo que não é número nem texto é objeto: um array, um map, uma instância de classe e uma referência.
-
-- **Parâmetros:** Value
-- **Responde:** 1 quando é objeto, 0 quando não é
-- **Erros:** none.
-
-```ahk
-IsObject([])
 ```
 
 ### IsObject
@@ -487,18 +379,6 @@ O logaritmo natural de um número.
 Ln(1)
 ```
 
-### Ln
-
-O logaritmo natural de um número.
-
-- **Parâmetros:** Number
-- **Responde:** um float
-- **Erros:** a negative number is an invalid parameter; a value that is not a number is refused.
-
-```ahk
-Ln(1)
-```
-
 ### LTrim
 
 O texto sem os caracteres da ponta esquerda.
@@ -523,18 +403,6 @@ O maior dos números.
 Max(3, 7, 5)
 ```
 
-### Max
-
-O maior dos números.
-
-- **Parâmetros:** Number, [Number2], ...
-- **Responde:** o maior deles
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Max(3, 7, 5)
-```
-
 ### Mod
 
 O resto de uma divisão. O sinal do resto é o do dividendo, e a resposta é um número inteiro quando os dois argumentos são.
@@ -545,30 +413,6 @@ O resto de uma divisão. O sinal do resto é o do dividendo, e a resposta é um 
 
 ```ahk
 Mod(7, 3)
-```
-
-### Mod
-
-O resto de uma divisão. O sinal do resto é o do dividendo, e a resposta é um número inteiro quando os dois argumentos são.
-
-- **Parâmetros:** Dividend, Divisor
-- **Responde:** o resto
-- **Erros:** a divisor of zero fails with "Divide by zero."; a value that is not a number is refused with "Invalid parameter(s).".
-
-```ahk
-Mod(7, 3)
-```
-
-### Ord
-
-O ponto de código do primeiro caractere de um texto.
-
-- **Parâmetros:** Text
-- **Responde:** o ponto de código, ou zero quando o texto não tem caractere
-- **Erros:** none; a lone surrogate answers with the code unit of it.
-
-```ahk
-Ord("A")
 ```
 
 ### Ord
@@ -595,30 +439,6 @@ Um número entre os dois que quem chama nomeia. Sem argumentos é um número ent
 Random(1, 6)
 ```
 
-### Random
-
-Um número entre os dois que quem chama nomeia. Sem argumentos é um número entre zero e um; com um é um inteiro abaixo dele; com dois é um inteiro entre eles, as duas pontas contadas.
-
-- **Parâmetros:** [Bound] or [Low, High]
-- **Responde:** o número
-- **Erros:** none.
-
-```ahk
-Random(1, 6)
-```
-
-### RegExMatch
-
-Onde um padrão está num texto. A posição conta a partir de um e é zero quando o padrão não está lá.
-
-- **Parâmetros:** Text, Pattern, [&Output], [Start]
-- **Responde:** a posição da ocorrência, ou 0 quando não há nenhuma
-- **Erros:** the output must be a variable reference; the output holds an object of the class RegExMatchInfo, and a text that does not match leaves it holding the empty text.
-
-```ahk
-RegExMatch("abc123", "\d+")
-```
-
 ### RegExMatch
 
 Onde um padrão está num texto. A posição conta a partir de um e é zero quando o padrão não está lá.
@@ -641,30 +461,6 @@ O texto com as ocorrências de um padrão substituídas. A substituição pode n
 
 ```ahk
 RegExReplace("a1b2", "\d", "#")
-```
-
-### RegExReplace
-
-O texto com as ocorrências de um padrão substituídas. A substituição pode nomear os grupos do padrão com $1 ou \1, e $$ é um cifrão de verdade.
-
-- **Parâmetros:** Text, Pattern, Replacement, [&Count], [Limit], [Start]
-- **Responde:** o texto com as substituições
-- **Erros:** the count must be a variable reference; a pattern that does not compile fails with the reason of the compiler.
-
-```ahk
-RegExReplace("a1b2", "\d", "#")
-```
-
-### Round
-
-O número arredondado ao número de decimais pedido. Com um número positivo de decimais a resposta é um texto com exatamente esse tanto de dígitos depois do ponto, zeros incluidos; sem o número, com zero ou negativo, é um inteiro.
-
-- **Parâmetros:** Number, [Decimals]
-- **Responde:** um texto com os decimais pedidos, ou um inteiro
-- **Erros:** a text that does not hold a number is refused; more than 100000 decimals is an invalid parameter.
-
-```ahk
-Round(2.567, 2)
 ```
 
 ### Round
@@ -703,30 +499,6 @@ O seno de um ângulo, em radianos.
 Sin(0)
 ```
 
-### Sin
-
-O seno de um ângulo, em radianos.
-
-- **Parâmetros:** Number
-- **Responde:** um float, qualquer que tenha sido a entrada
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Sin(0)
-```
-
-### Sort
-
-Os itens de um texto em ordem. O segundo parâmetro são as opções, lidas letra a letra, e o terceiro é um callback que compara dois itens.
-
-- **Parâmetros:** Text, [Options], [Callback]
-- **Responde:** o texto com os itens em ordem
-- **Erros:** the first parameter must be a text; an array is refused; a third parameter that cannot be called fails with "This value of type ... has no method named Call".
-
-```ahk
-Sort("b`na`n", "N")
-```
-
 ### Sort
 
 Os itens de um texto em ordem. O segundo parâmetro são as opções, lidas letra a letra, e o terceiro é um callback que compara dois itens.
@@ -751,18 +523,6 @@ A raiz quadrada de um número.
 Sqrt(9)
 ```
 
-### Sqrt
-
-A raiz quadrada de um número.
-
-- **Parâmetros:** Number
-- **Responde:** um float, mesmo quando o resultado é inteiro
-- **Erros:** a negative number is an invalid parameter.
-
-```ahk
-Sqrt(9)
-```
-
 ### StrGet
 
 O texto de um buffer, ou o texto num endereço. A origem é um buffer ou um número; o comprimento e a codificação vêm depois.
@@ -773,30 +533,6 @@ O texto de um buffer, ou o texto num endereço. A origem é um buffer ou um núm
 
 ```ahk
 StrGet(Buffer(16), 4, "UTF-8")
-```
-
-### StrGet
-
-O texto de um buffer, ou o texto num endereço. A origem é um buffer ou um número; o comprimento e a codificação vêm depois.
-
-- **Parâmetros:** Source, [Length], [Encoding]
-- **Responde:** o texto; um endereço que não corresponde a buffer nem a texto devolve o texto vazio
-- **Erros:** a text as the source is refused with "Parameter #1 invalid."; an encoding the dialect does not know is refused with "Invalid Encoding.".
-
-```ahk
-StrGet(Buffer(16), 4, "UTF-8")
-```
-
-### StrLen
-
-Conta os caracteres de um texto em unidades de código UTF-16, então um caractere fora do plano básico conta como dois.
-
-- **Parâmetros:** Text
-- **Responde:** o número de unidades de código
-- **Erros:** none; a value that is not text is read as its text.
-
-```ahk
-StrLen("hello")
 ```
 
 ### StrLen
@@ -835,18 +571,6 @@ Escreve um texto num buffer. Sem alvo, a chamada devolve quantos bytes o texto p
 StrPut("abc", Buffer(16), "UTF-8")
 ```
 
-### StrPut
-
-Escreve um texto num buffer. Sem alvo, a chamada devolve quantos bytes o texto precisa, com o terminador incluído.
-
-- **Parâmetros:** Text, [Target], [Encoding], [Length]
-- **Responde:** os bytes escritos, ou os bytes que o texto precisa quando não há alvo
-- **Erros:** a target that is not a buffer is refused with "Parameter #2 of StrPut is invalid."; a text that does not fit in the size the caller names is refused with "Invalid Length.".
-
-```ahk
-StrPut("abc", Buffer(16), "UTF-8")
-```
-
 ### StrReplace
 
 O texto com uma parte dele trocada por outra. O sentido de caixa decide se as letras são levadas em conta como são, e fica desligado quando quem chama não diz.
@@ -857,30 +581,6 @@ O texto com uma parte dele trocada por outra. O sentido de caixa decide se as le
 
 ```ahk
 StrReplace("a-b-c", "-", "+")
-```
-
-### StrReplace
-
-O texto com uma parte dele trocada por outra. O sentido de caixa decide se as letras são levadas em conta como são, e fica desligado quando quem chama não diz.
-
-- **Parâmetros:** Haystack, Needle, Replacement, [CaseSense], [&Count], [Limit]
-- **Responde:** o texto com as substituições
-- **Erros:** the count must be a variable reference; a needle that is empty changes nothing and the text comes back as it is; the logical case sense is an invalid parameter.
-
-```ahk
-StrReplace("a-b-c", "-", "+")
-```
-
-### StrSplit
-
-As partes de um texto, cortadas nos delimitadores. Um delimitador é literal: um texto é um delimitador, um array de textos é um conjunto deles, e o primeiro que estiver presente vence.
-
-- **Parâmetros:** Text, [Delimiters], [OmitChars], [MaxParts]
-- **Responde:** um array das partes; os caracteres a omitir são cortados do começo e do fim de cada parte
-- **Erros:** the delimiters must be a text or an array of texts; an empty array is refused with "Parameter #2 of StrSplit is invalid.".
-
-```ahk
-StrSplit("a,b,c", ",")
 ```
 
 ### StrSplit
@@ -919,30 +619,6 @@ A parte de um texto entre duas posições. As posições contam a partir de um, 
 SubStr("hello", 2, 3)
 ```
 
-### SubStr
-
-A parte de um texto entre duas posições. As posições contam a partir de um, e uma posição negativa conta a partir do fim: -1 é o último caractere.
-
-- **Parâmetros:** Text, Start, [Length]
-- **Responde:** o texto dessa parte; um comprimento negativo deixa tantos caracteres de fora no fim
-- **Erros:** none; the text is cut in the code units of UTF-16, so the second unit of a surrogate pair is a text of its own.
-
-```ahk
-SubStr("hello", 2, 3)
-```
-
-### Tan
-
-A tangente de um ângulo, em radianos.
-
-- **Parâmetros:** Number
-- **Responde:** um float, qualquer que tenha sido a entrada
-- **Erros:** a value that is not a number is refused.
-
-```ahk
-Tan(0)
-```
-
 ### Tan
 
 A tangente de um ângulo, em radianos.
@@ -979,18 +655,6 @@ O texto sem os caracteres das pontas.
 Trim("  hello  ")
 ```
 
-### Trim
-
-O texto sem os caracteres das pontas.
-
-- **Parâmetros:** Text, [Chars]
-- **Responde:** o texto sem os caracteres iniciais e finais do conjunto; o conjunto é o espaço e o tab quando quem chama não nomeia um
-- **Erros:** none.
-
-```ahk
-Trim("  hello  ")
-```
-
 ### Type
 
 O nome do tipo de um valor.
@@ -1001,18 +665,6 @@ O nome do tipo de um valor.
 
 ```ahk
 Type(1)
-```
-
-### VerCompare
-
-Duas strings de versão, comparadas. Os números das duas versões são comparados um a um, e o componente que falta vale zero. Uma versão com sufixo de pré-lançamento é mais antiga que a mesma versão sem ele.
-
-- **Parâmetros:** Version1, Version2
-- **Responde:** a ordem das duas versões como -1, 0 ou 1; quando a segunda versão traz um operador -- <, <=, >, >= ou = -- a resposta é se a relação vale
-- **Erros:** none.
-
-```ahk
-VerCompare("1.2.0", "1.10.0")
 ```
 
 ### VerCompare

@@ -37,30 +37,6 @@ Plays a tone; the box has no speaker of its own, so the tone is written as a wav
 SoundBeep 1000, 200
 ```
 
-### SoundBeep
-
-Plays a tone; the box has no speaker of its own, so the tone is written as a wave file under /tmp, played with paplay, and removed again.
-
-- **Parameters:** [Frequency, Duration]
-- **Answers:** 1
-- **Errors:** a frequency outside the range is refused with "the frequency of a tone is between 37 and 32767."; a host without the mixer answers "the mixer refused: ... pactl: not found" and "the mixer could not play ...".
-
-```ahk
-SoundBeep 1000, 200
-```
-
-### SoundPlay
-
-Plays a sound file with the mixer of the session; the volume, the speed and the pitch of v2 are not carried.
-
-- **Parameters:** File, [Options]
-- **Answers:** 1
-- **Errors:** the volume, the speed and the pitch are refused with "the volume, the speed and the pitch of a sound are not carried yet."; an empty path is "the sound file is missing."; a host without the mixer answers the reason of the player.
-
-```ahk
-SoundPlay "/usr/share/sounds/freedesktop/stereo/complete.oga"
-```
-
 ### SoundPlay
 
 Plays a sound file with the mixer of the session; the volume, the speed and the pitch of v2 are not carried.

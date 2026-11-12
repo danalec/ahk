@@ -229,7 +229,7 @@ Copia um diretório e tudo o que há nele. O que é copiado é o conteúdo do di
 
 - **Parâmetros:** Source, Dest, [Overwrite]
 - **Responde:** nada
-- **Erros:** Error `Failed` when the source is not a directory, or when the destination is there and the overwrite is not asked for; a name that holds a wildcard is refused with the reason that the wildcards of v2 are not carried.
+- **Erros:** Error `Failed` when the source is not a directory, or when the destination is there and the overwrite is not asked for; a name that holds a wildcard is refused, and the reference fails with `Failed` on a wildcard too.
 
 ```ahk
 DirCopy "src", "dst"
@@ -252,7 +252,7 @@ DirCreate "out"
 Apaga um diretório. Um diretório que não está vazio permanece, a não ser que a recursão seja pedida.
 
 - **Parâmetros:** DirName, [Recurse]
-- **Responde:** o nome do diretório.
+- **Responde:** nada; o nome de um comando não responde nada.
 - **Erros:** Error `Failed` when the directory is not there, or when it is not empty and the recursion is not asked for.
 
 ```ahk
@@ -277,7 +277,7 @@ Move um diretório, com tudo o que há nele. Um destino que já existe é mescla
 
 - **Parâmetros:** Source, Dest, [Overwrite]
 - **Responde:** nada
-- **Erros:** Error `Failed` when the source is not a directory; a name that holds a wildcard is refused with the reason that the wildcards of v2 are not carried.
+- **Erros:** Error `Failed` when the source is not a directory; a name that holds a wildcard is refused, and the reference fails with `Failed` on a wildcard too.
 
 ```ahk
 DirMove "src", "dst"
@@ -320,18 +320,6 @@ Acrescenta texto ao fim de um arquivo. O nome do arquivo pode ser `*`, e o texto
 FileAppend "hello`n", "out.txt"
 ```
 
-### FileAppend
-
-Acrescenta texto ao fim de um arquivo. O nome do arquivo pode ser `*`, e o texto vai então para a saída do relatório; dentro do corpo de um `Loop Read` o nome pode ser omitido, e o arquivo do laço é o que é escrito.
-
-- **Parâmetros:** Text, FileName, [Options]
-- **Responde:** nada
-- **Erros:** ValueError when the name of the file is empty or when an option is not one of v2; OSError when the file cannot be opened for writing. The options are the encoding of the file -- `UTF-8`, `UTF-16` and the code page of the machine --, `RAW` and a linefeed; a code page the tree does not carry is refused with the reason.
-
-```ahk
-FileAppend "hello`n", "out.txt"
-```
-
 ### FileCopy
 
 Copia um arquivo, ou todos os arquivos que um padrão nomeia. Um destino que termina em separador, ou que é uma pasta, é a pasta para onde os arquivos são copiados.
@@ -342,30 +330,6 @@ Copia um arquivo, ou todos os arquivos que um padrão nomeia. Um destino que ter
 
 ```ahk
 FileCopy "a.txt", "b.txt"
-```
-
-### FileCopy
-
-Copia um arquivo, ou todos os arquivos que um padrão nomeia. Um destino que termina em separador, ou que é uma pasta, é a pasta para onde os arquivos são copiados.
-
-- **Parâmetros:** Source, Dest, [Overwrite]
-- **Responde:** nada
-- **Erros:** Error `Failed` when the source is not there, or when the destination is there and the overwrite is not asked for.
-
-```ahk
-FileCopy "a.txt", "b.txt"
-```
-
-### FileCreateShortcut
-
-Cria um atalho para um programa. Neste desktop um atalho é um arquivo `.desktop` da especificação freedesktop, e ele é criado mesmo quando o alvo não existe.
-
-- **Parâmetros:** Target, LinkFile, [WorkingDir], [Args], [Description], [Icon], [IconNumber], [Run]
-- **Responde:** nada
-- **Erros:** Error when the file of the shortcut cannot be written. The icon number and the run state are not carried.
-
-```ahk
-FileCreateShortcut "/bin/ls", "ls.desktop"
 ```
 
 ### FileCreateShortcut
@@ -392,18 +356,6 @@ Apaga um arquivo, ou todos os arquivos que um padrão nomeia. Um padrão que nã
 FileDelete "out.txt"
 ```
 
-### FileDelete
-
-Apaga um arquivo, ou todos os arquivos que um padrão nomeia. Um padrão que não encontra nenhum arquivo não é uma falha.
-
-- **Parâmetros:** FileName
-- **Responde:** nada
-- **Erros:** OSError when the file cannot be taken away.
-
-```ahk
-FileDelete "out.txt"
-```
-
 ### FileExist
 
 Devolve os atributos da primeira entrada que o nome ou o padrão encontra.
@@ -414,30 +366,6 @@ Devolve os atributos da primeira entrada que o nome ou o padrão encontra.
 
 ```ahk
 x := FileExist("out.txt")
-```
-
-### FileExist
-
-Devolve os atributos da primeira entrada que o nome ou o padrão encontra.
-
-- **Parâmetros:** FileName
-- **Responde:** os atributos em letras: `A` para um arquivo, `D` para uma pasta, `RA` para um arquivo que não pode ser escrito, e o texto vazio quando não há esse arquivo.
-- **Erros:** nothing fails: a name that matches nothing answers the empty text.
-
-```ahk
-x := FileExist("out.txt")
-```
-
-### FileGetSize
-
-Devolve o tamanho de um arquivo.
-
-- **Parâmetros:** FileName, [Unit]
-- **Responde:** o tamanho, arredondado para baixo; uma pasta devolve zero.
-- **Erros:** ValueError when the unit is not `B`, `K` or `M`; OSError when the file cannot be read.
-
-```ahk
-n := FileGetSize("out.txt", "K")
 ```
 
 ### FileGetSize
@@ -464,52 +392,16 @@ Devolve quando um arquivo foi criado, quando foi alterado, ou quando foi lido.
 t := FileGetTime("out.txt", "M")
 ```
 
-### FileGetTime
-
-Devolve quando um arquivo foi criado, quando foi alterado, ou quando foi lido.
-
-- **Parâmetros:** FileName, [Which]
-- **Responde:** o carimbo do v2, os catorze dígitos de `YYYYMMDDHH24MISS`, no horário local da máquina.
-- **Erros:** ValueError when `Which` is not `M`, `C`, `A` or `CUT`; OSError when the file cannot be read.
-
-```ahk
-t := FileGetTime("out.txt", "M")
-```
-
 ### FileInstall
 
 Copia um arquivo como faz o instalador de um script compilado. Nada é compilado aqui: o arquivo é copiado.
-
-- **Parâmetros:** Source, Dest, [Overwrite]
-- **Responde:** nada
-- **Erros:** Error `Failed` when the source is not there, or when the destination is there; the overwrite flag of v2 is not read by the tree, so a copy onto a file that is there fails.
-
-```ahk
-FileInstall "data.txt", "data.out.txt"
-```
-
-### FileInstall
-
-Copia um arquivo como faz o instalador de um script compilado. Nada é compilado aqui: o arquivo é copiado.
-
-- **Parâmetros:** Source, Dest, [Overwrite]
-- **Responde:** nada
-- **Erros:** Error `Failed` when the source is not there, or when the destination is there; the overwrite flag of v2 is not read by the tree, so a copy onto a file that is there fails.
-
-```ahk
-FileInstall "data.txt", "data.out.txt"
-```
-
-### FileMove
-
-Move um arquivo, ou todos os arquivos que um padrão nomeia. A origem e o destino são os de `FileCopy`.
 
 - **Parâmetros:** Source, Dest, [Overwrite]
 - **Responde:** nada
 - **Erros:** Error `Failed` when the source is not there, or when the destination is there and the overwrite is not asked for.
 
 ```ahk
-FileMove "a.txt", "b.txt"
+FileInstall "data.txt", "data.out.txt"
 ```
 
 ### FileMove
@@ -536,30 +428,6 @@ Abre um arquivo e devolve o objeto dele, da classe `File`. Os modos são `r`, `w
 f := FileOpen("out.txt", "w")
 ```
 
-### FileOpen
-
-Abre um arquivo e devolve o objeto dele, da classe `File`. Os modos são `r`, `w`, `a` e `rw`; o nome `*` é o console da máquina.
-
-- **Parâmetros:** FileName, Mode, [Encoding]
-- **Responde:** um objeto `File`.
-- **Erros:** ValueError when the mode is not one of the four; OSError when the file cannot be opened.
-
-```ahk
-f := FileOpen("out.txt", "w")
-```
-
-### FileRead
-
-Lê um arquivo inteiro e devolve o seu texto. A marca da codificação decide a codificação do arquivo, e a opção do script decide quando o arquivo não tem marca.
-
-- **Parâmetros:** FileName, [Options]
-- **Responde:** o texto do arquivo; um Buffer quando a opção `RAW` está presente.
-- **Erros:** OSError when the file cannot be read; ValueError when an option is not one of v2. The options are the encoding of the file -- `UTF-8`, `UTF-16` and the code page of the machine --, `RAW` and `m<n>`, the number of bytes to read.
-
-```ahk
-text := FileRead("out.txt")
-```
-
 ### FileRead
 
 Lê um arquivo inteiro e devolve o seu texto. A marca da codificação decide a codificação do arquivo, e a opção do script decide quando o arquivo não tem marca.
@@ -584,52 +452,28 @@ Manda um arquivo, uma pasta, ou os arquivos que um padrão casa, para a lixeira 
 FileRecycle "out.txt"
 ```
 
-### FileRecycle
+### FileSetAttrib
 
-Manda um arquivo, uma pasta, ou os arquivos que um padrão casa, para a lixeira da máquina. A caixa usa a lixeira da especificação XDG.
+Altera os atributos de um arquivo. Os atributos vêm primeiro e o nome do arquivo depois, como o binário do v2.0.19 os recebe. O nome do arquivo pode ser um padrão, e os atributos mudam em todo arquivo que o padrão nomeia.
 
-- **Parâmetros:** FileName
+- **Parâmetros:** Attributes, FileName, [Recurse]
 - **Responde:** nada
-- **Erros:** Error `Failed` when the path is not there; a pattern that matches nothing is not a failure; ValueError when the name is empty; Error when the machine does not say where the home directory of the user is.
+- **Erros:** ValueError when the attributes are not one of v2; OSError when the attributes of the file cannot be changed. The third parameter is the recursion: the "R" walks into the subfolders, and any other letter is refused.
 
 ```ahk
-FileRecycle "out.txt"
+FileSetAttrib "+H", "*.txt"
 ```
 
 ### FileSetTime
 
-Altera o horário de um arquivo. O tempo vem primeiro e o nome do arquivo depois, como o binário do v2.0.19 os recebe; um tempo em branco é o momento da máquina.
+Altera o horário de um arquivo. O tempo vem primeiro e o nome do arquivo depois, como o binário do v2.0.19 os recebe; um tempo em branco é o momento da máquina. O nome do arquivo pode ser um padrão, e o horário muda em todo arquivo que o padrão nomeia.
 
-- **Parâmetros:** TimeStamp, FileName, [Which], [Mode]
+- **Parâmetros:** TimeStamp, FileName, [Which], [Recurse]
 - **Responde:** nada
-- **Erros:** ValueError when the stamp or the time that is wanted is not one of v2; OSError when the times of the file cannot be changed. The recursion of v2 is refused with the reason.
+- **Erros:** ValueError when the stamp is not one of v2, or when the time that is wanted is not the "M", the "C" or the "A"; OSError when the times of the file cannot be changed. The fourth parameter is the recursion: the "R" walks into the subfolders, and any other letter is refused.
 
 ```ahk
 FileSetTime "20000101000000", "out.txt", "M"
-```
-
-### FileSetTime
-
-Altera o horário de um arquivo. O tempo vem primeiro e o nome do arquivo depois, como o binário do v2.0.19 os recebe; um tempo em branco é o momento da máquina.
-
-- **Parâmetros:** TimeStamp, FileName, [Which], [Mode]
-- **Responde:** nada
-- **Erros:** ValueError when the stamp or the time that is wanted is not one of v2; OSError when the times of the file cannot be changed. The recursion of v2 is refused with the reason.
-
-```ahk
-FileSetTime "20000101000000", "out.txt", "M"
-```
-
-### IniDelete
-
-Tira uma chave de um arquivo ini. Uma chave que não é dada leva a seção inteira com ela.
-
-- **Parâmetros:** FileName, Section, [Key]
-- **Responde:** nada
-- **Erros:** Error when the file cannot be written.
-
-```ahk
-IniDelete "app.ini", "Main", "Name"
 ```
 
 ### IniDelete
@@ -654,30 +498,6 @@ Lê o valor de uma chave de um arquivo ini. Sem seção, devolve os nomes das se
 
 ```ahk
 v := IniRead("app.ini", "Main", "Name")
-```
-
-### IniRead
-
-Lê o valor de uma chave de um arquivo ini. Sem seção, devolve os nomes das seções; sem chave, devolve a seção inteira. Os arquivos ini são os do Windows: `[section]`, `key=value` e `;` para comentário.
-
-- **Parâmetros:** FileName, Section, Key, [Default]
-- **Responde:** o valor da chave; o padrão do script quando a chave não existe e um padrão foi dado.
-- **Erros:** Error `The requested key, section or file was not found.` when the key is not there and no default is given.
-
-```ahk
-v := IniRead("app.ini", "Main", "Name")
-```
-
-### IniWrite
-
-Escreve uma chave de um arquivo ini. O valor vem primeiro e o nome do arquivo depois, como o binário do v2.0.19 os recebe; um arquivo que não existe é criado.
-
-- **Parâmetros:** Value, FileName, Section, Key
-- **Responde:** nada
-- **Erros:** Error when the file cannot be written.
-
-```ahk
-IniWrite "hello", "app.ini", "Main", "Name"
 ```
 
 ### IniWrite
@@ -742,18 +562,6 @@ Lê a linha do arquivo na sua posição e avança a posição.
 ```ahk
 f := FileOpen("notes.txt", "r")
 FileAppend f.ReadLine(), "*"
-```
-
-### SplitPath
-
-Corta um caminho em suas partes e as escreve nas variáveis de quem chama. Um caminho de arquivo é cortado na barra invertida e uma url na barra, e a unidade de uma url é o seu esquema e o seu host.
-
-- **Parâmetros:** Path, &OutFileName, &OutDir, &OutExt, &OutNameNoExt, &OutDrive
-- **Responde:** nada
-- **Erros:** TypeError when a piece is not a variable to write into.
-
-```ahk
-SplitPath "C:\dir\file.txt", &name, &dir, &ext
 ```
 
 ### SplitPath

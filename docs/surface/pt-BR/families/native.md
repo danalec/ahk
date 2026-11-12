@@ -40,18 +40,6 @@ Chama uma função de uma biblioteca da máquina; a conversão dos argumentos é
 pid := DllCall("libc.so.6\getpid", "Int")
 ```
 
-### DllCall
-
-Chama uma função de uma biblioteca da máquina; a conversão dos argumentos é pura e está na linguagem, a chamada é a capacidade do desktop, e a caixa responde com uma trampoline.
-
-- **Parâmetros:** Target, Type1, Param1, [Type2, Param2, ...], [ReturnType]
-- **Responde:** o valor que a função devolve
-- **Erros:** "Failed to load DLL.", "Call to nonexistent function.", "Invalid arg type." and "Invalid return type." are the reasons of v2; a library of Windows on a Linux box is called through the raven, and a box without one says "this box has no raven: the libraries of Windows cannot be called."
-
-```ahk
-pid := DllCall("libc.so.6\getpid", "Int")
-```
-
 ### NumGet
 
 Lê um número dos bytes de um buffer; a fonte de um número é um buffer, e a memória de um endereço não é lida aqui.
@@ -62,30 +50,6 @@ Lê um número dos bytes de um buffer; a fonte de um número é um buffer, e a m
 
 ```ahk
 value := NumGet(buf, 0, "Int")
-```
-
-### NumGet
-
-Lê um número dos bytes de um buffer; a fonte de um número é um buffer, e a memória de um endereço não é lida aqui.
-
-- **Parâmetros:** Buffer, [Offset], Type
-- **Responde:** o número que os bytes guardam
-- **Erros:** "this runtime does not read the memory of an address: the source of a number is a buffer." when the source is a number; a type that is not one of the eleven is refused with "the type of a number is one of UInt, Int, Int64, Short, UShort, Char, UChar, Double, Float, Ptr or UPtr."; bytes that do not fit are "the bytes do not fit in the buffer."
-
-```ahk
-value := NumGet(buf, 0, "Int")
-```
-
-### NumPut
-
-Escreve números nos bytes de um buffer; os tipos e os números vêm em pares e o alvo vem depois deles, como o v2 escreve.
-
-- **Parâmetros:** Type1, Number1, [Type2, Number2, ...], Target, [Offset]
-- **Responde:** o endereço à direita do último número escrito
-- **Erros:** "this runtime does not write to the memory of an address: the target of a number is a buffer." when the target is a number; a number of types that is not even is "the types and the numbers of a write come in pairs."; anything after the target and the offset is "a write takes the target and the offset after the pairs."
-
-```ahk
-NumPut("Int", 42, buf, 0)
 ```
 
 ### NumPut

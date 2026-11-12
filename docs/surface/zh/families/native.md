@@ -40,18 +40,6 @@
 pid := DllCall("libc.so.6\getpid", "Int")
 ```
 
-### DllCall
-
-调用机器上一个库里的函数；参数编组是纯语言的部分，调用属于桌面能力，盒子用跳板来回答。
-
-- **参数:** Target, Type1, Param1, [Type2, Param2, ...], [ReturnType]
-- **返回:** 函数返回的值
-- **错误:** "Failed to load DLL.", "Call to nonexistent function.", "Invalid arg type." and "Invalid return type." are the reasons of v2; a library of Windows on a Linux box is called through the raven, and a box without one says "this box has no raven: the libraries of Windows cannot be called."
-
-```ahk
-pid := DllCall("libc.so.6\getpid", "Int")
-```
-
 ### NumGet
 
 从缓冲区的字节里读出一个数；数的来源是缓冲区，这里不读取某个地址的内存。
@@ -62,30 +50,6 @@ pid := DllCall("libc.so.6\getpid", "Int")
 
 ```ahk
 value := NumGet(buf, 0, "Int")
-```
-
-### NumGet
-
-从缓冲区的字节里读出一个数；数的来源是缓冲区，这里不读取某个地址的内存。
-
-- **参数:** Buffer, [Offset], Type
-- **返回:** 这些字节所持有的数
-- **错误:** "this runtime does not read the memory of an address: the source of a number is a buffer." when the source is a number; a type that is not one of the eleven is refused with "the type of a number is one of UInt, Int, Int64, Short, UShort, Char, UChar, Double, Float, Ptr or UPtr."; bytes that do not fit are "the bytes do not fit in the buffer."
-
-```ahk
-value := NumGet(buf, 0, "Int")
-```
-
-### NumPut
-
-把若干数写进缓冲区的字节；类型和数成对出现，目标在它们之后，和 v2 的写法一样。
-
-- **参数:** Type1, Number1, [Type2, Number2, ...], Target, [Offset]
-- **返回:** 写下去的最后一个数右边的地址
-- **错误:** "this runtime does not write to the memory of an address: the target of a number is a buffer." when the target is a number; a number of types that is not even is "the types and the numbers of a write come in pairs."; anything after the target and the offset is "a write takes the target and the offset after the pairs."
-
-```ahk
-NumPut("Int", 42, buf, 0)
 ```
 
 ### NumPut

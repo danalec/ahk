@@ -266,30 +266,6 @@ FileAppend A_ThisFunc, "*"
 CoordMode "Mouse", "Screen"
 ```
 
-### CoordMode
-
-说明坐标如何解读。v2 有五个目标：鼠标、像素、插入符、菜单和提示；本树没有窗口，插入符、菜单和提示的模式照样保存，但没有人使用它们。
-
-- **参数:** Target [, Relative]
-- **返回:** 之前的模式
-- **错误:** a target or a relative that v2 does not know is refused as an invalid parameter.
-
-```ahk
-CoordMode "Mouse", "Screen"
-```
-
-### Critical
-
-这棵树拒绝这个名字：这个运行时只用一个线程运行一个脚本，无法把它设为关键状态。
-
-- **参数:** [OnOff]
-- **返回:** 无返回值；调用失败
-- **错误:** the refusal is "this runtime runs one script in one thread, and it cannot make it critical."
-
-```ahk
-Critical
-```
-
 ### Critical
 
 这棵树拒绝这个名字：这个运行时只用一个线程运行一个脚本，无法把它设为关键状态。
@@ -329,30 +305,6 @@ else
 home := EnvGet("HOME")
 ```
 
-### EnvGet
-
-给出运行器环境变量的值；环境就是脚本所在进程的环境。
-
-- **参数:** VariableName
-- **返回:** 变量的值，环境里没有时是空文本
-- **错误:** nothing; a name that is not there is the empty text and not a failure.
-
-```ahk
-home := EnvGet("HOME")
-```
-
-### EnvSet
-
-设置运行器的一个环境变量并返回该值；脚本只有一个线程，改动时没有别的代码在读环境。
-
-- **参数:** VariableName, Value
-- **返回:** 被设置的值（文本）
-- **错误:** an empty name and a name that carries an equal sign are refused with the reason of the machine.
-
-```ahk
-EnvSet "MY_VAR", "value"
-```
-
 ### EnvSet
 
 设置运行器的一个环境变量并返回该值；脚本只有一个线程，改动时没有别的代码在读环境。
@@ -375,30 +327,6 @@ EnvSet "MY_VAR", "value"
 
 ```ahk
 Exit 0
-```
-
-### Exit
-
-停止脚本。退出码被保留，脚本在调用它的那条语句结束时停止。
-
-- **参数:** [Code]
-- **返回:** 退出码
-- **错误:** none.
-
-```ahk
-Exit 0
-```
-
-### ExitApp
-
-以一个退出码结束脚本。该退出码进入报告的 exit_code。
-
-- **参数:** [Code]
-- **返回:** 退出码
-- **错误:** none.
-
-```ahk
-ExitApp 3
 ```
 
 ### ExitApp
@@ -438,18 +366,6 @@ FileAppend IsSet(x), "*"
 OnError((err, mode) => 0)
 ```
 
-### OnError
-
-注册处理未被捕获的失败的函数。
-
-- **参数:** Callback, [Order]
-- **返回:** 整数 1
-- **错误:** a callback that is not a function object, or a prototype that does not take two parameters, is refused with "Invalid callback function.".
-
-```ahk
-OnError((err, mode) => 0)
-```
-
 ### OnExit
 
 注册脚本结束时运行的函数，无论结束的原因是什么：最后一条语句、脚本请求停止的退出码，或让脚本停下的失败。
@@ -460,18 +376,6 @@ OnError((err, mode) => 0)
 
 ```ahk
 OnExit((reason, code) => 0)
-```
-
-### Pause
-
-设置脚本的暂停状态。这棵树只记录状态，而不是等待按键——没有键盘的脚本会因此挂住。状态可在 A_IsPaused 中看到。
-
-- **参数:** [OnOff]
-- **返回:** 空文本
-- **错误:** a parameter that is not 0, 1 or -1 is an invalid parameter.
-
-```ahk
-Pause true
 ```
 
 ### Pause
@@ -510,30 +414,6 @@ Persistent
 Reload
 ```
 
-### Reload
-
-这棵树拒绝这个名字：这个运行时只运行一次脚本，无法再次运行自己。
-
-- **参数:** none
-- **返回:** 无返回值；调用失败
-- **错误:** the refusal is "this runtime runs one script once, and it cannot run itself again."
-
-```ahk
-Reload
-```
-
-### SetTimer
-
-注册一个在语句之间运行的脚本函数。这个运行时只有一个线程，因此定时器不是独立的线程：它在语句之间运行，与脚本共用预算。
-
-- **参数:** Name, [Period]
-- **返回:** 整数 1
-- **错误:** more than two parameters are refused with "the priority of the timer is not carried yet."
-
-```ahk
-SetTimer("Tick", 1000)
-```
-
 ### SetTimer
 
 注册一个在语句之间运行的脚本函数。这个运行时只有一个线程，因此定时器不是独立的线程：它在语句之间运行，与脚本共用预算。
@@ -558,18 +438,6 @@ SetTimer("Tick", 1000)
 SetWorkingDir "."
 ```
 
-### SetWorkingDir
-
-设置脚本的工作目录。不是绝对路径的名字会被视为工作目录下的子目录。
-
-- **参数:** Directory
-- **返回:** 整数 1
-- **错误:** an empty name is refused with "the name of the directory is missing.", and a folder that cannot be entered fails with the reason of the desktop.
-
-```ahk
-SetWorkingDir "."
-```
-
 ### Sleep
 
 让脚本暂停指定的毫秒数。
@@ -580,30 +448,6 @@ SetWorkingDir "."
 
 ```ahk
 Sleep 500
-```
-
-### Sleep
-
-让脚本暂停指定的毫秒数。
-
-- **参数:** Milliseconds
-- **返回:** 等待的毫秒数
-- **错误:** none; a wait longer than 60000 milliseconds is cut at that number.
-
-```ahk
-Sleep 500
-```
-
-### Suspend
-
-关闭或打开脚本的热键。不带参数时切换状态。状态可在 A_IsSuspended 和热键表的启用标志中看到。
-
-- **参数:** [OnOff]
-- **返回:** 空文本
-- **错误:** a parameter that is not 0, 1 or -1 is an invalid parameter.
-
-```ahk
-Suspend true
 ```
 
 ### Suspend

@@ -260,30 +260,6 @@ FileAppend A_ThisHotkey, "*"
 BlockInput "Off"
 ```
 
-### BlockInput
-
-只能关闭整机的输入。整机屏蔽输入是本合成器不授予客户端的权限，本树不会谎称做到了。
-
-- **参数:** Mode
-- **返回:** 'Off' 时无返回值
-- **错误:** any other mode fails with 'blocking the input of the whole machine is a privilege this compositor does not give a client'.
-
-```ahk
-BlockInput "Off"
-```
-
-### Click
-
-用后端的指针点击，该指针是绝对的 uinput 设备：先移动到位、停顿，再按下并松开。
-
-- **参数:** [X, Y] [Button] [Count]
-- **返回:** 无返回值
-- **错误:** the wheel, the fourth and the fifth buttons, the pressing of a button and the place relative to the pointer are refused as not carried yet; on a host without `grim` the click fails with the reason of the screen, because the pointer needs the size of the screen.
-
-```ahk
-Click 100, 200
-```
-
 ### Click
 
 用后端的指针点击，该指针是绝对的 uinput 设备：先移动到位、停顿，再按下并松开。
@@ -332,18 +308,6 @@ sc := GetKeySC("Enter")
 state := GetKeyState("Shift")
 ```
 
-### GetKeyState
-
-读取热键监视器所看到的状态：某个键是否按下。第二个参数只接受 v2 的 'T' 和 'P'。
-
-- **参数:** KeyName [, Mode]
-- **返回:** 按下时为 1，否则为 0
-- **错误:** a key name the tree does not know, and a mode that is neither 'T' nor 'P', are refused as invalid parameters; on a host that is not Linux the watcher cannot answer at all.
-
-```ahk
-state := GetKeyState("Shift")
-```
-
 ### GetKeyVK
 
 按键的 Windows 虚拟键码。它是 Windows 键盘的按键编号，本树保留它是为了那些需要它的脚本。
@@ -366,30 +330,6 @@ vk := GetKeyVK("Enter")
 
 ```ahk
 Hotkey "^s", SaveTheFile
-```
-
-### Hotkey
-
-注册一个热键：监视的按键和要运行的函数。注册表归运行时，监视器归机器：脚本说明热键运行哪个函数，机器说明按下了哪个键。
-
-- **参数:** KeyName, Action [, Options]
-- **返回:** 无返回值
-- **错误:** a hotkey without an action is 'Nonexistent hotkey.'; the watcher reads the physical keyboard of the machine, so on a host that is not Linux the registration fails with 'the hotkeys of this box watch a Linux device; this is not Linux'.
-
-```ahk
-Hotkey "^s", SaveTheFile
-```
-
-### Hotstring
-
-注册一段文本，输入它时触发一个函数。v2 的文本写在两个相同字符之间，这两个字符不属于文本本身。
-
-- **参数:** Text, Action [, Options]
-- **返回:** 无返回值
-- **错误:** a text that is not a string is refused as an invalid parameter; the watcher reads the physical keyboard, and the device of the box is skipped so that a hotstring does not fire on what the script types.
-
-```ahk
-Hotstring "::btw::", ShowTheDefinition
 ```
 
 ### Hotstring
@@ -440,30 +380,6 @@ InstallMouseHook
 KeyWait "a"
 ```
 
-### KeyWait
-
-被拒绝。本运行时不保存处于按下状态的按键，因此无法等待某个键。
-
-- **参数:** KeyName [, Options]
-- **返回:** 无返回值；语句失败
-- **错误:** this runtime does not keep the keys that are down, so it cannot wait for one.
-
-```ahk
-KeyWait "a"
-```
-
-### MouseClick
-
-用后端的指针点击。按钮是第一个参数，与 v2 函数的写法一致；不写按钮时是左键。
-
-- **参数:** Button, X, Y [Count] [Options]
-- **返回:** 无返回值
-- **错误:** the wheel, the fourth and the fifth buttons are refused as not carried yet.
-
-```ahk
-MouseClick "Right", 100, 200
-```
-
 ### MouseClick
 
 用后端的指针点击。按钮是第一个参数，与 v2 函数的写法一致；不写按钮时是左键。
@@ -488,18 +404,6 @@ MouseClick "Right", 100, 200
 MouseGetPos &x, &y
 ```
 
-### MouseGetPos
-
-从内核读取本运行时所驱动的指针位置。它是这台机器上唯一能读出位置的指针：物理鼠标是相对设备。
-
-- **参数:** [&X, &Y, &Button, &Info]
-- **返回:** 无返回值；位置写入调用者的变量
-- **错误:** when the kernel will not answer, the desktop answers the place the runtime last put the pointer at, and says so in a note.
-
-```ahk
-MouseGetPos &x, &y
-```
-
 ### MouseMove
 
 把后端的指针移动到屏幕上的某个位置。后端是把指针移到该位置，而不是从当前位置相对移动。
@@ -510,30 +414,6 @@ MouseGetPos &x, &y
 
 ```ahk
 MouseMove 400, 300
-```
-
-### MouseMove
-
-把后端的指针移动到屏幕上的某个位置。后端是把指针移到该位置，而不是从当前位置相对移动。
-
-- **参数:** X, Y [Relative] [Speed]
-- **返回:** 无返回值
-- **错误:** the relative place of the move and the speed of the move are refused as not carried yet.
-
-```ahk
-MouseMove 400, 300
-```
-
-### Send
-
-通过后端自建的 uinput 键盘在机器上输入文本并按下按键。
-
-- **参数:** Keys
-- **返回:** 无返回值
-- **错误:** the keyboard is a Linux uinput device, so on a host that is not Linux every key action fails; a character the US layout has no key for fails with 'the keyboard of this box has no key for'.
-
-```ahk
-Send "hello{Enter}"
 ```
 
 ### Send
@@ -582,30 +462,6 @@ SendInput "{Enter}"
 
 ```ahk
 SendLevel 1
-```
-
-### SendLevel
-
-保存脚本所发送事件的级别，并返回之前的级别。该级别用于告诉热键忽略哪些模拟事件，目前还没有东西读取它。
-
-- **参数:** Level
-- **返回:** 之前的级别，一个数字
-- **错误:** a level outside 0 to 100 is refused as an invalid parameter.
-
-```ahk
-SendLevel 1
-```
-
-### SendMode
-
-说明按键如何发送。本运行时的按键逐个走后端的键盘，这就是后端的方式；v2 的其他方式属于 Windows。
-
-- **参数:** Method
-- **返回:** 后端的方式返回数字 1
-- **错误:** a mode that is not 'Input' fails with 'the keys of this runtime go through the keyboard of the box, and that is the only mode there is.'
-
-```ahk
-SendMode "Input"
 ```
 
 ### SendMode

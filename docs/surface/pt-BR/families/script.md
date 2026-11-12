@@ -266,30 +266,6 @@ Diz como as coordenadas são lidas. Os cinco alvos de v2 são o mouse, os pixels
 CoordMode "Mouse", "Screen"
 ```
 
-### CoordMode
-
-Diz como as coordenadas são lidas. Os cinco alvos de v2 são o mouse, os pixels, o cursor de texto, o menu e o tooltip; a árvore não tem janelas, então os modos de cursor, menu e tooltip são guardados do mesmo jeito e nada os usa.
-
-- **Parâmetros:** Target [, Relative]
-- **Responde:** o modo anterior
-- **Erros:** a target or a relative that v2 does not know is refused as an invalid parameter.
-
-```ahk
-CoordMode "Mouse", "Screen"
-```
-
-### Critical
-
-A árvore recusa este nome: este runtime executa um script numa thread só, e não pode torná-lo crítico.
-
-- **Parâmetros:** [OnOff]
-- **Responde:** nada; a chamada falha
-- **Erros:** the refusal is "this runtime runs one script in one thread, and it cannot make it critical."
-
-```ahk
-Critical
-```
-
 ### Critical
 
 A árvore recusa este nome: este runtime executa um script numa thread só, e não pode torná-lo crítico.
@@ -329,30 +305,6 @@ Devolve o valor de uma variável de ambiente do runner; o ambiente é o do proce
 home := EnvGet("HOME")
 ```
 
-### EnvGet
-
-Devolve o valor de uma variável de ambiente do runner; o ambiente é o do processo em que o script roda.
-
-- **Parâmetros:** VariableName
-- **Responde:** o valor da variável, ou o texto vazio quando o ambiente não a tem
-- **Erros:** nothing; a name that is not there is the empty text and not a failure.
-
-```ahk
-home := EnvGet("HOME")
-```
-
-### EnvSet
-
-Define uma variável de ambiente do runner e devolve o valor; o script roda em uma thread só, e nada mais lê o ambiente durante a mudança.
-
-- **Parâmetros:** VariableName, Value
-- **Responde:** o valor que foi definido, como texto
-- **Erros:** an empty name and a name that carries an equal sign are refused with the reason of the machine.
-
-```ahk
-EnvSet "MY_VAR", "value"
-```
-
 ### EnvSet
 
 Define uma variável de ambiente do runner e devolve o valor; o script roda em uma thread só, e nada mais lê o ambiente durante a mudança.
@@ -375,30 +327,6 @@ Para o script. O código é guardado, e o script para no fim da instrução onde
 
 ```ahk
 Exit 0
-```
-
-### Exit
-
-Para o script. O código é guardado, e o script para no fim da instrução onde foi chamado.
-
-- **Parâmetros:** [Code]
-- **Responde:** o código
-- **Erros:** none.
-
-```ahk
-Exit 0
-```
-
-### ExitApp
-
-Encerra o script com um código. O código vai para o exit_code do relatório.
-
-- **Parâmetros:** [Code]
-- **Responde:** o código
-- **Erros:** none.
-
-```ahk
-ExitApp 3
 ```
 
 ### ExitApp
@@ -438,18 +366,6 @@ Registra a função que trata uma falha que o script não capturou.
 OnError((err, mode) => 0)
 ```
 
-### OnError
-
-Registra a função que trata uma falha que o script não capturou.
-
-- **Parâmetros:** Callback, [Order]
-- **Responde:** o inteiro 1
-- **Erros:** a callback that is not a function object, or a prototype that does not take two parameters, is refused with "Invalid callback function.".
-
-```ahk
-OnError((err, mode) => 0)
-```
-
 ### OnExit
 
 Registra a função que roda quando o script termina, qualquer que seja o motivo: a última instrução, um código pedido pelo script, ou uma falha que o parou.
@@ -460,18 +376,6 @@ Registra a função que roda quando o script termina, qualquer que seja o motivo
 
 ```ahk
 OnExit((reason, code) => 0)
-```
-
-### Pause
-
-Define o estado de pausa do script. A árvore guarda um estado em vez de esperar uma tecla, o que travaria um script sem teclado. O estado aparece em A_IsPaused.
-
-- **Parâmetros:** [OnOff]
-- **Responde:** texto vazio
-- **Erros:** a parameter that is not 0, 1 or -1 is an invalid parameter.
-
-```ahk
-Pause true
 ```
 
 ### Pause
@@ -510,30 +414,6 @@ A árvore recusa este nome: este runtime executa o script uma vez só, e não po
 Reload
 ```
 
-### Reload
-
-A árvore recusa este nome: este runtime executa o script uma vez só, e não pode se executar de novo.
-
-- **Parâmetros:** none
-- **Responde:** nada; a chamada falha
-- **Erros:** the refusal is "this runtime runs one script once, and it cannot run itself again."
-
-```ahk
-Reload
-```
-
-### SetTimer
-
-Registra uma função do script que roda entre as instruções. O runtime tem uma só thread, então o timer não é uma thread própria: roda entre as instruções e divide o orçamento do script.
-
-- **Parâmetros:** Name, [Period]
-- **Responde:** o inteiro 1
-- **Erros:** more than two parameters are refused with "the priority of the timer is not carried yet."
-
-```ahk
-SetTimer("Tick", 1000)
-```
-
 ### SetTimer
 
 Registra uma função do script que roda entre as instruções. O runtime tem uma só thread, então o timer não é uma thread própria: roda entre as instruções e divide o orçamento do script.
@@ -558,18 +438,6 @@ Define o diretório de trabalho do script. Um nome que não é absoluto é uma p
 SetWorkingDir "."
 ```
 
-### SetWorkingDir
-
-Define o diretório de trabalho do script. Um nome que não é absoluto é uma pasta dentro do diretório de trabalho.
-
-- **Parâmetros:** Directory
-- **Responde:** o inteiro 1
-- **Erros:** an empty name is refused with "the name of the directory is missing.", and a folder that cannot be entered fails with the reason of the desktop.
-
-```ahk
-SetWorkingDir "."
-```
-
 ### Sleep
 
 Pausa o script por um número de milissegundos.
@@ -580,30 +448,6 @@ Pausa o script por um número de milissegundos.
 
 ```ahk
 Sleep 500
-```
-
-### Sleep
-
-Pausa o script por um número de milissegundos.
-
-- **Parâmetros:** Milliseconds
-- **Responde:** o número de milissegundos esperado
-- **Erros:** none; a wait longer than 60000 milliseconds is cut at that number.
-
-```ahk
-Sleep 500
-```
-
-### Suspend
-
-Desliga ou liga as hotkeys do script. Sem parâmetro, inverte o estado. O estado aparece em A_IsSuspended e na flag habilitada da tabela de hotkeys.
-
-- **Parâmetros:** [OnOff]
-- **Responde:** texto vazio
-- **Erros:** a parameter that is not 0, 1 or -1 is an invalid parameter.
-
-```ahk
-Suspend true
 ```
 
 ### Suspend

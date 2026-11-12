@@ -203,30 +203,6 @@ days := DateDiff(20240110, 20240101, "d")
 FormatTime(A_Now, "yyyy-MM-dd")
 ```
 
-### FormatTime
-
-按格式写出的时刻。日期在前，格式在后；完全不含日期的文本表示机器当前的时刻。
-
-- **参数:** Date, [Format]
-- **返回:** 按格式写出的日期
-- **错误:** a date the dialect cannot read is an invalid parameter.
-
-```ahk
-FormatTime(A_Now, "yyyy-MM-dd")
-```
-
-### Min
-
-这些数字中最小的一个。
-
-- **参数:** Number, [Number2], ...
-- **返回:** 其中最小的数字
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Min(3, 7, 5)
-```
-
 ### Min
 
 这些数字中最小的一个。

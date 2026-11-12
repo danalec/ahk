@@ -146,18 +146,6 @@ A classe de uma função: uma função do script, um método, um lambda ou um em
 FileAppend Abs.__Class, "*"
 ```
 
-### Func
-
-A classe de uma função: uma função do script, um método, um lambda ou um embutido. A classe não é criada: `Func(...)` responde "Invalid base."; a classe de um valor de função é `Func`.
-
-- **Parâmetros:** nothing that makes it
-- **Responde:** a classe de um valor de função, como um texto
-- **Erros:** the call of the class is refused with "Invalid base.".
-
-```ahk
-FileAppend Abs.__Class, "*"
-```
-
 ### Map.Get
 
 O valor que está sob uma chave do mapa.
@@ -208,19 +196,6 @@ A classe de uma tabela de chaves e valores. `Map(key, value, ...)` cria uma, e a
 ```ahk
 m := Map("x", 1)
 FileAppend m.Count, "*"
-```
-
-### Object
-
-A raiz da cadeia das classes: todo objeto do runtime é um. `Object()` cria um objeto vazio, e o literal `{a: 1}` cria um com uma propriedade.
-
-- **Parâmetros:** nothing
-- **Responde:** o objeto da classe `Object`
-- **Erros:** nothing; a member that is not there is refused with the type of the value and the name of the member.
-
-```ahk
-o := Object()
-FileAppend o.__Class, "*"
 ```
 
 ### Object

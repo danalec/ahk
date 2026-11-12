@@ -21,7 +21,7 @@ with what it holds and who it is for.
 |---|---|---|
 | a **user guide** | written for someone who runs scripts or writes them: plain sentences, examples, the behaviour of the language | `language-guide.md`, `ahk-v2-reference.md`, `ahk-v1-reference.md`, `ahk-ks-dialect.md`, `runner-and-report.md`, `desktop-backend.md`, `errors.md`, `dialects.md` |
 | a **user guide** | the subtree of the surface: every name of the v1, of the v2 and of KeySharp, with the state this tree answers for each, and the crosswalk between the three. It is written in thirteen languages -- English, Español, Português (Brasil), Français, Italiano, Polski, Türkçe, Deutsch, Русский, 日本語, 中文（简体）, 繁體中文 and 한국어 -- and every page carries the switcher of the languages | `surface/README.md`, `surface/index.md`, `surface/crosswalk.md`, `surface/v2.md`, `surface/v1.md`, `surface/keysharp.md`, `surface/families/*.md` |
-| a **record** | the design or the measurement of one piece of work, kept because it says *why* the tree is the way it is. The numbers and the decisions are the ones of the day it was written | `ahk-v1-dialect.md`, `v2-capability-report.md`, `wayland-toplevel-enumeration.md`, `ahk-x11-comparison.md`, `ahk-gaps-report.md`, `two-lines.md` |
+| a **record** | the design or the measurement of one piece of work, kept because it says *why* the tree is the way it is. The numbers and the decisions are the ones of the day it was written | `ahk-v1-dialect.md`, `v2-capability-report.md`, `wayland-toplevel-enumeration.md`, `ahk-x11-comparison.md`, `ahk-gaps-report.md`, `file-family-v2.md`, `two-lines.md` |
 | an **index** | this page | `README.md` |
 
 A guide is read to use the tree. A record is read before changing it: the
@@ -55,6 +55,7 @@ measurement is an opinion.
 | [wayland-toplevel-enumeration.md](wayland-toplevel-enumeration.md) | how a Wayland compositor lists its windows -- the `ext_foreign_toplevel_list_v1` and `zcosmic_toplevel_info_v1` protocols -- with the Rust that does it, compiled and run on the box | a contributor to the windows: read it before touching `WinExist` or `WinActive` |
 | [ahk-x11-comparison.md](ahk-x11-comparison.md) | the AHK_X11 (the AHK v1.0.24 for X11, in Crystal) against this tree: what it does, what the tree does, and what is worth porting. Its code is GPL-2.0 and this tree is Apache 2.0: the behaviour may be ported, the code may not | a contributor to the hotkeys, the clipboard, the sound or the windows |
 | [two-lines.md](two-lines.md) | the two branches of the tree -- `master` and `audit-ahk-x11-parity` -- what each carries, how far they diverged, and what a merge of them costs | anyone about to merge, rebase or port between the two lines |
+| [file-family-v2.md](file-family-v2.md) | the measurement of the file family of v2 against the binary of v2.0.19: the overwrite flag of the `FileInstall`, the wildcards and the recursion of the `FileSetTime` and of the `FileSetAttrib`, and the answer of the `DirDelete` | a contributor to the files: read it before changing `FileSetTime`, `FileSetAttrib`, `FileInstall` or `DirDelete` |
 
 The numbers of `v2-capability-report.md` and `ahk-gaps-report.md` are checked
 `../scripts/README.md` describes the instruments of the tree:

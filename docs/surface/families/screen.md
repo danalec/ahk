@@ -61,18 +61,6 @@ Looks for a picture on the screen. The region is captured once and the picture i
 ImageSearch &x, &y, 0, 0, 800, 600, "button.png"
 ```
 
-### ImageSearch
-
-Looks for a picture on the screen. The region is captured once and the picture is looked for in it, with the variation and the transparent colour.
-
-- **Parameters:** &X, &Y, X1, Y1, X2, Y2, Picture [, Options]
-- **Answers:** one when the picture is there, zero when it is not
-- **Errors:** a picture that cannot be loaded is refused with 'Parameter #7 of ImageSearch is invalid.'; on a host without `grim` the search fails with the reason of `grim`.
-
-```ahk
-ImageSearch &x, &y, 0, 0, 800, 600, "button.png"
-```
-
 ### PixelGetColor
 
 The colour of one pixel, read from the frame the compositor draws. The box captures a 1x1 region with `grim` and reads the one pixel.
@@ -83,30 +71,6 @@ The colour of one pixel, read from the frame the compositor draws. The box captu
 
 ```ahk
 colour := PixelGetColor(10, 20)
-```
-
-### PixelGetColor
-
-The colour of one pixel, read from the frame the compositor draws. The box captures a 1x1 region with `grim` and reads the one pixel.
-
-- **Parameters:** X, Y [, Default]
-- **Answers:** the colour, as `#rrggbb`
-- **Errors:** a colour written as a number is refused with 'is not a colour: write it as #rrggbb'; on a host without `grim` the read fails with the reason of `grim`.
-
-```ahk
-colour := PixelGetColor(10, 20)
-```
-
-### PixelSearch
-
-Where a colour is on the screen. The region is captured once and walked for the first pixel of that colour. It is the check that works whatever the desktop is.
-
-- **Parameters:** &X, &Y, X1, Y1, X2, Y2, Color
-- **Answers:** one when the colour is there, zero when it is not
-- **Errors:** the two places are written into the variables of the caller, and they are made blank when the colour is not there; on a host without `grim` the search fails with the reason of `grim`.
-
-```ahk
-PixelSearch &x, &y, 0, 0, 100, 100, "#ff0000"
 ```
 
 ### PixelSearch

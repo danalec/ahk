@@ -61,18 +61,6 @@ Procura uma imagem na tela. A região é capturada uma vez e a imagem é procura
 ImageSearch &x, &y, 0, 0, 800, 600, "button.png"
 ```
 
-### ImageSearch
-
-Procura uma imagem na tela. A região é capturada uma vez e a imagem é procurada nela, com a variação e a cor transparente.
-
-- **Parâmetros:** &X, &Y, X1, Y1, X2, Y2, Picture [, Options]
-- **Responde:** 1 quando a imagem está lá, 0 quando não está
-- **Erros:** a picture that cannot be loaded is refused with 'Parameter #7 of ImageSearch is invalid.'; on a host without `grim` the search fails with the reason of `grim`.
-
-```ahk
-ImageSearch &x, &y, 0, 0, 800, 600, "button.png"
-```
-
 ### PixelGetColor
 
 A cor de um pixel, lida do quadro que o compositor desenha. O backend captura uma região 1x1 com `grim` e lê o pixel.
@@ -83,30 +71,6 @@ A cor de um pixel, lida do quadro que o compositor desenha. O backend captura um
 
 ```ahk
 colour := PixelGetColor(10, 20)
-```
-
-### PixelGetColor
-
-A cor de um pixel, lida do quadro que o compositor desenha. O backend captura uma região 1x1 com `grim` e lê o pixel.
-
-- **Parâmetros:** X, Y [, Default]
-- **Responde:** a cor, como `#rrggbb`
-- **Erros:** a colour written as a number is refused with 'is not a colour: write it as #rrggbb'; on a host without `grim` the read fails with the reason of `grim`.
-
-```ahk
-colour := PixelGetColor(10, 20)
-```
-
-### PixelSearch
-
-Onde uma cor está na tela. A região é capturada uma vez e percorrida atrás do primeiro pixel daquela cor. É a checagem que funciona em qualquer desktop.
-
-- **Parâmetros:** &X, &Y, X1, Y1, X2, Y2, Color
-- **Responde:** 1 quando a cor está lá, 0 quando não está
-- **Erros:** the two places are written into the variables of the caller, and they are made blank when the colour is not there; on a host without `grim` the search fails with the reason of `grim`.
-
-```ahk
-PixelSearch &x, &y, 0, 0, 100, 100, "#ff0000"
 ```
 
 ### PixelSearch

@@ -260,30 +260,6 @@ Turns the input of the whole machine off, and that is all it can do. Turning inp
 BlockInput "Off"
 ```
 
-### BlockInput
-
-Turns the input of the whole machine off, and that is all it can do. Turning input off for the whole machine is a privilege this compositor does not give a client, and this tree will not claim it did.
-
-- **Parameters:** Mode
-- **Answers:** nothing for 'Off'
-- **Errors:** any other mode fails with 'blocking the input of the whole machine is a privilege this compositor does not give a client'.
-
-```ahk
-BlockInput "Off"
-```
-
-### Click
-
-Clicks with the pointer of the backend, which is an absolute uinput device: it moves to the place, settles, presses and releases.
-
-- **Parameters:** [X, Y] [Button] [Count]
-- **Answers:** nothing
-- **Errors:** the wheel, the fourth and the fifth buttons, the pressing of a button and the place relative to the pointer are refused as not carried yet; on a host without `grim` the click fails with the reason of the screen, because the pointer needs the size of the screen.
-
-```ahk
-Click 100, 200
-```
-
 ### Click
 
 Clicks with the pointer of the backend, which is an absolute uinput device: it moves to the place, settles, presses and releases.
@@ -332,18 +308,6 @@ Reads what the hotkey watcher saw: whether a key is down. The second parameter c
 state := GetKeyState("Shift")
 ```
 
-### GetKeyState
-
-Reads what the hotkey watcher saw: whether a key is down. The second parameter carries only the words 'T' and 'P' of v2.
-
-- **Parameters:** KeyName [, Mode]
-- **Answers:** one when the key is down, zero when it is not
-- **Errors:** a key name the tree does not know, and a mode that is neither 'T' nor 'P', are refused as invalid parameters; on a host that is not Linux the watcher cannot answer at all.
-
-```ahk
-state := GetKeyState("Shift")
-```
-
 ### GetKeyVK
 
 The virtual key code of Windows of the key. It is the number of the key of the keyboard of Windows, and the tree keeps it for the scripts that ask for it.
@@ -366,30 +330,6 @@ Registers a hotkey: the key it watches for and the function it runs. The runtime
 
 ```ahk
 Hotkey "^s", SaveTheFile
-```
-
-### Hotkey
-
-Registers a hotkey: the key it watches for and the function it runs. The runtime owns the registry and the machine owns the watcher: the script says which function a hotkey runs, and the machine says which key was pressed.
-
-- **Parameters:** KeyName, Action [, Options]
-- **Answers:** nothing
-- **Errors:** a hotkey without an action is 'Nonexistent hotkey.'; the watcher reads the physical keyboard of the machine, so on a host that is not Linux the registration fails with 'the hotkeys of this box watch a Linux device; this is not Linux'.
-
-```ahk
-Hotkey "^s", SaveTheFile
-```
-
-### Hotstring
-
-Registers a text that fires a function when it is typed. The text of v2 is written between two of the same character, and the character is not part of it.
-
-- **Parameters:** Text, Action [, Options]
-- **Answers:** nothing
-- **Errors:** a text that is not a string is refused as an invalid parameter; the watcher reads the physical keyboard, and the device of the box is skipped so that a hotstring does not fire on what the script types.
-
-```ahk
-Hotstring "::btw::", ShowTheDefinition
 ```
 
 ### Hotstring
@@ -440,30 +380,6 @@ Refused. The runtime does not keep the keys that are down, so it cannot wait for
 KeyWait "a"
 ```
 
-### KeyWait
-
-Refused. The runtime does not keep the keys that are down, so it cannot wait for one.
-
-- **Parameters:** KeyName [, Options]
-- **Answers:** nothing; the statement fails
-- **Errors:** this runtime does not keep the keys that are down, so it cannot wait for one.
-
-```ahk
-KeyWait "a"
-```
-
-### MouseClick
-
-Clicks with the pointer of the backend. The button is the first parameter, the way the function of v2 takes it, and a button that is not there is the left one.
-
-- **Parameters:** Button, X, Y [Count] [Options]
-- **Answers:** nothing
-- **Errors:** the wheel, the fourth and the fifth buttons are refused as not carried yet.
-
-```ahk
-MouseClick "Right", 100, 200
-```
-
 ### MouseClick
 
 Clicks with the pointer of the backend. The button is the first parameter, the way the function of v2 takes it, and a button that is not there is the left one.
@@ -488,18 +404,6 @@ Reads the place of the pointer this runtime drives, out of the kernel. It is the
 MouseGetPos &x, &y
 ```
 
-### MouseGetPos
-
-Reads the place of the pointer this runtime drives, out of the kernel. It is the only pointer on the box whose place can be read at all: the physical mouse is a relative device.
-
-- **Parameters:** [&X, &Y, &Button, &Info]
-- **Answers:** nothing; the place is written into the variables of the caller
-- **Errors:** when the kernel will not answer, the desktop answers the place the runtime last put the pointer at, and says so in a note.
-
-```ahk
-MouseGetPos &x, &y
-```
-
 ### MouseMove
 
 Moves the pointer of the backend to a place on the screen. The box moves the pointer to the place, and not from where it is.
@@ -510,30 +414,6 @@ Moves the pointer of the backend to a place on the screen. The box moves the poi
 
 ```ahk
 MouseMove 400, 300
-```
-
-### MouseMove
-
-Moves the pointer of the backend to a place on the screen. The box moves the pointer to the place, and not from where it is.
-
-- **Parameters:** X, Y [Relative] [Speed]
-- **Answers:** nothing
-- **Errors:** the relative place of the move and the speed of the move are refused as not carried yet.
-
-```ahk
-MouseMove 400, 300
-```
-
-### Send
-
-Types text and presses keys on the machine, through the uinput keyboard of the backend.
-
-- **Parameters:** Keys
-- **Answers:** nothing
-- **Errors:** the keyboard is a Linux uinput device, so on a host that is not Linux every key action fails; a character the US layout has no key for fails with 'the keyboard of this box has no key for'.
-
-```ahk
-Send "hello{Enter}"
 ```
 
 ### Send
@@ -582,30 +462,6 @@ Carries the level of the events the script sends, and answers the level that was
 
 ```ahk
 SendLevel 1
-```
-
-### SendLevel
-
-Carries the level of the events the script sends, and answers the level that was there before. The level tells the hotkeys which of the artificial events they are to ignore, and nothing reads it yet.
-
-- **Parameters:** Level
-- **Answers:** the level that was there before, a number
-- **Errors:** a level outside 0 to 100 is refused as an invalid parameter.
-
-```ahk
-SendLevel 1
-```
-
-### SendMode
-
-Says how the keys are sent. The keys of this runtime go through the keyboard of the box, one at a time, and that is the mode of the box; the other modes of v2 are the ones of Windows.
-
-- **Parameters:** Method
-- **Answers:** the number 1 for the mode of the box
-- **Errors:** a mode that is not 'Input' fails with 'the keys of this runtime go through the keyboard of the box, and that is the only mode there is.'
-
-```ahk
-SendMode "Input"
 ```
 
 ### SendMode

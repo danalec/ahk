@@ -59,7 +59,7 @@ CHUNKS = {
     """,
     3: """
         FileAppend FileRead FileOpen FileDelete FileExist FileGetSize
-        FileGetTime FileSetTime FileCopy FileMove FileCreateShortcut
+        FileGetTime FileSetTime FileSetAttrib FileCopy FileMove FileCreateShortcut
         DirCreate DirExist DirDelete DirCopy DirMove
         IniRead IniWrite IniDelete Download FileRecycle FileInstall
         SplitPath

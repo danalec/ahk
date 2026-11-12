@@ -266,30 +266,6 @@ The way the coordinates are read. The five targets of v2 are the mouse, the pixe
 CoordMode "Mouse", "Screen"
 ```
 
-### CoordMode
-
-The way the coordinates are read. The five targets of v2 are the mouse, the pixels, the caret, the menu and the tooltip; the tree has no windows, so the modes of the caret, the menu and the tooltip are kept all the same and nothing uses them.
-
-- **Parameters:** Target [, Relative]
-- **Answers:** the mode that was there before
-- **Errors:** a target or a relative that v2 does not know is refused as an invalid parameter.
-
-```ahk
-CoordMode "Mouse", "Screen"
-```
-
-### Critical
-
-The tree refuses this name: this runtime runs one script in one thread, and it cannot make it critical.
-
-- **Parameters:** [OnOff]
-- **Answers:** nothing; the call fails
-- **Errors:** the refusal is "this runtime runs one script in one thread, and it cannot make it critical."
-
-```ahk
-Critical
-```
-
 ### Critical
 
 The tree refuses this name: this runtime runs one script in one thread, and it cannot make it critical.
@@ -329,30 +305,6 @@ Answers the value of an environment variable of the runner; the environment is t
 home := EnvGet("HOME")
 ```
 
-### EnvGet
-
-Answers the value of an environment variable of the runner; the environment is the one of the process the script runs in.
-
-- **Parameters:** VariableName
-- **Answers:** the value of the variable, or the empty text when the environment does not have it
-- **Errors:** nothing; a name that is not there is the empty text and not a failure.
-
-```ahk
-home := EnvGet("HOME")
-```
-
-### EnvSet
-
-Sets an environment variable of the runner and answers the value; the script runs on one thread, so nothing else reads the environment while the change happens.
-
-- **Parameters:** VariableName, Value
-- **Answers:** the value that was set, as text
-- **Errors:** an empty name and a name that carries an equal sign are refused with the reason of the machine.
-
-```ahk
-EnvSet "MY_VAR", "value"
-```
-
 ### EnvSet
 
 Sets an environment variable of the runner and answers the value; the script runs on one thread, so nothing else reads the environment while the change happens.
@@ -375,30 +327,6 @@ Stops the script. The code is kept, and the script stops at the end of the state
 
 ```ahk
 Exit 0
-```
-
-### Exit
-
-Stops the script. The code is kept, and the script stops at the end of the statement it was asked in.
-
-- **Parameters:** [Code]
-- **Answers:** the code
-- **Errors:** none.
-
-```ahk
-Exit 0
-```
-
-### ExitApp
-
-Ends the script with a code. The code goes into the exit_code of the report.
-
-- **Parameters:** [Code]
-- **Answers:** the code
-- **Errors:** none.
-
-```ahk
-ExitApp 3
 ```
 
 ### ExitApp
@@ -438,18 +366,6 @@ Registers the function that handles a failure the script did not catch.
 OnError((err, mode) => 0)
 ```
 
-### OnError
-
-Registers the function that handles a failure the script did not catch.
-
-- **Parameters:** Callback, [Order]
-- **Answers:** the integer 1
-- **Errors:** a callback that is not a function object, or a prototype that does not take two parameters, is refused with "Invalid callback function.".
-
-```ahk
-OnError((err, mode) => 0)
-```
-
 ### OnExit
 
 Registers the function that runs when the script ends, whatever ended it: the last statement, a code the script asked to stop with, or a failure that stopped it.
@@ -460,18 +376,6 @@ Registers the function that runs when the script ends, whatever ended it: the la
 
 ```ahk
 OnExit((reason, code) => 0)
-```
-
-### Pause
-
-Sets the paused state of the script. The tree keeps a state instead of waiting for a key, which would hang a script that has no keyboard. The state is visible in A_IsPaused.
-
-- **Parameters:** [OnOff]
-- **Answers:** the empty text
-- **Errors:** a parameter that is not 0, 1 or -1 is an invalid parameter.
-
-```ahk
-Pause true
 ```
 
 ### Pause
@@ -510,30 +414,6 @@ The tree refuses this name: this runtime runs one script once, and it cannot run
 Reload
 ```
 
-### Reload
-
-The tree refuses this name: this runtime runs one script once, and it cannot run itself again.
-
-- **Parameters:** none
-- **Answers:** nothing; the call fails
-- **Errors:** the refusal is "this runtime runs one script once, and it cannot run itself again."
-
-```ahk
-Reload
-```
-
-### SetTimer
-
-Registers a function of the script that runs between the statements. The runtime is one thread, so the timer is not a thread of its own: it runs between the statements and shares the budget of the script.
-
-- **Parameters:** Name, [Period]
-- **Answers:** the integer 1
-- **Errors:** more than two parameters are refused with "the priority of the timer is not carried yet."
-
-```ahk
-SetTimer("Tick", 1000)
-```
-
 ### SetTimer
 
 Registers a function of the script that runs between the statements. The runtime is one thread, so the timer is not a thread of its own: it runs between the statements and shares the budget of the script.
@@ -558,18 +438,6 @@ Sets the working directory of the script. A name that is not absolute is a folde
 SetWorkingDir "."
 ```
 
-### SetWorkingDir
-
-Sets the working directory of the script. A name that is not absolute is a folder under the working directory, the way the dialect says it.
-
-- **Parameters:** Directory
-- **Answers:** the integer 1
-- **Errors:** an empty name is refused with "the name of the directory is missing.", and a folder that cannot be entered fails with the reason of the desktop.
-
-```ahk
-SetWorkingDir "."
-```
-
 ### Sleep
 
 Pauses the script for a number of milliseconds.
@@ -580,30 +448,6 @@ Pauses the script for a number of milliseconds.
 
 ```ahk
 Sleep 500
-```
-
-### Sleep
-
-Pauses the script for a number of milliseconds.
-
-- **Parameters:** Milliseconds
-- **Answers:** the number of milliseconds waited
-- **Errors:** none; a wait longer than 60000 milliseconds is cut at that number.
-
-```ahk
-Sleep 500
-```
-
-### Suspend
-
-Turns the hotkeys of the script off or on. With no parameter it turns them the other way. The state is visible in A_IsSuspended and in the enabled flag of the hotkey table.
-
-- **Parameters:** [OnOff]
-- **Answers:** the empty text
-- **Errors:** a parameter that is not 0, 1 or -1 is an invalid parameter.
-
-```ahk
-Suspend true
 ```
 
 ### Suspend

@@ -260,30 +260,6 @@ Só consegue desligar a entrada da máquina inteira. Bloquear a entrada da máqu
 BlockInput "Off"
 ```
 
-### BlockInput
-
-Só consegue desligar a entrada da máquina inteira. Bloquear a entrada da máquina toda é um privilégio que este compositor não dá a um cliente, e a árvore não vai fingir que deu.
-
-- **Parâmetros:** Mode
-- **Responde:** nada para 'Off'
-- **Erros:** any other mode fails with 'blocking the input of the whole machine is a privilege this compositor does not give a client'.
-
-```ahk
-BlockInput "Off"
-```
-
-### Click
-
-Clica com o ponteiro do backend, que é um dispositivo uinput absoluto: move até o lugar, assenta, pressiona e solta.
-
-- **Parâmetros:** [X, Y] [Button] [Count]
-- **Responde:** nada
-- **Erros:** the wheel, the fourth and the fifth buttons, the pressing of a button and the place relative to the pointer are refused as not carried yet; on a host without `grim` the click fails with the reason of the screen, because the pointer needs the size of the screen.
-
-```ahk
-Click 100, 200
-```
-
 ### Click
 
 Clica com o ponteiro do backend, que é um dispositivo uinput absoluto: move até o lugar, assenta, pressiona e solta.
@@ -332,18 +308,6 @@ Lê o que o vigia de hotkeys viu: se uma tecla está pressionada. O segundo par�
 state := GetKeyState("Shift")
 ```
 
-### GetKeyState
-
-Lê o que o vigia de hotkeys viu: se uma tecla está pressionada. O segundo parâmetro só aceita 'T' e 'P' de v2.
-
-- **Parâmetros:** KeyName [, Mode]
-- **Responde:** 1 quando a tecla está pressionada, 0 quando não está
-- **Erros:** a key name the tree does not know, and a mode that is neither 'T' nor 'P', are refused as invalid parameters; on a host that is not Linux the watcher cannot answer at all.
-
-```ahk
-state := GetKeyState("Shift")
-```
-
 ### GetKeyVK
 
 O código de tecla virtual do Windows da tecla. É o número da tecla no teclado do Windows, e a árvore o mantém para os scripts que o pedem.
@@ -366,30 +330,6 @@ Registra um hotkey: a tecla vigiada e a função que ela roda. O registro é da 
 
 ```ahk
 Hotkey "^s", SaveTheFile
-```
-
-### Hotkey
-
-Registra um hotkey: a tecla vigiada e a função que ela roda. O registro é da árvore e o vigia é da máquina: o script diz qual função o hotkey roda, e a máquina diz qual tecla foi pressionada.
-
-- **Parâmetros:** KeyName, Action [, Options]
-- **Responde:** nada
-- **Erros:** a hotkey without an action is 'Nonexistent hotkey.'; the watcher reads the physical keyboard of the machine, so on a host that is not Linux the registration fails with 'the hotkeys of this box watch a Linux device; this is not Linux'.
-
-```ahk
-Hotkey "^s", SaveTheFile
-```
-
-### Hotstring
-
-Registra um texto que roda uma função quando é digitado. O texto de v2 é escrito entre dois caracteres iguais, e o caractere não faz parte dele.
-
-- **Parâmetros:** Text, Action [, Options]
-- **Responde:** nada
-- **Erros:** a text that is not a string is refused as an invalid parameter; the watcher reads the physical keyboard, and the device of the box is skipped so that a hotstring does not fire on what the script types.
-
-```ahk
-Hotstring "::btw::", ShowTheDefinition
 ```
 
 ### Hotstring
@@ -440,30 +380,6 @@ Recusado. A árvore não guarda as teclas que estão pressionadas, então não p
 KeyWait "a"
 ```
 
-### KeyWait
-
-Recusado. A árvore não guarda as teclas que estão pressionadas, então não pode esperar por uma.
-
-- **Parâmetros:** KeyName [, Options]
-- **Responde:** nada; a instrução falha
-- **Erros:** this runtime does not keep the keys that are down, so it cannot wait for one.
-
-```ahk
-KeyWait "a"
-```
-
-### MouseClick
-
-Clica com o ponteiro do backend. O botão é o primeiro parâmetro, como na função de v2, e um botão ausente é o esquerdo.
-
-- **Parâmetros:** Button, X, Y [Count] [Options]
-- **Responde:** nada
-- **Erros:** the wheel, the fourth and the fifth buttons are refused as not carried yet.
-
-```ahk
-MouseClick "Right", 100, 200
-```
-
 ### MouseClick
 
 Clica com o ponteiro do backend. O botão é o primeiro parâmetro, como na função de v2, e um botão ausente é o esquerdo.
@@ -488,18 +404,6 @@ Lê do kernel a posição do ponteiro que esta árvore dirige. É o único ponte
 MouseGetPos &x, &y
 ```
 
-### MouseGetPos
-
-Lê do kernel a posição do ponteiro que esta árvore dirige. É o único ponteiro da máquina cuja posição pode ser lida: o mouse físico é um dispositivo relativo.
-
-- **Parâmetros:** [&X, &Y, &Button, &Info]
-- **Responde:** nada; a posição é escrita nas variáveis de quem chama
-- **Erros:** when the kernel will not answer, the desktop answers the place the runtime last put the pointer at, and says so in a note.
-
-```ahk
-MouseGetPos &x, &y
-```
-
 ### MouseMove
 
 Move o ponteiro do backend até um lugar da tela. O backend move o ponteiro até o lugar, e não a partir de onde ele está.
@@ -510,30 +414,6 @@ Move o ponteiro do backend até um lugar da tela. O backend move o ponteiro até
 
 ```ahk
 MouseMove 400, 300
-```
-
-### MouseMove
-
-Move o ponteiro do backend até um lugar da tela. O backend move o ponteiro até o lugar, e não a partir de onde ele está.
-
-- **Parâmetros:** X, Y [Relative] [Speed]
-- **Responde:** nada
-- **Erros:** the relative place of the move and the speed of the move are refused as not carried yet.
-
-```ahk
-MouseMove 400, 300
-```
-
-### Send
-
-Digita texto e pressiona teclas na máquina, pelo teclado uinput do backend.
-
-- **Parâmetros:** Keys
-- **Responde:** nada
-- **Erros:** the keyboard is a Linux uinput device, so on a host that is not Linux every key action fails; a character the US layout has no key for fails with 'the keyboard of this box has no key for'.
-
-```ahk
-Send "hello{Enter}"
 ```
 
 ### Send
@@ -582,30 +462,6 @@ Guarda o nível dos eventos que o script envia e devolve o nível anterior. O n�
 
 ```ahk
 SendLevel 1
-```
-
-### SendLevel
-
-Guarda o nível dos eventos que o script envia e devolve o nível anterior. O nível diz aos hotkeys quais eventos artificiais ignorar, e nada o lê ainda.
-
-- **Parâmetros:** Level
-- **Responde:** o nível anterior, um número
-- **Erros:** a level outside 0 to 100 is refused as an invalid parameter.
-
-```ahk
-SendLevel 1
-```
-
-### SendMode
-
-Diz como as teclas são enviadas. As teclas desta árvore passam uma a uma pelo teclado do backend, e esse é o modo do backend; os outros modos de v2 são os do Windows.
-
-- **Parâmetros:** Method
-- **Responde:** o número 1 para o modo do backend
-- **Erros:** a mode that is not 'Input' fails with 'the keys of this runtime go through the keyboard of the box, and that is the only mode there is.'
-
-```ahk
-SendMode "Input"
 ```
 
 ### SendMode

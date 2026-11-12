@@ -229,7 +229,7 @@ f.Close()
 
 - **参数:** Source, Dest, [Overwrite]
 - **返回:** 无返回值
-- **错误:** Error `Failed` when the source is not a directory, or when the destination is there and the overwrite is not asked for; a name that holds a wildcard is refused with the reason that the wildcards of v2 are not carried.
+- **错误:** Error `Failed` when the source is not a directory, or when the destination is there and the overwrite is not asked for; a name that holds a wildcard is refused, and the reference fails with `Failed` on a wildcard too.
 
 ```ahk
 DirCopy "src", "dst"
@@ -252,7 +252,7 @@ DirCreate "out"
 删除一个目录。目录非空时，除非要求递归，否则目录会保留下来。
 
 - **参数:** DirName, [Recurse]
-- **返回:** 目录的名称。
+- **返回:** 无返回值；命令不回答任何东西。
 - **错误:** Error `Failed` when the directory is not there, or when it is not empty and the recursion is not asked for.
 
 ```ahk
@@ -277,7 +277,7 @@ x := DirExist("out")
 
 - **参数:** Source, Dest, [Overwrite]
 - **返回:** 无返回值
-- **错误:** Error `Failed` when the source is not a directory; a name that holds a wildcard is refused with the reason that the wildcards of v2 are not carried.
+- **错误:** Error `Failed` when the source is not a directory; a name that holds a wildcard is refused, and the reference fails with `Failed` on a wildcard too.
 
 ```ahk
 DirMove "src", "dst"
@@ -320,18 +320,6 @@ f.Close()
 FileAppend "hello`n", "out.txt"
 ```
 
-### FileAppend
-
-把文本追加到文件末尾。文件名可以是 `*`，此时文本进入报告的输出；在 `Loop Read` 的循环体内可以省略文件名，写入的是循环自己的文件。
-
-- **参数:** Text, FileName, [Options]
-- **返回:** 无返回值
-- **错误:** ValueError when the name of the file is empty or when an option is not one of v2; OSError when the file cannot be opened for writing. The options are the encoding of the file -- `UTF-8`, `UTF-16` and the code page of the machine --, `RAW` and a linefeed; a code page the tree does not carry is refused with the reason.
-
-```ahk
-FileAppend "hello`n", "out.txt"
-```
-
 ### FileCopy
 
 复制一个文件，或复制某个模式匹配到的所有文件。目标以分隔符结尾、或者目标本身是目录时，文件被复制进那个目录。
@@ -342,30 +330,6 @@ FileAppend "hello`n", "out.txt"
 
 ```ahk
 FileCopy "a.txt", "b.txt"
-```
-
-### FileCopy
-
-复制一个文件，或复制某个模式匹配到的所有文件。目标以分隔符结尾、或者目标本身是目录时，文件被复制进那个目录。
-
-- **参数:** Source, Dest, [Overwrite]
-- **返回:** 无返回值
-- **错误:** Error `Failed` when the source is not there, or when the destination is there and the overwrite is not asked for.
-
-```ahk
-FileCopy "a.txt", "b.txt"
-```
-
-### FileCreateShortcut
-
-为一个程序创建快捷方式。在这个桌面上，快捷方式是一个 freedesktop 规范的 `.desktop` 文件；即使目标不存在也会创建。
-
-- **参数:** Target, LinkFile, [WorkingDir], [Args], [Description], [Icon], [IconNumber], [Run]
-- **返回:** 无返回值
-- **错误:** Error when the file of the shortcut cannot be written. The icon number and the run state are not carried.
-
-```ahk
-FileCreateShortcut "/bin/ls", "ls.desktop"
 ```
 
 ### FileCreateShortcut
@@ -392,18 +356,6 @@ FileCreateShortcut "/bin/ls", "ls.desktop"
 FileDelete "out.txt"
 ```
 
-### FileDelete
-
-删除一个文件，或删除某个模式匹配到的所有文件。模式没有匹配到文件不算失败。
-
-- **参数:** FileName
-- **返回:** 无返回值
-- **错误:** OSError when the file cannot be taken away.
-
-```ahk
-FileDelete "out.txt"
-```
-
 ### FileExist
 
 回答名称或模式匹配到的第一个条目的属性。
@@ -414,30 +366,6 @@ FileDelete "out.txt"
 
 ```ahk
 x := FileExist("out.txt")
-```
-
-### FileExist
-
-回答名称或模式匹配到的第一个条目的属性。
-
-- **参数:** FileName
-- **返回:** 以字母表示的属性：文件是 `A`，目录是 `D`，只读文件是 `RA`，没有这样的文件时是空文本。
-- **错误:** nothing fails: a name that matches nothing answers the empty text.
-
-```ahk
-x := FileExist("out.txt")
-```
-
-### FileGetSize
-
-回答一个文件有多大。
-
-- **参数:** FileName, [Unit]
-- **返回:** 大小，向下取整；目录是零。
-- **错误:** ValueError when the unit is not `B`, `K` or `M`; OSError when the file cannot be read.
-
-```ahk
-n := FileGetSize("out.txt", "K")
 ```
 
 ### FileGetSize
@@ -464,52 +392,16 @@ n := FileGetSize("out.txt", "K")
 t := FileGetTime("out.txt", "M")
 ```
 
-### FileGetTime
-
-回答文件是什么时候创建的、什么时候被修改的、什么时候被读取的。
-
-- **参数:** FileName, [Which]
-- **返回:** v2 的时间戳，`YYYYMMDDHH24MISS` 的十四位数字，用机器的本地时间。
-- **错误:** ValueError when `Which` is not `M`, `C`, `A` or `CUT`; OSError when the file cannot be read.
-
-```ahk
-t := FileGetTime("out.txt", "M")
-```
-
 ### FileInstall
 
 像编译后脚本的安装器那样复制一个文件。这里不编译任何东西：只是复制文件。
-
-- **参数:** Source, Dest, [Overwrite]
-- **返回:** 无返回值
-- **错误:** Error `Failed` when the source is not there, or when the destination is there; the overwrite flag of v2 is not read by the tree, so a copy onto a file that is there fails.
-
-```ahk
-FileInstall "data.txt", "data.out.txt"
-```
-
-### FileInstall
-
-像编译后脚本的安装器那样复制一个文件。这里不编译任何东西：只是复制文件。
-
-- **参数:** Source, Dest, [Overwrite]
-- **返回:** 无返回值
-- **错误:** Error `Failed` when the source is not there, or when the destination is there; the overwrite flag of v2 is not read by the tree, so a copy onto a file that is there fails.
-
-```ahk
-FileInstall "data.txt", "data.out.txt"
-```
-
-### FileMove
-
-移动一个文件，或移动某个模式匹配到的所有文件。源和目标的规则与 `FileCopy` 相同。
 
 - **参数:** Source, Dest, [Overwrite]
 - **返回:** 无返回值
 - **错误:** Error `Failed` when the source is not there, or when the destination is there and the overwrite is not asked for.
 
 ```ahk
-FileMove "a.txt", "b.txt"
+FileInstall "data.txt", "data.out.txt"
 ```
 
 ### FileMove
@@ -536,30 +428,6 @@ FileMove "a.txt", "b.txt"
 f := FileOpen("out.txt", "w")
 ```
 
-### FileOpen
-
-打开文件并返回它的对象（`File` 类）。模式有 `r`、`w`、`a`、`rw`；文件名 `*` 是机器的控制台。
-
-- **参数:** FileName, Mode, [Encoding]
-- **返回:** 一个 `File` 对象。
-- **错误:** ValueError when the mode is not one of the four; OSError when the file cannot be opened.
-
-```ahk
-f := FileOpen("out.txt", "w")
-```
-
-### FileRead
-
-读出整个文件，答案是它的文本。编码标记决定文件用什么编码读取；文件没有标记时由脚本的选项决定。
-
-- **参数:** FileName, [Options]
-- **返回:** 文件的文本；带 `RAW` 选项时是一个 Buffer。
-- **错误:** OSError when the file cannot be read; ValueError when an option is not one of v2. The options are the encoding of the file -- `UTF-8`, `UTF-16` and the code page of the machine --, `RAW` and `m<n>`, the number of bytes to read.
-
-```ahk
-text := FileRead("out.txt")
-```
-
 ### FileRead
 
 读出整个文件，答案是它的文本。编码标记决定文件用什么编码读取；文件没有标记时由脚本的选项决定。
@@ -584,52 +452,28 @@ text := FileRead("out.txt")
 FileRecycle "out.txt"
 ```
 
-### FileRecycle
+### FileSetAttrib
 
-把一个文件、一个目录，或某个模式匹配到的文件送进机器的回收站。这个盒子用的是 XDG 规范的回收站。
+修改文件的属性。参数顺序与 v2.0.19 的二进制一致：先是属性，后是文件名。文件名可以是模式，模式匹配的每个文件都会被修改。
 
-- **参数:** FileName
+- **参数:** Attributes, FileName, [Recurse]
 - **返回:** 无返回值
-- **错误:** Error `Failed` when the path is not there; a pattern that matches nothing is not a failure; ValueError when the name is empty; Error when the machine does not say where the home directory of the user is.
+- **错误:** ValueError when the attributes are not one of v2; OSError when the attributes of the file cannot be changed. The third parameter is the recursion: the "R" walks into the subfolders, and any other letter is refused.
 
 ```ahk
-FileRecycle "out.txt"
+FileSetAttrib "+H", "*.txt"
 ```
 
 ### FileSetTime
 
-修改文件的时间。参数顺序与 v2.0.19 的二进制一致：先是时间，后是文件名；时间留空表示机器的当前时刻。
+修改文件的时间。参数顺序与 v2.0.19 的二进制一致：先是时间，后是文件名；时间留空表示机器的当前时刻。文件名可以是模式，模式匹配的每个文件都会被改变。
 
-- **参数:** TimeStamp, FileName, [Which], [Mode]
+- **参数:** TimeStamp, FileName, [Which], [Recurse]
 - **返回:** 无返回值
-- **错误:** ValueError when the stamp or the time that is wanted is not one of v2; OSError when the times of the file cannot be changed. The recursion of v2 is refused with the reason.
+- **错误:** ValueError when the stamp is not one of v2, or when the time that is wanted is not the "M", the "C" or the "A"; OSError when the times of the file cannot be changed. The fourth parameter is the recursion: the "R" walks into the subfolders, and any other letter is refused.
 
 ```ahk
 FileSetTime "20000101000000", "out.txt", "M"
-```
-
-### FileSetTime
-
-修改文件的时间。参数顺序与 v2.0.19 的二进制一致：先是时间，后是文件名；时间留空表示机器的当前时刻。
-
-- **参数:** TimeStamp, FileName, [Which], [Mode]
-- **返回:** 无返回值
-- **错误:** ValueError when the stamp or the time that is wanted is not one of v2; OSError when the times of the file cannot be changed. The recursion of v2 is refused with the reason.
-
-```ahk
-FileSetTime "20000101000000", "out.txt", "M"
-```
-
-### IniDelete
-
-删除 ini 文件的一个键。不给键名时，整个节一起删除。
-
-- **参数:** FileName, Section, [Key]
-- **返回:** 无返回值
-- **错误:** Error when the file cannot be written.
-
-```ahk
-IniDelete "app.ini", "Main", "Name"
 ```
 
 ### IniDelete
@@ -654,30 +498,6 @@ IniDelete "app.ini", "Main", "Name"
 
 ```ahk
 v := IniRead("app.ini", "Main", "Name")
-```
-
-### IniRead
-
-读取 ini 文件中某个键的值。不给节名时回答所有节名；不给键名时回答整个节。ini 文件按 Windows 的写法：`[section]`、`key=value`、`;` 是注释。
-
-- **参数:** FileName, Section, Key, [Default]
-- **返回:** 键的值；键不存在而脚本给了默认值时，回答默认值。
-- **错误:** Error `The requested key, section or file was not found.` when the key is not there and no default is given.
-
-```ahk
-v := IniRead("app.ini", "Main", "Name")
-```
-
-### IniWrite
-
-写入 ini 文件的一个键。参数顺序与 v2.0.19 的二进制一致：先是值，后是文件名；文件不存在时会被创建。
-
-- **参数:** Value, FileName, Section, Key
-- **返回:** 无返回值
-- **错误:** Error when the file cannot be written.
-
-```ahk
-IniWrite "hello", "app.ini", "Main", "Name"
 ```
 
 ### IniWrite
@@ -742,18 +562,6 @@ FileAppend f.Read(5), "*"
 ```ahk
 f := FileOpen("notes.txt", "r")
 FileAppend f.ReadLine(), "*"
-```
-
-### SplitPath
-
-把路径切成几段，并写进调用者的变量里。文件路径按反斜杠切，网址按斜杠切；网址的盘符是它的方案和主机。
-
-- **参数:** Path, &OutFileName, &OutDir, &OutExt, &OutNameNoExt, &OutDrive
-- **返回:** 无返回值
-- **错误:** TypeError when a piece is not a variable to write into.
-
-```ahk
-SplitPath "C:\dir\file.txt", &name, &dir, &ext
 ```
 
 ### SplitPath

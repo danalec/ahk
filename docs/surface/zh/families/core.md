@@ -195,18 +195,6 @@
 Abs(-3)
 ```
 
-### Abs
-
-与零的距离。整数仍然是整数。
-
-- **参数:** Number
-- **返回:** 去掉符号后的数字
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Abs(-3)
-```
-
 ### Ceil
 
 不小于该数的整数。
@@ -217,30 +205,6 @@ Abs(-3)
 
 ```ahk
 Ceil(1.2)
-```
-
-### Ceil
-
-不小于该数的整数。
-
-- **参数:** Number
-- **返回:** 该整数；原来的数不是整数时返回浮点数
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Ceil(1.2)
-```
-
-### Chr
-
-具有某个码位的字符。
-
-- **参数:** Code
-- **返回:** 该字符的文本
-- **错误:** a code outside 0 to 0x10FFFF is an invalid parameter; a surrogate code is a text of its own.
-
-```ahk
-Chr(65)
 ```
 
 ### Chr
@@ -267,30 +231,6 @@ Chr(65)
 Cos(0)
 ```
 
-### Cos
-
-一个角度（弧度）的余弦。
-
-- **参数:** Number
-- **返回:** 浮点数，无论输入是什么
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Cos(0)
-```
-
-### Exp
-
-以该数为指数的 e 的幂。
-
-- **参数:** Number
-- **返回:** 浮点数
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Exp(1)
-```
-
 ### Exp
 
 以该数为指数的 e 的幂。
@@ -313,30 +253,6 @@ Exp(1)
 
 ```ahk
 Floor(1.8)
-```
-
-### Floor
-
-不大于该数的整数。
-
-- **参数:** Number
-- **返回:** 该整数；原来的数不是整数时返回浮点数
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Floor(1.8)
-```
-
-### Format
-
-把数值填入模式的文本。模式是参考方言的那一套：{1} 是第一个参数，没有编号的占位符取下一个参数，{{ 和 }} 各代表一个花括号。
-
-- **参数:** Pattern, [Value1], [Value2], ...
-- **返回:** 填入数值之后的模式文本
-- **错误:** a placeholder that names an argument that is not there, or whose spec is not one the dialect reads, is left exactly as it was written; a value of a kind the spec does not want is refused.
-
-```ahk
-Format("{1} + {2} = {3}", 1, 2, 3)
 ```
 
 ### Format
@@ -414,18 +330,6 @@ FileAppend HasProp(o, "a"), "*"
 InStr("hello", "ll")
 ```
 
-### InStr
-
-一段文本在另一段文本中的位置。位置从 1 开始，找不到时为 0。
-
-- **参数:** Haystack, Needle, [CaseSense], [Start], [Occurrence]
-- **返回:** 匹配的位置；没有匹配时为 0
-- **错误:** a needle that is empty is an invalid parameter; the logical case sense is an invalid parameter; a start or an occurrence of zero is an invalid parameter.
-
-```ahk
-InStr("hello", "ll")
-```
-
 ### IsNumber
 
 一个值是不是数字：整数、浮点数，或是写着数字的文本。十六进制文本也算数字。
@@ -436,18 +340,6 @@ InStr("hello", "ll")
 
 ```ahk
 IsNumber("42")
-```
-
-### IsObject
-
-一个值是不是对象。凡不是数字也不是文本的都是对象：数组、映射、类实例和引用。
-
-- **参数:** Value
-- **返回:** 是对象时为 1，否则为 0
-- **错误:** none.
-
-```ahk
-IsObject([])
 ```
 
 ### IsObject
@@ -487,18 +379,6 @@ FileAppend IsSet(x), "*"
 Ln(1)
 ```
 
-### Ln
-
-一个数的自然对数。
-
-- **参数:** Number
-- **返回:** 浮点数
-- **错误:** a negative number is an invalid parameter; a value that is not a number is refused.
-
-```ahk
-Ln(1)
-```
-
 ### LTrim
 
 去掉左端字符后的文本。
@@ -523,18 +403,6 @@ LTrim("  hello  ")
 Max(3, 7, 5)
 ```
 
-### Max
-
-这些数字中最大的一个。
-
-- **参数:** Number, [Number2], ...
-- **返回:** 其中最大的数字
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Max(3, 7, 5)
-```
-
 ### Mod
 
 除法的余数。余数的符号与被除数相同，两个参数都是整数时结果也是整数。
@@ -545,30 +413,6 @@ Max(3, 7, 5)
 
 ```ahk
 Mod(7, 3)
-```
-
-### Mod
-
-除法的余数。余数的符号与被除数相同，两个参数都是整数时结果也是整数。
-
-- **参数:** Dividend, Divisor
-- **返回:** 余数
-- **错误:** a divisor of zero fails with "Divide by zero."; a value that is not a number is refused with "Invalid parameter(s).".
-
-```ahk
-Mod(7, 3)
-```
-
-### Ord
-
-文本第一个字符的码位。
-
-- **参数:** Text
-- **返回:** 码位；文本没有字符时为 0
-- **错误:** none; a lone surrogate answers with the code unit of it.
-
-```ahk
-Ord("A")
 ```
 
 ### Ord
@@ -595,30 +439,6 @@ Ord("A")
 Random(1, 6)
 ```
 
-### Random
-
-调用方指定两个数之间的数字。不带参数时是 0 与 1 之间的数；带一个参数是小于它的整数；带两个参数是两者之间的整数，两端都算在内。
-
-- **参数:** [Bound] or [Low, High]
-- **返回:** 该数字
-- **错误:** none.
-
-```ahk
-Random(1, 6)
-```
-
-### RegExMatch
-
-模式在文本中的位置。位置从 1 开始，找不到时为 0。
-
-- **参数:** Text, Pattern, [&Output], [Start]
-- **返回:** 匹配的位置；没有匹配时为 0
-- **错误:** the output must be a variable reference; the output holds an object of the class RegExMatchInfo, and a text that does not match leaves it holding the empty text.
-
-```ahk
-RegExMatch("abc123", "\d+")
-```
-
 ### RegExMatch
 
 模式在文本中的位置。位置从 1 开始，找不到时为 0。
@@ -641,30 +461,6 @@ RegExMatch("abc123", "\d+")
 
 ```ahk
 RegExReplace("a1b2", "\d", "#")
-```
-
-### RegExReplace
-
-把模式的匹配替换掉之后的文本。替换文本可以用 $1 或 \1 引用模式的分组，$$ 表示一个美元符号本身。
-
-- **参数:** Text, Pattern, Replacement, [&Count], [Limit], [Start]
-- **返回:** 替换之后的文本
-- **错误:** the count must be a variable reference; a pattern that does not compile fails with the reason of the compiler.
-
-```ahk
-RegExReplace("a1b2", "\d", "#")
-```
-
-### Round
-
-把数字舍入到调用方指定的小数位数。小数位数为正时返回的是文本，小数点后恰好是该位数的数字并保留零；不给、为 0 或为负时返回整数。
-
-- **参数:** Number, [Decimals]
-- **返回:** 带有所需小数位的文本，或一个整数
-- **错误:** a text that does not hold a number is refused; more than 100000 decimals is an invalid parameter.
-
-```ahk
-Round(2.567, 2)
 ```
 
 ### Round
@@ -703,30 +499,6 @@ RTrim("  hello  ")
 Sin(0)
 ```
 
-### Sin
-
-一个角度（弧度）的正弦。
-
-- **参数:** Number
-- **返回:** 浮点数，无论输入是什么
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Sin(0)
-```
-
-### Sort
-
-文本中各条目排好序之后的文本。第二个参数是选项，逐字母读取；第三个参数是比较两个条目的回调。
-
-- **参数:** Text, [Options], [Callback]
-- **返回:** 条目排序之后的文本
-- **错误:** the first parameter must be a text; an array is refused; a third parameter that cannot be called fails with "This value of type ... has no method named Call".
-
-```ahk
-Sort("b`na`n", "N")
-```
-
 ### Sort
 
 文本中各条目排好序之后的文本。第二个参数是选项，逐字母读取；第三个参数是比较两个条目的回调。
@@ -751,18 +523,6 @@ Sort("b`na`n", "N")
 Sqrt(9)
 ```
 
-### Sqrt
-
-一个数的平方根。
-
-- **参数:** Number
-- **返回:** 浮点数，即使结果是整数也是浮点数
-- **错误:** a negative number is an invalid parameter.
-
-```ahk
-Sqrt(9)
-```
-
 ### StrGet
 
 缓冲区的文本，或某个地址处的文本。来源是缓冲区或数字，长度和编码在它之后。
@@ -773,30 +533,6 @@ Sqrt(9)
 
 ```ahk
 StrGet(Buffer(16), 4, "UTF-8")
-```
-
-### StrGet
-
-缓冲区的文本，或某个地址处的文本。来源是缓冲区或数字，长度和编码在它之后。
-
-- **参数:** Source, [Length], [Encoding]
-- **返回:** 文本；既不对应缓冲区也不对应文本的地址返回空文本
-- **错误:** a text as the source is refused with "Parameter #1 invalid."; an encoding the dialect does not know is refused with "Invalid Encoding.".
-
-```ahk
-StrGet(Buffer(16), 4, "UTF-8")
-```
-
-### StrLen
-
-按 UTF-16 码元统计文本的字符数，因此基本平面之外的字符算作两个。
-
-- **参数:** Text
-- **返回:** 码元的数量
-- **错误:** none; a value that is not text is read as its text.
-
-```ahk
-StrLen("hello")
 ```
 
 ### StrLen
@@ -835,18 +571,6 @@ StrLower("Hello")
 StrPut("abc", Buffer(16), "UTF-8")
 ```
 
-### StrPut
-
-把文本写进缓冲区。没有目标时，调用返回该文本需要的字节数（含结束符）。
-
-- **参数:** Text, [Target], [Encoding], [Length]
-- **返回:** 写入的字节数；没有目标时返回文本需要的字节数
-- **错误:** a target that is not a buffer is refused with "Parameter #2 of StrPut is invalid."; a text that does not fit in the size the caller names is refused with "Invalid Length.".
-
-```ahk
-StrPut("abc", Buffer(16), "UTF-8")
-```
-
 ### StrReplace
 
 把文本中的一段换成另一段得到的文本。大小写敏感方式说明是否区分大小写，调用方不说时为不区分。
@@ -857,30 +581,6 @@ StrPut("abc", Buffer(16), "UTF-8")
 
 ```ahk
 StrReplace("a-b-c", "-", "+")
-```
-
-### StrReplace
-
-把文本中的一段换成另一段得到的文本。大小写敏感方式说明是否区分大小写，调用方不说时为不区分。
-
-- **参数:** Haystack, Needle, Replacement, [CaseSense], [&Count], [Limit]
-- **返回:** 替换之后的文本
-- **错误:** the count must be a variable reference; a needle that is empty changes nothing and the text comes back as it is; the logical case sense is an invalid parameter.
-
-```ahk
-StrReplace("a-b-c", "-", "+")
-```
-
-### StrSplit
-
-文本按分隔符切开的片段。分隔符是字面量：文本是一个分隔符，文本数组是一组分隔符，其中最先出现的那一个获胜。
-
-- **参数:** Text, [Delimiters], [OmitChars], [MaxParts]
-- **返回:** 片段的数组；要省略的字符会从每个片段的首尾切掉
-- **错误:** the delimiters must be a text or an array of texts; an empty array is refused with "Parameter #2 of StrSplit is invalid.".
-
-```ahk
-StrSplit("a,b,c", ",")
 ```
 
 ### StrSplit
@@ -919,30 +619,6 @@ StrUpper("hello")
 SubStr("hello", 2, 3)
 ```
 
-### SubStr
-
-文本中两个位置之间的部分。位置从 1 开始，负位置从末尾倒数，-1 是最后一个字符。
-
-- **参数:** Text, Start, [Length]
-- **返回:** 该部分的文本；负的长度会从末尾去掉相应数量的字符
-- **错误:** none; the text is cut in the code units of UTF-16, so the second unit of a surrogate pair is a text of its own.
-
-```ahk
-SubStr("hello", 2, 3)
-```
-
-### Tan
-
-一个角度（弧度）的正切。
-
-- **参数:** Number
-- **返回:** 浮点数，无论输入是什么
-- **错误:** a value that is not a number is refused.
-
-```ahk
-Tan(0)
-```
-
 ### Tan
 
 一个角度（弧度）的正切。
@@ -979,18 +655,6 @@ throw ValueError("boom")
 Trim("  hello  ")
 ```
 
-### Trim
-
-去掉两端字符后的文本。
-
-- **参数:** Text, [Chars]
-- **返回:** 去掉首尾那组字符之后的文本；调用方不指定时这组字符是空格和制表符
-- **错误:** none.
-
-```ahk
-Trim("  hello  ")
-```
-
 ### Type
 
 一个值的类型名。
@@ -1001,18 +665,6 @@ Trim("  hello  ")
 
 ```ahk
 Type(1)
-```
-
-### VerCompare
-
-比较两个版本字符串。两个版本的数字逐个比较，缺少的组件按 0 处理。带预发布后缀的版本比不带它的同版本更旧。
-
-- **参数:** Version1, Version2
-- **返回:** 两个版本的顺序，-1、0 或 1；第二个版本带运算符（<、<=、>、>= 或 =）时返回该关系是否成立
-- **错误:** none.
-
-```ahk
-VerCompare("1.2.0", "1.10.0")
 ```
 
 ### VerCompare

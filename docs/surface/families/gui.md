@@ -381,19 +381,6 @@ answer := InputBox("your name?", "hello")
 MsgBox answer.Value
 ```
 
-### InputBox
-
-Asks the user for a text in a dialog of the desktop and answers an object with the text in its Value and the way the dialog was closed in its Result.
-
-- **Parameters:** Prompt, [Title], [Options], [Default]
-- **Answers:** an object with the properties Value and Result, where Result is "OK", "Cancel" or "Timeout"
-- **Errors:** an option the dialect does not know is refused with "Invalid option.".
-
-```ahk
-answer := InputBox("your name?", "hello")
-MsgBox answer.Value
-```
-
 ### MsgBox
 
 Shows a message. The tree has no window of its own, so the text goes into the output of the report instead of onto the screen, and the call answers the same text.
@@ -404,30 +391,6 @@ Shows a message. The tree has no window of its own, so the text goes into the ou
 
 ```ahk
 MsgBox "hello"
-```
-
-### MsgBox
-
-Shows a message. The tree has no window of its own, so the text goes into the output of the report instead of onto the screen, and the call answers the same text.
-
-- **Parameters:** Message, [Title], [Options]
-- **Answers:** the text of the message
-- **Errors:** more than one parameter is refused with "the options, the title and the variable that takes the answer are not carried yet."
-
-```ahk
-MsgBox "hello"
-```
-
-### ToolTip
-
-Shows a small window of text at a place of the screen. Called with no text it takes the window away.
-
-- **Parameters:** Text, [X], [Y], [Options]
-- **Answers:** the number that identifies the window, or the empty text when the window is taken away
-- **Errors:** the desktop reports the failure of the call.
-
-```ahk
-ToolTip "hello", 10, 10
 ```
 
 ### ToolTip
@@ -454,18 +417,6 @@ Sends a notification to the desktop with a text and a title. The name is a Windo
 TrayTip "done", "the script"
 ```
 
-### TrayTip
-
-Sends a notification to the desktop with a text and a title. The name is a Windows one -- a balloon in the notification area -- but the tree sends a desktop notification, which reaches the same user with the same words.
-
-- **Parameters:** Text, [Title], [Options]
-- **Answers:** the empty text
-- **Errors:** the desktop reports the failure of the notification.
-
-```ahk
-TrayTip "done", "the script"
-```
-
 ### WinActivate
 
 Brings a window to the front. It acts on the window of the script itself: the listing of the compositor publishes no way to raise a window of another program.
@@ -476,30 +427,6 @@ Brings a window to the front. It acts on the window of the script itself: the li
 
 ```ahk
 WinActivate "Untitled"
-```
-
-### WinActivate
-
-Brings a window to the front. It acts on the window of the script itself: the listing of the compositor publishes no way to raise a window of another program.
-
-- **Parameters:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Answers:** nothing
-- **Errors:** a window that is not there answers 'Target window not found.'; a window of another program cannot be activated this way.
-
-```ahk
-WinActivate "Untitled"
-```
-
-### WinActive
-
-The window that has the focus. The box is a Wayland session, and the compositor is the one that knows the windows and which of them is in front.
-
-- **Parameters:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Answers:** the identifier of the active window, zero when there is none
-- **Errors:** the text of the window and the exclusions are not carried yet; a compositor that does not publish the focus answers with the reason, and not with a guess.
-
-```ahk
-id := WinActive()
 ```
 
 ### WinActive
@@ -526,18 +453,6 @@ Closes a window. It closes the window of the script itself: the listing of the c
 WinClose "Untitled"
 ```
 
-### WinClose
-
-Closes a window. It closes the window of the script itself: the listing of the compositor publishes no close request for a window of another program.
-
-- **Parameters:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Answers:** nothing
-- **Errors:** a window that is not there answers 'Target window not found.'; a window of another program cannot be closed this way.
-
-```ahk
-WinClose "Untitled"
-```
-
 ### WinExist
 
 Whether a window with this title exists. The windows are the ones of the compositor, and a number names one of them.
@@ -548,30 +463,6 @@ Whether a window with this title exists. The windows are the ones of the composi
 
 ```ahk
 if WinExist("Untitled")
-```
-
-### WinExist
-
-Whether a window with this title exists. The windows are the ones of the compositor, and a number names one of them.
-
-- **Parameters:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Answers:** the identifier of the window that is there, zero when there is none
-- **Errors:** a window that is not there is an answer and not a failure; a question the compositor cannot answer fails with its reason.
-
-```ahk
-if WinExist("Untitled")
-```
-
-### WinGetClass
-
-The class of the window that matches the title that was given.
-
-- **Parameters:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Answers:** the class of the window
-- **Errors:** a title that matches no window answers 'Target window not found.'; the text of the window and the exclusions are not carried yet.
-
-```ahk
-class := WinGetClass("Untitled")
 ```
 
 ### WinGetClass
@@ -646,18 +537,6 @@ Where the window is and how big it is, as the compositor reports it.
 WinGetPos "Untitled", , &x, &y, &w, &h
 ```
 
-### WinGetPos
-
-Where the window is and how big it is, as the compositor reports it.
-
-- **Parameters:** [WindowTitle] [, WinText, &X, &Y, &Width, &Height, ExcludeTitle, ExcludeText]
-- **Answers:** nothing; the place and the size are written into the variables of the caller
-- **Errors:** the text of the window and the exclusions are not carried yet; a window that is not there answers 'Target window not found.'
-
-```ahk
-WinGetPos "Untitled", , &x, &y, &w, &h
-```
-
 ### WinGetProcessName
 
 Answers the name of the program of a window; it rides the chain of WinGetPID -- the window names an application on the accessibility bus, the bus answers its process, and the process table answers the name.
@@ -682,18 +561,6 @@ The title of the active window, or of the window that matches the text that was 
 title := WinGetTitle()
 ```
 
-### WinGetTitle
-
-The title of the active window, or of the window that matches the text that was given.
-
-- **Parameters:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Answers:** the title of the window
-- **Errors:** a window that was named and is not there answers 'Target window not found.'; the text of the window and the exclusions are not carried yet.
-
-```ahk
-title := WinGetTitle()
-```
-
 ### WinHide
 
 Takes the window of the script off the screen.
@@ -704,30 +571,6 @@ Takes the window of the script off the screen.
 
 ```ahk
 WinHide "Untitled"
-```
-
-### WinHide
-
-Takes the window of the script off the screen.
-
-- **Parameters:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Answers:** nothing
-- **Errors:** a window that is not there answers 'Target window not found.'; a window of another program cannot be hidden this way.
-
-```ahk
-WinHide "Untitled"
-```
-
-### WinMaximize
-
-Maximizes the window the script made, and only that one; the helper of the box is the one that knows how to do it.
-
-- **Parameters:** WinTitle
-- **Answers:** the empty text
-- **Errors:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinMaximize "MyWindow"
 ```
 
 ### WinMaximize
@@ -754,18 +597,6 @@ Minimizes the window the script made, and only that one: a window of another pro
 WinMinimize "MyWindow"
 ```
 
-### WinMinimize
-
-Minimizes the window the script made, and only that one: a window of another program cannot be minimized from a Wayland client.
-
-- **Parameters:** WinTitle
-- **Answers:** the empty text
-- **Errors:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has; the reason of the desktop when the helper refuses the state.
-
-```ahk
-WinMinimize "MyWindow"
-```
-
 ### WinMove
 
 Moves and resizes the window the script made; a Wayland compositor places the windows itself and need not honour the place a client asks for.
@@ -776,30 +607,6 @@ Moves and resizes the window the script made; a Wayland compositor places the wi
 
 ```ahk
 WinMove 100, 100, 800, 600, "MyWindow"
-```
-
-### WinMove
-
-Moves and resizes the window the script made; a Wayland compositor places the windows itself and need not honour the place a client asks for.
-
-- **Parameters:** X, Y, Width, Height, WinTitle
-- **Answers:** the empty text
-- **Errors:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinMove 100, 100, 800, 600, "MyWindow"
-```
-
-### WinRestore
-
-Puts the window of the script back from the minimized state, and only that window.
-
-- **Parameters:** WinTitle
-- **Answers:** the empty text
-- **Errors:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinRestore "MyWindow"
 ```
 
 ### WinRestore
@@ -826,30 +633,6 @@ Renames the window the script made; renaming the window of another program is no
 WinSetTitle "New Title", "MyWindow"
 ```
 
-### WinSetTitle
-
-Renames the window the script made; renaming the window of another program is not something a Wayland client can do.
-
-- **Parameters:** NewTitle, WinTitle
-- **Answers:** the empty text
-- **Errors:** "Target window not found." when the script has no window of its own, or when the title does not match the one it has.
-
-```ahk
-WinSetTitle "New Title", "MyWindow"
-```
-
-### WinShow
-
-Puts the window of the script back on the screen, after a `WinHide`.
-
-- **Parameters:** [WindowTitle] [, WinText] [, ExcludeTitle] [, ExcludeText]
-- **Answers:** nothing
-- **Errors:** a window that is not there answers 'Target window not found.'; a window of another program cannot be shown this way.
-
-```ahk
-WinShow "Untitled"
-```
-
 ### WinShow
 
 Puts the window of the script back on the screen, after a `WinHide`.
@@ -874,18 +657,6 @@ Waits for a window whose title matches to exist, and answers the identifier of i
 WinWait "Calculator", , 5
 ```
 
-### WinWait
-
-Waits for a window whose title matches to exist, and answers the identifier of it; the identifier of a Wayland window is a token, so it is text.
-
-- **Parameters:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **Answers:** the identifier of the window as text, or 0 when the timeout ran out
-- **Errors:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."; the wait is capped at sixty seconds when the timeout is left out.
-
-```ahk
-WinWait "Calculator", , 5
-```
-
 ### WinWaitActive
 
 Waits for a window whose title matches to have the focus, and answers the identifier of it.
@@ -896,30 +667,6 @@ Waits for a window whose title matches to have the focus, and answers the identi
 
 ```ahk
 WinWaitActive "Calculator", , 5
-```
-
-### WinWaitActive
-
-Waits for a window whose title matches to have the focus, and answers the identifier of it.
-
-- **Parameters:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **Answers:** the identifier of the window as text, or 0 when the timeout ran out
-- **Errors:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."
-
-```ahk
-WinWaitActive "Calculator", , 5
-```
-
-### WinWaitClose
-
-Waits for a window whose title matches to be gone, and answers whether it is.
-
-- **Parameters:** WinTitle, WinText, [Timeout], [ExcludeTitle], [ExcludeText]
-- **Answers:** 1 when the window is gone, 0 when it is still there at the timeout
-- **Errors:** a session that is not Wayland answers "this desktop waits for the windows of a Wayland session, and this session is not Wayland"; the two exclusions are refused with "the two exclusions are not carried yet."
-
-```ahk
-WinWaitClose "Calculator", , 5
 ```
 
 ### WinWaitClose

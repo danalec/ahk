@@ -144,21 +144,40 @@ BEHAVIOR = {
             "example": 't := FileGetTime("out.txt", "M")',
         },
     },
+    "FileSetAttrib": {
+        "en": {
+            "summary": "Changes the attributes of a file. The attributes come first and the name of the file second, the way the binary of v2.0.19 takes them. The name of the file may be a pattern, and the attributes are changed in every file that the pattern names.",
+            "params": "Attributes, FileName, [Recurse]",
+            "returns": "nothing",
+            "errors": "ValueError when the attributes are not one of v2; OSError when the attributes of the file cannot be changed. The third parameter is the recursion: the \"R\" walks into the subfolders, and any other letter is refused.",
+            "example": 'FileSetAttrib "+H", "*.txt"',
+        },
+        "zh": {
+            "summary": "修改文件的属性。参数顺序与 v2.0.19 的二进制一致：先是属性，后是文件名。文件名可以是模式，模式匹配的每个文件都会被修改。",
+            "returns": "无返回值",
+            "example": 'FileSetAttrib "+H", "*.txt"',
+        },
+        "pt-BR": {
+            "summary": "Altera os atributos de um arquivo. Os atributos vêm primeiro e o nome do arquivo depois, como o binário do v2.0.19 os recebe. O nome do arquivo pode ser um padrão, e os atributos mudam em todo arquivo que o padrão nomeia.",
+            "returns": "nada",
+            "example": 'FileSetAttrib "+H", "*.txt"',
+        },
+    },
     "FileSetTime": {
         "en": {
-            "summary": "Changes the time of a file. The time comes first and the name of the file second, the way the binary of v2.0.19 takes them; a time that is blank is the moment of the machine.",
-            "params": "TimeStamp, FileName, [Which], [Mode]",
+            "summary": "Changes the time of a file. The time comes first and the name of the file second, the way the binary of v2.0.19 takes them; a time that is blank is the moment of the machine. The name of the file may be a pattern, and the time is changed in every file that the pattern names.",
+            "params": "TimeStamp, FileName, [Which], [Recurse]",
             "returns": "nothing",
-            "errors": "ValueError when the stamp or the time that is wanted is not one of v2; OSError when the times of the file cannot be changed. The recursion of v2 is refused with the reason.",
+            "errors": "ValueError when the stamp is not one of v2, or when the time that is wanted is not the \"M\", the \"C\" or the \"A\"; OSError when the times of the file cannot be changed. The fourth parameter is the recursion: the \"R\" walks into the subfolders, and any other letter is refused.",
             "example": 'FileSetTime "20000101000000", "out.txt", "M"',
         },
         "zh": {
-            "summary": "修改文件的时间。参数顺序与 v2.0.19 的二进制一致：先是时间，后是文件名；时间留空表示机器的当前时刻。",
+            "summary": "修改文件的时间。参数顺序与 v2.0.19 的二进制一致：先是时间，后是文件名；时间留空表示机器的当前时刻。文件名可以是模式，模式匹配的每个文件都会被改变。",
             "returns": "无返回值",
             "example": 'FileSetTime "20000101000000", "out.txt", "M"',
         },
         "pt-BR": {
-            "summary": "Altera o horário de um arquivo. O tempo vem primeiro e o nome do arquivo depois, como o binário do v2.0.19 os recebe; um tempo em branco é o momento da máquina.",
+            "summary": "Altera o horário de um arquivo. O tempo vem primeiro e o nome do arquivo depois, como o binário do v2.0.19 os recebe; um tempo em branco é o momento da máquina. O nome do arquivo pode ser um padrão, e o horário muda em todo arquivo que o padrão nomeia.",
             "returns": "nada",
             "example": 'FileSetTime "20000101000000", "out.txt", "M"',
         },
@@ -262,18 +281,18 @@ BEHAVIOR = {
         "en": {
             "summary": "Takes a directory away. A directory that is not empty stays without it unless the recursion is asked for.",
             "params": "DirName, [Recurse]",
-            "returns": "the name of the directory.",
+            "returns": "nothing; the name of a command answers nothing.",
             "errors": "Error `Failed` when the directory is not there, or when it is not empty and the recursion is not asked for.",
             "example": 'd := DirDelete("out", 1)',
         },
         "zh": {
             "summary": "删除一个目录。目录非空时，除非要求递归，否则目录会保留下来。",
-            "returns": "目录的名称。",
+            "returns": "无返回值；命令不回答任何东西。",
             "example": 'd := DirDelete("out", 1)',
         },
         "pt-BR": {
             "summary": "Apaga um diretório. Um diretório que não está vazio permanece, a não ser que a recursão seja pedida.",
-            "returns": "o nome do diretório.",
+            "returns": "nada; o nome de um comando não responde nada.",
             "example": 'd := DirDelete("out", 1)',
         },
     },
@@ -282,7 +301,7 @@ BEHAVIOR = {
             "summary": "Copies a directory and everything in it. What is copied is the content of the directory into the destination.",
             "params": "Source, Dest, [Overwrite]",
             "returns": "nothing",
-            "errors": "Error `Failed` when the source is not a directory, or when the destination is there and the overwrite is not asked for; a name that holds a wildcard is refused with the reason that the wildcards of v2 are not carried.",
+            "errors": "Error `Failed` when the source is not a directory, or when the destination is there and the overwrite is not asked for; a name that holds a wildcard is refused, and the reference fails with `Failed` on a wildcard too.",
             "example": 'DirCopy "src", "dst"',
         },
         "zh": {
@@ -301,7 +320,7 @@ BEHAVIOR = {
             "summary": "Moves a directory, with everything in it. A destination that is there is merged with the one that comes: the files of the source win.",
             "params": "Source, Dest, [Overwrite]",
             "returns": "nothing",
-            "errors": "Error `Failed` when the source is not a directory; a name that holds a wildcard is refused with the reason that the wildcards of v2 are not carried.",
+            "errors": "Error `Failed` when the source is not a directory; a name that holds a wildcard is refused, and the reference fails with `Failed` on a wildcard too.",
             "example": 'DirMove "src", "dst"',
         },
         "zh": {
@@ -412,10 +431,10 @@ BEHAVIOR = {
     },
     "FileInstall": {
         "en": {
-            "summary": "Copies a file the way the installer of a compiled script does. Nothing is compiled here: the file is copied.",
+            "summary": "Copies a file the way the installer of a compiled script does. Nothing is compiled here: the file is copied. The third parameter is the flag of the overwrite, and a second copy onto a file that is there is a success when the flag is given.",
             "params": "Source, Dest, [Overwrite]",
             "returns": "nothing",
-            "errors": "Error `Failed` when the source is not there, or when the destination is there; the overwrite flag of v2 is not read by the tree, so a copy onto a file that is there fails.",
+            "errors": "Error `Failed` when the source is not there, or when the destination is there and the overwrite is not asked for.",
             "example": 'FileInstall "data.txt", "data.out.txt"',
         },
         "zh": {
