@@ -17,6 +17,10 @@
 //! sixteen. The version itself is the one of the `VS_FIXEDFILEINFO`, and
 //! the text of the `FileVersion` is the one to fall back on.
 
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+
 /// The type of the resource that carries the version of a program.
 const RT_VERSION: u32 = 16;
 

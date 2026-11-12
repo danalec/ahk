@@ -16,6 +16,7 @@
 //! `[name, target, checked, enabled]`: the target is a Text with the name of
 //! the function to call, or the SUBMENU object itself.
 use alloc::string::{String, ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value};
