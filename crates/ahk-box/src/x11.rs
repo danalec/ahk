@@ -53,7 +53,7 @@ mod ffi {
     /// The first index in `SYMBOLS` that belongs to libXtst rather than libX11.
     pub(super) const LIBXTST_FROM: usize = 19;
     /// The number of resolved symbols.
-    pub(super) const SYMBOL_COUNT: usize = 25;
+pub(super) const SYMBOL_COUNT: usize = 32;
 
     /// The symbols, in a FIXED order: entry `i` belongs to wrapper `i`.
     ///
@@ -87,6 +87,13 @@ mod ffi {
         b"XSetErrorHandler\0",      // 22
         b"XGetErrorText\0",         // 23
         b"XQueryPointer\0",        // 24
+        b"XConvertSelection\0",     // 25
+        b"XSetSelectionOwner\0",   // 26
+        b"XGetSelectionOwner\0",   // 27
+        b"XCreateSimpleWindow\0",  // 28
+        b"XChangeProperty\0",      // 29
+        b"XSendEvent\0",           // 30
+        b"XMapWindow\0",          // 31
     ];
 
     const _: () = assert!(SYMBOLS.len() == SYMBOL_COUNT);
@@ -202,7 +209,7 @@ mod ffi {
     #[rustfmt::skip]
     xfn!(7, XFree(p: *mut c_void) -> c_int);
     #[rustfmt::skip]
-    xfn!(8, XGetWindowProperty(d: *mut c_void, w: c_ulong, property: c_ulong, long_offset: c_long, long_length: c_long, delete: c_int, req_type: c_ulong, actual_format: *mut c_int, actual_type: *mut c_ulong, nitems: *mut c_ulong, bytes_after: *mut c_ulong, prop: *mut *mut c_uchar) -> c_int);
+    xfn!(8, XGetWindowProperty(d: *mut c_void, w: c_ulong, property: c_ulong, long_offset: c_long, long_length: c_long, delete: c_int, req_type: c_ulong, actual_type: *mut c_ulong, actual_format: *mut c_int, nitems: *mut c_ulong, bytes_after: *mut c_ulong, prop: *mut *mut c_uchar) -> c_int);
     #[rustfmt::skip]
     xfn!(9, XInternAtom(d: *mut c_void, name: *const c_char, only_if_exists: c_int) -> c_ulong);
     #[rustfmt::skip]
@@ -244,6 +251,31 @@ mod ffi {
     /// `XQueryPointer`: the place of the pointer on the screen.
     #[rustfmt::skip]
     xfn!(24, XQueryPointer(d: *mut c_void, w: c_ulong, root_return: *mut c_ulong, child_return: *mut c_ulong, root_x: *mut c_int, root_y: *mut c_int, win_x: *mut c_int, win_y: *mut c_int, mask_return: *mut c_uint) -> c_int);
+    /// `XConvertSelection`: the ask of a selection to its owner.
+    #[rustfmt::skip]
+    xfn!(25, XConvertSelection(d: *mut c_void, selection: c_ulong, target: c_ulong, property: c_ulong, requestor: c_ulong, time: c_ulong) -> c_int);
+    /// `XSetSelectionOwner`: the script becomes the owner of a selection.
+    #[rustfmt::skip]
+    xfn!(26, XSetSelectionOwner(d: *mut c_void, selection: c_ulong, owner: c_ulong, time: c_ulong) -> c_int);
+    /// `XGetSelectionOwner`: the window that owns a selection.
+    #[rustfmt::skip]
+    xfn!(27, XGetSelectionOwner(d: *mut c_void, selection: c_ulong) -> c_ulong);
+    /// `XCreateSimpleWindow`: the window of the script.
+    #[rustfmt::skip]
+    xfn!(28, XCreateSimpleWindow(d: *mut c_void, parent: c_ulong, x: c_int, y: c_int, width: c_uint, height: c_uint, border_width: c_uint, border: c_ulong, background: c_ulong) -> c_ulong);
+    /// `XChangeProperty`: the answer of the owner of a selection.
+    #[rustfmt::skip]
+    xfn!(29, XChangeProperty(d: *mut c_void, w: c_ulong, property: c_ulong, kind: c_ulong, format: c_int, mode: c_int, data: *const c_uchar, items: c_int) -> c_int);
+    /// `XSendEvent`: the answer of the owner, sent to the one that asked.
+    #[rustfmt::skip]
+    xfn!(30, XSendEvent(d: *mut c_void, w: c_ulong, propagate: c_int, mask: c_long, event: *mut c_void) -> c_int);
+    /// `XMapWindow`: the window of the script, shown.
+    ///
+    /// WHY it is shown: the X server accepts the ownership of a selection
+    /// only from a VIEWABLE window, and an unmapped one is refused with
+    /// a `BadWindow` -- the clipboard would then have no owner at all.
+    #[rustfmt::skip]
+    xfn!(31, XMapWindow(d: *mut c_void, w: c_ulong) -> c_int);
 
     // The libc dynamic loader, declared by hand (no `#[link]`, no crate).
     unsafe extern "C" {
@@ -323,8 +355,8 @@ mod ffi {
             1,
             0,
             0,
-            &mut format,
             &mut actual_type,
+            &mut format,
             &mut nitems,
             &mut after,
             &mut prop,
@@ -739,6 +771,11 @@ const REVERT_TO_PARENT: c_int = 2;
 /// `KeyPress`, the event type whose keysym `pending_keys` reports.
 const KEY_PRESS: c_int = 2;
 
+/// The event of a request of a selection: another client asks.
+const SELECTION_REQUEST: c_int = 30;
+/// The event that carries the answer of the owner of a selection.
+const SELECTION_NOTIFY: c_int = 31;
+
 // ---------------------------------------------------------------------------
 // The errors of the X server.
 // ---------------------------------------------------------------------------
@@ -891,6 +928,42 @@ fn the_name_of_the_x_error(code: u8) -> Option<&'static str> {
 /// Xlib's `XEvent` is a union of 24 `long`s on LP64.
 const EVENT_WORDS: usize = 24;
 /// Xlib's `XWindowAttributes` is 136 bytes on LP64; a larger buffer is safe.
+/// The events of the selections of X11.
+///
+/// WHY one mirror for the two: `XSelectionRequestEvent` and
+/// `XSelectionNotifyEvent` carry the SAME fields in the SAME order, and
+/// the `type` of the event says which one it is.
+///
+/// WHY the word before the requestor: the measurement on the VM on
+/// 2026-11-11 read the words of the event and found the window of the
+/// requestor in TWO of them -- the one that is at the offset 32 and the
+/// one that is at the offset 40. The requestor is the second one: the
+/// selection of the event was read at the offset 48, the target at the
+/// offset 56, the property at the offset 64 and the time at the offset
+/// 72. The mirror carries the word that is before the requestor, and the
+/// offsets are pinned so that a wrong one is a failure of the build and
+/// not a wrong answer at the run.
+#[repr(C)]
+struct XSelectionEvent {
+    kind: c_int,
+    serial: c_ulong,
+    send_event: c_int,
+    display: *mut c_void,
+    /// The word that the event carries before the requestor: it holds the
+    /// window of the requestor as well.
+    before_the_requester: c_ulong,
+    requestor: c_ulong,
+    selection: c_ulong,
+    target: c_ulong,
+    property: c_ulong,
+    time: c_ulong,
+}
+
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, requestor) == 40);
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, selection) == 48);
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, target) == 56);
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, property) == 64);
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, time) == 72);
 const ATTRS_BYTES: usize = 256;
 
 /// The X11 desktop, implementing `Keyboard`, `Pointer`, `Screen` and `Windows`.
@@ -914,6 +987,14 @@ pub struct X11Desktop {
     /// open and the pictures that were loaded are STATE, and a desktop
     /// made for each call would lose them between the calls.
     lab: crate::desktop::LabDesktop,
+    /// The window of the script that owns the clipboard of the
+    /// session.
+    ///
+    /// WHY a window of its own: the owner of a selection is a
+    /// WINDOW, and the root window of the screen is not one.
+    clipboard_window: c_ulong,
+    /// The text the script owns in the clipboard of the session.
+    clipboard_text: Option<String>,
 }
 
 /// The keyboard half of [`X11Desktop`], by name.
@@ -943,6 +1024,8 @@ impl X11Desktop {
             display: std::ptr::null_mut(),
             failure: None,
             lab: crate::desktop::LabDesktop::new(),
+            clipboard_window: 0,
+            clipboard_text: None,
         }
     }
 
@@ -1097,6 +1180,13 @@ impl X11Desktop {
             let mut event = [0usize; EVENT_WORDS];
             ffi::XNextEvent(display, event.as_mut_ptr().cast::<c_void>());
             if (event[0] as c_int) != KEY_PRESS {
+            if (event[0] as c_int) == SELECTION_REQUEST {
+                // Another client asks for the clipboard: the script
+                // owns it, and the script answers.
+                let request = unsafe { &*(event.as_ptr().cast::<XSelectionEvent>()) };
+                self.serve_the_selection(display, request);
+                continue;
+            }
                 continue;
             }
             let mut buffer: [c_char; 32] = [0; 32];
@@ -1937,11 +2027,268 @@ impl Files for X11Desktop {
     }
 
 }
-impl Clipboard for X11Desktop {}
+impl X11Desktop {
+    /// The atom of a name of the X server.
+    fn the_atom(display: *mut c_void, name: &str) -> c_ulong {
+        let mut bytes = name.as_bytes().to_vec();
+        bytes.push(0);
+        ffi::XInternAtom(display, bytes.as_ptr().cast::<c_char>(), 0)
+    }
+
+    /// The window of the script that owns the clipboard of the session.
+    ///
+    /// WHY a window of its own: the owner of a selection is a WINDOW, and
+    /// the root window of the screen is not one.
+    fn the_clipboard_window(&mut self, display: *mut c_void) -> Result<c_ulong, String> {
+        if self.clipboard_window != 0 {
+            return Ok(self.clipboard_window);
+        }
+        let root = ffi::XDefaultRootWindow(display);
+        let window = ffi::XCreateSimpleWindow(display, root, 0, 0, 1, 1, 0, 0, 0);
+        if window == 0 {
+            return Err("the X server did not give a window to the script".to_string());
+        }
+        // The window is shown: the X server accepts the ownership of a
+        // selection only from a VIEWABLE window, and it refuses an
+        // unmapped one with a `BadWindow` -- the clipboard would then have
+        // no owner at all, and every read of it would answer nothing.
+        ffi::XMapWindow(display, window);
+        ffi::XFlush(display);
+        self.clipboard_window = window;
+        Ok(window)
+    }
+
+    /// Answer a request of the clipboard, with the text the script owns.
+    ///
+    /// WHY the answer is sent and not left to the server: the owner of a
+    /// selection is the client itself, and the client is this tree.
+    fn serve_the_selection(&mut self, display: *mut c_void, request: &XSelectionEvent) {
+        let Some(text) = self.clipboard_text.clone() else {
+            return;
+        };
+        let utf8 = Self::the_atom(display, "UTF8_STRING");
+        let targets = Self::the_atom(display, "TARGETS");
+        let mut property = if request.property == 0 {
+            request.target
+        } else {
+            request.property
+        };
+        if request.target == utf8 {
+            let bytes = text.as_bytes();
+            ffi::XChangeProperty(
+                display,
+                request.requestor,
+                property,
+                utf8,
+                8,
+                0,
+                bytes.as_ptr().cast::<c_uchar>(),
+                bytes.len() as c_int,
+            );
+        } else if request.target == targets {
+            let mut list = [targets, utf8];
+            ffi::XChangeProperty(
+                display,
+                request.requestor,
+                property,
+                4,
+                32,
+                0,
+                list.as_mut_ptr().cast::<c_uchar>(),
+                list.len() as c_int,
+            );
+        } else {
+            // A target the script does not carry: the property is None,
+            // and that is how an owner says "no".
+            property = 0;
+        }
+        let mut notify = XSelectionEvent {
+            kind: SELECTION_NOTIFY,
+            serial: 0,
+            send_event: 1,
+            display,
+            before_the_requester: request.requestor,
+            requestor: request.requestor,
+            selection: request.selection,
+            target: request.target,
+            property,
+            time: request.time,
+        };
+        ffi::XSendEvent(
+            display,
+            request.requestor,
+            0,
+            0,
+            (&mut notify as *mut XSelectionEvent).cast::<c_void>(),
+        );
+        ffi::XFlush(display);
+    }
+
+    /// The text of a property of the window of the script.
+    fn the_text_of_the_property(
+        &self,
+        display: *mut c_void,
+        window: c_ulong,
+        property: c_ulong,
+    ) -> String {
+        let mut actual_type: c_ulong = 0;
+        let mut actual_format: c_int = 0;
+        let mut items: c_ulong = 0;
+        let mut after: c_ulong = 0;
+        let mut data: *mut c_uchar = std::ptr::null_mut();
+        let got = ffi::XGetWindowProperty(
+            display,
+            window,
+            property,
+            0,
+            1_048_575,
+            0,
+            0,
+            &mut actual_type,
+            &mut actual_format,
+            &mut items,
+            &mut after,
+            &mut data,
+        );
+        if got != 0 || data.is_null() {
+            return String::new();
+        }
+        let length = match actual_format {
+            8 => items as usize,
+            16 => items as usize * 2,
+            32 => items as usize * 4,
+            _ => 0,
+        };
+        let bytes = unsafe { std::slice::from_raw_parts(data, length) };
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        ffi::XFree(data.cast::<c_void>());
+        text
+    }
+
+    /// The text of the clipboard of the session.
+    fn read_the_clipboard(&mut self, display: *mut c_void) -> Result<String, String> {
+        let window = self.the_clipboard_window(display)?;
+        let clipboard = Self::the_atom(display, "CLIPBOARD");
+        let utf8 = Self::the_atom(display, "UTF8_STRING");
+        let property = Self::the_atom(display, "AHK_CLIPBOARD");
+        // Nobody owns the clipboard: there is nothing to read, and that
+        // is not a failure.
+        if ffi::XGetSelectionOwner(display, clipboard) == 0 {
+            return Ok(String::new());
+        }
+        ffi::XConvertSelection(display, clipboard, utf8, property, window, CURRENT_TIME);
+        ffi::XFlush(display);
+        // The owner answers with an EVENT, and the event arrives in the
+        // queue of the connection: the wait is bounded, because a client
+        // that never answers must not take the run with it.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1500);
+        loop {
+            while ffi::XPending(display) > 0 {
+                let mut event = [0usize; EVENT_WORDS];
+                ffi::XNextEvent(display, event.as_mut_ptr().cast::<c_void>());
+                let kind = event[0] as c_int;
+                if kind == SELECTION_REQUEST {
+                    // Another client asks for the clipboard: the script
+                    // owns it, and the script answers.
+                    let request = unsafe { &*(event.as_ptr().cast::<XSelectionEvent>()) };
+                    self.serve_the_selection(display, request);
+                    continue;
+                }
+                if kind == SELECTION_NOTIFY {
+                    let notify = unsafe { &*(event.as_ptr().cast::<XSelectionEvent>()) };
+                    if notify.property == 0 {
+                        // The owner refused the request.
+                        return Ok(String::new());
+                    }
+                    return Ok(self.the_text_of_the_property(display, window, notify.property));
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        Err("the owner of the clipboard did not answer in time".to_string())
+    }
+}
+impl Clipboard for X11Desktop {
+    /// The text of the clipboard of the session.
+    ///
+    /// WHY the protocol of the selections: the clipboard of an X11
+    /// session is a SELECTION, and it is asked of the window that owns
+    /// it. The tree of the box uses `wl-paste`, and that speaks
+    /// Wayland.
+    fn clipboard_read(&mut self) -> Result<String, String> {
+        let display = self.connection()?;
+        self.read_the_clipboard(display)
+    }
+
+    /// Put a text in the clipboard of the session.
+    ///
+    /// WHY the script owns it: the owner of a selection is a WINDOW, and
+    /// the script needs a window of its own to be one. The text is
+    /// answered when another client asks for it.
+    fn clipboard_write(&mut self, text: &str) -> Result<String, String> {
+        let display = self.connection()?;
+        let window = self.the_clipboard_window(display)?;
+        let clipboard = Self::the_atom(display, "CLIPBOARD");
+        self.clipboard_text = Some(text.to_string());
+        let owned = ffi::XSetSelectionOwner(display, clipboard, window, CURRENT_TIME);
+        ffi::XFlush(display);
+        if owned == 0 {
+            return Err("the X server did not accept the ownership of the clipboard".to_string());
+        }
+        Ok(format!("the clipboard of the session holds {text:?}"))
+    }
+}
 impl Timers for X11Desktop {}
-impl Hotkeys for X11Desktop {}
-impl Native for X11Desktop {}
-impl Sound for X11Desktop {}
+impl Hotkeys for X11Desktop {
+    /// The hotkeys of the script: the watcher of the keyboard of the
+    /// machine answers for them.
+    fn register_hotkey(&mut self, name: &str) -> Result<String, String> {
+        self.lab.register_hotkey(name)
+    }
+    fn unregister_hotkey(&mut self, name: &str) -> Result<String, String> {
+        self.lab.unregister_hotkey(name)
+    }
+    fn hotkeys(&mut self) -> Result<Vec<String>, String> {
+        self.lab.hotkeys()
+    }
+    fn fired_hotkey(&mut self) -> Result<Option<String>, String> {
+        self.lab.fired_hotkey()
+    }
+}
+impl Native for X11Desktop {
+    /// The call of a library: the raven answers for the libraries of
+    /// Windows, and the machine answers for the ones of the machine.
+    fn call_native(
+        &mut self,
+        call: &mut ahk::dll::NativeCall,
+    ) -> Result<ahk::dll::NativeResult, ahk::dll::NativeFailure> {
+        self.lab.call_native(call)
+    }
+}
+impl Sound for X11Desktop {
+    /// The sound of the machine: `pactl` answers for the devices.
+    fn sound_device_named(&mut self, device: &str) -> Result<Option<String>, String> {
+        self.lab.sound_device_named(device)
+    }
+    fn sound_device_names(&mut self) -> Result<(String, String), String> {
+        self.lab.sound_device_names()
+    }
+    fn sound_volume(&mut self, device: &str) -> Result<f64, String> {
+        self.lab.sound_volume(device)
+    }
+    fn sound_set_volume(&mut self, device: &str, volume: f64) -> Result<(), String> {
+        self.lab.sound_set_volume(device, volume)
+    }
+    fn sound_muted(&mut self, device: &str) -> Result<bool, String> {
+        self.lab.sound_muted(device)
+    }
+    fn sound_set_muted(&mut self, device: &str, muted: bool) -> Result<(), String> {
+        self.lab.sound_set_muted(device, muted)
+    }
+}
 impl Machine for X11Desktop {
     fn drive_space(&mut self, path: &str) -> Result<Option<ahk::desktop::DriveSpace>, String> {
             crate::desktop::LabDesktop::new().drive_space(path)
@@ -2020,6 +2367,44 @@ impl Machine for X11Desktop {
     /// The path of the program that runs the script.
     fn executable(&mut self) -> Result<String, String> {
         self.lab.executable()
+    }
+    /// The icon of the script in the tray of the session.
+    fn tray_set_icon(&mut self, name: &str) -> Result<(), String> {
+        self.lab.tray_set_icon(name)
+    }
+    /// The directory of the programs of the user.
+    fn program_files(&mut self) -> Result<String, String> {
+        self.lab.program_files()
+    }
+    /// The directory of the Windows of the machine.
+    fn windows_directory(&mut self) -> Result<String, String> {
+        self.lab.windows_directory()
+    }
+    /// The registry of the machine: the store of the box.
+    fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
+        self.lab.registry_create_key(key)
+    }
+    fn registry_delete_key(&mut self, key: &str) -> Result<(), String> {
+        self.lab.registry_delete_key(key)
+    }
+    fn registry_delete(&mut self, key: &str, name: &str) -> Result<(), String> {
+        self.lab.registry_delete(key, name)
+    }
+    fn registry_write(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        self.lab.registry_write(key, name, kind, value)
+    }
+    fn registry_value(
+        &mut self,
+        key: &str,
+        name: &str,
+    ) -> Result<Option<(String, String)>, String> {
+        self.lab.registry_value(key, name)
     }
 }
 impl Dialogs for X11Desktop {

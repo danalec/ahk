@@ -238,6 +238,34 @@ i3, port against branch:
 | `LoadPicture` | **1** | a recusa |
 | `ImageSearch` | as coordenadas **vazias** (a imagem não está na tela) | a recusa |
 | `TrayTip` | a razão honesta (a sessão não tem daemon de notificação) | a recusa |
+| `WinGetTitle()` (a janela ativa) | **tester@archlinux:~** | nada |
+| o registro (escreve, lê, apaga) | **42** | a recusa |
+| `TraySetIcon` | **aceito** | "Can't load icon." |
+| a área de transferência (`A_Clipboard`) | **"abc!"** (o vaivém do protocolo das seleções) | a recusa |
+
+**The clipboard of the X11 session is a selection, and it is owned by a
+window of the script** (AGENTS.md §337). The window is mapped, because
+the X server accepts the ownership of a selection only from a viewable
+one. **The mirror of the events was measured**: the requestor is at the
+offset 40, the selection at the 48, the target at the 56, the property at
+the 64 — not the obvious layout, and the offsets are pinned by
+`offset_of!`.
+
+**The tree had a bug of its own in the same file**: the wrapper of
+`XGetWindowProperty` had the parameters in the wrong order (Xlib has
+`actual_type` before `actual_format`), so the X server wrote eight bytes
+into the four of the format — the stack of the caller was broken — and
+the check of the format compared an atom: **the active window of an X11
+session was never found**. Fixed, and `WinGetTitle()` answers the title
+of the window that has the focus.
+
+**A gap of the DIALECT, not of the X11 path, and the same in the branch**:
+the names of the built-in variables of v2 **without** the prefix `A_`
+(`Clipboard`, `WorkingDir`, `UserName` and a hundred and thirty others)
+are not read by the tree — `variables::spelled()` demands the prefix.
+They are ordinary variables of the script, and they never reach the
+desktop. It is written down in AGENTS.md §337 and NOT fixed here: the
+fix is a change of the dialect and deserves its own family.
 
 **Two things the VM showed, that the two trees share** (so they are not
 the port's):

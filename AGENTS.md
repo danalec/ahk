@@ -12292,6 +12292,101 @@ X11 backend captures with `XGetImage` and matches with `search_in`.
 dialect did not move: this is about what the X11 session answers, not
 about the names of v2.
 
+## 337. The clipboard of an X11 session is a selection, and it is owned by a window
+
+**Measured on the VM `AhkDesktopTest` on 2026-11-11: the X11 session
+had no clipboard at all.** The backend refused both ways ("this desktop
+cannot read the clipboard", "this desktop cannot write the clipboard"),
+while the desktop of the box answers the clipboard of a Wayland session
+with `wl-copy` and `wl-paste`.
+
+**The clipboard of an X11 session is a SELECTION**, and it is asked of the
+window that OWNS it. There is no tool of the machine that speaks it
+without an external program -- the tree's own answer for an X11 session
+is `xclip` or `xsel`, and the VM has neither -- so the backend speaks the
+protocol itself:
+
+- **The script owns a WINDOW of its own** (`XCreateSimpleWindow`), and the
+  window is **mapped**: the X server accepts the ownership of a selection
+  only from a VIEWABLE window, and it refuses an unmapped one with a
+  `BadWindow` -- the clipboard would then have no owner at all, and every
+  read of it would answer nothing. (Measured: the window unmapped, the
+  write said nothing and the read answered empty; the window mapped, the
+  round trip works.)
+- **The write** takes the ownership of the `CLIPBOARD` selection
+  (`XSetSelectionOwner`) and keeps the text in the desktop. The return
+  value is CHECKED: a server that refuses the ownership is a reason, not
+  a silence.
+- **The read** asks the owner (`XConvertSelection`) and waits for the
+  answer, which is an EVENT -- the wait is bounded (a second and a half),
+  because a client that never answers must not take the run with it.
+- **The owner answers the request** (`XSelectionRequest`) with the text
+  it has, in the target that was asked for (`UTF8_STRING`), and sends the
+  answer back to the one that asked (`XSendEvent` with a
+  `XSelectionNotify`). A target the script does not carry is answered
+  with a property of None, which is how an owner says "no".
+
+**The mirror of the events was MEASURED, and it is not the obvious one.**
+The `XSelectionRequestEvent` and the `XSelectionNotifyEvent` carry the
+same fields, and the measurement on the VM read the words of the event:
+the window of the requestor is in TWO of them -- the one at the offset 32
+and the one at the offset 40 -- and the requestor is the second one. The
+selection is at the offset 48, the target at the 56, the property at the
+64 and the time at the 72. The mirror carries the word that is before the
+requester, and the offsets are pinned with `offset_of!`, so a wrong one
+is a failure of the build and not a wrong answer at the run. (With the
+obvious mirror -- the requestor at the 32 -- the target read as the
+property, the comparison with the atom of `UTF8_STRING` never matched,
+and the owner answered "no" to its own request.)
+
+**The tree had a bug of its own in the same file: the wrapper of
+`XGetWindowProperty` had the parameters in the wrong order.** Xlib's
+signature is
+`(..., Atom req_type, Atom *actual_type_return, int *actual_format_return, ...)`
+and the wrapper of the tree had `actual_format` BEFORE `actual_type`.
+The X server wrote EIGHT bytes into the four of the format -- the stack
+of the caller was broken -- and the check of the format (`format == 32`)
+compared an ATOM, so **the active window of an X11 session was never
+found**. Fixed: the order of the wrapper and the order of the call.
+Measured after the fix, on the VM: `WinGetTitle()` answers
+"tester@archlinux:~" -- the title of the window that has the focus -- and
+it answered nothing before.
+
+**The measured comparison, port against branch, in the session of i3**
+(both binaries built from their own source on the day of the measurement):
+
+| the question | the port | the branch |
+|---|---|---|
+| `MouseGetPos` | **640,400** | a recusa |
+| `A_UserName` | **tester** | a recusa |
+| `A_ComputerName` | **archlinux** | a recusa |
+| `A_ScreenDPI` | **96** | a recusa |
+| `FileOpen` / `FileRead` | **"hello from the x11 path"** | a recusa |
+| `WinGetTitle()` (a janela ativa) | **tester@archlinux:~** | nada |
+| o registro (escreve, lê, apaga) | **42** | a recusa |
+| `TraySetIcon` | **aceito** | "Can't load icon." |
+| a área de transferência (`A_Clipboard`) | **"abc!"** (o vaivém do protocolo) | a recusa |
+| `LoadPicture` | **2** | a recusa |
+
+**The names of the built-in variables of v2 WITHOUT the prefix `A_` are
+not read by the tree -- and that is a gap of the DIALECT, not of the X11
+path.** `variables::spelled()` strips the prefix `A_` and answers
+nothing when the name does not carry it, so `Clipboard`, `WorkingDir`,
+`UserName` and the other hundred and thirty names of v2 that are
+written without the prefix are ORDINARY variables of the script: they are
+read and written in the table of the script, and they never reach the
+desktop. The name of the v1 (`A_Clipboard`) reaches it. **The branch
+answers the same way**, so this is not the port's doing, and it is NOT
+fixed here: the fix is a change of the dialect (the two conventions have
+to meet in the lookup, and the v1 must not take the names of the v2),
+and it deserves its own family. It is written here because the probe of
+the clipboard needed the name of the v1 to reach the desktop, and a
+measurement that needs a name of the other dialect is a measurement that
+says something about the measurement.
+
+**The suite is green on the VM with all of it**, and the surface of the
+dialect did not move: 817 answers with a value and 16 refused, as before.
+
 ## 335. An error of the X server is a reason, not the end of the run
 
 **Measured on the VM `AhkDesktopTest` on 2026-11-11: the X11 backend
