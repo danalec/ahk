@@ -603,18 +603,20 @@ sees the environment of the session.
 | `RunWait` | Starts it through `sh -c` and waits for it, and answers the code and what it wrote. |
 | `EnvGet` | Reads the environment of the runner. |
 | `EnvSet` | Writes the environment of the runner. |
-| `ProcessExist`, `ProcessClose` | The names of Windows that the runtime does not carry. |
+| `ProcessExist`, `ProcessClose` | The processes are read out of `/proc`: `ProcessExist` answers whether a name is there, and `ProcessClose` ends it. |
 
 `EnvSet` refuses a name that is empty and a name that carries an equal
 sign, with the reason of the machine. The environment it writes is the
 environment of the runner: the script runs on one thread, so nothing else
 is reading it while the change happens.
 
-`ProcessExist("notepad.exe")` fails with the general reason of a name of
-Windows:
+`ProcessExist("notepad.exe")` answers 1 or 0 on the box, because the
+processes are read out of `/proc`. On a host that has no `/proc` -- a
+Windows machine, or a container without it -- the name fails with the
+reason of the machine:
 
 ```json
-{"elapsed_ms":0,"error":"this is a name of Windows, and this desktop is not Windows.","error_line":1,...}
+{"elapsed_ms":0,"error":"the processes of this machine are read out of /proc, and this machine has none","error_line":1,...}
 ```
 
 ## The hotkeys

@@ -1,6 +1,6 @@
 # L'index de tous les noms
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Langue: Français
 
@@ -166,8 +166,8 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`CoordModeToolTip`](families/gui.md) | variable | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`Cos`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`Map.Count`](families/objects.md) | method | Map | Les objets du langage : Array, Map et Func | valeur |
-| [`Critical`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : this runtime runs one script in one thread, and it cannot make it critical. |
-| [`Cursor`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : the shape of the cursor of the machine is not read by this runtime. |
+| [`Critical`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : ce runtime exécute un script dans un seul fil, et il ne peut pas le rendre critique. |
+| [`Cursor`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : ce runtime ne lit pas la forme du curseur de la machine. |
 | [`DateAdd`](families/time.md) | command | -- | Les dates et les heures | valeur |
 | [`DateDiff`](families/time.md) | command | -- | Les dates et les heures | valeur |
 | [`DD`](families/time.md) | variable | -- | Les dates et les heures | valeur |
@@ -215,7 +215,7 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`DriveRetract`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`DriveSetLabel`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`DriveUnlock`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
-| [`Edit`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`Edit`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`EditGetCurrentCol`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`EditGetCurrentLine`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`EditGetLine`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
@@ -584,7 +584,7 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`RegRead`](families/registry.md) | function | -- | Les API du registre | valeur |
 | [`RegView`](families/registry.md) | variable | -- | Les API du registre | valeur |
 | [`RegWrite`](families/registry.md) | function | -- | Les API du registre | valeur |
-| [`Reload`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : this runtime runs one script once, and it cannot run itself again. |
+| [`Reload`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : ce runtime exécute un script une fois, et il ne peut pas s'exécuter encore. |
 | [`Array.RemoveAt`](families/objects.md) | method | Array | Les objets du langage : Array, Map et Func | valeur |
 | [`Gui.Menu.Rename`](families/gui.md) | method | Gui.Menu | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`Gui.Restore`](families/gui.md) | method | Gui | Fenêtres d'interface et automatisation des fenêtres | valeur |
@@ -598,7 +598,7 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`ScreenWidth`](families/screen.md) | variable | -- | Capture d'écran et fonctions de pixel | valeur |
 | [`ScriptDir`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
 | [`ScriptFullPath`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
-| [`ScriptHwnd`](families/gui.md) | variable | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this runtime has no window of its own: it is a script that runs and ends. |
+| [`ScriptHwnd`](families/gui.md) | variable | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : ce runtime n'a pas de fenêtre à lui : c'est un script qui s'exécute et finit. |
 | [`ScriptName`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
 | [`Sec`](families/time.md) | variable | -- | Les dates et les heures | valeur |
 | [`File.Seek`](families/files.md) | method | File | Les opérations sur les fichiers et les répertoires | valeur |
@@ -692,7 +692,7 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`Gui.Control.Text`](families/gui.md) | method | Gui.Control | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`ThisFunc`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
 | [`ThisHotkey`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
-| [`Thread`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : this runtime runs one script in one thread, and it cannot start another. |
+| [`Thread`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : ce runtime exécute un script dans un seul fil, et il ne peut pas en lancer un autre. |
 | [`TickCount`](families/time.md) | variable | -- | Les dates et les heures | valeur |
 | [`TimeIdle`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`TimeIdleKeyboard`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
@@ -746,7 +746,7 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`WinGetControls`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinGetControlsHwnd`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinGetCount`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinGetExStyle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetExStyle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinGetID`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinGetIDLast`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinGetList`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
@@ -755,10 +755,10 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`WinGetPos`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinGetProcessName`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinGetProcessPath`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinGetStyle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetStyle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinGetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinGetTitle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinGetTransColor`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetTransColor`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinGetTransparent`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinHide`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinKill`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
@@ -773,11 +773,11 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`WinRestore`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinSetAlwaysOnTop`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinSetEnabled`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinSetExStyle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetExStyle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinSetRegion`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinSetStyle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetStyle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinSetTitle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinSetTransColor`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetTransColor`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinSetTransparent`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinShow`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`WinWait`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
@@ -853,7 +853,7 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`A_CoordModeMouse`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`A_CoordModePixel`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`A_CoordModeToolTip`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
-| [`A_Cursor`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : the shape of the cursor of the machine is not read by this runtime. |
+| [`A_Cursor`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : ce runtime ne lit pas la forme du curseur de la machine. |
 | [`A_DD`](families/files.md) | variable | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`A_DDD`](families/files.md) | variable | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`A_DDDD`](families/files.md) | variable | -- | Les opérations sur les fichiers et les répertoires | valeur |
@@ -886,7 +886,7 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`A_IconTip`](families/gui.md) | variable | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`A_Index`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
 | [`A_InitialWorkingDir`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
-| [`A_IPAddress1`](families/machine.md) | variable | -- | La machine, les processus et l'environnement | refusé : this desktop does not know the address of the network of the machine. |
+| [`A_IPAddress1`](families/machine.md) | variable | -- | La machine, les processus et l'environnement | refusé : ce bureau ne connaît pas l'adresse du réseau de la machine. |
 | [`A_Is64bitOS`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
 | [`A_IsAdmin`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
 | [`A_IsCompiled`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
@@ -934,7 +934,7 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`A_ScreenWidth`](families/screen.md) | variable | -- | Capture d'écran et fonctions de pixel | valeur |
 | [`A_ScriptDir`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
 | [`A_ScriptFullPath`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
-| [`A_ScriptHwnd`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | refusé : this runtime has no window of its own: it is a script that runs and ends. |
+| [`A_ScriptHwnd`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | refusé : ce runtime n'a pas de fenêtre à lui : c'est un script qui s'exécute et finit. |
 | [`A_ScriptName`](families/script.md) | variable | -- | L'analyseur et l'exécution du script | valeur |
 | [`A_Sec`](families/time.md) | variable | -- | Les dates et les heures | valeur |
 | [`A_SendLevel`](families/input.md) | variable | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
@@ -978,43 +978,43 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`ASin`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`ATan`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`AutoTrim`](families/core.md) | command | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`BlockInput`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`BlockInput`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Ceil`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`Chr`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`Click`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`Clipboard`](families/clipboard.md) | variable | -- | Le presse-papiers | valeur |
 | [`ClipWait`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
-| [`ComObjActive`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjArray`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjConnect`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjCreate`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjError`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjFlags`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjGet`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjQuery`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjType`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjValue`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjActive`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjArray`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjConnect`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjCreate`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjError`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjFlags`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjGet`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjQuery`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjType`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ComObjValue`](families/com.md) | function | -- | L'automatisation COM (ComObject) | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`ComSpec`](families/machine.md) | variable | -- | La machine, les processus et l'environnement | valeur |
-| [`Control`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlClick`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlFocus`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGet`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetFocus`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetPos`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlMove`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSend`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`Control`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlClick`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlFocus`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlGet`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlGetFocus`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlGetPos`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlGetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlMove`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlSend`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ControlSetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`CoordMode`](families/script.md) | command | -- | L'analyseur et l'exécution du script | valeur |
 | [`Cos`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`Critical`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : this runtime runs one script in one thread, and it cannot make it critical. |
+| [`Critical`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : ce runtime exécute un script dans un seul fil, et il ne peut pas le rendre critique. |
 | [`DetectHiddenText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`DetectHiddenWindows`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`DllCall`](families/native.md) | function | -- | Appels de fonctions natives (DllCall) | valeur |
-| [`Drive`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`DriveGet`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`DriveSpaceFree`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`Edit`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`Drive`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`DriveGet`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`DriveSpaceFree`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`Edit`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Else`](families/script.md) | command | -- | L'analyseur et l'exécution du script | valeur |
 | [`EnvAdd`](families/machine.md) | command | -- | La machine, les processus et l'environnement | valeur |
 | [`EnvDiv`](families/machine.md) | command | -- | La machine, les processus et l'environnement | valeur |
@@ -1031,23 +1031,23 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`FileCopy`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileCopyDir`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileCreateDir`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
-| [`FileCreateShortcut`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`FileCreateShortcut`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`FileDelete`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileEncoding`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileExist`](families/files.md) | function | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileGetAttrib`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
-| [`FileGetShortcut`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`FileGetShortcut`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`FileGetSize`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileGetTime`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
-| [`FileGetVersion`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`FileGetVersion`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`FileInstall`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileMove`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileMoveDir`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileOpen`](families/files.md) | function | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileRead`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileReadLine`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
-| [`FileRecycle`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`FileRecycleEmpty`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`FileRecycle`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`FileRecycleEmpty`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`FileRemoveDir`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileSelectFile`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`FileSelectFolder`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
@@ -1058,13 +1058,13 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`FormatTime`](families/time.md) | command | -- | Les dates et les heures | valeur |
 | [`Func`](families/objects.md) | function | -- | Les objets du langage : Array, Map et Func | valeur |
 | [`GetKeyState`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
-| [`GroupActivate`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`GroupAdd`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`GroupClose`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`GroupDeactivate`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`Gui`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`GuiControl`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`GuiControlGet`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`GroupActivate`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`GroupAdd`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`GroupClose`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`GroupDeactivate`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`Gui`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`GuiControl`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`GuiControlGet`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Hotkey`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`Hotstring`](families/input.md) | function | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`IfInString`](families/script.md) | command | -- | L'analyseur et l'exécution du script | valeur |
@@ -1076,25 +1076,25 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`IniWrite`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`Input`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`InputBox`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`InputHook`](families/input.md) | function | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`InputHook`](families/input.md) | function | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`InStr`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`IsByRef`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`IsFunc`](families/script.md) | function | -- | L'analyseur et l'exécution du script | valeur |
 | [`IsLabel`](families/input.md) | function | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`IsObject`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`IsSet`](families/script.md) | function | -- | L'analyseur et l'exécution du script | valeur |
-| [`KeyHistory`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`KeyHistory`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`KeyWait`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
-| [`ListHotkeys`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ListLines`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`ListVars`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`ListHotkeys`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ListLines`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`ListVars`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Ln`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`LoadPicture`](families/screen.md) | function | -- | Capture d'écran et fonctions de pixel | valeur |
 | [`Log`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`Max`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`Menu`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`MenuGetHandle`](families/gui.md) | function | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`MenuGetName`](families/gui.md) | function | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`Menu`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`MenuGetHandle`](families/gui.md) | function | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`MenuGetName`](families/gui.md) | function | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Min`](families/time.md) | function | -- | Les dates et les heures | valeur |
 | [`Mod`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`MouseClick`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
@@ -1108,27 +1108,27 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`ObjBindMethod`](families/com.md) | function | -- | L'automatisation COM (ComObject) | valeur |
 | [`Object`](families/objects.md) | function | -- | Les objets du langage : Array, Map et Func | valeur |
 | [`OnError`](families/script.md) | function | -- | L'analyseur et l'exécution du script | valeur |
-| [`OnMessage`](families/script.md) | function | -- | L'analyseur et l'exécution du script | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`OnMessage`](families/script.md) | function | -- | L'analyseur et l'exécution du script | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Ord`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`OutputDebug`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`Pause`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`OutputDebug`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`Pause`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`PixelGetColor`](families/screen.md) | command | -- | Capture d'écran et fonctions de pixel | valeur |
 | [`PixelSearch`](families/screen.md) | command | -- | Capture d'écran et fonctions de pixel | valeur |
-| [`PostMessage`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`Process`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`PostMessage`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`Process`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`ProgramFiles`](families/machine.md) | variable | -- | La machine, les processus et l'environnement | valeur |
-| [`Progress`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`Progress`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Random`](families/core.md) | command | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`RegDelete`](families/registry.md) | command | -- | Les API du registre | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`RegDelete`](families/registry.md) | command | -- | Les API du registre | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`RegExMatch`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`RegExReplace`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`RegisterCallback`](families/gui.md) | function | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`RegRead`](families/registry.md) | command | -- | Les API du registre | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`RegWrite`](families/registry.md) | command | -- | Les API du registre | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`Reload`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`RegisterCallback`](families/gui.md) | function | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`RegRead`](families/registry.md) | command | -- | Les API du registre | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`RegWrite`](families/registry.md) | command | -- | Les API du registre | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`Reload`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Round`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`Run`](families/machine.md) | command | -- | La machine, les processus et l'environnement | valeur |
-| [`RunAs`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`RunAs`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`RunWait`](families/machine.md) | command | -- | La machine, les processus et l'environnement | valeur |
 | [`Send`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
 | [`SendLevel`](families/input.md) | command | -- | Raccourcis, chaînes de déclenchement et saisie | valeur |
@@ -1146,22 +1146,22 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`SetTitleMatchMode`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`SetWinDelay`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
 | [`SetWorkingDir`](families/script.md) | command | -- | L'analyseur et l'exécution du script | valeur |
-| [`Shutdown`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`Shutdown`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Sin`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`Sleep`](families/script.md) | command | -- | L'analyseur et l'exécution du script | valeur |
 | [`Sort`](families/core.md) | command | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`SoundBeep`](families/sound.md) | command | -- | Le son | valeur |
-| [`SoundGet`](families/sound.md) | command | -- | Le son | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`SoundGetWaveVolume`](families/sound.md) | command | -- | Le son | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`SoundGet`](families/sound.md) | command | -- | Le son | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`SoundGetWaveVolume`](families/sound.md) | command | -- | Le son | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`SoundPlay`](families/sound.md) | command | -- | Le son | valeur |
-| [`SoundSet`](families/sound.md) | command | -- | Le son | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`SoundSetWaveVolume`](families/sound.md) | command | -- | Le son | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`SplashTextOn`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`SoundSet`](families/sound.md) | command | -- | Le son | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`SoundSetWaveVolume`](families/sound.md) | command | -- | Le son | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`SplashTextOn`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`SplitPath`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`Sqrt`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`StatusBarGetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`StatusBarWait`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`StrGet`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`StatusBarGetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`StatusBarWait`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`StrGet`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`StringCaseSense`](families/core.md) | command | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`StringGetPos`](families/files.md) | command | -- | Les opérations sur les fichiers et les répertoires | valeur |
 | [`StringLeft`](families/core.md) | command | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
@@ -1172,47 +1172,47 @@ Tous les noms des trois dialectes, par ordre alphabétique, avec la famille à l
 | [`StringSplit`](families/core.md) | command | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`StringTrimLeft`](families/core.md) | command | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`StrLen`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`StrPut`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`StrPut`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`StrReplace`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`StrSplit`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`SubStr`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`Suspend`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`SysGet`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`Suspend`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`SysGet`](families/machine.md) | command | -- | La machine, les processus et l'environnement | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Tan`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`Thread`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : this runtime runs one script in one thread, and it cannot start another. |
-| [`ToolTip`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`Thread`](families/script.md) | command | -- | L'analyseur et l'exécution du script | refusé : ce runtime exécute un script dans un seul fil, et il ne peut pas en lancer un autre. |
+| [`ToolTip`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Transform`](families/core.md) | command | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`TrayTip`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`TrayTip`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`Trim`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`URLDownloadToFile`](families/machine.md) | command | -- | La machine, les processus et l'environnement | valeur |
 | [`VarSetCapacity`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
 | [`VerCompare`](families/core.md) | function | -- | Le cœur du langage : texte, mathématiques et motifs | valeur |
-| [`WinActivate`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinActivateBottom`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinActivate`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinActivateBottom`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinActive`](families/gui.md) | function | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinClose`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinClose`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinExist`](families/gui.md) | function | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinGet`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetActiveStats`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetActiveTitle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetClass`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetPos`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinGet`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinGetActiveStats`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinGetActiveTitle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinGetClass`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinGetPos`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinGetText`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 | [`WinGetTitle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | valeur |
-| [`WinHide`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinKill`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinMaximize`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinMenuSelectItem`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinMinimize`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinMinimizeAll`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinMove`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinRestore`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinSet`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinSetTitle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinShow`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinWait`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinWaitActive`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
-| [`WinWaitClose`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : this is a name of Windows, and this desktop is not Windows. |
+| [`WinHide`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinKill`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinMaximize`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinMenuSelectItem`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinMinimize`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinMinimizeAll`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinMove`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinRestore`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinSet`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinSetTitle`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinShow`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinWait`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinWaitActive`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| [`WinWaitClose`](families/gui.md) | command | -- | Fenêtres d'interface et automatisation des fenêtres | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
 
 ## KeySharp
 

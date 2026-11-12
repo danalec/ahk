@@ -1,27 +1,31 @@
 # API del registro
 
-| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Idioma: Español
 
 Los nombres de la familia **API del registro** en los tres dialectos, con lo que este árbol responde por cada uno. La familia es el área en la que un script piensa; los nombres son la totalidad de ella.
 
-| Nombre | Dialecto | Tipo | Clase | Parámetros | Estado |
-|---|---|---|---|---|---|
-| `A_LoopRegName` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
-| `A_RegView` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
-| `LoopRegKey` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `LoopRegName` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `LoopRegTimeModified` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `LoopRegType` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `RegCreateKey` | AutoHotkey v2.0.19 | function | -- | 0 to 1 | valor |
-| `RegDelete` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | valor |
-| `RegDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. |
-| `RegDeleteKey` | AutoHotkey v2.0.19 | function | -- | 0 to 1 | valor |
-| `RegRead` | AutoHotkey v2.0.19 | function | -- | 0 to 3 | valor |
-| `RegRead` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
-| `RegView` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `RegWrite` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | valor |
-| `RegWrite` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. |
-| `SetRegView` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
-| `SetRegView` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
+| Nombre | Dialecto | Tipo | Clase | Parámetros | Estado | Sonda |
+|---|---|---|---|---|---|---|
+| `A_LoopRegName` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor | -- |
+| `A_RegView` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor | -- |
+| `LoopRegKey` | AutoHotkey v2.0.19 | variable | -- | -- | valor | -- |
+| `LoopRegName` | AutoHotkey v2.0.19 | variable | -- | -- | valor | -- |
+| `LoopRegTimeModified` | AutoHotkey v2.0.19 | variable | -- | -- | valor | -- |
+| `LoopRegType` | AutoHotkey v2.0.19 | variable | -- | -- | valor | -- |
+| `RegCreateKey` | AutoHotkey v2.0.19 | function | -- | 0 to 1 | valor | -- |
+| `RegDelete` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | valor | -- |
+| `RegDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. | refusal: this is a name of Windows, and this desktop is not Windows. |
+| `RegDeleteKey` | AutoHotkey v2.0.19 | function | -- | 0 to 1 | valor | -- |
+| `RegRead` | AutoHotkey v2.0.19 | function | -- | 0 to 3 | valor | -- |
+| `RegRead` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. | refusal: this is a name of Windows, and this desktop is not Windows. |
+| `RegView` | AutoHotkey v2.0.19 | variable | -- | -- | valor | -- |
+| `RegWrite` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | valor | -- |
+| `RegWrite` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. | refusal: this is a name of Windows, and this desktop is not Windows. |
+| `SetRegView` | AutoHotkey v2.0.19 | command | -- | 1 | valor | -- |
+| `SetRegView` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor | -- |
+
+## Lo que hace el arbol con el
+
+El comportamiento de esta familia esta escrito en ingles, chino y portugues de Brasil; lealo en [Idioma](../families/registry.md).

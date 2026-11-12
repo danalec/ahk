@@ -4095,6 +4095,10 @@ pub(crate) fn dir_create(
 ///
 /// Measured on the binary of v2.0.19 on 2026-10-31: the second parameter
 /// is the recursion, and a folder that is not empty stays without it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-12: the name answers
+/// nothing -- `r := DirDelete("empty")` answers the empty text -- and the
+/// folder that is not empty fails with "Failed" without the recursion.
 pub(crate) fn dir_delete(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -4109,7 +4113,7 @@ pub(crate) fn dir_delete(
             message: reason,
             line,
         })?;
-    Ok(Value::Text(path))
+    Ok(Value::Text(String::new()))
 }
 
 /// `FileCreateShortcut(LinkFile, Target, WorkingDir, Args, Description, Icon,

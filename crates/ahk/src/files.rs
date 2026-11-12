@@ -163,8 +163,21 @@ fn the_files_to_work_on(
     from: &str,
     line: u32,
 ) -> Result<Vec<String>, RuntimeError> {
+    the_files_to_work_on_with_mode(rt, from, "", line)
+}
+
+/// The files a name works on, with the mode of the walk.
+///
+/// The mode is the one of the walk of the desktop: the "R" walks into the
+/// subfolders of the folder of the pattern as well.
+fn the_files_to_work_on_with_mode(
+    rt: &mut Runtime<'_>,
+    from: &str,
+    mode: &str,
+    line: u32,
+) -> Result<Vec<String>, RuntimeError> {
     if is_a_pattern(from) {
-        return the_files_of_the_pattern(rt, from, line);
+        return the_files_of_the_pattern_with_mode(rt, from, mode, line);
     }
     Ok(vec![from.to_string()])
 }
@@ -215,6 +228,19 @@ pub(crate) fn the_files_of_the_pattern(
     pattern: &str,
     line: u32,
 ) -> Result<Vec<String>, RuntimeError> {
+    the_files_of_the_pattern_with_mode(rt, pattern, "", line)
+}
+
+/// The files that a pattern of v2 names, as the paths of them.
+///
+/// The mode is the one of the walk: the "R" walks into the subfolders of
+/// the folder of the pattern as well.
+fn the_files_of_the_pattern_with_mode(
+    rt: &mut Runtime<'_>,
+    pattern: &str,
+    mode: &str,
+    line: u32,
+) -> Result<Vec<String>, RuntimeError> {
     let folder = rt
         .desktop()
         .working_directory()
@@ -226,7 +252,7 @@ pub(crate) fn the_files_of_the_pattern(
     // of v2.0.19 on 2026-11-09, `FileCopy("src\*.", "out\")` copies the files
     // with an extension as well, and `*.` is the `*` of the machine it runs on.
     let pattern = the_pattern_of_the_v2(pattern);
-    match rt.desktop().list_files(&folder, &pattern, "") {
+    match rt.desktop().list_files(&folder, &pattern, mode) {
         Ok(files) => Ok(files),
         // A pattern whose folder cannot be read names no file: measured on
         // the binary of v2.0.19 on 2026-11-09, a copy of a pattern in a
@@ -270,6 +296,14 @@ pub(crate) fn the_name_of_a_file_at_the_end(path: &str) -> &str {
 ///
 /// The icon of the third parameter is the icon of the compiled script,
 /// and the runtime does not compile anything.
+///
+/// The overwrite flag is the third parameter of the v2 and the fourth of
+/// the v1: the v1 writes `FileInstall Source, Dest, Source, Overwrite`
+/// and the v2 writes `FileInstall Source, Dest, Overwrite`.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-12: two installs of the
+/// same file onto the same one with the flag `1` are two successes, and
+/// with the flag `0` the second one fails with "Failed".
 pub fn file_install(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -280,7 +314,8 @@ pub fn file_install(
     let to = text_of(values, 1);
     refuse_the_wildcards(&from, line)?;
     refuse_the_wildcards(&to, line)?;
-    let overwrite = flag_of(values, 3, "FileInstall", line)?;
+    let index = if rt.dialect().is_the_v1() { 3 } else { 2 };
+    let overwrite = flag_of(values, index, "FileInstall", line)?;
     rt.desktop()
         .copy_file(&from, &to, overwrite)
         .map_err(|reason| RuntimeError {
@@ -314,6 +349,16 @@ pub fn file_get_attrib(
 ///
 /// The attributes come first and the name of the file second, the way
 /// the binary of v2.0.19 takes them.
+///
+/// The name of the file may be a pattern: the attributes are changed in
+/// every file that the pattern names, and a pattern that names no file is
+/// not a failure.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-12: `FileSetAttrib "+H",
+/// "*.txt"` changes the attributes of every file of the pattern, and the
+/// third parameter is the recursion: the "R" walks into the subfolders of
+/// the folder of the pattern as well, and any other letter is
+/// "Parameter #3 of FileSetAttrib is invalid."
 pub fn file_set_attrib(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -323,18 +368,20 @@ pub fn file_set_attrib(
     let attributes = text_of(values, 0);
     let path = the_name_of_a_file(values, 1, 1, "FileSetAttrib", line)?;
     let mode = text_of(values, 2);
-    refuse_the_recursion(&mode, line)?;
-    refuse_the_wildcards(&path, line)?;
+    let recursion = the_recursion_of_the_walk(&mode, "FileSetAttrib", 3, line)?;
     let groups = groups_of(&attributes).ok_or_else(|| RuntimeError {
         message: "Parameter #1 of FileSetAttrib is invalid.".to_string(),
         line,
     })?;
-    rt.desktop()
-        .set_file_attributes(&path, &groups)
-        .map_err(|reason| RuntimeError {
-            message: reason,
-            line,
-        })?;
+    let files = the_files_to_work_on_with_mode(rt, &path, &recursion, line)?;
+    for file in files {
+        rt.desktop()
+            .set_file_attributes(&file, &groups)
+            .map_err(|reason| RuntimeError {
+                message: reason,
+                line,
+            })?;
+    }
     Ok(Value::Text(String::new()))
 }
 
@@ -470,6 +517,22 @@ pub fn file_get_time(
 ///
 /// The time comes first and the name of the file second, the way the
 /// binary of v2.0.19 takes them.
+///
+/// The name of the file may be a pattern: the time is changed in every
+/// file that the pattern names, and a pattern that names no file is not a
+/// failure.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-12: `FileSetTime
+/// "20000101000000", "*.txt"` changes the time of every file of the
+/// pattern, and a pattern that names nothing changes nothing and does not
+/// fail. The fourth parameter is the recursion: the "R" walks into the
+/// subfolders of the folder of the pattern as well, and any other letter
+/// is "Parameter #4 of FileSetTime is invalid."
+///
+/// The third parameter names the time that is changed: the "M" the
+/// modification time, the "C" the creation time and the "A" the access
+/// time. Without it, the v2 changes the creation time and the
+/// modification time.
 pub fn file_set_time(
     rt: &mut Runtime<'_>,
     values: &[Value],
@@ -480,8 +543,7 @@ pub fn file_set_time(
     let path = the_name_of_a_file(values, 1, 2, "FileSetTime", line)?;
     let which = text_of(values, 2);
     let mode = text_of(values, 3);
-    refuse_the_recursion(&mode, line)?;
-    refuse_the_wildcards(&path, line)?;
+    let recursion = the_recursion_of_the_walk(&mode, "FileSetTime", 4, line)?;
     let offset = local_offset(rt);
     // The parameters are checked in the order of v2: the stamp is the
     // first one, and the time that is wanted is the third.
@@ -514,15 +576,43 @@ pub fn file_set_time(
     let (created, modified, accessed) = match which.as_str() {
         "C" => (Some(millis), None, None),
         "A" => (None, None, Some(millis)),
-        _ => (None, Some(millis), None),
+        "M" => (None, Some(millis), None),
+        // Without a letter the v2 changes the creation time and the
+        // modification time. The v1 changes the modification time alone,
+        // and the tree keeps the answer of the v1.
+        _ if rt.dialect().is_the_v1() => (None, Some(millis), None),
+        _ => (Some(millis), Some(millis), None),
     };
-    rt.desktop()
-        .set_file_times(&path, created, modified, accessed)
-        .map_err(|reason| RuntimeError {
-            message: reason,
-            line,
-        })?;
+    let files = the_files_to_work_on_with_mode(rt, &path, &recursion, line)?;
+    for file in files {
+        rt.desktop()
+            .set_file_times(&file, created, modified, accessed)
+            .map_err(|reason| RuntimeError {
+                message: reason,
+                line,
+            })?;
+    }
     Ok(Value::Text(String::new()))
+}
+
+/// The recursion of the walk of v2, out of the mode of a name.
+///
+/// The mode of v2 that walks into the subfolders is the "R", and any
+/// other letter is a parameter that does not exist.
+fn the_recursion_of_the_walk(
+    mode: &str,
+    name: &str,
+    numbered: usize,
+    line: u32,
+) -> Result<String, RuntimeError> {
+    let mode = mode.trim().to_ascii_uppercase();
+    if mode.is_empty() || mode == "R" {
+        return Ok(mode);
+    }
+    Err(RuntimeError {
+        message: format!("Parameter #{numbered} of {name} is invalid."),
+        line,
+    })
 }
 
 // -- the encoding ------------------------------------------------------------------
@@ -1060,20 +1150,6 @@ pub(crate) fn refuse_the_wildcards(path: &str, line: u32) -> Result<(), RuntimeE
     if path.contains('*') || path.contains('?') {
         return Err(RuntimeError {
             message: "the wildcards of v2 are not carried yet.".to_string(),
-            line,
-        });
-    }
-    Ok(())
-}
-
-/// The recursion of v2 is not carried.
-///
-/// The mode of v2 asks for the subfolders to be walked into, and the
-/// tree works on one name at a time.
-fn refuse_the_recursion(mode: &str, line: u32) -> Result<(), RuntimeError> {
-    if mode.to_ascii_uppercase().contains('R') {
-        return Err(RuntimeError {
-            message: "the recursion of v2 is not carried yet.".to_string(),
             line,
         });
     }
@@ -1631,14 +1707,28 @@ mod tests {
     fn file_install_asks_the_desktop_to_copy_the_file() {
         let (answer, calls) = run(
             file_install,
-            &[
-                Value::Text("a.txt".into()),
-                Value::Text("b.txt".into()),
-                Value::Text("icon.ico".into()),
-            ],
+            &[Value::Text("a.txt".into()), Value::Text("b.txt".into())],
         );
         assert_eq!(text_of_value(&answer), "");
         assert_eq!(calls, vec!["copy_file a.txt b.txt false"]);
+    }
+
+    #[test]
+    fn the_overwrite_of_a_file_install_is_the_third_parameter() {
+        // Measured on the binary of v2.0.19 on 2026-11-12: the flag of the
+        // overwrite is the third parameter of the v2 and the fourth of the
+        // v1, and two installs of the same file with the flag `1` are two
+        // successes.
+        let (answer, calls) = run(
+            file_install,
+            &[
+                Value::Text("a.txt".into()),
+                Value::Text("b.txt".into()),
+                Value::Int(1),
+            ],
+        );
+        assert_eq!(text_of_value(&answer), "");
+        assert_eq!(calls, vec!["copy_file a.txt b.txt true"]);
     }
 
     #[test]
@@ -1677,7 +1767,27 @@ mod tests {
     }
 
     #[test]
-    fn file_set_attrib_refuses_the_recursion_of_v2() {
+    fn a_mode_of_a_file_set_attrib_that_is_not_the_recursion_is_refused() {
+        // Measured on the binary of v2.0.19 on 2026-11-12: the third
+        // parameter of the `FileSetAttrib` is the recursion, and any other
+        // letter is refused.
+        let (answer, calls) = run(
+            file_set_attrib,
+            &[
+                Value::Text("+R".into()),
+                Value::Text("a.txt".into()),
+                Value::Text("X".into()),
+            ],
+        );
+        assert_eq!(
+            reason_of(&answer),
+            "Parameter #3 of FileSetAttrib is invalid."
+        );
+        assert!(calls.is_empty());
+    }
+
+    #[test]
+    fn the_recursion_of_a_file_set_attrib_reaches_the_desktop() {
         let (answer, calls) = run(
             file_set_attrib,
             &[
@@ -1686,11 +1796,8 @@ mod tests {
                 Value::Text("R".into()),
             ],
         );
-        assert_eq!(
-            reason_of(&answer),
-            "the recursion of v2 is not carried yet."
-        );
-        assert!(calls.is_empty());
+        assert_eq!(text_of_value(&answer), "");
+        assert_eq!(calls, vec![r#"set_file_attributes a.txt ["+R"]"#]);
     }
 
     #[test]
@@ -1979,10 +2086,12 @@ mod tests {
             (answer, calls)
         };
         assert_eq!(text_of_value(&answer), "");
-        // The moment of the machine is two hours east of the UTC.
+        // The moment of the machine is two hours east of the UTC, and the v2
+        // changes the creation time and the modification time when it is
+        // given no letter.
         assert_eq!(
             calls,
-            vec!["set_file_times a.txt None Some(1577836800000) None"]
+            vec!["set_file_times a.txt Some(1577836800000) Some(1577836800000) None"]
         );
     }
 

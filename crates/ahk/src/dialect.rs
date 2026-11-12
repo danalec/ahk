@@ -96,6 +96,16 @@ pub trait Dialect: Sync {
     /// refused in the v1 one.
     fn name(&self) -> &'static str;
 
+    /// Whether this is the legacy dialect, the v1.
+    ///
+    /// WHY: some names take their parameters in a different order in the two
+    /// dialects -- the `FileInstall` of the v1 takes the overwrite flag as its
+    /// fourth parameter and the v2 takes it as its third -- and the handler
+    /// of such a name asks the dialect which of the two it is running.
+    fn is_the_v1(&self) -> bool {
+        false
+    }
+
     /// The version of the interpreter that the dialect stands for.
     ///
     /// The `#Requires` directive of mainline AutoHotkey names a version and
@@ -2446,6 +2456,10 @@ impl Dialect for V1 {
     }
     fn name(&self) -> &'static str {
         "v1"
+    }
+
+    fn is_the_v1(&self) -> bool {
+        true
     }
 
     fn version(&self) -> (u16, u16, u16, u16) {

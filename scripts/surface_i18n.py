@@ -19,7 +19,10 @@ translation was forgotten.
 """
 
 # The languages of the subtree, in the order they are printed.
-LANGS = ("en", "es", "pt-BR", "fr", "de", "ru", "ja", "zh", "zh-Hant", "ko")
+LANGS = (
+    "en", "es", "pt-BR", "fr", "it", "pl", "tr",
+    "de", "ru", "ja", "zh", "zh-Hant", "ko",
+)
 
 # The name of each language, in that language.
 LANG_NAMES = {
@@ -27,6 +30,9 @@ LANG_NAMES = {
     "es": "Español",
     "pt-BR": "Português (Brasil)",
     "fr": "Français",
+    "it": "Italiano",
+    "pl": "Polski",
+    "tr": "Türkçe",
     "de": "Deutsch",
     "ru": "Русский",
     "ja": "日本語",
@@ -88,6 +94,13 @@ TEXT["en"] = {
     "section_pending": "Pending",
     "the_three": "The three",
     "unclassified_title": "Unclassified",
+    "head_probe": "Probe",
+    "probe_note": "The probe is the call of the name against a desktop that does nothing: it says whether the call answers or raises.",
+
+    "section_behavior": "What the tree does with it",
+    "head_returns": "Answers",
+    "head_errors": "Errors",
+    "behavior_only_english": "The behavior of this family is written in English, Chinese and Portuguese of Brazil; read it in",
     "unclassified_intro": (
         "The names that no family claims. A name lands here when no table "
         "and no rule of `scripts/surface_areas.py` places it."
@@ -146,6 +159,13 @@ TEXT["es"] = {
     "section_pending": "Pendientes",
     "the_three": "Los tres",
     "unclassified_title": "Sin clasificar",
+    "head_probe": "Sonda",
+    "probe_note": "La sonda es la llamada del nombre contra un escritorio que no hace nada: dice si la llamada responde o lanza.",
+
+    "section_behavior": "Lo que hace el arbol con el",
+    "head_returns": "Responde",
+    "head_errors": "Errores",
+    "behavior_only_english": "El comportamiento de esta familia esta escrito en ingles, chino y portugues de Brasil; lealo en",
     "unclassified_intro": (
         "Los nombres que ninguna familia reclama. Un nombre llega aquí "
         "cuando ninguna tabla y ninguna regla de "
@@ -203,6 +223,13 @@ TEXT["pt-BR"] = {
     "section_pending": "Pendentes",
     "the_three": "Os três",
     "unclassified_title": "Sem classificação",
+    "head_probe": "Sonda",
+    "probe_note": "A sonda é a chamada do nome contra uma área de trabalho que não faz nada: diz se a chamada responde ou levanta.",
+
+    "section_behavior": "O que a arvore faz com ele",
+    "head_returns": "Responde",
+    "head_errors": "Erros",
+    "behavior_only_english": "O comportamento desta familia esta escrito em ingles, chines e portugues do Brasil; leia em",
     "unclassified_intro": (
         "Os nomes que nenhuma família reivindica. Um nome chega aqui quando "
         "nenhuma tabela e nenhuma regra de "
@@ -261,10 +288,216 @@ TEXT["fr"] = {
     "section_pending": "En attente",
     "the_three": "Les trois",
     "unclassified_title": "Non classé",
+    "head_probe": "Sonde",
+    "probe_note": "La sonde est l'appel du nom contre un bureau qui ne fait rien : elle dit si l'appel répond ou lève.",
+
+    "section_behavior": "Ce que l'arbre en fait",
+    "head_returns": "Répond",
+    "head_errors": "Erreurs",
+    "behavior_only_english": "Le comportement de cette famille est écrit en anglais, en chinois et en portugais du Brésil ; lisez-le en",
     "unclassified_intro": (
         "Les noms qu'aucune famille ne revendique. Un nom arrive ici quand "
         "ni une table ni une règle de `scripts/surface_areas.py` ne le "
         "place."
+    ),
+}
+
+TEXT["it"] = {
+    "languages": "Lingua",
+    "index_title": "L'indice di tutti i nomi",
+    "index_intro": (
+        "Tutti i nomi dei tre dialetti, in ordine alfabetico, con la "
+        "famiglia a cui appartengono e ciò che questo albero risponde loro. "
+        "La **scheda** di un nome -- il suo genere, la sua classe, i suoi "
+        "parametri -- si trova nella pagina della sua famiglia; questa pagina "
+        "ne è l'ingresso."
+    ),
+    "crosswalk_title": "La tabella di corrispondenza dei tre dialetti",
+    "crosswalk_intro": (
+        "Lo stesso nome nei tre dialetti, e il nome che soltanto uno di essi "
+        "possiede. Un nome del v1 che il v2 scrive in altro modo compare "
+        "nella tabella «solo v1», con il nome del v2 che lo ha sostituito."
+    ),
+    "dialect_title": "La superficie di %s",
+    "dialect_intro": (
+        "I nomi di %s, contati per famiglia e per genere, e i nomi che questo "
+        "albero rifiuta o non porta. La scheda di ogni nome si trova nella "
+        "pagina della sua famiglia."
+    ),
+    "family_intro": (
+        "I nomi della famiglia **%s** nei tre dialetti, con ciò che questo "
+        "albero risponde per ciascuno di essi. La famiglia è l'ambito in cui "
+        "uno script pensa; i nomi ne sono la totalità."
+    ),
+    "head_name": "Nome",
+    "head_kind": "Genere",
+    "head_class": "Classe",
+    "head_parameters": "Parametri",
+    "head_state": "Stato",
+    "head_family": "Famiglia",
+    "head_dialect": "Dialetto",
+    "head_value": "Valore",
+    "head_refused": "Rifiutati",
+    "head_pending": "In sospeso",
+    "head_reason": "Motivo",
+    "head_names": "Nomi",
+    "state_value": "valore",
+    "state_pending": "in sospeso",
+    "state_not_measured": "non misurato",
+    "state_refused": "rifiutato: %s",
+    "section_in_both": "Nel v1 e nel v2",
+    "section_only_v1": "Solo nel v1",
+    "section_only_ks": "Solo in KeySharp",
+    "section_by_kind": "Per genere",
+    "section_refused": "Rifiutati",
+    "section_pending": "In sospeso",
+    "the_three": "I tre",
+    "unclassified_title": "Non classificati",
+    "head_probe": "Sonda",
+    "probe_note": "La sonda è la chiamata del nome contro un desktop che non fa nulla: dice se la chiamata risponde o solleva.",
+    "section_behavior": "Cosa fa l'albero con esso",
+    "head_returns": "Risponde",
+    "head_errors": "Errori",
+    "behavior_only_english": (
+        "Il comportamento di questa famiglia è scritto in inglese, in cinese "
+        "e in portoghese brasiliano; leggetelo in"
+    ),
+    "unclassified_intro": (
+        "I nomi che nessuna famiglia rivendica. Un nome arriva qui quando "
+        "nessuna tabella e nessuna regola di `scripts/surface_areas.py` lo "
+        "colloca."
+    ),
+}
+
+TEXT["pl"] = {
+    "languages": "Język",
+    "index_title": "Indeks wszystkich nazw",
+    "index_intro": (
+        "Wszystkie nazwy trzech dialektów, w porządku alfabetycznym, wraz z "
+        "rodziną, do której należą, i z tym, co to drzewo im odpowiada. "
+        "**Karta** nazwy -- jej rodzajem, klasą i parametrami -- znajduje się "
+        "na stronie jej rodziny; ta strona jest wejściem."
+    ),
+    "crosswalk_title": "Tablica odpowiadających sobie nazw w trzech dialektach",
+    "crosswalk_intro": (
+        "Ta sama nazwa w trzech dialektach oraz nazwa, którą ma tylko jeden z "
+        "nich. Nazwa z v1, którą v2 zapisuje inaczej, figuruje w tabeli "
+        "„tylko v1”, wraz z nazwą v2, która ją zastąpiła."
+    ),
+    "dialect_title": "Powierzchnia %s",
+    "dialect_intro": (
+        "Nazwy %s, policzone według rodzin i rodzajów, oraz nazwy, których to "
+        "drzewo odmawia lub nie zawiera. Karta każdej nazwy znajduje się na "
+        "stronie jej rodziny."
+    ),
+    "family_intro": (
+        "Nazwy rodziny **%s** w trzech dialektach wraz z tym, co to drzewo "
+        "odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli "
+        "skrypt; nazwy stanowią jej całość."
+    ),
+    "head_name": "Nazwa",
+    "head_kind": "Rodzaj",
+    "head_class": "Klasa",
+    "head_parameters": "Parametry",
+    "head_state": "Stan",
+    "head_family": "Rodzina",
+    "head_dialect": "Dialekt",
+    "head_value": "Wartość",
+    "head_refused": "Odrzucone",
+    "head_pending": "Oczekujące",
+    "head_reason": "Powód",
+    "head_names": "Nazwy",
+    "state_value": "wartość",
+    "state_pending": "oczekujące",
+    "state_not_measured": "niezmierzone",
+    "state_refused": "odrzucone: %s",
+    "section_in_both": "W v1 i w v2",
+    "section_only_v1": "Tylko w v1",
+    "section_only_ks": "Tylko w KeySharp",
+    "section_by_kind": "Według rodzajów",
+    "section_refused": "Odrzucone",
+    "section_pending": "Oczekujące",
+    "the_three": "Trzy",
+    "unclassified_title": "Niesklasyfikowane",
+    "head_probe": "Sonda",
+    "probe_note": "Sonda to wywołanie nazwy na pustym pulpicie: mówi, czy wywołanie odpowiada, czy rzuca.",
+    "section_behavior": "Co robi z tym drzewo",
+    "head_returns": "Odpowiada",
+    "head_errors": "Błędy",
+    "behavior_only_english": (
+        "Zachowanie tej rodziny jest opisane po angielsku, po chińsku i po "
+        "portugalsku brazylijsku; przeczytaj je w"
+    ),
+    "unclassified_intro": (
+        "Nazwy, których żadna rodzina nie przejmuje. Nazwa trafia tutaj, gdy "
+        "żadna tabela i żadna reguła z `scripts/surface_areas.py` jej nie "
+        "umieszcza."
+    ),
+}
+
+TEXT["tr"] = {
+    "languages": "Dil",
+    "index_title": "Tüm adların dizini",
+    "index_intro": (
+        "Üç lehçedeki bütün adlar, alfabetik sırayla, ait oldukları aile ve "
+        "bu ağacın onlara verdiği yanıtla birlikte. Bir adın **fişi** -- "
+        "türü, sınıfı, parametreleri -- adın ailesinin sayfasındadır; bu sayfa "
+        "giriş kapısıdır."
+    ),
+    "crosswalk_title": "Üç lehçenin karşılık tablosu",
+    "crosswalk_intro": (
+        "Üç lehçede aynı ad ve yalnızca birinde bulunan ad. v2'nin farklı "
+        "yazdığı bir v1 adı, onun yerini alan v2 adıyla birlikte «yalnızca "
+        "v1» tablosunda yer alır."
+    ),
+    "dialect_title": "%s yüzeyi",
+    "dialect_intro": (
+        "%s adları, aileye ve türe göre sayılmış olarak ve bu ağacın "
+        "reddettiği ya da taşımadığı adlarla birlikte. Her adın fişi, adın "
+        "ailesinin sayfasındadır."
+    ),
+    "family_intro": (
+        "Üç lehçedeki **%s** ailesinin adları ve bu ağacın her biri için "
+        "verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun "
+        "tamamıdır."
+    ),
+    "head_name": "Ad",
+    "head_kind": "Tür",
+    "head_class": "Sınıf",
+    "head_parameters": "Parametreler",
+    "head_state": "Durum",
+    "head_family": "Aile",
+    "head_dialect": "Lehçe",
+    "head_value": "Değer",
+    "head_refused": "Reddedilenler",
+    "head_pending": "Bekleyenler",
+    "head_reason": "Gerekçe",
+    "head_names": "Adlar",
+    "state_value": "değer",
+    "state_pending": "beklemede",
+    "state_not_measured": "ölçülmedi",
+    "state_refused": "reddedildi: %s",
+    "section_in_both": "v1'de ve v2'de bulunanlar",
+    "section_only_v1": "Yalnızca v1'de bulunanlar",
+    "section_only_ks": "Yalnızca KeySharp'te bulunanlar",
+    "section_by_kind": "Türe göre",
+    "section_refused": "Reddedilenler",
+    "section_pending": "Bekleyenler",
+    "the_three": "Üç lehçe",
+    "unclassified_title": "Sınıflandırılmamış",
+    "head_probe": "Sonda",
+    "probe_note": "Sonda, adın boş bir masaüstünde çağrılmasıdır: çağrının yanıt verip vermediğini söyler.",
+    "section_behavior": "Ağaç bununla ne yapar",
+    "head_returns": "Yanıt",
+    "head_errors": "Hatalar",
+    "behavior_only_english": (
+        "Bu ailenin davranışı İngilizce, Çince ve Brezilya Portekizcesinde "
+        "yazılmıştır; şurada okuyun"
+    ),
+    "unclassified_intro": (
+        "Hiçbir ailenin sahiplenmediği adlar. Bir ad, ne bir tablo ne de "
+        "`scripts/surface_areas.py` içindeki bir kural onu yerleştirdiğinde "
+        "buraya düşer."
     ),
 }
 
@@ -318,6 +551,13 @@ TEXT["de"] = {
     "section_pending": "Ausstehende",
     "the_three": "Die drei",
     "unclassified_title": "Nicht eingeordnet",
+    "head_probe": "Sonde",
+    "probe_note": "Die Sonde ist der Aufruf des Namens gegen einen Desktop, der nichts tut: sie sagt, ob der Aufruf antwortet oder wirft.",
+
+    "section_behavior": "Was der Baum damit macht",
+    "head_returns": "Antwortet",
+    "head_errors": "Fehler",
+    "behavior_only_english": "Das Verhalten dieser Familie ist auf Englisch, Chinesisch und brasilianischem Portugiesisch geschrieben; lesen Sie es auf",
     "unclassified_intro": (
         "Die Namen, die keine Familie beansprucht. Ein Name landet hier, "
         "wenn ihn weder eine Tabelle noch eine Regel aus "
@@ -375,6 +615,13 @@ TEXT["ru"] = {
     "section_pending": "Ожидаемые",
     "the_three": "Три",
     "unclassified_title": "Без семейства",
+    "head_probe": "Проба",
+    "probe_note": "Проба — это вызов имени на пустом рабочем столе: она говорит, отвечает вызов или бросает.",
+
+    "section_behavior": "Что дерево делает с ним",
+    "head_returns": "Отвечает",
+    "head_errors": "Ошибки",
+    "behavior_only_english": "Поведение этого семейства написано по-английски, по-китайски и по-португальски (Бразилия); читайте его на",
     "unclassified_intro": (
         "Имена, которые не взяло ни одно семейство. Имя попадает сюда, когда "
         "его не поместил ни один список и ни одно правило из "
@@ -429,6 +676,13 @@ TEXT["zh-Hant"] = {
     "section_pending": "待辦的名稱",
     "the_three": "三個方言",
     "unclassified_title": "未分類",
+    "head_probe": "プローブ",
+    "probe_note": "プローブは，何もしないデスクトップに対して名前を呼び出した結果です。呼び出しが答えを返すか例外を投げるかを示します。",
+
+    "section_behavior": "這棵樹對它做什麼",
+    "head_returns": "返回",
+    "head_errors": "錯誤",
+    "behavior_only_english": "這個分類的行為寫在英語、中文和巴西葡萄牙語裡；請在",
     "unclassified_intro": (
         "沒有任何分類認領的名稱。當表格與 `scripts/surface_areas.py` 的規則"
         "都無法歸類時，名稱會落到這裡。"
@@ -484,6 +738,13 @@ TEXT["ko"] = {
     "section_pending": "보류된 이름",
     "the_three": "세 방언",
     "unclassified_title": "미분류",
+    "head_probe": "프로브",
+    "probe_note": "프로브는 아무것도 하지 않는 데스크톱에 그 이름을 호출한 결과다. 호출이 답을 돌려주는지 예외를 던지는지를 보여준다.",
+
+    "section_behavior": "이 트리가 이름에 대해 하는 일",
+    "head_returns": "반환",
+    "head_errors": "오류",
+    "behavior_only_english": "이 분류의 동작은 영어, 중국어, 브라질 포르투갈어로 쓰여 있다; 영어로 읽으세요",
     "unclassified_intro": (
         "어떤 분류도 차지하지 않는 이름. 목록도 `scripts/surface_areas.py`의 "
         "규칙도 그 이름을 놓치지 못하면 여기에 닿는다."
@@ -540,6 +801,12 @@ TEXT["ja"] = {
     "section_pending": "保留されるもの",
     "the_three": "3つの方言",
     "unclassified_title": "未分類",
+    "head_probe": "プローブ",
+    "probe_note": "プローブは，何もしないデスクトップに対して名前を呼び出した結果です。呼び出しが答えを返すか例外を投げるかを示します。",
+    "section_behavior": "このツリーがその名前で行うこと",
+    "head_returns": "返答",
+    "head_errors": "エラー",
+    "behavior_only_english": "このファミリーのふるまいは英語・中国語・ブラジルポルトガル語で書いてある。英語版で読む",
     "unclassified_intro": (
         "どのファミリーも属さないとしない名前。表にも "
         "`scripts/surface_areas.py` の規則にも置かれない名前は、ここに"
@@ -594,6 +861,13 @@ TEXT["zh"] = {
     "section_pending": "待办的名称",
     "the_three": "三个方言",
     "unclassified_title": "未分类",
+    "head_probe": "调用探测",
+    "probe_note": "调用探测是在一个什么都不做的桌面上调用该名称的结果：它说明调用是返回答案还是抛出异常。",
+
+    "section_behavior": "这棵树对它做什么",
+    "head_returns": "返回",
+    "head_errors": "错误",
+    "behavior_only_english": "这个分类的行为写在英语、中文和巴西葡萄牙语里；请在",
     "unclassified_intro": (
         "没有任何分类认领的名称。当表格与 "
         "`scripts/surface_areas.py` 的规则都无法归类时，名称会落到这里。"
@@ -675,6 +949,60 @@ FAMILY_TITLES = {
         "clipboard": "Le presse-papiers",
         "sound": "Le son",
         "network": "Le réseau et le courrier",
+    },
+    "it": {
+        "unclassified": "Non classificati",
+        "script": "L'analizzatore e l'esecuzione dello script",
+        "files": "Operazioni su file e directory",
+        "input": "Tasti rapidi, stringhe di attivazione e input",
+        "gui": "Finestre GUI e automazione delle finestre",
+        "screen": "Cattura dello schermo e funzioni sui pixel",
+        "native": "Chiamate a funzioni native (DllCall)",
+        "registry": "Le API del registro",
+        "com": "Automazione COM (ComObject)",
+        "core": "Il nucleo del linguaggio: testo, matematica e modelli",
+        "objects": "Gli oggetti del linguaggio: Array, Map e Func",
+        "time": "Date e ore",
+        "machine": "La macchina, i processi e l'ambiente",
+        "clipboard": "Gli appunti",
+        "sound": "Il suono",
+        "network": "La rete e la posta",
+    },
+    "pl": {
+        "unclassified": "Niesklasyfikowane",
+        "script": "Parser i wykonanie skryptu",
+        "files": "Operacje na plikach i katalogach",
+        "input": "Skróty, ciągi wyzwalające i wprowadzanie",
+        "gui": "Okna GUI i automatyzacja okien",
+        "screen": "Przechwytywanie ekranu i funkcje pikseli",
+        "native": "Wywołania funkcji natywnych (DllCall)",
+        "registry": "Interfejsy API rejestru",
+        "com": "Automatyzacja COM (ComObject)",
+        "core": "Rdzeń języka: tekst, matematyka i wzorce",
+        "objects": "Obiekty języka: Array, Map i Func",
+        "time": "Daty i godziny",
+        "machine": "Maszyna, procesy i środowisko",
+        "clipboard": "Schowek",
+        "sound": "Dźwięk",
+        "network": "Sieć i poczta",
+    },
+    "tr": {
+        "unclassified": "Sınıflandırılmamış",
+        "script": "Ayrıştırıcı ve betiğin çalıştırılması",
+        "files": "Dosya ve dizin işlemleri",
+        "input": "Kısayollar, tetikleme dizeleri ve giriş",
+        "gui": "GUI pencereleri ve pencere otomasyonu",
+        "screen": "Ekran yakalama ve piksel işlevleri",
+        "native": "Yerel işlev çağrıları (DllCall)",
+        "registry": "Kayıt defteri API'leri",
+        "com": "COM otomasyonu (ComObject)",
+        "core": "Dilin çekirdeği: metin, matematik ve kalıplar",
+        "objects": "Dilin nesneleri: Array, Map ve Func",
+        "time": "Tarihler ve saatler",
+        "machine": "Makine, süreçler ve ortam",
+        "clipboard": "Pano",
+        "sound": "Ses",
+        "network": "Ağ ve posta",
     },
     "de": {
         "unclassified": "Nicht eingeordnet",
@@ -882,79 +1210,150 @@ REASONS = {    "this is a name of Windows, and this desktop is not Windows.": {
 }
 
 
-# The reason of a refusal in the three languages that came later: the
-# table above is the one the tree was measured with, and this one carries
-# the same reasons in French, German and Russian.
+# The reason of a refusal in the languages that came later: the table above
+# is the one the tree was measured with, and this one carries the same
+# reasons in French, German, Russian, Traditional Chinese, Korean, Italian,
+# Polish and Turkish.
 REASONS_MORE = {
     "this is a name of Windows, and this desktop is not Windows.": {
         "fr": "c'est un nom de Windows, et ce bureau n'est pas Windows.",
         "de": "ist ein Name von Windows, und dieser Desktop ist nicht Windows.",
         "ru": "это имя Windows, а этот рабочий стол — не Windows.",
+        "zh-Hant": "這是 Windows 的名稱，而本桌面不是 Windows。",
+        "ko": "이것은 Windows의 이름이고, 이 데스크톱은 Windows가 아니다.",
+        "it": "e un nome di Windows, e questo desktop non è Windows.",
+        "pl": "to jest nazwa systemu Windows, a ten pulpit nie jest systemem Windows.",
+        "tr": "bu, Windows'un bir adıdır ve bu masaüstü Windows değildir.",
     },
     "the registry is a thing of Windows, and this runtime does not carry it.": {
         "fr": "le registre est une chose de Windows, et ce runtime ne le porte pas.",
         "de": "die Registry ist eine Sache von Windows, und diese Laufzeitumgebung bringt sie nicht mit.",
         "ru": "реестр — это дело Windows, а эта среда выполнения его не несёт.",
+        "zh-Hant": "登錄檔屬於 Windows，此執行環境並不攜帶它。",
+        "ko": "레지스트리는 Windows의 것이고, 이 런타임은 그것을 싣지 않는다.",
+        "it": "il registro è una cosa di Windows, e questo runtime non lo porta.",
+        "pl": "rejestr jest sprawą systemu Windows, a to środowisko wykonawcze go nie zawiera.",
+        "tr": "kayıt defteri Windows'a ait bir şeydir ve bu çalışma zamanı onu taşımaz.",
     },
     "this runtime has no tray icon.": {
         "fr": "ce runtime n'a pas d'icône dans la zone de notification.",
         "de": "dieser Laufzeitumgebung fehlt das Symbol im Infobereich.",
         "ru": "у этой среды выполнения нет значка в области уведомлений.",
+        "zh-Hant": "此執行環境沒有系統匣圖示。",
+        "ko": "이 런타임에는 트레이 아이콘이 없다.",
+        "it": "questo runtime non ha icona nella barra di notifica.",
+        "pl": "to środowisko wykonawcze nie ma ikony w obszarze powiadomień.",
+        "tr": "bu çalışma zamanının sistem tepsisinde simgesi yoktur.",
     },
     "this runtime runs one script in one thread, and it cannot make it critical.": {
         "fr": "ce runtime exécute un script dans un seul fil, et il ne peut pas le rendre critique.",
         "de": "diese Laufzeitumgebung führt ein Skript in einem einzigen Thread aus und kann es nicht kritisch machen.",
         "ru": "эта среда выполняет один скрипт в одном потоке и не может сделать его критическим.",
+        "zh-Hant": "此執行環境在一個執行緒中執行一個腳本，無法將其設為關鍵。",
+        "ko": "이 런타임은 하나의 스크립트를 하나의 스레드로 실행하며, 그것을 임계로 만들 수 없다.",
+        "it": "questo runtime esegue uno script in un solo thread e non può renderlo critico.",
+        "pl": "to środowisko wykonawcze wykonuje jeden skrypt w jednym wątku i nie może nadać mu znaczenia krytycznego.",
+        "tr": "bu çalışma zamanı betiği tek bir iş parçacığında çalıştırır ve onu kritik yapamaz.",
     },
     "the lines are listed in a window of v2, and this runtime has no window to show them in.": {
         "fr": "les lignes sont listées dans une fenêtre de v2, et ce runtime n'a pas de fenêtre pour les montrer.",
         "de": "die Zeilen werden in einem Fenster des v2 aufgeführt, und diese Laufzeitumgebung hat kein Fenster dafür.",
         "ru": "строки выводятся в окне v2, а у этой среды выполнения нет окна.",
+        "zh-Hant": "行列表顯示在 v2 的視窗中，而此執行環境沒有視窗可顯示。",
+        "ko": "줄 목록은 v2의 창에 표시되며, 이 런타임에는 그것을 보여 줄 창이 없다.",
+        "it": "le righe sono elencate in una finestra di v2, e questo runtime non ha una finestra in cui mostrarle.",
+        "pl": "linie są wymieniane w oknie v2, a to środowisko wykonawcze nie ma okna, w którym można je pokazać.",
+        "tr": "satırlar v2 penceresinde listelenir ve bu çalışma zamanında onları gösterecek bir pencere yoktur.",
     },
     "the variables are listed in a window of v2, and this runtime has no window to show them in.": {
         "fr": "les variables sont listées dans une fenêtre de v2, et ce runtime n'a pas de fenêtre pour les montrer.",
         "de": "die Variablen werden in einem Fenster des v2 aufgeführt, und diese Laufzeitumgebung hat kein Fenster dafür.",
         "ru": "переменные выводятся в окне v2, а у этой среды выполнения нет окна.",
+        "zh-Hant": "變數列表顯示在 v2 的視窗中，而此執行環境沒有視窗可顯示。",
+        "ko": "변수 목록은 v2의 창에 표시되며, 이 런타임에는 그것을 보여 줄 창이 없다.",
+        "it": "le variabili sono elencate in una finestra di v2, e questo runtime non ha una finestra in cui mostrarle.",
+        "pl": "zmienne są wymieniane w oknie v2, a to środowisko wykonawcze nie ma okna, w którym można je pokazać.",
+        "tr": "değişkenler v2 penceresinde listelenir ve bu çalışma zamanında onları gösterecek bir pencere yoktur.",
     },
     "this runtime is a script that ends when it ends, and it cannot be kept alive.": {
         "fr": "ce runtime est un script qui finit quand il finit, et il ne peut pas rester vivant.",
         "de": "diese Laufzeitumgebung ist ein Skript, das endet, wenn es endet, und das nicht am Leben gehalten werden kann.",
         "ru": "эта среда — скрипт, который заканчивается, когда заканчивается, и его нельзя удержать живым.",
+        "zh-Hant": "此執行環境是執行結束即結束的腳本，無法保持存活。",
+        "ko": "이 런타임은 끝나면 끝나는 스크립트라 살아 있게 둘 수 없다.",
+        "it": "questo runtime è uno script che finisce quando finisce, e non può restare vivo.",
+        "pl": "to środowisko wykonawcze jest skryptem, który kończy się, gdy się kończy, i nie można go utrzymać przy życiu.",
+        "tr": "bu çalışma zamanı, bittiğinde biten bir betiktir ve canlı tutulamaz.",
     },
     "this runtime runs one script once, and it cannot run itself again.": {
         "fr": "ce runtime exécute un script une fois, et il ne peut pas s'exécuter encore.",
         "de": "diese Laufzeitumgebung führt ein Skript einmal aus und kann sich nicht selbst erneut ausführen.",
         "ru": "эта среда выполняет скрипт один раз и не может запустить себя снова.",
+        "zh-Hant": "此執行環境只執行一次腳本，無法再次執行自身。",
+        "ko": "이 런타임은 스크립트를 한 번만 실행하며, 자신을 다시 실행할 수 없다.",
+        "it": "questo runtime esegue uno script una sola volta e non può eseguire se stesso di nuovo.",
+        "pl": "to środowisko wykonawcze wykonuje jeden skrypt raz i nie może uruchomić się ponownie.",
+        "tr": "bu çalışma zamanı betiği bir kez çalıştırır ve kendini yeniden çalıştıramaz.",
     },
     "this runtime runs one script in one thread, and it cannot start another.": {
         "fr": "ce runtime exécute un script dans un seul fil, et il ne peut pas en lancer un autre.",
         "de": "diese Laufzeitumgebung führt ein Skript in einem einzigen Thread aus und kann keinen weiteren starten.",
         "ru": "эта среда выполняет один скрипт в одном потоке и не может запустить другой.",
+        "zh-Hant": "此執行環境在一個執行緒中執行一個腳本，無法再啟動一個。",
+        "ko": "이 런타임은 하나의 스크립트를 하나의 스레드로 실행하며, 다른 것을 시작할 수 없다.",
+        "it": "questo runtime esegue uno script in un solo thread e non può avviarne un altro.",
+        "pl": "to środowisko wykonawcze wykonuje jeden skrypt w jednym wątku i nie może uruchomić innego.",
+        "tr": "bu çalışma zamanı betiği tek bir iş parçacığında çalıştırır ve başka bir tane başlatamaz.",
     },
     "this runtime reads no text of a window.": {
         "fr": "ce runtime ne lit pas le texte d'une fenêtre.",
         "de": "diese Laufzeitumgebung liest keinen Text eines Fensters.",
         "ru": "эта среда не читает текст окна.",
+        "zh-Hant": "此執行環境不讀取視窗文字。",
+        "ko": "이 런타임은 창의 글자를 읽지 않는다.",
+        "it": "questo runtime non legge il testo di una finestra.",
+        "pl": "to środowisko wykonawcze nie odczytuje tekstu okna.",
+        "tr": "bu çalışma zamanı bir pencerenin metnini okumaz.",
     },
     "the shape of the cursor of the machine is not read by this runtime.": {
         "fr": "ce runtime ne lit pas la forme du curseur de la machine.",
         "de": "diese Laufzeitumgebung liest die Form des Mauszeigers der Maschine nicht.",
         "ru": "эта среда не читает форму курсора машины.",
+        "zh-Hant": "此執行環境不讀取機器游標的形狀。",
+        "ko": "이 런타임은 컴퓨터 커서의 모양을 읽지 않는다.",
+        "it": "la forma del cursore della macchina non è letta da questo runtime.",
+        "pl": "kształt kursora maszyny nie jest odczytywany przez to środowisko wykonawcze.",
+        "tr": "makinenin imleç biçimi bu çalışma zamanı tarafından okunmaz.",
     },
     "this desktop does not know the scale of the output.": {
         "fr": "ce bureau ne connaît pas l'échelle de la sortie.",
         "de": "dieser Desktop kennt den Maßstab der Ausgabe nicht.",
         "ru": "этот рабочий стол не знает масштаба вывода.",
+        "zh-Hant": "本桌面不知道輸出的縮放比例。",
+        "ko": "이 데스크톱은 출력의 배율을 알지 못한다.",
+        "it": "questo desktop non conosce la scala dell'uscita.",
+        "pl": "ten pulpit nie zna skali urządzenia wyjściowego.",
+        "tr": "bu masaüstü çıktının ölçeğini bilmez.",
     },
     "this runtime has no window of its own: it is a script that runs and ends.": {
         "fr": "ce runtime n'a pas de fenêtre à lui : c'est un script qui s'exécute et finit.",
         "de": "diese Laufzeitumgebung hat kein eigenes Fenster: sie ist ein Skript, das läuft und endet.",
         "ru": "у этой среды выполнения нет собственного окна: это скрипт, который выполняется и заканчивается.",
+        "zh-Hant": "此執行環境沒有自己的視窗：它是一個執行即結束的腳本。",
+        "ko": "이 런타임에는 자체 창이 없다: 실행되고 끝나는 스크립트다.",
+        "it": "questo runtime non ha una finestra propria: è uno script che viene eseguito e finisce.",
+        "pl": "to środowisko wykonawcze nie ma własnego okna: jest skryptem, który się uruchamia i kończy.",
+        "tr": "bu çalışma zamanının kendi penceresi yoktur: çalışıp biten bir betiktir.",
     },
     "this desktop does not know the address of the network of the machine.": {
         "fr": "ce bureau ne connaît pas l'adresse du réseau de la machine.",
         "de": "dieser Desktop kennt die Adresse des Netzes der Maschine nicht.",
         "ru": "этот рабочий стол не знает сетевого адреса машины.",
+        "zh-Hant": "本桌面不知道機器的網路位址。",
+        "ko": "이 데스크톱은 컴퓨터의 네트워크 주소를 알지 못한다.",
+        "it": "questo desktop non conosce l'indirizzo di rete della macchina.",
+        "pl": "ten pulpit nie zna adresu sieci maszyny.",
+        "tr": "bu masaüstü makinenin ağ adresini bilmez.",
     },
     "this name is about Windows, and this machine is not.": {
         "fr": "ce nom concerne Windows, et cette machine n'en est pas une.",
@@ -962,62 +1361,9 @@ REASONS_MORE = {
         "ru": "это имя относится к Windows, а эта машина — не Windows.",
         "zh-Hant": "此名稱與 Windows 有關，而本機不是 Windows。",
         "ko": "이 이름은 Windows에 관한 것이고, 이 컴퓨터는 Windows가 아니다.",
-    },
-    "this runtime has no window of its own: it is a script that runs and ends.": {
-        "zh-Hant": "此執行環境沒有自己的視窗：它是一個執行即結束的腳本。",
-        "ko": "이 런타임에는 자체 창이 없다: 실행되고 끝나는 스크립트다.",
-    },
-    "this desktop does not know the scale of the output.": {
-        "zh-Hant": "本桌面不知道輸出的縮放比例。",
-        "ko": "이 데스크톱은 출력의 배율을 알지 못한다.",
-    },
-    "the shape of the cursor of the machine is not read by this runtime.": {
-        "zh-Hant": "此執行環境不讀取機器游標的形狀。",
-        "ko": "이 런타임은 컴퓨터 커서의 모양을 읽지 않는다.",
-    },
-    "this runtime reads no text of a window.": {
-        "zh-Hant": "此執行環境不讀取視窗文字。",
-        "ko": "이 런타임은 창의 글자를 읽지 않는다.",
-    },
-    "this runtime runs one script in one thread, and it cannot start another.": {
-        "zh-Hant": "此執行環境在一個執行緒中執行一個腳本，無法再啟動一個。",
-        "ko": "이 런타임은 하나의 스크립트를 하나의 스레드로 실행하며, 다른 것을 시작할 수 없다.",
-    },
-    "this runtime runs one script once, and it cannot run itself again.": {
-        "zh-Hant": "此執行環境只執行一次腳本，無法再次執行自身。",
-        "ko": "이 런타임은 스크립트를 한 번만 실행하며, 자신을 다시 실행할 수 없다.",
-    },
-    "this runtime is a script that ends when it ends, and it cannot be kept alive.": {
-        "zh-Hant": "此執行環境是執行結束即結束的腳本，無法保持存活。",
-        "ko": "이 런타임은 끝나면 끝나는 스크립트라 살아 있게 둘 수 없다.",
-    },
-    "the variables are listed in a window of v2, and this runtime has no window to show them in.": {
-        "zh-Hant": "變數列表顯示在 v2 的視窗中，而此執行環境沒有視窗可顯示。",
-        "ko": "변수 목록은 v2의 창에 표시되며, 이 런타임에는 그것을 보여 줄 창이 없다.",
-    },
-    "the lines are listed in a window of v2, and this runtime has no window to show them in.": {
-        "zh-Hant": "行列表顯示在 v2 的視窗中，而此執行環境沒有視窗可顯示。",
-        "ko": "줄 목록은 v2의 창에 표시되며, 이 런타임에는 그것을 보여 줄 창이 없다.",
-    },
-    "this runtime runs one script in one thread, and it cannot make it critical.": {
-        "zh-Hant": "此執行環境在一個執行緒中執行一個腳本，無法將其設為關鍵。",
-        "ko": "이 런타임은 하나의 스크립트를 하나의 스레드로 실행하며, 그것을 임계로 만들 수 없다.",
-    },
-    "this runtime has no tray icon.": {
-        "zh-Hant": "此執行環境沒有系統匣圖示。",
-        "ko": "이 런타임에는 트레이 아이콘이 없다.",
-    },
-    "the registry is a thing of Windows, and this runtime does not carry it.": {
-        "zh-Hant": "登錄檔屬於 Windows，此執行環境並不攜帶它。",
-        "ko": "레지스트리는 Windows의 것이고, 이 런타임은 그것을 싣지 않는다.",
-    },
-    "this is a name of Windows, and this desktop is not Windows.": {
-        "zh-Hant": "這是 Windows 的名稱，而本桌面不是 Windows。",
-        "ko": "이것은 Windows의 이름이고, 이 데스크톱은 Windows가 아니다.",
-    },
-    "this desktop does not know the address of the network of the machine.": {
-        "zh-Hant": "本桌面不知道機器的網路位址。",
-        "ko": "이 데스크톱은 컴퓨터의 네트워크 주소를 알지 못한다.",
+        "it": "questo nome riguarda Windows, e questa macchina non è Windows.",
+        "pl": "ta nazwa dotyczy systemu Windows, a ta maszyna nim nie jest.",
+        "tr": "bu ad Windows ile ilgilidir ve bu makine Windows değildir.",
     },
 }
 

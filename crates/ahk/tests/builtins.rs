@@ -1067,6 +1067,26 @@ impl Files for Fake {
     fn working_directory(&mut self) -> Result<String, String> {
         Ok("/tmp".to_string())
     }
+    fn set_file_attributes(&mut self, path: &str, attributes: &[String]) -> Result<String, String> {
+        self.calls.push((
+            "set-file-attributes".into(),
+            format!("{path}|{}", attributes.join(",")),
+        ));
+        Ok(String::new())
+    }
+    fn set_file_times(
+        &mut self,
+        path: &str,
+        created: Option<i64>,
+        modified: Option<i64>,
+        accessed: Option<i64>,
+    ) -> Result<String, String> {
+        self.calls.push((
+            "set-file-times".into(),
+            format!("{path}|{created:?}|{modified:?}|{accessed:?}"),
+        ));
+        Ok(String::new())
+    }
     // The files of a pattern of the fake: the two files of the pattern, as
     // the full paths the desktop answers with. The pattern of v2 is the one
     // of the last part of the path, and the mode "D" is the folders.
@@ -1094,10 +1114,21 @@ impl Files for Fake {
             return Ok(Vec::new());
         }
         let extension = name.trim_start_matches('*');
+        // The fake has three kinds of file: the ones with a `.txt`, the ones
+        // with a `.md` and the ones with a `.log`. A pattern of another
+        // extension names no file.
+        if !matches!(extension, ".txt" | ".md" | ".log") {
+            return Ok(Vec::new());
+        }
         Ok(["a", "b"]
             .iter()
             .map(|stem| format!("{where_it_is}{stem}{extension}"))
             .collect())
+    }
+    fn dir_delete(&mut self, path: &str, recurse: bool) -> Result<String, String> {
+        self.calls
+            .push(("dir-delete".into(), format!("{path}|{recurse}")));
+        Ok(String::new())
     }
     fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
         self.calls.push((
@@ -7407,6 +7438,142 @@ fn the_bytes_of_a_text_are_the_ones_v2_counts() {
 fn an_encoding_that_v2_does_not_know_is_refused() {
     let report = run("x := StrPut(\"hello\", \"Bogus\")");
     assert_eq!(failure_of(&report), "Invalid Encoding.");
+}
+
+// -- the file family, measured on the binary of v2.0.19 on 2026-11-12 ----
+
+#[test]
+fn the_overwrite_flag_of_a_file_install_is_the_third_parameter() {
+    // Measured on the binary of v2.0.19 on 2026-11-12: `FileInstall s, d, 1`
+    // twice are two successes, and `FileInstall s, d, 0` twice fails the
+    // second one with "Failed". The flag is the third parameter of the v2
+    // and the fourth of the v1.
+    let mut desktop = Fake::default();
+    let report = run_on("FileInstall(\"a.txt\", \"b.txt\", 1)", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    let copies: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "copy-file")
+        .collect();
+    assert_eq!(
+        copies,
+        vec![&("copy-file".to_string(), "a.txt|b.txt|true".to_string())]
+    );
+}
+
+#[test]
+fn a_file_install_without_the_flag_does_not_overwrite() {
+    let mut desktop = Fake::default();
+    let report = run_on("FileInstall(\"a.txt\", \"b.txt\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    let copies: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "copy-file")
+        .collect();
+    assert_eq!(
+        copies,
+        vec![&("copy-file".to_string(), "a.txt|b.txt|false".to_string())]
+    );
+}
+
+#[test]
+fn a_dir_delete_answers_nothing() {
+    // Measured on the binary of v2.0.19 on 2026-11-12: `r := DirDelete("d")`
+    // answers the empty text -- the name of a command answers nothing.
+    let mut desktop = Fake::default();
+    let report = run_on("r := DirDelete(\"d\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    let deletes: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "dir-delete")
+        .collect();
+    assert_eq!(deletes.len(), 1, "{:?}", desktop.calls);
+}
+
+#[test]
+fn a_file_set_time_changes_the_time_of_every_file_of_a_pattern() {
+    // Measured on the binary of v2.0.19 on 2026-11-12: `FileSetTime
+    // "20000101000000", "*.txt"` changes the time of every file the
+    // pattern names, and a pattern that names nothing is not a failure.
+    let mut desktop = Fake::default();
+    let report = run_on("FileSetTime(\"20000101000000\", \"*.txt\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    let times: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "set-file-times")
+        .collect();
+    assert_eq!(times.len(), 2, "{:?}", desktop.calls);
+    assert!(times[0].1.starts_with("/tmp/a.txt|"), "{:?}", times);
+    assert!(times[1].1.starts_with("/tmp/b.txt|"), "{:?}", times);
+}
+
+#[test]
+fn a_pattern_that_names_no_file_is_not_a_failure() {
+    let mut desktop = Fake::default();
+    let report = run_on(
+        "FileSetTime(\"20000101000000\", \"*.nothing\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    let times: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "set-file-times")
+        .collect();
+    assert!(times.is_empty(), "{:?}", desktop.calls);
+}
+
+#[test]
+fn the_mode_of_a_file_set_time_that_is_not_the_recursion_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-12: the third parameter
+    // takes the letter of the time that is changed -- the "M", the "C" and
+    // the "A" -- and anything else is "Parameter #3 of FileSetTime is
+    // invalid."; the fourth parameter is the recursion, and anything but
+    // the "R" there is "Parameter #4 of FileSetTime is invalid."
+    let report = run("FileSetTime(\"20000101000000\", \"a.txt\", \"R\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #3 of FileSetTime is invalid."
+    );
+    let report = run("FileSetTime(\"20000101000000\", \"a.txt\", \"M\", \"X\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #4 of FileSetTime is invalid."
+    );
+}
+
+#[test]
+fn a_file_set_attrib_changes_the_attributes_of_every_file_of_a_pattern() {
+    // Measured on the binary of v2.0.19 on 2026-11-12: `FileSetAttrib "+H",
+    // "*.txt"` changes the attributes of every file the pattern names.
+    let mut desktop = Fake::default();
+    let report = run_on("FileSetAttrib(\"+H\", \"*.txt\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    let attributes: Vec<&(String, String)> = desktop
+        .calls
+        .iter()
+        .filter(|(what, _)| what == "set-file-attributes")
+        .collect();
+    assert_eq!(attributes.len(), 2, "{:?}", desktop.calls);
+    assert_eq!(attributes[0].1, "/tmp/a.txt|+H");
+    assert_eq!(attributes[1].1, "/tmp/b.txt|+H");
+}
+
+#[test]
+fn the_mode_of_a_file_set_attrib_that_is_not_the_recursion_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-12: the third parameter
+    // of the `FileSetAttrib` is the recursion, and any other letter is
+    // "Parameter #3 of FileSetAttrib is invalid."
+    let report = run("FileSetAttrib(\"+H\", \"*.txt\", \"X\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #3 of FileSetAttrib is invalid."
+    );
 }
 
 impl Fake {
