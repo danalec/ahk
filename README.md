@@ -5,8 +5,10 @@ a Linux machine: a lexer, an AST, a parser, a runtime, the built-in names and
 the class library, plus a keyboard, a pointer, screen captures, files, windows
 and hotkeys.
 
-**The default dialect is AutoHotkey v2.** A second dialect, **AutoHotkey v1**,
-lives behind a flag and is described in detail below. One binary serves both.
+**The default dialect is AutoHotkey v2.0.19.** Three more live behind a flag
+and are described in detail below: the **v1.1.37.02**, the **v2.1**, and
+**`ks`** -- the dialect of KeySharp, which is the mechanisms of the v2.1 with
+the extensions of KeySharp. One binary serves all of them.
 
 A script written for this tree says which dialect it needs, and that is the
 whole of it:
@@ -54,6 +56,12 @@ A v1 script needs `--dialect=v1`:
 printf 'MsgBox, hello\n' | ahk --dialect=v1
 ```
 
+A script of the dialect of KeySharp needs `--dialect=ks`:
+
+```sh
+echo 'Msg "hello from ks"' | ahk --dialect=ks
+```
+
 ## #Requires: telling this interpreter apart
 
 A script says which dialect it needs, on a line of its own, before anything
@@ -63,8 +71,11 @@ else:
 #Requires v2
 ```
 
-The dialects are **v1** and **v2** -- names, not sub-versions. The line names
-the dialect, which is the fact the script actually depends on:
+The dialects the line names are **v1** and **v2** -- names, not sub-versions.
+(The v2.1 and the `ks` are chosen with the flag and are not named by a line:
+the line says which dialect of AutoHotkey the script needs, and neither of
+those two is one.) The line names the dialect, which is the fact the script
+actually depends on:
 
 - `#Requires v2` runs in the v2 dialect and is refused under `--dialect=v1`.
 - `#Requires v1` is the other way round, and it runs only with `--dialect=v1`.
@@ -94,8 +105,10 @@ Other flags:
 
 | Flag | What it does |
 |---|---|
-| `--dialect=v2` | v2 (default; may be omitted) |
-| `--dialect=v1` | v1 |
+| `--dialect=v2` | v2.0.19 (default; may be omitted) |
+| `--dialect=v1` | v1.1.37.02 |
+| `--dialect=v2.1` | v2.1 -- the mechanisms of v2.1 |
+| `--dialect=ks` | `ks` -- the dialect of KeySharp |
 | `--timeout=N` | Stop after N seconds (default 60) |
 | `--surface` | Print the state of every name of the surface, one line each |
 | `--surface --json` | The same, as JSON, for CI |
@@ -146,7 +159,9 @@ A few things worth knowing:
   `PixelGetColor`, not `PixelGet`; `MsgBox`, not `Msg`. There are no aliases.
   The built-in table carries 243 commands and 103 functions; one extension,
   `Screenshot`, writes a screen capture to a file because v2 has no word for
-  it.
+  it. The whole surface of the v2 is 833 names: 685 answer with a value, 148
+  are refused with the reason the machine cannot give one, and none is
+  pending.
 - **A function call may leave out the parentheses.** A name at the start of a
   line, with no parentheses, is a call statement whose parameters are the rest
   of the line: `Abs 5`, `FileAppend "hello", "*"`.
@@ -315,6 +330,57 @@ Both dialects are covered by a parity test that reads the reference tables
 at compile time: a name that the tree stops carrying fails the build of a
 test, not a run of a script.
 
+## ks: the dialect of KeySharp
+
+**Pass `--dialect=ks`.** The `ks` is the dialect of
+[KeySharp](https://github.com/Firoc/KeySharp): the mechanisms of the v2.1
+with the extensions of KeySharp on top of them. A script of it is a v2 script
+that may use the names below.
+
+```sh
+echo 'Msg "hello from ks"' | ahk --dialect=ks
+```
+
+The surface of the `ks` is the surface of the v2 (833 names) with **130 more**:
+16 classes, 30 functions, 43 methods and 41 variables. The audit that named
+them is in `egm-review/keysharp-audit/`: of the 138 names of KeySharp that do
+not depend on a platform, **all 138 are carried** -- each of them answers with
+a value or with the reason the machine cannot give one.
+
+What the extensions are, by family:
+
+- **The process of a script.** `RunScript` starts a script and answers a
+  `ScriptProcess`: `HasExited`, `ExitCode`, `ExitTime`, `Kill`, `StdOut`,
+  `StdErr`, `StdIn`. The state of a process is the machine's: `/proc` on
+  Linux, `OpenProcess` on Windows. The moment of the exit is the moment of the
+  wait, written the way KeySharp writes a moment.
+- **The pointers.** `ObjCreateWithDataPtr`, `ObjGetDataPtr`, `ObjGetDataSize`,
+  `ObjSetDataPtr`, and the `Struct` class with its `At` -- a view of the
+  memory of the machine at a place, of a type that is asked for.
+- **The typed numbers.** `Int8`, `UInt8`, `Int16`, `UInt16`, `Int32`, `UInt32`,
+  `Int64`, `IntPtr`, `Float32`, `Float64`.
+- **The machine.** `Mail` sends a message through an SMTP server;
+  `GetKeyboardLayout` answers the keymap of the session; `GetKeyInfo` answers
+  the state of a key; `ClipCursor` confines the pointer; `WinFromPoint` answers
+  the window at a place; `ShowDebug` and `OutputDebugLine` write to the log of
+  the machine.
+- **The arrays and the maps.** `Join`, `IndexOf`, `FindIndex`, `Filter`,
+  `Contains`, `Remove`, `StartsWith`, `EndsWith`, `ToString` -- the methods
+  that take a collection and answer another one.
+- **The threads and the hotkeys.** `A_RealThread` and the `Thread` class
+  (`Id`, `IsActive`, `Kind`, `Priority`, `AllowTimers`, `Paused`), the
+  `Hotkey` class with its `BeforeHotkeys` and `Enabled`, and the settings of
+  the hotstrings (`A_DefaultHotstringEndChars` and the rest).
+- **The errors of the dialect.** `ArgumentError` and `UnsupportedError`, beside
+  the tree of the errors of the v2.
+
+Every name of the `ks` is in the surface of the runner, and the state of each
+of them is one line of it:
+
+```sh
+ahk --surface --dialect=ks
+```
+
 ## The report
 
 Every statement that completes produces a step (line, what it did, whether it
@@ -346,14 +412,20 @@ backend uses:
   COSMIC extension for focus) for `WinExist`/`WinActive`/`WinGetTitle`, with
   an X11 path behind `YOKO_DESKTOP=x11`;
 - **`wl-copy`/`wl-paste`** for the clipboard, **zenity** for dialogs,
-  **curl** for downloads, and a native-call layer that loads libraries of the
-  machine (and, on Linux, a helper that can load Windows libraries).
+  **curl** for downloads and for the mail of the `ks` dialect, and a
+  native-call layer that loads libraries of the machine (and, on Linux, a
+  helper that can load Windows libraries).
+
+The machine answers for the things that belong to it, and the tree never
+invents an answer: the state of a process out of `/proc`, the keymap of the
+X server for the layout of the keyboard, the clamp of the coordinates for the
+confinement of the pointer, the SMTP server for the mail.
 
 To build the runner on the box, copy `crates/` and the workspace `Cargo.toml`
 to the machine and run `cargo build --release -p ahk-cli` there. The copy
 matters: building without copying compiles whatever sources the box still
 has. See `docs/wayland-toplevel-enumeration.md` for the window protocols and
-`AGENTS.md` for the box notes.
+`docs/` for the rest of the documentation of the box.
 
 Hotkeys watch a keyboard device named by `AHK_HOTKEY_DEVICE` -- normally the
 physical keyboard -- so a script typing "a" can fire the hotkey "a" without a
@@ -391,22 +463,12 @@ in `tests/class_*.rs`, the v1 dialect in `tests/v1.rs`, a grammar rule in
 `parser.rs`, a token in `lexer.rs`, the pointer ABI in
 `crates/ahk-box/src/pointer.rs`, the runner in `crates/ahk-cli/tests/runner.rs`.
 
-`AGENTS.md` is the working-notes journal for the tree. The full documentation
-is in `docs/`; start at [docs/README.md](docs/README.md), which indexes the
-language guide, the two reference chapters, the runner and report chapter, the
-desktop backend, the errors and the dialect differences. `docs/` also keeps the
-design and measurement records of the port.
+The full documentation is in `docs/`; start at
+[docs/README.md](docs/README.md), which indexes the language guide, the two
+reference chapters, the runner and report chapter, the desktop backend, the
+errors and the dialect differences. `docs/` also keeps the design and
+measurement records of the port.
 
 ## License
 
 Apache 2.0. The text is in `LICENSE`, and every crate manifest says the same.
-
-## Star history
-
-<a href="https://star-history.com/#danalec/ahk&Date">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=danalec/ahk&type=Date&theme=dark">
-<source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=danalec/ahk&type=Date">
-<img alt="Star History Chart" src="https://api.star-history.com/svg?repos=danalec/ahk&type=Date">
-</picture>
-</a>
