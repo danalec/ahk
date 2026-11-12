@@ -53,7 +53,7 @@ mod ffi {
     /// The first index in `SYMBOLS` that belongs to libXtst rather than libX11.
     pub(super) const LIBXTST_FROM: usize = 19;
     /// The number of resolved symbols.
-    pub(super) const SYMBOL_COUNT: usize = 24;
+    pub(super) const SYMBOL_COUNT: usize = 25;
 
     /// The symbols, in a FIXED order: entry `i` belongs to wrapper `i`.
     ///
@@ -86,6 +86,7 @@ mod ffi {
         b"XTestFakeMotionEvent\0",  // 21
         b"XSetErrorHandler\0",      // 22
         b"XGetErrorText\0",         // 23
+        b"XQueryPointer\0",        // 24
     ];
 
     const _: () = assert!(SYMBOLS.len() == SYMBOL_COUNT);
@@ -240,6 +241,9 @@ mod ffi {
     /// `XGetErrorText`: the name of an error of the server.
     #[rustfmt::skip]
     xfn!(23, XGetErrorText(d: *mut c_void, code: c_int, buffer: *mut c_char, length: c_int) -> c_int);
+    /// `XQueryPointer`: the place of the pointer on the screen.
+    #[rustfmt::skip]
+    xfn!(24, XQueryPointer(d: *mut c_void, w: c_ulong, root_return: *mut c_ulong, child_return: *mut c_ulong, root_x: *mut c_int, root_y: *mut c_int, win_x: *mut c_int, win_y: *mut c_int, mask_return: *mut c_uint) -> c_int);
 
     // The libc dynamic loader, declared by hand (no `#[link]`, no crate).
     unsafe extern "C" {
@@ -902,6 +906,14 @@ pub struct X11Desktop {
     display: *mut c_void,
     /// A cached reason for a failed open, so the error is stable and clear.
     failure: Option<String>,
+    /// The desktop of the box, for the capabilities that are not about
+    /// X11: the files, the dialogs, the machine, the pictures and the
+    /// network.
+    ///
+    /// WHY it is kept and not made for each call: the files that are
+    /// open and the pictures that were loaded are STATE, and a desktop
+    /// made for each call would lose them between the calls.
+    lab: crate::desktop::LabDesktop,
 }
 
 /// The keyboard half of [`X11Desktop`], by name.
@@ -930,6 +942,7 @@ impl X11Desktop {
         Self {
             display: std::ptr::null_mut(),
             failure: None,
+            lab: crate::desktop::LabDesktop::new(),
         }
     }
 
@@ -1358,11 +1371,32 @@ impl Pointer for X11Desktop {
     }
 
     fn mouse_position(&mut self) -> Result<(i64, i64), String> {
-        Err(
-            "this desktop cannot tell where the pointer is: XQueryPointer is not \
-             resolved, and XTEST only writes positions"
-                .to_string(),
-        )
+        // The X server knows where the pointer is, and it says it with
+        // `XQueryPointer`: XTEST only WRITES places.
+        let display = self.connection()?;
+        let root = ffi::XDefaultRootWindow(display);
+        let mut root_return: c_ulong = 0;
+        let mut child_return: c_ulong = 0;
+        let mut root_x: c_int = 0;
+        let mut root_y: c_int = 0;
+        let mut win_x: c_int = 0;
+        let mut win_y: c_int = 0;
+        let mut mask: c_uint = 0;
+        let asked = ffi::XQueryPointer(
+            display,
+            root,
+            &mut root_return,
+            &mut child_return,
+            &mut root_x,
+            &mut root_y,
+            &mut win_x,
+            &mut win_y,
+            &mut mask,
+        );
+        if asked == 0 {
+            return Err("XQueryPointer answered nothing about the pointer".to_string());
+        }
+        Ok((root_x as i64, root_y as i64))
     }
 }
 
@@ -1474,6 +1508,35 @@ impl Screen for X11Desktop {
             }
         }
         Ok(None)
+    }
+    /// The scale of the output: the toolkit of the session says it, and
+    /// the helper of the window asks the toolkit.
+    fn screen_scale(&mut self) -> Result<i64, String> {
+        self.lab.screen_scale()
+    }
+    /// The text that a tip shows.
+    fn tooltip_show(&mut self, text: &str, x: i64, y: i64) -> Result<i64, String> {
+        self.lab.tooltip_show(text, x, y)
+    }
+    /// The place and the size of a window of the script.
+    fn window_move(&mut self, x: i64, y: i64, width: i64, height: i64) -> Result<(), String> {
+        self.lab.window_move(x, y, width, height)
+    }
+    /// The controls of the window of the script.
+    fn gui_controls(&mut self) -> Result<String, String> {
+        self.lab.gui_controls()
+    }
+    /// The text of every control of the window of the script.
+    fn gui_all_text(&mut self) -> Result<String, String> {
+        self.lab.gui_all_text()
+    }
+    /// The opacity of the window of the script.
+    fn gui_opacity(&mut self, setting: Option<i64>) -> Result<i64, String> {
+        self.lab.gui_opacity(setting)
+    }
+    /// The paste of a text into a control of the window of the script.
+    fn gui_paste(&mut self, number: u64, text: &str) -> Result<(), String> {
+        self.lab.gui_paste(number, text)
     }
 }
 
@@ -1634,6 +1697,245 @@ impl Files for X11Desktop {
     fn empty_trash(&mut self, _drive: Option<&str>) -> Result<(), String> {
         crate::trash::empty()
     }
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn canonical_path(&mut self, path: &str) -> Result<String, String> {
+        self.lab.canonical_path(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
+        self.lab.open_file(path, mode)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn read_file_at(&mut self, handle: i64, pos: i64, count: i64) -> Result<Vec<u8>, String> {
+        self.lab.read_file_at(handle, pos, count)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn write_file_at(&mut self, handle: i64, pos: i64, bytes: &[u8]) -> Result<usize, String> {
+        self.lab.write_file_at(handle, pos, bytes)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn file_size(&mut self, handle: i64) -> Result<i64, String> {
+        self.lab.file_size(handle)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn close_file(&mut self, handle: i64) -> Result<(), String> {
+        self.lab.close_file(handle)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn delete_file(&mut self, path: &str) -> Result<String, String> {
+        self.lab.delete_file(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn create_dir(&mut self, path: &str) -> Result<String, String> {
+        self.lab.create_dir(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn dir_delete(&mut self, path: &str, recurse: bool) -> Result<String, String> {
+        self.lab.dir_delete(path, recurse)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
+        self.lab.set_working_directory(directory)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn working_directory(&mut self) -> Result<String, String> {
+        self.lab.working_directory()
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn initial_working_directory(&mut self) -> Result<String, String> {
+        self.lab.initial_working_directory()
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn list_files(
+        &mut self,
+        folder: &str,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
+        self.lab.list_files(folder, pattern, mode)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
+        self.lab.read_file(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn read_the_bytes_of_a_file(&mut self, path: &str) -> Result<Vec<u8>, String> {
+        self.lab.read_the_bytes_of_a_file(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn write_file(&mut self, path: &str, text: &str) -> Result<String, String> {
+        self.lab.write_file(path, text)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
+        self.lab.append_file(path, bytes, mark)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.lab.copy_file(from, to, overwrite)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn move_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.lab.move_file(from, to, overwrite)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn copy_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.lab.copy_dir(from, to, overwrite)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn move_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.lab.move_dir(from, to, overwrite)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn attributes_of_the_pattern(
+        &mut self,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
+        self.lab.attributes_of_the_pattern(pattern, mode)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
+        self.lab.file_attributes(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn the_size_of_a_file(&mut self, path: &str) -> Result<i64, String> {
+        self.lab.the_size_of_a_file(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn set_file_attributes(&mut self, path: &str, attributes: &[String]) -> Result<String, String> {
+        self.lab.set_file_attributes(path, attributes)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn file_times(&mut self, path: &str) -> Result<(i64, i64, i64), String> {
+        self.lab.file_times(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn set_file_times(
+        &mut self,
+        path: &str,
+        created: Option<i64>,
+        modified: Option<i64>,
+        accessed: Option<i64>,
+    ) -> Result<String, String> {
+        self.lab.set_file_times(path, created, modified, accessed)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn ini_read(
+        &mut self,
+        path: &str,
+        section: &str,
+        key: &str,
+        default: &str,
+    ) -> Result<String, String> {
+        self.lab.ini_read(path, section, key, default)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn ini_write(
+        &mut self,
+        path: &str,
+        section: &str,
+        key: &str,
+        value: &str,
+    ) -> Result<String, String> {
+        self.lab.ini_write(path, section, key, value)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn ini_delete(&mut self, path: &str, section: &str, key: &str) -> Result<String, String> {
+        self.lab.ini_delete(path, section, key)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn create_shortcut(
+        &mut self,
+        target: &str,
+        shortcut: &str,
+        working_directory: &str,
+        arguments: &str,
+        description: &str,
+        icon: &str,
+    ) -> Result<(), String> {
+        self.lab.create_shortcut(target, shortcut, working_directory, arguments, description, icon)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn full_path(&mut self, path: &str) -> Result<String, String> {
+        self.lab.full_path(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn create_temp_file(&mut self) -> Result<String, String> {
+        self.lab.create_temp_file()
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn read_shortcut(&mut self, shortcut: &str) -> Result<(String, String, String, String, String), String> {
+        self.lab.read_shortcut(shortcut)
+    }
+
 }
 impl Clipboard for X11Desktop {}
 impl Timers for X11Desktop {}
@@ -1683,10 +1985,128 @@ impl Machine for X11Desktop {
     fn drive(&mut self, path: &str) -> Result<Option<ahk::desktop::Drive>, String> {
         crate::drives::drive(path)
     }
+    /// The name of the user of the machine.
+    fn user_name(&mut self) -> Result<String, String> {
+        self.lab.user_name()
+    }
+    /// The name of the machine.
+    fn computer_name(&mut self) -> Result<String, String> {
+        self.lab.computer_name()
+    }
+    /// The shell of the user.
+    fn shell(&mut self) -> Result<String, String> {
+        self.lab.shell()
+    }
+    /// The folders of the machine.
+    fn folders(&mut self) -> Result<ahk::desktop::Folders, String> {
+        self.lab.folders()
+    }
+    /// The version of the system of the machine.
+    fn os_version(&mut self) -> Result<String, String> {
+        self.lab.os_version()
+    }
+    /// The language of the machine.
+    fn language(&mut self) -> Result<String, String> {
+        self.lab.language()
+    }
+    /// Whether the machine is an administrator one.
+    fn is_admin(&mut self) -> Result<bool, String> {
+        self.lab.is_admin()
+    }
+    /// The times the machine has been idle.
+    fn idle_times(&mut self) -> Result<ahk::desktop::Idle, String> {
+        self.lab.idle_times()
+    }
+    /// The path of the program that runs the script.
+    fn executable(&mut self) -> Result<String, String> {
+        self.lab.executable()
+    }
 }
-impl Dialogs for X11Desktop {}
-impl Network for X11Desktop {}
-impl Pictures for X11Desktop {}
+impl Dialogs for X11Desktop {
+    /// A notification of the session: the box answers with
+    /// `notify-send`, and the failure is the reason of the desktop.
+    fn notify(&mut self, title: &str, text: &str) -> Result<(), String> {
+        self.lab.notify(title, text)
+    }
+    /// The question of the user: `zenity` opens it on the display
+    /// of the session.
+    fn input_box(
+        &mut self,
+        prompt: &str,
+        title: &str,
+        options: &ahk::desktop::InputOptions,
+        default: &str,
+    ) -> Result<ahk::desktop::InputAnswer, String> {
+        self.lab.input_box(prompt, title, options, default)
+    }
+    /// The choice of a file.
+    fn file_select(
+        &mut self,
+        options: &ahk::desktop::FileOptions,
+        root: &str,
+        title: &str,
+        filter: &str,
+    ) -> Result<ahk::desktop::FileAnswer, String> {
+        self.lab.file_select(options, root, title, filter)
+    }
+    /// The choice of a folder.
+    fn dir_select(
+        &mut self,
+        starting: &str,
+        options: i64,
+        prompt: &str,
+    ) -> Result<String, String> {
+        self.lab.dir_select(starting, options, prompt)
+    }
+}
+impl Network for X11Desktop {
+    /// The download is the machine's, and the machine is the box.
+    fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
+        self.lab.download(url, file)
+    }
+}
+impl Pictures for X11Desktop {
+    /// The picture of a file: the `png` crate reads it, and it is
+    /// not about X11 at all.
+    fn load_picture(
+        &mut self,
+        filename: &str,
+        options: &ahk::desktop::PictureOptions,
+    ) -> Result<Option<u32>, String> {
+        self.lab.load_picture(filename, options)
+    }
+    /// The look for a picture on the screen: the capture is the
+    /// X11 one (`XGetImage`), and the matching is the one of the box.
+    fn image_search(
+        &mut self,
+        x1: i64,
+        y1: i64,
+        x2: i64,
+        y2: i64,
+        image: &ahk::desktop::Image,
+        options: &ahk::desktop::ImageOptions,
+    ) -> Result<ahk::desktop::ImageSearch, String> {
+        let picture = match crate::pictures::the_picture_of(&self.lab, image) {
+            Ok(picture) => picture,
+            Err(answer) => return Ok(answer),
+        };
+        let picture = crate::pictures::resized(picture, options.width, options.height);
+        let (left, top, width, height) = crate::pictures::the_region(x1, y1, x2, y2);
+        if width == 0 || height == 0 {
+            return Ok(ahk::desktop::ImageSearch::NotFound);
+        }
+        let pixels = self.image_rgb(left, top, width as i64, height as i64)?;
+        let screen = crate::pictures::Picture {
+            pixels,
+            width,
+            height,
+        };
+        Ok(match crate::pictures::search_in(&picture, &screen, options) {
+            Some((x, y)) => ahk::desktop::ImageSearch::Found(x + left, y + top),
+            None => ahk::desktop::ImageSearch::NotFound,
+        })
+    }
+}
 impl Desktop for X11Desktop {}
 #[cfg(test)]
 mod tests {

@@ -12233,6 +12233,65 @@ dialects, and the runner pins 306 where it pinned 302.
 **The surface moves with the family: 808 answers with a value and 25 are
 refused become 811 and 22.**
 
+## 336. The X11 backend answers the machine, not only the screen
+
+**Measured on the VM `AhkDesktopTest` on 2026-11-11: the X11 backend
+answered the windows, the keys and the screen -- and refused everything
+else, while the desktop of the box answers all of it.** In the session of
+i3 (`YOKO_DESKTOP=x11`), the branch answered:
+
+```
+mouse=[this desktop cannot tell where the pointer is: XQueryPointer is not resolved, ...]
+user=[this desktop cannot say the name of the user]
+file=[this desktop cannot open a file]
+```
+
+**Why: the capabilities that are not about X11 were simply not
+implemented there.** The files are the file system of the box, the
+dialogs are `zenity`, the machine is the machine, and the pictures are
+read with the `png` crate -- none of that is X11, and all of it is
+already in the desktop of the box.
+
+**The fix is a delegation, and the X11 backend now keeps a desktop of the
+box inside itself** (`lab: crate::desktop::LabDesktop`). WHY it is kept
+and not made for each call: the files that are open and the pictures that
+were loaded are STATE, and a desktop made for each call would lose them
+between the calls. The methods that ARE about X11 stay in the X11
+backend: the windows, the keys, the buttons, the screen.
+
+**The pointer is the one that X11 answers itself**: `XQueryPointer` is a
+symbol of Xlib, and the place of the pointer is something only the X
+server knows -- XTEST only WRITES places. The symbol went into the
+table of the resolved ones (the count is 25 now), and the answer is the
+place of the pointer on the screen.
+
+**Measured after the fix, in the same session of i3, port against
+branch:**
+
+| the question | the port | the branch |
+|---|---|---|
+| `MouseGetPos` | **640,400** (o centro da tela de 1280x800) | a recusa |
+| `A_UserName` | **tester** | a recusa |
+| `A_ComputerName` | **archlinux** | a recusa |
+| `A_ScreenDPI` | **96** | a recusa |
+| `FileOpen`/`FileRead` | **"hello from the x11 path"** | a recusa |
+| `A_AhkPath` | **/usr/local/bin/ahk-port** | a recusa |
+| `LoadPicture` | **1** (o número da imagem) | a recusa |
+| `ImageSearch` | as coordenadas **vazias** -- a imagem não está na tela, que é a resposta do v2 | a recusa |
+| `TrayTip` | a razão honesta: a sessão não tem daemon de notificação | a recusa |
+
+**The capture of uma tela é a do backend, e o casamento de uma imagem é
+o mesmo**: `pictures::search` was capturing with `grim` and matching
+inside itself, and the two are now apart -- `the_region` (the region both
+backends agree about), `search_in` (the matching, which is the same
+either way) and `the_picture_of` (the picture of a file, or of one that
+was loaded -- the loaded ones live in the desktop that loaded them). The
+X11 backend captures with `XGetImage` and matches with `search_in`.
+
+**The suite is green on the VM with the change**, and the surface of the
+dialect did not move: this is about what the X11 session answers, not
+about the names of v2.
+
 ## 335. An error of the X server is a reason, not the end of the run
 
 **Measured on the VM `AhkDesktopTest` on 2026-11-11: the X11 backend

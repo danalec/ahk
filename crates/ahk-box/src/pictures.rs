@@ -114,18 +114,48 @@ pub fn search(
     picture: &Picture,
     options: &ImageOptions,
 ) -> Option<(i64, i64)> {
-    let (left, top) = (x1.min(x2), y1.min(y2));
-    let (right, bottom) = (x2.max(x1), y2.max(y2));
-    let width = right - left + 1;
-    let height = bottom - top + 1;
-    if width <= 0 || height <= 0 {
-        return None;
-    }
+    let (left, top, width, height) = the_region(x1, y1, x2, y2);
     let path = desktop
-        .capture(left, top, width, height, &format!("ahk-image-{}", millis()))
+        .capture(
+            left,
+            top,
+            width as i64,
+            height as i64,
+            &format!("ahk-image-{}", millis()),
+        )
         .ok()?;
     let screen = read(&path).ok()?;
     let _ = std::fs::remove_file(&path);
+    let inside = search_in(picture, &screen, options)?;
+    Some((inside.0 + left, inside.1 + top))
+}
+
+/// The region of the screen that a search covers.
+///
+/// WHY it is its own function: the two backends of the capture -- `grim`
+/// on the box and `XGetImage` on an X11 session -- need the same
+/// region, and the two must agree about what a region is.
+pub fn the_region(x1: i64, y1: i64, x2: i64, y2: i64) -> (i64, i64, usize, usize) {
+    let (left, top) = (x1.min(x2), y1.min(x2));
+    let (right, bottom) = (x2.max(x1), y2.max(y1));
+    let width = right - left + 1;
+    let height = bottom - top + 1;
+    (left, top, width.max(0) as usize, height.max(0) as usize)
+}
+
+/// Look for a picture in a picture of the screen.
+///
+/// WHY it is separate from `search`: the capture of the screen is the
+/// business of the backend -- `grim` on the box, `XGetImage` on an X11
+/// session -- and the MATCHING of the picture is the same either way.
+///
+/// The answer is the place of the picture INSIDE the picture of the
+/// screen: the caller adds the place of the screen itself.
+pub fn search_in(
+    picture: &Picture,
+    screen: &Picture,
+    options: &ImageOptions,
+) -> Option<(i64, i64)> {
     let transparent = options.transparent.as_deref().and_then(parse_colour);
     let variation = options.variation.clamp(0, 255) as i32;
     if picture.width > screen.width || picture.height > screen.height {
@@ -133,12 +163,39 @@ pub fn search(
     }
     for y in 0..=(screen.height - picture.height) {
         for x in 0..=(screen.width - picture.width) {
-            if the_picture_is_there(&screen, picture, x, y, variation, transparent) {
-                return Some((x as i64 + left, y as i64 + top));
+            if the_picture_is_there(screen, picture, x, y, variation, transparent) {
+                return Some((x as i64, y as i64));
             }
         }
     }
     None
+}
+
+/// The picture of a file, or the picture of one that was loaded.
+///
+/// WHY it is its own function: the pictures that were loaded live in
+/// the desktop that loaded them, and a backend that borrows that
+/// desktop asks for the picture here.
+pub fn the_picture_of(desktop: &LabDesktop, image: &Image) -> Result<Picture, ImageSearch> {
+    match image {
+        Image::File(name) => {
+            if !Path::new(name).exists() {
+                return Err(ImageSearch::NotLoadable);
+            }
+            read(name).map_err(|_| ImageSearch::NotLoadable)
+        }
+        Image::Loaded(handle) => {
+            let handle = *handle as usize;
+            match desktop.pictures.get(handle.wrapping_sub(1)) {
+                Some(picture) => Ok(Picture {
+                    pixels: picture.pixels.clone(),
+                    width: picture.width,
+                    height: picture.height,
+                }),
+                None => Err(ImageSearch::NotLoadable),
+            }
+        }
+    }
 }
 
 /// Whether the picture is at this place of the screen.

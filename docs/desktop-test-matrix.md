@@ -223,6 +223,22 @@ the clipboard is called with 1, the registry answers "42", `IL_Add` of a
 PNG answers 1, `A_ScreenDPI` answers 96, `A_TrayMenu` answers a Menu
 whose Default is "&Open".
 
+**The X11 backend answers the machine too, not only the screen**
+(AGENTS.md §336). Measured on the VM on 2026-11-11, in the session of
+i3, port against branch:
+
+| the question | the port | the branch |
+|---|---|---|
+| `MouseGetPos` | **640,400** | a recusa |
+| `A_UserName` | **tester** | a recusa |
+| `A_ComputerName` | **archlinux** | a recusa |
+| `A_ScreenDPI` | **96** | a recusa |
+| `FileOpen` / `FileRead` | **"hello from the x11 path"** | a recusa |
+| `A_AhkPath` | **/usr/local/bin/ahk-port** | a recusa |
+| `LoadPicture` | **1** | a recusa |
+| `ImageSearch` | as coordenadas **vazias** (a imagem não está na tela) | a recusa |
+| `TrayTip` | a razão honesta (a sessão não tem daemon de notificação) | a recusa |
+
 **Two things the VM showed, that the two trees share** (so they are not
 the port's):
 
