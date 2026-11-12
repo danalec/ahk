@@ -233,14 +233,24 @@ the box: `ControlGetText("Edit1", "the-probe-of-the-controls")` answers
 "hello from the port".
 
 **What the port has moved so far: the surface goes from 684 answers with
-a value and 149 refusals to 808 and 25.** The branch answers 815 and
-refuses 18, so **9 names are still to come**: the tray (`TraySetIcon`
-and `TrayTip`, and a helper of their own), `OnClipboardChange`, and the
-six variables (`A_IconFile`, `A_IconNumber`, `A_TrayMenu`, `A_WinDir`,
-`A_ProgramFiles`, `A_ScreenDPI`). In two names the port is AHEAD of the
-branch: `Pause` and `Suspend` answer with values here, where the branch
-refuses them. The styles and `Edit` are not in the count either: they
-are refused in the branch too, with the same reasons.
+a value and 149 refusals to 811 and 22.** The branch answers 815 and
+refuses 18, so **6 names are still to come**: the tray (`TraySetIcon`
+and `TrayTip`, and the three variables that read it -- `A_IconFile`,
+`A_IconNumber`, `A_TrayMenu`) and `OnClipboardChange`. In two names the
+port is AHEAD of the branch: `Pause` and `Suspend` answer with values
+here, where the branch refuses them. The styles and `Edit` are not in
+the count either: they are refused in the branch too, with the same
+reasons.
+
+**The fourteenth family is ported too (2026-11-11): three built-in
+variables.** `A_WinDir` and `A_ProgramFiles` are the machine's, and the
+box has no Windows of its own -- the raven is one: the two paths come
+from its kernel32 (`GetWindowsDirectoryA`) and from the environment of
+the emulated system, and on a machine that IS a Windows they come from
+the environment of the machine. `A_ScreenDPI` left the machine and
+became a question of the screen: the 96 of v2 with the scale factor the
+session reports applied. Measured on the box: "C:\Windows", "C:\Program
+Files" -- with a raven the run starts -- and 96.
 
 **The thirteenth family is ported too (2026-11-11): the registry of the
 machine and the log trio -- eight names.** Windows has a registry and

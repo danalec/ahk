@@ -61,6 +61,14 @@ impl Network for Fake {}
 impl Sound for Fake {}
 
 impl Machine for Fake {
+
+    fn program_files(&mut self) -> Result<String, String> {
+        Ok("C:\\Program Files".to_string())
+    }
+
+    fn windows_directory(&mut self) -> Result<String, String> {
+        Ok("C:\\Windows".to_string())
+    }
     fn executable(&mut self) -> Result<String, String> {
         Ok("/usr/bin/ahk".to_string())
     }
@@ -334,17 +342,6 @@ fn the_working_directory_answers_with_the_directory_of_the_desktop() {
 }
 
 #[test]
-fn a_name_of_windows_refuses_with_the_reason_of_the_contract() {
-    let report = run("MsgBox A_WinDir");
-    assert!(!report.ok);
-    assert_eq!(
-        report.error.as_deref(),
-        Some("this is a name of Windows, and this desktop is not Windows.")
-    );
-    assert_eq!(report.error_line, Some(1));
-}
-
-#[test]
 fn the_settings_that_the_runtime_keeps_answer_with_the_value_of_v2() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the mode of the
     // matching of the titles is 2, the speed of it is "Fast", the hidden
@@ -396,10 +393,10 @@ fn a_name_that_the_runtime_does_not_carry_refuses_with_the_reason_of_the_contrac
 #[test]
 fn the_reason_of_a_name_is_the_same_in_the_read_and_in_the_refusal() {
     for name in [
-        "A_WinDir",
-        "A_ProgramFiles",
         "A_Cursor",
         "A_ScriptHwnd",
+        // `A_IconFile` stays here while the tray is not carried: the branch
+        // answers it, and the loop of the branch lost the name there.
         "A_IconFile",
     ] {
         let refusal = match ahk::variables::refusal_of(name) {
@@ -863,3 +860,36 @@ fn the_compound_operator_checks_the_value_that_is_written_first() {
         vec!["Expected a Number but got a String. | TypeError"]
     );
 }
+
+
+/// The tray variables of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `A_IconFile` of a script
+/// that set no icon answers the empty text, `A_IconNumber` answers zero, and
+/// `A_TrayMenu` answers a Menu object -- the SAME one on every read, whose
+/// `Default` is "&Open" before any item is added to it, and whose `Add`
+/// works like any menu's.
+#[test]
+fn the_windows_of_the_machine_are_the_ones_the_machine_says() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `A_WinDir` answers
+    // "C:\WINDOWS" and `A_ProgramFiles` answers "C:\Program Files" on a
+    // machine of Windows. The name without the prefix `A_` -- the spelling
+    // the table of the surface carries -- makes the BINARY hang (measured:
+    // the run was killed after ten seconds), and this runtime answers the
+    // directory of the system in both spellings.
+    let report = run("MsgBox A_WinDir \", \" A_ProgramFiles");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["C:\\Windows, C:\\Program Files"]);
+}
+
+
+
+#[test]
+fn a_name_of_windows_refuses_with_the_reason_of_the_contract() {
+    // `A_WinDir` used to be the example of the blanket reason of the names
+    // of Windows. It was carried on 2026-11-11: the machine says where its
+    // system is, and the raven is a Windows of its own for the box.
+    let report = run("MsgBox A_WinDir");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["C:\\Windows"]);
+}

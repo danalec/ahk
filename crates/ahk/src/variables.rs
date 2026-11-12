@@ -83,11 +83,6 @@ pub const THE_RUNTIME_OWNS: &[&str] = &[
 /// The version of the dialect this runtime carries.
 const AHK_VERSION: &str = "2.0.19";
 
-/// The reason the names of Windows are not answered.
-///
-/// The two names are about the folders of Windows, and the desktop of the
-/// tree is not the one of Windows.
-const NOT_WINDOWS: &str = "this is a name of Windows, and this desktop is not Windows.";
 
 /// The reason the short names of the files are not answered.
 ///
@@ -280,6 +275,12 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
             Err(message) => Err(reason(&message)),
         }),
         Kind::Hotkey => crate::hotkeys::variable(&name, rt),
+        // The scale of the output is a question of its own: the session reports a
+        // scale factor, and `A_ScreenDPI` is the 96 that v2 gives with it applied.
+        Kind::Screen if name == "screendpi" => Some(match rt.desktop().screen_scale() {
+            Ok(scale) => Ok(Value::Int(96 * scale)),
+            Err(message) => Err(reason(&message)),
+        }),
         Kind::Screen => Some(match rt.desktop().screen_size() {
             Ok((width, height)) => Ok(Value::Int(if name == "screenwidth" {
                 width
@@ -601,7 +602,7 @@ fn kind_of(name: &str) -> Option<Kind> {
         "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec" | "desktop"
         | "desktopcommon" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
         | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments"
-        | "osversion" | "programfiles" | "programs" | "programscommon" | "screendpi"
+        | "osversion" | "programfiles" | "programs" | "programscommon"
         | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu"
         | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle"
         | "timeidlekeyboard" | "timeidlemouse" | "timeidlephysical" | "traymenu" | "username"
@@ -609,7 +610,7 @@ fn kind_of(name: &str) -> Option<Kind> {
         // -- the clipboard -----------------------------------------------------------
         "clipboard" => Some(Kind::Clipboard),
         // -- the screen ---------------------------------------------------------------
-        "screenheight" | "screenwidth" => Some(Kind::Screen),
+        "screenheight" | "screenwidth" | "screendpi" => Some(Kind::Screen),
         // -- the hotkeys ------------------------------------------------------------
         "hotkeyinterval"
         | "hotkeymodifiertimeout"
@@ -703,6 +704,18 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         // directory of the script is the directory where the run started,
         // and the name and the path are an asterisk.
         "scriptname" | "scriptfullpath" | "icontip" => Ok(Value::Text("*".to_string())),
+        // The directory of the Windows of the machine, and the directory
+        // of the programs of the user.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-11: `A_WinDir`
+        // answers "C:\WINDOWS" and `A_ProgramFiles` answers "C:\Program
+        // Files" on a machine of Windows.
+        //
+        // The box has no Windows of its own, and the **raven** is one: it
+        // emulates a Windows on the box, and the paths of its file system
+        // are the ones it says.
+        "windir" => text(rt.desktop().windows_directory()),
+        "programfiles" => text(rt.desktop().program_files()),
         "appdata" | "appdatacommon" | "desktop" | "desktopcommon" | "startmenu"
         | "startmenucommon" | "programs" | "programscommon" | "startup" | "startupcommon"
         | "mydocuments" | "temp" => folder(rt, name),
@@ -736,7 +749,6 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
 /// the name.
 fn machine_refusal(name: &str) -> Option<&'static str> {
     Some(match name {
-        "windir" | "programfiles" => NOT_WINDOWS,
         "scripthwnd" => NO_SCRIPT_HWND,
         "screendpi" => NO_SCREEN_DPI,
         "iconfile" | "iconnumber" | "traymenu" => NO_TRAY_ICON,

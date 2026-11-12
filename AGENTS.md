@@ -12183,6 +12183,56 @@ than the branch.
 **The surface moves with the family: 800 answers with a value and 33 are
 refused become 808 and 25.**
 
+## 331. The directories of the Windows are the raven's, and the scale is the session's
+
+**The fourteenth family of the port is three built-in variables:
+`A_WinDir`, `A_ProgramFiles` and `A_ScreenDPI`.**
+
+**The two directories are the machine's, and the box has no Windows of
+its own -- the raven is one.** The branch measures the paths against the
+raven on 2026-11-11: `A_WinDir` comes from `GetWindowsDirectoryA` of the
+kernel32 that the raven serves, and `A_ProgramFiles` comes from the
+environment of the emulated system -- `SHGetFolderPathA` leaves the block
+empty there, and `GetEnvironmentVariableA("ProgramFiles")` answers. On a
+machine that IS a Windows the same two names are the environment of the
+machine: `SystemRoot` and `ProgramFiles`. The trait grows the two
+methods with the defaults that refuse; the box carries the raven call
+under the linux gate and the environment under the other.
+
+**`A_ScreenDPI` is not a name of the machine at all.** The branch
+reclassifies it as a question of the screen: the session reports a scale
+factor, and the answer is the 96 of v2 with it applied. The refusal of
+the name stayed in `machine_refusal` as a fallback no one reaches -- the
+kind function answers Screen first.
+
+**Measured on the box on 2026-11-11**: `A_WinDir` answers "C:\Windows",
+`A_ProgramFiles` answers "C:\Program Files" -- both through a raven the
+run starts, the note says so -- and `A_ScreenDPI` answers 96, the scale
+of the COSMIC session being 1. On the Windows workstation the same probe
+answers "C:\WINDOWS" and "C:\Program Files" from the environment;
+`A_ScreenDPI` there fails with the reason of the window helper, which is
+what `screen_scale` of the box says on that machine, in both trees.
+
+**The raven has to be named by the environment on the box, and the
+helper has to be built there.** The probe that measured the family ran
+with `AHK_RAVEN=/home/danalec/raven-upstream/build/native/raven`,
+`AHK_RAVEN_HELPER` and `AHK_RAVEN_HELPER32` pointing at the two guests
+that `sh crates/ahk-box/helper/build.sh` leaves beside itself. A box
+without the first two says "this box has no raven" instead of answering.
+The build script and the sources go over with the tar of the crates, and
+the CRLF of the workstation has to come off them first (`sed -i
+'s/\r$//'`) or the shell of the box chokes on the carriage returns.
+
+**The case of the master that pinned the refusal of `A_WinDir` became the
+case of the branch that pins the answer**, and the coherence case of the
+refusals lost the two directories -- it keeps `A_Cursor`, `A_ScriptHwnd`
+and `A_IconFile`, which stay refused until the tray comes. The count of
+the surface of the v1 moved with the v2: the three names answer in both
+dialects, and the runner pins 306 where it pinned 302.
+
+**The surface moves with the family: 808 answers with a value and 25 are
+refused become 811 and 22.**
+
 ## 329. The reasons of the refusals that remain are the ones of the branch
 
 The branch's pass of 2026-11-10 over the refusals gave each group of them

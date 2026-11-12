@@ -253,8 +253,8 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 808);
-    assert_eq!(report.number("refusals"), 25);
+    assert_eq!(report.number("values"), 811);
+    assert_eq!(report.number("refusals"), 22);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -293,8 +293,11 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(report.text("dialect"), "v1");
     assert_eq!(report.number("total"), 408);
     // The names that the v1 has and the v2 does not are carried, and none of
-    // them is pending: the surface of the v1 is complete.
-    assert_eq!(report.number("values"), 302);
+    // them is pending: the surface of the v1 is complete. `A_WinDir`,
+    // `A_ProgramFiles` and `A_ScreenDPI` answer with a value since the port
+    // of the variables of the machine, in both dialects, so the count of the
+    // values moved with the one of the v2.
+    assert_eq!(report.number("values"), 306);
     assert_eq!(report.number("pending"), 0);
     let entries = report.array("entries");
     let is_set = entries
