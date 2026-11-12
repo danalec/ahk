@@ -12233,6 +12233,63 @@ dialects, and the runner pins 306 where it pinned 302.
 **The surface moves with the family: 808 answers with a value and 25 are
 refused become 811 and 22.**
 
+## 334. The two desktops of the VM, measured against the branch
+
+**The port was checked on the VM `AhkDesktopTest` (192.168.0.110) on
+2026-11-11, in BOTH sessions, with the branch built beside it.** The
+branch tree went over by the same tar (`~/ahk-branch`), was built with
+the same rustc 1.99.1, and the two binaries were run against the SAME
+probe script: `/usr/local/bin/ahk-port` and `/usr/local/bin/ahk-branch`,
+the runner of the port and the runner of the branch.
+
+**The families of the end answer the same in both trees, line by line:**
+
+- **X11 (the session of i3, `YOKO_DESKTOP=x11`): 14 lines of 14 equal.**
+  The X11 desktop has no clipboard, no notification, no tray and no
+  registry, so the families answer the refusal of the trait --
+  "this desktop cannot write the clipboard", "this desktop cannot show a
+  notification", "this desktop cannot make a key of the registry" -- and
+  the branch answers the same words. What works in X11 works in both:
+  the screen, the icon list, the COM wording and the refusal of the
+  menu.
+- **Wayland (the session of sway, `WAYLAND_DISPLAY=wayland-1`): 16 lines
+  of 16 equal**, and here the capabilities are REAL: the watcher of the
+  clipboard is called with 1 when the script writes `A_Clipboard`, the
+  registry answers "42" for the value it wrote, `IL_Add` of a PNG answers
+  1, `A_ScreenDPI` answers 96, `A_TrayMenu` answers a Menu whose Default
+  is "&Open", and `ComObjGet` throws "(0x80070057) The parameter is
+  incorrect.".
+- **The capabilities of the machine are equal too: 7 lines of 7 equal**
+  in each session -- the scale, the user, the folders, the windows, the
+  pointer, the title and the active window.
+
+**The suite of the tree is green on the VM**: `cargo test --workspace`
+there, with every target and no failure -- the Linux gate of the tree,
+run where the tree runs.
+
+**Two things the VM showed that are NOT the port's fault, and that the
+two trees share:**
+
+- **The capture of the screen on X11 aborts the process.** `PixelGetColor`
+  on the X11 path ends the run with "X Error of failed request:
+  BadMatch (invalid parameter attributes) -- Major opcode of failed
+  request: 73 (X_GetImage)": the X error kills the process, and the
+  report of the run is empty. The branch does the same, byte for byte
+  (measured on 2026-11-11), so it is a bug of the X11 path of the
+  branch and of the master, and not something the port brought in.
+- **The tray needs a watcher of StatusNotifierItem.** The helper of the
+  tray registers the item and the watcher of sway has none: the answer
+  of the helper is "the watcher said no: GDBus.Error:org.freedesktop.
+  DBus.Error.ServiceUnknown: The name is not activatable", and the run
+  says so in a NOTE -- the icon of the script is set either way, and
+  `A_IconFile` and `A_IconNumber` answer it. On the box the watcher is
+  there (COSMIC has one) and the tray takes the icon.
+
+**The helper of the tray goes to `/usr/local/bin/helper/ahk-tray.py` on
+the VM**, beside the helper of the window: the box looks for it in the
+two places -- beside the binary and under the crate as it was compiled
+-- and says the reason when it is in neither.
+
 ## 332. The tray is a helper of the session, and the port is done
 
 **The fifteenth family of the port is the last one: six names --

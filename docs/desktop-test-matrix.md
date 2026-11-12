@@ -197,6 +197,48 @@ the session starts from the autologin of `tty1`: `sway`, or `startx i3`.
 case, and the surface answers the same 754 names as on the workstation --
 the language does not depend on the compositor.
 
+### 5.0 The two desktops against the branch (2026-11-11)
+
+**The port and the branch were built side by side on the VM and run
+against the same probe script, in both sessions.** The branch tree went
+over by the same tar (`~/ahk-branch`), was built with the same rustc
+1.99.1, and the two runners answered the same script:
+
+| the question | the answer |
+|---|---|
+| the surface of v2 | the port **817 values / 16 refusals**, the branch **815 / 18** |
+| the families of the end in i3 (X11) | **14 lines of 14 equal** |
+| the families of the end in sway (Wayland) | **16 lines of 16 equal** |
+| the capabilities of the machine, in each session | **7 lines of 7 equal** |
+| the suite of the tree on the VM | **green**, every target, no failure |
+
+**What the X11 session answers** is the refusal of the trait, because the
+X11 desktop has no clipboard, no notification, no tray and no registry:
+"this desktop cannot write the clipboard", "this desktop cannot show a
+notification", "this desktop cannot make a key of the registry". The
+branch answers the same words.
+
+**What the sway session answers** is the thing itself: the watcher of
+the clipboard is called with 1, the registry answers "42", `IL_Add` of a
+PNG answers 1, `A_ScreenDPI` answers 96, `A_TrayMenu` answers a Menu
+whose Default is "&Open".
+
+**Two things the VM showed, that the two trees share** (so they are not
+the port's):
+
+- **The capture of the screen on X11 aborts the process.**
+  `PixelGetColor` ends the run with "X Error of failed request:
+  BadMatch (invalid parameter attributes) -- Major opcode of failed
+  request: 73 (X_GetImage)" and the report of the run is empty. The
+  branch does the same, byte for byte.
+- **The tray needs a watcher of StatusNotifierItem.** sway has none:
+  the answer of the helper is "the watcher said no:
+  GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name is
+  not activatable", and the run says so in a NOTE -- the icon of the
+  script is set either way. On the box the watcher is there (COSMIC has
+  one) and the tray takes the icon. The helper of the tray goes to
+  `/usr/local/bin/helper/ahk-tray.py` on the VM.
+
 ### 5.1 sway 1.12 (wlroots) -- the item 2 of the list
 
 The compositor of the VM **does publish the portable listing**
