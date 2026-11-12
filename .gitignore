@@ -27,3 +27,12 @@ dist/
 # the answers of the engines that differential.py writes are not part of the tree
 scripts/differential/raw/
 scripts/differential/_subset/
+
+# the notebooks of the sessions are not part of the project: the AGENTS.md
+# is the working notebook of the agent sessions and the EGM.md files are
+# the notebooks of the protocol of the review. They name the machines of
+# the lab, they carry the history of the sessions, and they are read by
+# the harness and not by the user of the dialect. The pattern of the
+# second one has no folder in it, so it refuses the one of every crate.
+AGENTS.md
+EGM.md
