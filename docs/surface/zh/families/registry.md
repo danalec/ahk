@@ -1,6 +1,6 @@
 # 注册表 API
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
 
 语言: 中文
 
@@ -16,12 +16,12 @@
 | `LoopRegType` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `RegCreateKey` | AutoHotkey v2.0.19 | function | -- | 0 to 1 | 值 |
 | `RegDelete` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | 值 |
-| `RegDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `RegDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `RegDeleteKey` | AutoHotkey v2.0.19 | function | -- | 0 to 1 | 值 |
 | `RegRead` | AutoHotkey v2.0.19 | function | -- | 0 to 3 | 值 |
-| `RegRead` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `RegRead` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `RegView` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `RegWrite` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | 值 |
-| `RegWrite` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `RegWrite` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `SetRegView` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
 | `SetRegView` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |

@@ -1,6 +1,6 @@
 # 机器、进程与环境
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
 
 语言: 中文
 
@@ -18,7 +18,7 @@
 | `A_DesktopCommon` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_EventInfo` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_FileEncoding` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
-| `A_IPAddress1` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：本桌面不知道机器的网络地址。 |
+| `A_IPAddress1` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：this desktop does not know the address of the network of the machine. |
 | `A_Language` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_MDay` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_MM` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
@@ -53,9 +53,9 @@
 | `ComSpec` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `Desktop` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `DesktopCommon` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
-| `Drive` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| `DriveGet` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| `DriveSpaceFree` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `Drive` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| `DriveGet` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| `DriveSpaceFree` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `Thread.Elapsed` | KeySharp | method | Thread | -- | 值 |
 | `VarRef.Empty` | KeySharp | method | VarRef | -- | 值 |
 | `EnvAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 值 |
@@ -77,10 +77,10 @@
 | `MyDocuments` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `OSVersion` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `OutputDebug` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
-| `OutputDebug` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `OutputDebug` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `Thread.Paused` | KeySharp | method | Thread | -- | 值 |
 | `Thread.Priority` | KeySharp | method | Thread | -- | 值 |
-| `Process` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `Process` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ProcessClose` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
 | `ProcessExist` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
 | `ProcessGetName` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
@@ -96,13 +96,13 @@
 | `Run` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | 值 |
 | `Run` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `RunAs` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | 值 |
-| `RunAs` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `RunAs` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `RunWait` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | 值 |
 | `RunWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `ScriptProcess` | KeySharp | class | -- | -- | 值 |
 | `SetEnv` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `Shutdown` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
-| `Shutdown` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `Shutdown` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `StartMenu` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `StartMenuCommon` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `Startup` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
@@ -111,7 +111,7 @@
 | `ScriptProcess.StdIn` | KeySharp | method | ScriptProcess | -- | 值 |
 | `ScriptProcess.StdOut` | KeySharp | method | ScriptProcess | -- | 值 |
 | `SysGet` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
-| `SysGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `SysGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `SysGetIPAddresses` | AutoHotkey v2.0.19 | command | -- | 0 | 值 |
 | `PropRef.Target` | KeySharp | method | PropRef | -- | 值 |
 | `Temp` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |

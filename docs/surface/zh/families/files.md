@@ -1,6 +1,6 @@
 # 文件与目录操作
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
 
 语言: 中文
 
@@ -48,7 +48,7 @@
 | `FileCopyDir` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 值 |
 | `FileCreateDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `FileCreateShortcut` | AutoHotkey v2.0.19 | command | -- | 2 to 9 | 值 |
-| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `FileCreateTemp` | KeySharp | function | -- | -- | 值 |
 | `FileDelete` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
 | `FileDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
@@ -60,13 +60,13 @@
 | `FileGetAttrib` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
 | `FileGetAttrib` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `FileGetShortcut` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | 值 |
-| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `FileGetSize` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 值 |
 | `FileGetSize` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `FileGetTime` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 值 |
 | `FileGetTime` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `FileGetVersion` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
-| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `FileInstall` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | 值 |
 | `FileInstall` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 值 |
 | `FileMove` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | 值 |
@@ -78,9 +78,9 @@
 | `FileRead` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 值 |
 | `FileReadLine` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | 值 |
 | `FileRecycle` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
-| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `FileRecycleEmpty` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
-| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `FileRemoveDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `FileSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 值 |
 | `FileSelectFile` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |

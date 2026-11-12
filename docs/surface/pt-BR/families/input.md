@@ -1,6 +1,6 @@
 # Hotkeys, hotstrings e entrada
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Português (Brasil)
 
@@ -18,7 +18,7 @@ Os nomes da família **Hotkeys, hotstrings e entrada** nos três dialetos, com o
 | `A_CoordModeMouse` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_CoordModePixel` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_CoordModeToolTip` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
-| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | recusado: este runtime não lê o formato do cursor da máquina. |
+| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | recusado: the shape of the cursor of the machine is not read by this runtime. |
 | `A_DefaultHotstringCaseSensitive` | KeySharp | variable | -- | -- | valor |
 | `A_DefaultHotstringConformToCase` | KeySharp | variable | -- | -- | valor |
 | `A_DefaultHotstringDetectWhenInsideWord` | KeySharp | variable | -- | -- | valor |
@@ -56,7 +56,7 @@ Os nomes da família **Hotkeys, hotstrings e entrada** nos três dialetos, com o
 | `Hotkey.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
 | `InputHook.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | InputHook | -- | valor |
 | `BlockInput` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
-| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `InputHook.BufferLengthMax` | KeySharp | method | InputHook | -- | valor |
 | `CallbackCreate` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | valor |
 | `CallbackFree` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
@@ -67,10 +67,10 @@ Os nomes da família **Hotkeys, hotstrings e entrada** nos três dialetos, com o
 | `ClipCursor` | KeySharp | function | -- | -- | valor |
 | `ClipWait` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `ClipWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | valor |
-| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `CoordModeMouse` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `CoordModePixel` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | recusado: este runtime não lê o formato do cursor da máquina. |
+| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | recusado: the shape of the cursor of the machine is not read by this runtime. |
 | `DefaultMouseSpeed` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `InputHook.EndCharMode` | KeySharp | method | InputHook | -- | valor |
 | `Hotkey.EndKey` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
@@ -106,7 +106,7 @@ Os nomes da família **Hotkeys, hotstrings e entrada** nos três dialetos, com o
 | `Hotkey.Input` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
 | `InputHook.Input` | AutoHotkey v2.0.19 | method | InputHook | -- | valor |
 | `InputHook` | AutoHotkey v2.0.19 | class | -- | -- | valor |
-| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `InstallKeybdHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `InstallMouseHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `IsLabel` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
@@ -116,13 +116,13 @@ Os nomes da família **Hotkeys, hotstrings e entrada** nos três dialetos, com o
 | `KeyDuration` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `KeyDurationPlay` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `KeyHistory` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
-| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.KeyOpt` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
 | `InputHook.KeyOpt` | AutoHotkey v2.0.19 | method | InputHook | -- | valor |
 | `KeyWait` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
 | `KeyWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `ListHotkeys` | AutoHotkey v2.0.19 | command | -- | 0 | valor |
-| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.Match` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
 | `InputHook.Match` | AutoHotkey v2.0.19 | method | InputHook | -- | valor |
 | `MaxHotkeysPerInterval` | AutoHotkey v2.0.19 | variable | -- | -- | valor |

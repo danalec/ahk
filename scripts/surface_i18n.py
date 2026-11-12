@@ -19,15 +19,20 @@ translation was forgotten.
 """
 
 # The languages of the subtree, in the order they are printed.
-LANGS = ("en", "es", "pt-BR", "ja", "zh")
+LANGS = ("en", "es", "pt-BR", "fr", "de", "ru", "ja", "zh", "zh-Hant", "ko")
 
 # The name of each language, in that language.
 LANG_NAMES = {
     "en": "English",
     "es": "Español",
     "pt-BR": "Português (Brasil)",
+    "fr": "Français",
+    "de": "Deutsch",
+    "ru": "Русский",
     "ja": "日本語",
-    "zh": "中文",
+    "zh": "中文（简体）",
+    "zh-Hant": "繁體中文",
+    "ko": "한국어",
 }
 
 # The dictionary of each language. The keys are the same in all of them.
@@ -205,6 +210,286 @@ TEXT["pt-BR"] = {
     ),
 }
 
+TEXT["fr"] = {
+    "languages": "Langue",
+    "index_title": "L'index de tous les noms",
+    "index_intro": (
+        "Tous les noms des trois dialectes, par ordre alphabétique, avec la "
+        "famille à laquelle ils appartiennent et ce que cet arbre répond à "
+        "leur sujet. La **fiche** d'un nom -- son genre, sa classe, ses "
+        "paramètres -- est dans la page de sa famille ; cette page en est "
+        "l'entrée."
+    ),
+    "crosswalk_title": "La table de correspondance des trois dialectes",
+    "crosswalk_intro": (
+        "Le même nom dans les trois dialectes, et le nom que seul l'un d'eux "
+        "possède. Un nom du v1 que le v2 écrit autrement figure dans la "
+        "table « v1 seulement », avec le nom du v2 qui l'a remplacé."
+    ),
+    "dialect_title": "La surface de %s",
+    "dialect_intro": (
+        "Les noms de %s, comptés par famille et par genre, et les noms que "
+        "cet arbre refuse ou ne porte pas. La fiche de chaque nom est dans "
+        "la page de sa famille."
+    ),
+    "family_intro": (
+        "Les noms de la famille **%s** dans les trois dialectes, avec ce que "
+        "cet arbre répond pour chacun d'eux. La famille est le domaine dans "
+        "lequel un script pense ; les noms en sont la totalité."
+    ),
+    "head_name": "Nom",
+    "head_kind": "Genre",
+    "head_class": "Classe",
+    "head_parameters": "Paramètres",
+    "head_state": "État",
+    "head_family": "Famille",
+    "head_dialect": "Dialecte",
+    "head_value": "Valeur",
+    "head_refused": "Refusés",
+    "head_pending": "En attente",
+    "head_reason": "Motif",
+    "head_names": "Noms",
+    "state_value": "valeur",
+    "state_pending": "en attente",
+    "state_not_measured": "non mesuré",
+    "state_refused": "refusé : %s",
+    "section_in_both": "Dans le v1 et dans le v2",
+    "section_only_v1": "Seulement dans le v1",
+    "section_only_ks": "Seulement dans KeySharp",
+    "section_by_kind": "Par genre",
+    "section_refused": "Refusés",
+    "section_pending": "En attente",
+    "the_three": "Les trois",
+    "unclassified_title": "Non classé",
+    "unclassified_intro": (
+        "Les noms qu'aucune famille ne revendique. Un nom arrive ici quand "
+        "ni une table ni une règle de `scripts/surface_areas.py` ne le "
+        "place."
+    ),
+}
+
+TEXT["de"] = {
+    "languages": "Sprache",
+    "index_title": "Der Index aller Namen",
+    "index_intro": (
+        "Alle Namen der drei Dialekte, alphabetisch, mit der Familie, zu der "
+        "sie gehören, und damit, was dieser Baum für sie antwortet. Die "
+        "**Karte** eines Namens -- seine Art, seine Klasse, seine Parameter "
+        "-- steht auf der Seite seiner Familie; diese Seite ist der Einstieg."
+    ),
+    "crosswalk_title": "Die Zuordnung der drei Dialekte",
+    "crosswalk_intro": (
+        "Derselbe Name in den drei Dialekten und der Name, den nur einer von "
+        "ihnen hat. Ein Name des v1, den der v2 anders schreibt, steht in "
+        "der Tabelle „nur v1“, mit dem v2-Namen, der ihn ersetzt hat."
+    ),
+    "dialect_title": "Die Oberfläche von %s",
+    "dialect_intro": (
+        "Die Namen von %s, nach Familie und nach Art gezählt, und die Namen, "
+        "die dieser Baum verweigert oder nicht mitbringt. Die Karte jedes "
+        "Namens steht auf der Seite seiner Familie."
+    ),
+    "family_intro": (
+        "Die Namen der Familie **%s** in den drei Dialekten, mit dem, was "
+        "dieser Baum für jeden von ihnen antwortet. Die Familie ist das "
+        "Gebiet, in dem ein Skript denkt; die Namen sind ihr Ganzes."
+    ),
+    "head_name": "Name",
+    "head_kind": "Art",
+    "head_class": "Klasse",
+    "head_parameters": "Parameter",
+    "head_state": "Zustand",
+    "head_family": "Familie",
+    "head_dialect": "Dialekt",
+    "head_value": "Wert",
+    "head_refused": "Verweigert",
+    "head_pending": "Ausstehend",
+    "head_reason": "Grund",
+    "head_names": "Namen",
+    "state_value": "Wert",
+    "state_pending": "ausstehend",
+    "state_not_measured": "nicht gemessen",
+    "state_refused": "verweigert: %s",
+    "section_in_both": "Im v1 und im v2",
+    "section_only_v1": "Nur im v1",
+    "section_only_ks": "Nur in KeySharp",
+    "section_by_kind": "Nach Art",
+    "section_refused": "Verweigerte",
+    "section_pending": "Ausstehende",
+    "the_three": "Die drei",
+    "unclassified_title": "Nicht eingeordnet",
+    "unclassified_intro": (
+        "Die Namen, die keine Familie beansprucht. Ein Name landet hier, "
+        "wenn ihn weder eine Tabelle noch eine Regel aus "
+        "`scripts/surface_areas.py` einordnet."
+    ),
+}
+
+TEXT["ru"] = {
+    "languages": "Язык",
+    "index_title": "Указатель всех имён",
+    "index_intro": (
+        "Все имена трёх диалектов по алфавиту, с семейством, к которому они "
+        "относятся, и с тем, что это дерево на них отвечает. **Карточка** "
+        "имени -- его вид, класс, параметры -- лежит на странице его "
+        "семейства; эта страница и есть вход."
+    ),
+    "crosswalk_title": "Таблица соответствия трёх диалектов",
+    "crosswalk_intro": (
+        "Одно и то же имя в трёх диалектах и имя, которое есть только у "
+        "одного из них. Имя из v1, которое v2 пишет иначе, стоит в таблице "
+        "«только v1» вместе с именем v2, пришедшим ему на смену."
+    ),
+    "dialect_title": "Поверхность %s",
+    "dialect_intro": (
+        "Имена %s, посчитанные по семействам и по видам, и те имена, которые "
+        "это дерево отказывает или не несёт. Карточка каждого имени лежит "
+        "на странице его семейства."
+    ),
+    "family_intro": (
+        "Имена семейства **%s** в трёх диалектах и то, что это дерево "
+        "отвечает на каждое из них. Семейство -- это область, в которой "
+        "думает скрипт; имена составляют её целиком."
+    ),
+    "head_name": "Имя",
+    "head_kind": "Вид",
+    "head_class": "Класс",
+    "head_parameters": "Параметры",
+    "head_state": "Состояние",
+    "head_family": "Семейство",
+    "head_dialect": "Диалект",
+    "head_value": "Значение",
+    "head_refused": "Отказано",
+    "head_pending": "Ожидается",
+    "head_reason": "Причина",
+    "head_names": "Имён",
+    "state_value": "значение",
+    "state_pending": "ожидается",
+    "state_not_measured": "не измерено",
+    "state_refused": "отказано: %s",
+    "section_in_both": "В v1 и в v2",
+    "section_only_v1": "Только в v1",
+    "section_only_ks": "Только в KeySharp",
+    "section_by_kind": "По видам",
+    "section_refused": "Отказанные",
+    "section_pending": "Ожидаемые",
+    "the_three": "Три",
+    "unclassified_title": "Без семейства",
+    "unclassified_intro": (
+        "Имена, которые не взяло ни одно семейство. Имя попадает сюда, когда "
+        "его не поместил ни один список и ни одно правило из "
+        "`scripts/surface_areas.py`."
+    ),
+}
+
+TEXT["zh-Hant"] = {
+    "languages": "語言",
+    "index_title": "全部名稱索引",
+    "index_intro": (
+        "按字母順序列出三個方言的每一個名稱，並標註它所屬的分類，以及這棵"
+        "樹對它給出的回答。名稱的**技術卡**（種類、類別、參數）位於其分類"
+        "頁面；本頁是入口。"
+    ),
+    "crosswalk_title": "三個方言的對照表",
+    "crosswalk_intro": (
+        "同一個名稱在三個方言中的寫法，以及只有其中一個方言才有的名稱。"
+        "v1 中的名稱在 v2 中寫法不同時，會列入「僅 v1」表，並給出替代它的 "
+        "v2 名稱。"
+    ),
+    "dialect_title": "%s 的表面",
+    "dialect_intro": (
+        "按分類與種類統計 %s 的名稱，並列出這棵樹拒絕或尚未攜帶的名稱。"
+        "每個名稱的技術卡位於其分類頁面。"
+    ),
+    "family_intro": (
+        "三個方言中屬於 **%s** 類的名稱，以及這棵樹對每個名稱給出的回答。"
+        "分類是腳本思考的領域，這些名稱即是它的全部。"
+    ),
+    "head_name": "名稱",
+    "head_kind": "種類",
+    "head_class": "類別",
+    "head_parameters": "參數",
+    "head_state": "狀態",
+    "head_family": "分類",
+    "head_dialect": "方言",
+    "head_value": "值",
+    "head_refused": "拒絕",
+    "head_pending": "待辦",
+    "head_reason": "原因",
+    "head_names": "名稱數",
+    "state_value": "值",
+    "state_pending": "待辦",
+    "state_not_measured": "未測量",
+    "state_refused": "拒絕：%s",
+    "section_in_both": "v1 與 v2 共有",
+    "section_only_v1": "僅 v1 獨有",
+    "section_only_ks": "僅 KeySharp 獨有",
+    "section_by_kind": "按種類",
+    "section_refused": "被拒絕的名稱",
+    "section_pending": "待辦的名稱",
+    "the_three": "三個方言",
+    "unclassified_title": "未分類",
+    "unclassified_intro": (
+        "沒有任何分類認領的名稱。當表格與 `scripts/surface_areas.py` 的規則"
+        "都無法歸類時，名稱會落到這裡。"
+    ),
+}
+
+TEXT["ko"] = {
+    "languages": "언어",
+    "index_title": "모든 이름의 색인",
+    "index_intro": (
+        "세 가지 방언의 모든 이름을 가나다순으로, 각 이름이 속한 분류와 이 "
+        "트리가 그 이름에 대해 답하는 것과 함께 나열한다. 이름의 **기술 "
+        "카드**(종류, 클래스, 매개변수)는 그 분류의 페이지에 있다; 이 "
+        "페이지가 입구다."
+    ),
+    "crosswalk_title": "세 방언의 대응표",
+    "crosswalk_intro": (
+        "세 방언에서 같은 이름과, 하나에만 있는 이름. v1의 이름이 v2에서 "
+        "다르게 쓰이는 것은 'v1 전용' 표에, 그것을 대신한 v2 이름과 함께 "
+        "적힌다."
+    ),
+    "dialect_title": "%s의 표면",
+    "dialect_intro": (
+        "%s의 이름을 분류별, 종류별로 세고, 이 트리가 거부하거나 아직 싣지 "
+        "않은 이름을 함께 보인다. 모든 이름의 기술 카드는 분류 페이지에 "
+        "있다."
+    ),
+    "family_intro": (
+        "세 방언에서 분류 **%s**에 속하는 이름들과, 이 트리가 그 각각에 대해 "
+        "답하는 것. 분류는 스크립트가 생각하는 영역이며, 그 이름들이 전부다."
+    ),
+    "head_name": "이름",
+    "head_kind": "종류",
+    "head_class": "클래스",
+    "head_parameters": "매개변수",
+    "head_state": "상태",
+    "head_family": "분류",
+    "head_dialect": "방언",
+    "head_value": "값",
+    "head_refused": "거부됨",
+    "head_pending": "보류",
+    "head_reason": "이유",
+    "head_names": "이름 수",
+    "state_value": "값",
+    "state_pending": "보류",
+    "state_not_measured": "측정되지 않음",
+    "state_refused": "거부됨: %s",
+    "section_in_both": "v1과 v2에 함께 있는 것",
+    "section_only_v1": "v1에만 있는 것",
+    "section_only_ks": "KeySharp에만 있는 것",
+    "section_by_kind": "종류별",
+    "section_refused": "거부된 이름",
+    "section_pending": "보류된 이름",
+    "the_three": "세 방언",
+    "unclassified_title": "미분류",
+    "unclassified_intro": (
+        "어떤 분류도 차지하지 않는 이름. 목록도 `scripts/surface_areas.py`의 "
+        "규칙도 그 이름을 놓치지 못하면 여기에 닿는다."
+    ),
+}
+
 TEXT["ja"] = {
     "languages": "言語",
     "index_title": "すべての名前の索引",
@@ -373,6 +658,96 @@ FAMILY_TITLES = {
         "clipboard": "A área de transferência",
         "sound": "O som",
     },
+    "fr": {
+        "unclassified": "Non classé",
+        "script": "L'analyseur et l'exécution du script",
+        "files": "Les opérations sur les fichiers et les répertoires",
+        "input": "Raccourcis, chaînes de déclenchement et saisie",
+        "gui": "Fenêtres d'interface et automatisation des fenêtres",
+        "screen": "Capture d'écran et fonctions de pixel",
+        "native": "Appels de fonctions natives (DllCall)",
+        "registry": "Les API du registre",
+        "com": "L'automatisation COM (ComObject)",
+        "core": "Le cœur du langage : texte, mathématiques et motifs",
+        "objects": "Les objets du langage : Array, Map et Func",
+        "time": "Les dates et les heures",
+        "machine": "La machine, les processus et l'environnement",
+        "clipboard": "Le presse-papiers",
+        "sound": "Le son",
+        "network": "Le réseau et le courrier",
+    },
+    "de": {
+        "unclassified": "Nicht eingeordnet",
+        "script": "Der Parser und die Ausführung des Skripts",
+        "files": "Datei- und Verzeichnisoperationen",
+        "input": "Hotkeys, Hotstrings und Eingabe",
+        "gui": "GUI-Fenster und Fensterautomatisierung",
+        "screen": "Bildschirmaufnahme und Pixel-Funktionen",
+        "native": "Aufrufe nativer Funktionen (DllCall)",
+        "registry": "Die Registry-APIs",
+        "com": "COM-Automatisierung (ComObject)",
+        "core": "Der Kern der Sprache: Text, Mathematik und Muster",
+        "objects": "Die Objekte der Sprache: Array, Map und Func",
+        "time": "Datums- und Zeitangaben",
+        "machine": "Die Maschine, die Prozesse und die Umgebung",
+        "clipboard": "Die Zwischenablage",
+        "sound": "Der Klang",
+        "network": "Das Netz und die Post",
+    },
+    "ru": {
+        "unclassified": "Без семейства",
+        "script": "Разбор и выполнение скрипта",
+        "files": "Операции с файлами и каталогами",
+        "input": "Горячие клавиши, горячие строки и ввод",
+        "gui": "Окна интерфейса и автоматизация окон",
+        "screen": "Захват экрана и пиксельные функции",
+        "native": "Вызовы нативных функций (DllCall)",
+        "registry": "API реестра",
+        "com": "COM-автоматизация (ComObject)",
+        "core": "Ядро языка: текст, математика и шаблоны",
+        "objects": "Объекты языка: Array, Map и Func",
+        "time": "Даты и время",
+        "machine": "Машина, процессы и окружение",
+        "clipboard": "Буфер обмена",
+        "sound": "Звук",
+        "network": "Сеть и почта",
+    },
+    "zh-Hant": {
+        "unclassified": "未分類",
+        "script": "解析器與腳本執行",
+        "files": "檔案與目錄操作",
+        "input": "熱鍵、熱字串與輸入",
+        "gui": "GUI 視窗與視窗自動化",
+        "screen": "螢幕擷取與像素函式",
+        "native": "原生函式呼叫 (DllCall)",
+        "registry": "登錄檔 API",
+        "com": "COM 自動化 (ComObject)",
+        "core": "語言核心：文字、數學與模式",
+        "objects": "語言的物件：Array、Map 與 Func",
+        "time": "日期與時間",
+        "machine": "機器、行程與環境",
+        "clipboard": "剪貼簿",
+        "sound": "聲音",
+        "network": "網路與郵件",
+    },
+    "ko": {
+        "unclassified": "미분류",
+        "script": "파서와 스크립트 실행",
+        "files": "파일과 디렉터리 작업",
+        "input": "핫키, 핫스트링, 입력",
+        "gui": "GUI 창과 창 자동화",
+        "screen": "화면 캡처와 픽셀 함수",
+        "native": "네이티브 함수 호출 (DllCall)",
+        "registry": "레지스트리 API",
+        "com": "COM 자동화 (ComObject)",
+        "core": "언어의 핵심: 텍스트, 수학, 패턴",
+        "objects": "언어의 객체: Array, Map, Func",
+        "time": "날짜와 시간",
+        "machine": "머신, 프로세스, 환경",
+        "clipboard": "클립보드",
+        "sound": "소리",
+        "network": "네트워크와 우편",
+    },
     "ja": {
         "unclassified": "未分類",
         "network": "ネットワークとメール",
@@ -414,8 +789,7 @@ FAMILY_TITLES = {
 
 # The reason of a refusal, in each language. The key is the English text
 # that the runner answers.
-REASONS = {
-    "this is a name of Windows, and this desktop is not Windows.": {
+REASONS = {    "this is a name of Windows, and this desktop is not Windows.": {
         "es": "es un nombre de Windows, y este escritorio no es Windows.",
         "pt-BR": "é um nome do Windows, e esta área de trabalho não é o Windows.",
         "ja": "これは Windows の名前であり、このデスクトップは Windows ではありません。",
@@ -506,6 +880,90 @@ REASONS = {
         "zh": "此名称与 Windows 有关，而本机不是 Windows。",
     },
 }
+
+
+# The reason of a refusal in the three languages that came later: the
+# table above is the one the tree was measured with, and this one carries
+# the same reasons in French, German and Russian.
+REASONS_MORE = {
+    "this is a name of Windows, and this desktop is not Windows.": {
+        "fr": "c'est un nom de Windows, et ce bureau n'est pas Windows.",
+        "de": "ist ein Name von Windows, und dieser Desktop ist nicht Windows.",
+        "ru": "это имя Windows, а этот рабочий стол — не Windows.",
+    },
+    "the registry is a thing of Windows, and this runtime does not carry it.": {
+        "fr": "le registre est une chose de Windows, et ce runtime ne le porte pas.",
+        "de": "die Registry ist eine Sache von Windows, und diese Laufzeitumgebung bringt sie nicht mit.",
+        "ru": "реестр — это дело Windows, а эта среда выполнения его не несёт.",
+    },
+    "this runtime has no tray icon.": {
+        "fr": "ce runtime n'a pas d'icône dans la zone de notification.",
+        "de": "dieser Laufzeitumgebung fehlt das Symbol im Infobereich.",
+        "ru": "у этой среды выполнения нет значка в области уведомлений.",
+    },
+    "this runtime runs one script in one thread, and it cannot make it critical.": {
+        "fr": "ce runtime exécute un script dans un seul fil, et il ne peut pas le rendre critique.",
+        "de": "diese Laufzeitumgebung führt ein Skript in einem einzigen Thread aus und kann es nicht kritisch machen.",
+        "ru": "эта среда выполняет один скрипт в одном потоке и не может сделать его критическим.",
+    },
+    "the lines are listed in a window of v2, and this runtime has no window to show them in.": {
+        "fr": "les lignes sont listées dans une fenêtre de v2, et ce runtime n'a pas de fenêtre pour les montrer.",
+        "de": "die Zeilen werden in einem Fenster des v2 aufgeführt, und diese Laufzeitumgebung hat kein Fenster dafür.",
+        "ru": "строки выводятся в окне v2, а у этой среды выполнения нет окна.",
+    },
+    "the variables are listed in a window of v2, and this runtime has no window to show them in.": {
+        "fr": "les variables sont listées dans une fenêtre de v2, et ce runtime n'a pas de fenêtre pour les montrer.",
+        "de": "die Variablen werden in einem Fenster des v2 aufgeführt, und diese Laufzeitumgebung hat kein Fenster dafür.",
+        "ru": "переменные выводятся в окне v2, а у этой среды выполнения нет окна.",
+    },
+    "this runtime is a script that ends when it ends, and it cannot be kept alive.": {
+        "fr": "ce runtime est un script qui finit quand il finit, et il ne peut pas rester vivant.",
+        "de": "diese Laufzeitumgebung ist ein Skript, das endet, wenn es endet, und das nicht am Leben gehalten werden kann.",
+        "ru": "эта среда — скрипт, который заканчивается, когда заканчивается, и его нельзя удержать живым.",
+    },
+    "this runtime runs one script once, and it cannot run itself again.": {
+        "fr": "ce runtime exécute un script une fois, et il ne peut pas s'exécuter encore.",
+        "de": "diese Laufzeitumgebung führt ein Skript einmal aus und kann sich nicht selbst erneut ausführen.",
+        "ru": "эта среда выполняет скрипт один раз и не может запустить себя снова.",
+    },
+    "this runtime runs one script in one thread, and it cannot start another.": {
+        "fr": "ce runtime exécute un script dans un seul fil, et il ne peut pas en lancer un autre.",
+        "de": "diese Laufzeitumgebung führt ein Skript in einem einzigen Thread aus und kann keinen weiteren starten.",
+        "ru": "эта среда выполняет один скрипт в одном потоке и не может запустить другой.",
+    },
+    "this runtime reads no text of a window.": {
+        "fr": "ce runtime ne lit pas le texte d'une fenêtre.",
+        "de": "diese Laufzeitumgebung liest keinen Text eines Fensters.",
+        "ru": "эта среда не читает текст окна.",
+    },
+    "the shape of the cursor of the machine is not read by this runtime.": {
+        "fr": "ce runtime ne lit pas la forme du curseur de la machine.",
+        "de": "diese Laufzeitumgebung liest die Form des Mauszeigers der Maschine nicht.",
+        "ru": "эта среда не читает форму курсора машины.",
+    },
+    "this desktop does not know the scale of the output.": {
+        "fr": "ce bureau ne connaît pas l'échelle de la sortie.",
+        "de": "dieser Desktop kennt den Maßstab der Ausgabe nicht.",
+        "ru": "этот рабочий стол не знает масштаба вывода.",
+    },
+    "this runtime has no window of its own: it is a script that runs and ends.": {
+        "fr": "ce runtime n'a pas de fenêtre à lui : c'est un script qui s'exécute et finit.",
+        "de": "diese Laufzeitumgebung hat kein eigenes Fenster: sie ist ein Skript, das läuft und endet.",
+        "ru": "у этой среды выполнения нет собственного окна: это скрипт, который выполняется и заканчивается.",
+    },
+    "this desktop does not know the address of the network of the machine.": {
+        "fr": "ce bureau ne connaît pas l'adresse du réseau de la machine.",
+        "de": "dieser Desktop kennt die Adresse des Netzes der Maschine nicht.",
+        "ru": "этот рабочий стол не знает сетевого адреса машины.",
+    },
+    "this name is about Windows, and this machine is not.": {
+        "fr": "ce nom concerne Windows, et cette machine n'en est pas une.",
+        "de": "dieser Name betrifft Windows, und diese Maschine ist keine.",
+        "ru": "это имя относится к Windows, а эта машина — не Windows.",
+    },
+}
+
+REASONS.update(REASONS_MORE)
 
 
 def t(lang, key):

@@ -1,6 +1,6 @@
 # Hotkeys, hotstrings y entrada
 
-| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Español
 
@@ -18,7 +18,7 @@ Los nombres de la familia **Hotkeys, hotstrings y entrada** en los tres dialecto
 | `A_CoordModeMouse` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_CoordModePixel` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_CoordModeToolTip` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
-| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | rechazado: la forma del cursor de la máquina no la lee este runtime. |
+| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | rechazado: the shape of the cursor of the machine is not read by this runtime. |
 | `A_DefaultHotstringCaseSensitive` | KeySharp | variable | -- | -- | valor |
 | `A_DefaultHotstringConformToCase` | KeySharp | variable | -- | -- | valor |
 | `A_DefaultHotstringDetectWhenInsideWord` | KeySharp | variable | -- | -- | valor |
@@ -56,7 +56,7 @@ Los nombres de la familia **Hotkeys, hotstrings y entrada** en los tres dialecto
 | `Hotkey.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
 | `InputHook.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | InputHook | -- | valor |
 | `BlockInput` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
-| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `InputHook.BufferLengthMax` | KeySharp | method | InputHook | -- | valor |
 | `CallbackCreate` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | valor |
 | `CallbackFree` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
@@ -67,10 +67,10 @@ Los nombres de la familia **Hotkeys, hotstrings y entrada** en los tres dialecto
 | `ClipCursor` | KeySharp | function | -- | -- | valor |
 | `ClipWait` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `ClipWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | valor |
-| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `CoordModeMouse` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `CoordModePixel` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | rechazado: la forma del cursor de la máquina no la lee este runtime. |
+| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | rechazado: the shape of the cursor of the machine is not read by this runtime. |
 | `DefaultMouseSpeed` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `InputHook.EndCharMode` | KeySharp | method | InputHook | -- | valor |
 | `Hotkey.EndKey` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
@@ -106,7 +106,7 @@ Los nombres de la familia **Hotkeys, hotstrings y entrada** en los tres dialecto
 | `Hotkey.Input` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
 | `InputHook.Input` | AutoHotkey v2.0.19 | method | InputHook | -- | valor |
 | `InputHook` | AutoHotkey v2.0.19 | class | -- | -- | valor |
-| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `InstallKeybdHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `InstallMouseHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `IsLabel` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
@@ -116,13 +116,13 @@ Los nombres de la familia **Hotkeys, hotstrings y entrada** en los tres dialecto
 | `KeyDuration` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `KeyDurationPlay` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `KeyHistory` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
-| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.KeyOpt` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
 | `InputHook.KeyOpt` | AutoHotkey v2.0.19 | method | InputHook | -- | valor |
 | `KeyWait` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
 | `KeyWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `ListHotkeys` | AutoHotkey v2.0.19 | command | -- | 0 | valor |
-| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.Match` | AutoHotkey v2.0.19 | method | Hotkey | -- | valor |
 | `InputHook.Match` | AutoHotkey v2.0.19 | method | InputHook | -- | valor |
 | `MaxHotkeysPerInterval` | AutoHotkey v2.0.19 | variable | -- | -- | valor |

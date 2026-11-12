@@ -1,6 +1,6 @@
 # 言語のオブジェクト: Array、Map、Func
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
 
 言語: 日本語
 

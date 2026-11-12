@@ -1,6 +1,6 @@
 # GUIウィンドウとウィンドウの自動化
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
 
 言語: 日本語
 
@@ -71,46 +71,46 @@
 | `Gui.Control.Choose` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
 | `Gui.Control.ClassNN` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
 | `Gui.Menu.ClickCount` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
-| `Control` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `Control` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlAddItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
 | `ControlChooseIndex` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
 | `ControlChooseString` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
 | `ControlClick` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | 値 |
-| `ControlClick` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlClick` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlDelay` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `ControlDeleteItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
 | `ControlFindItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
 | `ControlFocus` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
-| `ControlFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetChecked` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlGetChoice` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlGetClassNN` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlGetEnabled` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlGetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 拒否: this runtime does not carry that name yet. |
 | `ControlGetFocus` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `ControlGetFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlGetFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetHwnd` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlGetIndex` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlGetItems` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlGetPos` | AutoHotkey v2.0.19 | command | -- | 0 to 9 | 値 |
-| `ControlGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 拒否: this runtime does not carry that name yet. |
 | `ControlGetText` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
-| `ControlGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetVisible` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlHide` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlHideDropDown` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlMove` | AutoHotkey v2.0.19 | command | -- | 0 to 9 | 値 |
-| `ControlMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlSend` | AutoHotkey v2.0.19 | command | -- | 1 to 6 | 値 |
-| `ControlSend` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlSend` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlSendText` | AutoHotkey v2.0.19 | command | -- | 1 to 6 | 値 |
 | `ControlSetChecked` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
 | `ControlSetEnabled` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
 | `ControlSetExStyle` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 拒否: this runtime does not carry that name yet. |
 | `ControlSetStyle` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 拒否: this runtime does not carry that name yet. |
 | `ControlSetText` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
-| `ControlSetText` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlSetText` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ControlShow` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `ControlShowDropDown` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `CoordModeCaret` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
@@ -129,8 +129,8 @@
 | `DetectHiddenWindows` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
 | `DetectHiddenWindows` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `Gui.Menu.Disable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
-| `Edit` | AutoHotkey v2.0.19 | command | -- | 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `Edit` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `Edit` | AutoHotkey v2.0.19 | command | -- | 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `Edit` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `EditGetCurrentCol` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `EditGetCurrentLine` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `EditGetLine` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | 値 |
@@ -166,18 +166,18 @@
 | `Gui.StatusBar.GetText` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | 値 |
 | `Gui.TreeView.GetText` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | 値 |
 | `GroupActivate` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 値 |
-| `GroupActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `GroupActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `GroupAdd` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
-| `GroupAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `GroupAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `GroupClose` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 値 |
-| `GroupClose` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `GroupClose` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `GroupDeactivate` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 値 |
-| `GroupDeactivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `GroupDeactivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Gui` | AutoHotkey v2.0.19 | class | -- | -- | 値 |
-| `Gui` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `Gui` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Control.Gui` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
-| `GuiControl` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `GuiControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `GuiControl` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `GuiControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `GuiCtrlFromHwnd` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
 | `GuiFromHwnd` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 値 |
 | `Gui.Menu.Handle` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
@@ -197,19 +197,19 @@
 | `Gui.StatusBar.Insert` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | 値 |
 | `Gui.StatusBar.InsertCol` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | 値 |
 | `ListLines` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 値 |
-| `ListLines` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ListLines` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ListVars` | AutoHotkey v2.0.19 | command | -- | 0 | 値 |
-| `ListVars` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ListVars` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `ListViewGetContent` | AutoHotkey v2.0.19 | command | -- | 0 to 6 | 値 |
 | `Gui.MarginX` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
 | `Gui.MarginY` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
 | `Gui.Maximize` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
 | `Menu` | AutoHotkey v2.0.19 | class | -- | -- | 値 |
-| `Menu` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `Menu` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.MenuBar` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
 | `MenuFromHandle` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
-| `MenuGetHandle` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `MenuGetName` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `MenuGetHandle` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `MenuGetName` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `MenuSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 11 | 値 |
 | `Gui.Minimize` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
 | `Gui.ListView.Modify` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | 値 |
@@ -234,13 +234,13 @@
 | `Gui.Opt` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
 | `Gui.Control.Opt` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
 | `PostMessage` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | 値 |
-| `PostMessage` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `Progress` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `PostMessage` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `Progress` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Control.Redraw` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
-| `RegisterCallback` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `RegisterCallback` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Menu.Rename` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
 | `Gui.Restore` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
-| `ScriptHwnd` | AutoHotkey v2.0.19 | variable | -- | -- | 拒否: このランタイムに独自のウィンドウはありません。実行されて終わるスクリプトです。 |
+| `ScriptHwnd` | AutoHotkey v2.0.19 | variable | -- | -- | 拒否: this runtime has no window of its own: it is a script that runs and ends. |
 | `SendMessage` | AutoHotkey v2.0.19 | command | -- | 1 to 9 | 値 |
 | `Gui.Menu.SetColor` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
 | `SetControlDelay` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
@@ -264,11 +264,11 @@
 | `SetWinDelay` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `Gui.Show` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
 | `Gui.Menu.Show` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
-| `SplashTextOn` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `SplashTextOn` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `StatusBarGetText` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |
-| `StatusBarGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `StatusBarGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `StatusBarWait` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | 値 |
-| `StatusBarWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `StatusBarWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Submit` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
 | `Gui.Control.Text` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
 | `Gui.Title` | AutoHotkey v2.0.19 | method | Gui | -- | 値 |
@@ -277,91 +277,91 @@
 | `Gui.Menu.ToggleCheck` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
 | `Gui.Menu.ToggleEnable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
 | `ToolTip` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `ToolTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ToolTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `TrayMenu` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `TraySetIcon` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | 値 |
 | `TrayTip` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | 値 |
-| `TrayTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `TrayTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Menu.Uncheck` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | 値 |
 | `Gui.Control.UseTab` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
 | `Gui.Control.Value` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
 | `Gui.Control.Visible` | AutoHotkey v2.0.19 | method | Gui.Control | -- | 値 |
 | `WinActivate` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinActivateBottom` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinActivateBottom` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinActivateBottom` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinActive` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | 値 |
 | `WinActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 4 | 値 |
 | `WinClose` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |
-| `WinClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinDelay` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `WinDir` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `WinExist` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | 値 |
 | `WinExist` | AutoHotkey v1.1.37.02 | function | -- | 0 to 4 | 値 |
 | `WinFromPoint` | KeySharp | function | -- | -- | 値 |
-| `WinGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `WinGetActiveStats` | AutoHotkey v1.1.37.02 | command | -- | up to 5 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `WinGetActiveTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetActiveStats` | AutoHotkey v1.1.37.02 | command | -- | up to 5 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetActiveTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetAlwaysOnTop` | KeySharp | function | -- | -- | 値 |
 | `WinGetClass` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinGetClass` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinGetClass` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetClientPos` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | 値 |
 | `WinGetControls` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetControlsHwnd` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetCount` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetEnabled` | KeySharp | function | -- | -- | 値 |
-| `WinGetExStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinGetExStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetID` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetIDLast` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetList` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetMinMax` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetPID` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetPos` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | 値 |
-| `WinGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetProcessName` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetProcessPath` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinGetStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinGetStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetText` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetTitle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinGetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
-| `WinGetTransColor` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinGetTransColor` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetTransparent` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinHide` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinHide` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinHide` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinKill` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |
-| `WinKill` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinKill` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinMaximize` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinMaximize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `WinMenuSelectItem` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinMaximize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `WinMenuSelectItem` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimize` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinMinimize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinMinimize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimizeAll` | AutoHotkey v2.0.19 | command | -- | 0 | 値 |
-| `WinMinimizeAll` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinMinimizeAll` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimizeAllUndo` | AutoHotkey v2.0.19 | command | -- | 0 | 値 |
 | `WinMove` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | 値 |
-| `WinMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinMoveBottom` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinMoveTop` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinRedraw` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `WinRestore` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinRestore` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `WinSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinRestore` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `WinSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetAlwaysOnTop` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |
 | `WinSetEnabled` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
-| `WinSetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinSetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetRegion` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |
-| `WinSetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinSetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetTitle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
-| `WinSetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| `WinSetTransColor` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinSetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| `WinSetTransColor` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetTransparent` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | 値 |
 | `WinShow` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
-| `WinShow` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinShow` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinWait` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |
-| `WinWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitActive` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |
-| `WinWaitActive` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinWaitActive` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitClose` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |
-| `WinWaitClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `WinWaitClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitNotActive` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | 値 |

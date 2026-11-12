@@ -1,6 +1,6 @@
 # Automatización COM (ComObject)
 
-| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Español
 
@@ -10,24 +10,24 @@ Los nombres de la familia **Automatización COM (ComObject)** en los tres dialec
 |---|---|---|---|---|---|
 | `ComCall` | AutoHotkey v2.0.19 | function | -- | up to 2 | valor |
 | `ComObjActive` | AutoHotkey v2.0.19 | function | -- | 1 | valor |
-| `ComObjActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
-| `ComObjArray` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ComObjActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | rechazado: this is a name of Windows, and this desktop is not Windows. |
+| `ComObjArray` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjConnect` | AutoHotkey v2.0.19 | function | -- | 1 to 2 | valor |
-| `ComObjConnect` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
-| `ComObjCreate` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ComObjConnect` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | rechazado: this is a name of Windows, and this desktop is not Windows. |
+| `ComObjCreate` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ComObject` | AutoHotkey v2.0.19 | class | -- | -- | valor |
-| `ComObjError` | AutoHotkey v1.1.37.02 | function | -- | 0 to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ComObjError` | AutoHotkey v1.1.37.02 | function | -- | 0 to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjFlags` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | valor |
-| `ComObjFlags` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ComObjFlags` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjFromPtr` | AutoHotkey v2.0.19 | function | -- | 1 | valor |
 | `ComObjGet` | AutoHotkey v2.0.19 | function | -- | 1 | valor |
-| `ComObjGet` | AutoHotkey v1.1.37.02 | function | -- | 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ComObjGet` | AutoHotkey v1.1.37.02 | function | -- | 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjQuery` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | valor |
-| `ComObjQuery` | AutoHotkey v1.1.37.02 | function | -- | 2 to 3 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ComObjQuery` | AutoHotkey v1.1.37.02 | function | -- | 2 to 3 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjType` | AutoHotkey v2.0.19 | function | -- | 1 to 2 | valor |
-| `ComObjType` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ComObjType` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjValue` | AutoHotkey v2.0.19 | function | -- | 1 | valor |
-| `ComObjValue` | AutoHotkey v1.1.37.02 | function | -- | 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `ComObjValue` | AutoHotkey v1.1.37.02 | function | -- | 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ComValue` | AutoHotkey v2.0.19 | class | -- | -- | valor |
 | `ObjBindMethod` | AutoHotkey v2.0.19 | function | -- | up to 1 | valor |
 | `ObjBindMethod` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | valor |

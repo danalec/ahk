@@ -1,6 +1,6 @@
 # El núcleo del lenguaje: texto, matemáticas y patrones
 
-| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Español
 
@@ -131,7 +131,7 @@ Los nombres de la familia **El núcleo del lenguaje: texto, matemáticas y patro
 | `String.StartsWith` | KeySharp | method | String | -- | valor |
 | `StrCompare` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | valor |
 | `StrGet` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | valor |
-| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `String` | AutoHotkey v2.0.19 | class | -- | -- | valor |
 | `StringCaseSense` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `StringLeft` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | valor |
@@ -146,7 +146,7 @@ Los nombres de la familia **El núcleo del lenguaje: texto, matemáticas y patro
 | `StrLower` | AutoHotkey v2.0.19 | function | -- | 1 | valor |
 | `StrPtr` | AutoHotkey v2.0.19 | function | -- | 1 | valor |
 | `StrPut` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | valor |
-| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `StrReplace` | AutoHotkey v2.0.19 | function | -- | 2 to 6 | valor |
 | `StrReplace` | AutoHotkey v1.1.37.02 | function | -- | 2 to 5 | valor |
 | `StrSplit` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | valor |

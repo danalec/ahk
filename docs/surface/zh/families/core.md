@@ -1,6 +1,6 @@
 # 语言核心：文本、数学与模式
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
 
 语言: 中文
 
@@ -131,7 +131,7 @@
 | `String.StartsWith` | KeySharp | method | String | -- | 值 |
 | `StrCompare` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | 值 |
 | `StrGet` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | 值 |
-| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `String` | AutoHotkey v2.0.19 | class | -- | -- | 值 |
 | `StringCaseSense` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `StringLeft` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | 值 |
@@ -146,7 +146,7 @@
 | `StrLower` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
 | `StrPtr` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
 | `StrPut` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | 值 |
-| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `StrReplace` | AutoHotkey v2.0.19 | function | -- | 2 to 6 | 值 |
 | `StrReplace` | AutoHotkey v1.1.37.02 | function | -- | 2 to 5 | 值 |
 | `StrSplit` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | 值 |

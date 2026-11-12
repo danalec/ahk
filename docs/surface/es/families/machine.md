@@ -1,6 +1,6 @@
 # La máquina, los procesos y el entorno
 
-| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Español
 
@@ -18,7 +18,7 @@ Los nombres de la familia **La máquina, los procesos y el entorno** en los tres
 | `A_DesktopCommon` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_EventInfo` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_FileEncoding` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
-| `A_IPAddress1` | AutoHotkey v1.1.37.02 | variable | -- | -- | rechazado: este escritorio no conoce la dirección de la red de la máquina. |
+| `A_IPAddress1` | AutoHotkey v1.1.37.02 | variable | -- | -- | rechazado: this desktop does not know the address of the network of the machine. |
 | `A_Language` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_MDay` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_MM` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
@@ -53,9 +53,9 @@ Los nombres de la familia **La máquina, los procesos y el entorno** en los tres
 | `ComSpec` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `Desktop` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `DesktopCommon` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `Drive` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
-| `DriveGet` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
-| `DriveSpaceFree` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `Drive` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
+| `DriveGet` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. |
+| `DriveSpaceFree` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `Thread.Elapsed` | KeySharp | method | Thread | -- | valor |
 | `VarRef.Empty` | KeySharp | method | VarRef | -- | valor |
 | `EnvAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | valor |
@@ -77,10 +77,10 @@ Los nombres de la familia **La máquina, los procesos y el entorno** en los tres
 | `MyDocuments` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `OSVersion` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `OutputDebug` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
-| `OutputDebug` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `OutputDebug` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `Thread.Paused` | KeySharp | method | Thread | -- | valor |
 | `Thread.Priority` | KeySharp | method | Thread | -- | valor |
-| `Process` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `Process` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `ProcessClose` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
 | `ProcessExist` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
 | `ProcessGetName` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
@@ -96,13 +96,13 @@ Los nombres de la familia **La máquina, los procesos y el entorno** en los tres
 | `Run` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | valor |
 | `Run` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `RunAs` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | valor |
-| `RunAs` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `RunAs` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `RunWait` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | valor |
 | `RunWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `ScriptProcess` | KeySharp | class | -- | -- | valor |
 | `SetEnv` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `Shutdown` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
-| `Shutdown` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `Shutdown` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `StartMenu` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `StartMenuCommon` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `Startup` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
@@ -111,7 +111,7 @@ Los nombres de la familia **La máquina, los procesos y el entorno** en los tres
 | `ScriptProcess.StdIn` | KeySharp | method | ScriptProcess | -- | valor |
 | `ScriptProcess.StdOut` | KeySharp | method | ScriptProcess | -- | valor |
 | `SysGet` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
-| `SysGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `SysGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `SysGetIPAddresses` | AutoHotkey v2.0.19 | command | -- | 0 | valor |
 | `PropRef.Target` | KeySharp | method | PropRef | -- | valor |
 | `Temp` | AutoHotkey v2.0.19 | variable | -- | -- | valor |

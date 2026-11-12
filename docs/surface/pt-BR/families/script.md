@@ -1,6 +1,6 @@
 # O analisador e a execução do script
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Português (Brasil)
 
@@ -66,14 +66,14 @@ Os nomes da família **O analisador e a execução do script** nos três dialeto
 | `A_MaxThreadsPerHotkey` | KeySharp | variable | -- | -- | valor |
 | `A_MouseHookInstalled` | KeySharp | variable | -- | -- | valor |
 | `A_NumBatchLines` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
-| `A_OSType` | AutoHotkey v1.1.37.02 | variable | -- | -- | recusado: este nome é coisa do Windows, e esta máquina não é. |
+| `A_OSType` | AutoHotkey v1.1.37.02 | variable | -- | -- | recusado: this name is about Windows, and this machine is not. |
 | `A_OSVersion` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_Persistent` | KeySharp | variable | -- | -- | valor |
 | `A_PtrSize` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_RealThread` | KeySharp | variable | -- | -- | valor |
 | `A_ScriptDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_ScriptFullPath` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
-| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | recusado: este runtime não tem janela própria: é um script que roda e termina. |
+| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | recusado: this runtime has no window of its own: it is a script that runs and ends. |
 | `A_ScriptName` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_Space` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
 | `A_Tab` | AutoHotkey v1.1.37.02 | variable | -- | -- | valor |
@@ -89,8 +89,8 @@ Os nomes da família **O analisador e a execução do script** nos três dialeto
 | `CompileScript` | KeySharp | function | -- | -- | valor |
 | `CoordMode` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
 | `CoordMode` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
-| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | recusado: este runtime executa um script em uma thread, e não pode torná-lo crítico. |
-| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: este runtime executa um script em uma thread, e não pode torná-lo crítico. |
+| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | recusado: this runtime runs one script in one thread, and it cannot make it critical. |
+| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this runtime runs one script in one thread, and it cannot make it critical. |
 | `Thread.Critical` | KeySharp | method | Thread | -- | valor |
 | `Else` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | valor |
 | `EndChar` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
@@ -125,13 +125,13 @@ Os nomes da família **O analisador e a execução do script** nos três dialeto
 | `OnError` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | valor |
 | `OnExit` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
 | `OnMessage` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | valor |
-| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `OutputDebugLine` | KeySharp | function | -- | -- | valor |
 | `Pause` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
-| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Persistent` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
-| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | recusado: este runtime executa um script uma vez, e não pode se executar de novo. |
-| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | recusado: this runtime runs one script once, and it cannot run itself again. |
+| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `RequestCapabilities` | KeySharp | function | -- | -- | valor |
 | `RunScript` | KeySharp | function | -- | -- | valor |
 | `ScriptDir` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
@@ -147,10 +147,10 @@ Os nomes da família **O analisador e a execução do script** nos três dialeto
 | `Sleep` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `Space` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `Suspend` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
-| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Tab` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `ThisFunc` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
-| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | recusado: este runtime executa um script em uma thread, e não pode iniciar outra. |
-| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: este runtime executa um script em uma thread, e não pode iniciar outra. |
+| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | recusado: this runtime runs one script in one thread, and it cannot start another. |
+| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this runtime runs one script in one thread, and it cannot start another. |
 | `ValidateScript` | KeySharp | function | -- | -- | valor |
 | `WorkingDir` | AutoHotkey v2.0.19 | variable | -- | -- | valor |

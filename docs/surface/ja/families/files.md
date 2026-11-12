@@ -1,6 +1,6 @@
 # ファイルとディレクトリの操作
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
 
 言語: 日本語
 
@@ -48,7 +48,7 @@
 | `FileCopyDir` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 値 |
 | `FileCreateDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `FileCreateShortcut` | AutoHotkey v2.0.19 | command | -- | 2 to 9 | 値 |
-| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `FileCreateTemp` | KeySharp | function | -- | -- | 値 |
 | `FileDelete` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
 | `FileDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
@@ -60,13 +60,13 @@
 | `FileGetAttrib` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 値 |
 | `FileGetAttrib` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `FileGetShortcut` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | 値 |
-| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `FileGetSize` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 値 |
 | `FileGetSize` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `FileGetTime` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 値 |
 | `FileGetTime` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `FileGetVersion` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 値 |
-| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `FileInstall` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | 値 |
 | `FileInstall` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 値 |
 | `FileMove` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | 値 |
@@ -78,9 +78,9 @@
 | `FileRead` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 値 |
 | `FileReadLine` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | 値 |
 | `FileRecycle` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
-| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `FileRecycleEmpty` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 値 |
-| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `FileRemoveDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `FileSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | 値 |
 | `FileSelectFile` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |

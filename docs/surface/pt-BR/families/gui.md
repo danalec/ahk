@@ -1,6 +1,6 @@
 # Janelas da GUI e automação de janelas
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Português (Brasil)
 
@@ -71,46 +71,46 @@ Os nomes da família **Janelas da GUI e automação de janelas** nos três diale
 | `Gui.Control.Choose` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
 | `Gui.Control.ClassNN` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
 | `Gui.Menu.ClickCount` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
-| `Control` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `Control` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlAddItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
 | `ControlChooseIndex` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
 | `ControlChooseString` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
 | `ControlClick` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | valor |
-| `ControlClick` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlClick` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlDelay` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `ControlDeleteItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
 | `ControlFindItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
 | `ControlFocus` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
-| `ControlFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetChecked` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlGetChoice` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlGetClassNN` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlGetEnabled` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlGetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | recusado: this runtime does not carry that name yet. |
 | `ControlGetFocus` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `ControlGetFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlGetFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetHwnd` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlGetIndex` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlGetItems` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlGetPos` | AutoHotkey v2.0.19 | command | -- | 0 to 9 | valor |
-| `ControlGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | recusado: this runtime does not carry that name yet. |
 | `ControlGetText` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
-| `ControlGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetVisible` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlHide` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlHideDropDown` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlMove` | AutoHotkey v2.0.19 | command | -- | 0 to 9 | valor |
-| `ControlMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlSend` | AutoHotkey v2.0.19 | command | -- | 1 to 6 | valor |
-| `ControlSend` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlSend` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlSendText` | AutoHotkey v2.0.19 | command | -- | 1 to 6 | valor |
 | `ControlSetChecked` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
 | `ControlSetEnabled` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
 | `ControlSetExStyle` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | recusado: this runtime does not carry that name yet. |
 | `ControlSetStyle` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | recusado: this runtime does not carry that name yet. |
 | `ControlSetText` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
-| `ControlSetText` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ControlSetText` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ControlShow` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `ControlShowDropDown` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `CoordModeCaret` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
@@ -129,8 +129,8 @@ Os nomes da família **Janelas da GUI e automação de janelas** nos três diale
 | `DetectHiddenWindows` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
 | `DetectHiddenWindows` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `Gui.Menu.Disable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
-| `Edit` | AutoHotkey v2.0.19 | command | -- | 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `Edit` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `Edit` | AutoHotkey v2.0.19 | command | -- | 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `Edit` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `EditGetCurrentCol` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `EditGetCurrentLine` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `EditGetLine` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | valor |
@@ -166,18 +166,18 @@ Os nomes da família **Janelas da GUI e automação de janelas** nos três diale
 | `Gui.StatusBar.GetText` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | valor |
 | `Gui.TreeView.GetText` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | valor |
 | `GroupActivate` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
-| `GroupActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `GroupActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `GroupAdd` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
-| `GroupAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `GroupAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `GroupClose` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
-| `GroupClose` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `GroupClose` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `GroupDeactivate` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
-| `GroupDeactivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `GroupDeactivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Gui` | AutoHotkey v2.0.19 | class | -- | -- | valor |
-| `Gui` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `Gui` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Control.Gui` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
-| `GuiControl` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `GuiControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `GuiControl` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `GuiControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `GuiCtrlFromHwnd` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
 | `GuiFromHwnd` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
 | `Gui.Menu.Handle` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
@@ -197,19 +197,19 @@ Os nomes da família **Janelas da GUI e automação de janelas** nos três diale
 | `Gui.StatusBar.Insert` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | valor |
 | `Gui.StatusBar.InsertCol` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | valor |
 | `ListLines` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
-| `ListLines` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ListLines` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ListVars` | AutoHotkey v2.0.19 | command | -- | 0 | valor |
-| `ListVars` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ListVars` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `ListViewGetContent` | AutoHotkey v2.0.19 | command | -- | 0 to 6 | valor |
 | `Gui.MarginX` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
 | `Gui.MarginY` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
 | `Gui.Maximize` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
 | `Menu` | AutoHotkey v2.0.19 | class | -- | -- | valor |
-| `Menu` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `Menu` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.MenuBar` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
 | `MenuFromHandle` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
-| `MenuGetHandle` | AutoHotkey v1.1.37.02 | function | -- | 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `MenuGetName` | AutoHotkey v1.1.37.02 | function | -- | 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `MenuGetHandle` | AutoHotkey v1.1.37.02 | function | -- | 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `MenuGetName` | AutoHotkey v1.1.37.02 | function | -- | 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `MenuSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 11 | valor |
 | `Gui.Minimize` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
 | `Gui.ListView.Modify` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | valor |
@@ -234,13 +234,13 @@ Os nomes da família **Janelas da GUI e automação de janelas** nos três diale
 | `Gui.Opt` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
 | `Gui.Control.Opt` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
 | `PostMessage` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | valor |
-| `PostMessage` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `Progress` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `PostMessage` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `Progress` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Control.Redraw` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
-| `RegisterCallback` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `RegisterCallback` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Menu.Rename` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
 | `Gui.Restore` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
-| `ScriptHwnd` | AutoHotkey v2.0.19 | variable | -- | -- | recusado: este runtime não tem janela própria: é um script que roda e termina. |
+| `ScriptHwnd` | AutoHotkey v2.0.19 | variable | -- | -- | recusado: this runtime has no window of its own: it is a script that runs and ends. |
 | `SendMessage` | AutoHotkey v2.0.19 | command | -- | 1 to 9 | valor |
 | `Gui.Menu.SetColor` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
 | `SetControlDelay` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
@@ -264,11 +264,11 @@ Os nomes da família **Janelas da GUI e automação de janelas** nos três diale
 | `SetWinDelay` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `Gui.Show` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
 | `Gui.Menu.Show` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
-| `SplashTextOn` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `SplashTextOn` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `StatusBarGetText` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |
-| `StatusBarGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `StatusBarGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `StatusBarWait` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | valor |
-| `StatusBarWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `StatusBarWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Submit` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
 | `Gui.Control.Text` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
 | `Gui.Title` | AutoHotkey v2.0.19 | method | Gui | -- | valor |
@@ -277,91 +277,91 @@ Os nomes da família **Janelas da GUI e automação de janelas** nos três diale
 | `Gui.Menu.ToggleCheck` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
 | `Gui.Menu.ToggleEnable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
 | `ToolTip` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `ToolTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `ToolTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `TrayMenu` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `TraySetIcon` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | valor |
 | `TrayTip` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | valor |
-| `TrayTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `TrayTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Menu.Uncheck` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | valor |
 | `Gui.Control.UseTab` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
 | `Gui.Control.Value` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
 | `Gui.Control.Visible` | AutoHotkey v2.0.19 | method | Gui.Control | -- | valor |
 | `WinActivate` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinActivateBottom` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinActivateBottom` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinActivateBottom` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinActive` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | valor |
 | `WinActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 4 | valor |
 | `WinClose` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |
-| `WinClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinDelay` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `WinDir` | AutoHotkey v2.0.19 | variable | -- | -- | valor |
 | `WinExist` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | valor |
 | `WinExist` | AutoHotkey v1.1.37.02 | function | -- | 0 to 4 | valor |
 | `WinFromPoint` | KeySharp | function | -- | -- | valor |
-| `WinGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `WinGetActiveStats` | AutoHotkey v1.1.37.02 | command | -- | up to 5 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `WinGetActiveTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetActiveStats` | AutoHotkey v1.1.37.02 | command | -- | up to 5 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetActiveTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetAlwaysOnTop` | KeySharp | function | -- | -- | valor |
 | `WinGetClass` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinGetClass` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinGetClass` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetClientPos` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | valor |
 | `WinGetControls` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetControlsHwnd` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetCount` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetEnabled` | KeySharp | function | -- | -- | valor |
-| `WinGetExStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinGetExStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetID` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetIDLast` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetList` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetMinMax` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetPID` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetPos` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | valor |
-| `WinGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetProcessName` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetProcessPath` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinGetStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinGetStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetText` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetTitle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinGetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
-| `WinGetTransColor` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinGetTransColor` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetTransparent` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinHide` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinHide` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinHide` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinKill` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |
-| `WinKill` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinKill` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinMaximize` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinMaximize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `WinMenuSelectItem` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinMaximize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `WinMenuSelectItem` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimize` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinMinimize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinMinimize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimizeAll` | AutoHotkey v2.0.19 | command | -- | 0 | valor |
-| `WinMinimizeAll` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinMinimizeAll` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimizeAllUndo` | AutoHotkey v2.0.19 | command | -- | 0 | valor |
 | `WinMove` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | valor |
-| `WinMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinMoveBottom` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinMoveTop` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinRedraw` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `WinRestore` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinRestore` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `WinSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinRestore` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `WinSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetAlwaysOnTop` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |
 | `WinSetEnabled` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
-| `WinSetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinSetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetRegion` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |
-| `WinSetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinSetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetTitle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
-| `WinSetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
-| `WinSetTransColor` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinSetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
+| `WinSetTransColor` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetTransparent` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | valor |
 | `WinShow` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
-| `WinShow` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinShow` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinWait` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |
-| `WinWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitActive` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |
-| `WinWaitActive` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinWaitActive` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitClose` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |
-| `WinWaitClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `WinWaitClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitNotActive` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | valor |

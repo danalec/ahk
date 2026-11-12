@@ -1,6 +1,6 @@
 # COM 自动化 (ComObject)
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
 
 语言: 中文
 
@@ -10,24 +10,24 @@
 |---|---|---|---|---|---|
 | `ComCall` | AutoHotkey v2.0.19 | function | -- | up to 2 | 值 |
 | `ComObjActive` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
-| `ComObjActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| `ComObjArray` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| `ComObjArray` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ComObjConnect` | AutoHotkey v2.0.19 | function | -- | 1 to 2 | 值 |
-| `ComObjConnect` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| `ComObjCreate` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjConnect` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| `ComObjCreate` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ComObject` | AutoHotkey v2.0.19 | class | -- | -- | 值 |
-| `ComObjError` | AutoHotkey v1.1.37.02 | function | -- | 0 to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjError` | AutoHotkey v1.1.37.02 | function | -- | 0 to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ComObjFlags` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | 值 |
-| `ComObjFlags` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjFlags` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ComObjFromPtr` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
 | `ComObjGet` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
-| `ComObjGet` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjGet` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ComObjQuery` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | 值 |
-| `ComObjQuery` | AutoHotkey v1.1.37.02 | function | -- | 2 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjQuery` | AutoHotkey v1.1.37.02 | function | -- | 2 to 3 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ComObjType` | AutoHotkey v2.0.19 | function | -- | 1 to 2 | 值 |
-| `ComObjType` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjType` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ComObjValue` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
-| `ComObjValue` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjValue` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `ComValue` | AutoHotkey v2.0.19 | class | -- | -- | 值 |
 | `ObjBindMethod` | AutoHotkey v2.0.19 | function | -- | up to 1 | 值 |
 | `ObjBindMethod` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | 值 |

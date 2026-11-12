@@ -1,6 +1,6 @@
 # The objects of the language: Array, Map and Func
 
-| [English](index.md) | [Español](es/index.md) | [Português (Brasil)](pt-BR/index.md) | [日本語](ja/index.md) | [中文](zh/index.md) |
+| [English](index.md) | [Español](es/index.md) | [Português (Brasil)](pt-BR/index.md) | [Français](fr/index.md) | [Deutsch](de/index.md) | [Русский](ru/index.md) | [日本語](ja/index.md) | [中文](zh/index.md) |
 
 Language: English
 

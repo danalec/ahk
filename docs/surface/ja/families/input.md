@@ -1,6 +1,6 @@
 # ホットキー、ホット文字列、入力
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
 
 言語: 日本語
 
@@ -18,7 +18,7 @@
 | `A_CoordModeMouse` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
 | `A_CoordModePixel` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
 | `A_CoordModeToolTip` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
-| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒否: マシンのカーソル形状はこのランタイムでは読み取られません。 |
+| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒否: the shape of the cursor of the machine is not read by this runtime. |
 | `A_DefaultHotstringCaseSensitive` | KeySharp | variable | -- | -- | 値 |
 | `A_DefaultHotstringConformToCase` | KeySharp | variable | -- | -- | 値 |
 | `A_DefaultHotstringDetectWhenInsideWord` | KeySharp | variable | -- | -- | 値 |
@@ -56,7 +56,7 @@
 | `Hotkey.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | Hotkey | -- | 値 |
 | `InputHook.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | InputHook | -- | 値 |
 | `BlockInput` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
-| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `InputHook.BufferLengthMax` | KeySharp | method | InputHook | -- | 値 |
 | `CallbackCreate` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | 値 |
 | `CallbackFree` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
@@ -67,10 +67,10 @@
 | `ClipCursor` | KeySharp | function | -- | -- | 値 |
 | `ClipWait` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 値 |
 | `ClipWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 値 |
-| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `CoordModeMouse` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `CoordModePixel` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
-| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | 拒否: マシンのカーソル形状はこのランタイムでは読み取られません。 |
+| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | 拒否: the shape of the cursor of the machine is not read by this runtime. |
 | `DefaultMouseSpeed` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `InputHook.EndCharMode` | KeySharp | method | InputHook | -- | 値 |
 | `Hotkey.EndKey` | AutoHotkey v2.0.19 | method | Hotkey | -- | 値 |
@@ -106,7 +106,7 @@
 | `Hotkey.Input` | AutoHotkey v2.0.19 | method | Hotkey | -- | 値 |
 | `InputHook.Input` | AutoHotkey v2.0.19 | method | InputHook | -- | 値 |
 | `InputHook` | AutoHotkey v2.0.19 | class | -- | -- | 値 |
-| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `InstallKeybdHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 値 |
 | `InstallMouseHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 値 |
 | `IsLabel` | AutoHotkey v2.0.19 | command | -- | 1 | 値 |
@@ -116,13 +116,13 @@
 | `KeyDuration` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `KeyDurationPlay` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `KeyHistory` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 値 |
-| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.KeyOpt` | AutoHotkey v2.0.19 | method | Hotkey | -- | 値 |
 | `InputHook.KeyOpt` | AutoHotkey v2.0.19 | method | InputHook | -- | 値 |
 | `KeyWait` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 値 |
 | `KeyWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `ListHotkeys` | AutoHotkey v2.0.19 | command | -- | 0 | 値 |
-| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.Match` | AutoHotkey v2.0.19 | method | Hotkey | -- | 値 |
 | `InputHook.Match` | AutoHotkey v2.0.19 | method | InputHook | -- | 値 |
 | `MaxHotkeysPerInterval` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |

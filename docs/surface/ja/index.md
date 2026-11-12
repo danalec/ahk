@@ -1,6 +1,6 @@
 # すべての名前の索引
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
 
 言語: 日本語
 
@@ -166,8 +166,8 @@
 | [`CoordModeToolTip`](families/gui.md) | variable | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`Cos`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`Map.Count`](families/objects.md) | method | Map | 言語のオブジェクト: Array、Map、Func | 値 |
-| [`Critical`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: このランタイムは1つのスクリプトを1つのスレッドで実行し、クリティカルにはできません。 |
-| [`Cursor`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 拒否: マシンのカーソル形状はこのランタイムでは読み取られません。 |
+| [`Critical`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: this runtime runs one script in one thread, and it cannot make it critical. |
+| [`Cursor`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 拒否: the shape of the cursor of the machine is not read by this runtime. |
 | [`DateAdd`](families/time.md) | command | -- | 日付と時刻 | 値 |
 | [`DateDiff`](families/time.md) | command | -- | 日付と時刻 | 値 |
 | [`DD`](families/time.md) | variable | -- | 日付と時刻 | 値 |
@@ -215,7 +215,7 @@
 | [`DriveRetract`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`DriveSetLabel`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`DriveUnlock`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
-| [`Edit`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`Edit`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`EditGetCurrentCol`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`EditGetCurrentLine`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`EditGetLine`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
@@ -584,7 +584,7 @@
 | [`RegRead`](families/registry.md) | function | -- | レジストリの API | 値 |
 | [`RegView`](families/registry.md) | variable | -- | レジストリの API | 値 |
 | [`RegWrite`](families/registry.md) | function | -- | レジストリの API | 値 |
-| [`Reload`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: このランタイムはスクリプトを1度だけ実行し、自分を再実行できません。 |
+| [`Reload`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: this runtime runs one script once, and it cannot run itself again. |
 | [`Array.RemoveAt`](families/objects.md) | method | Array | 言語のオブジェクト: Array、Map、Func | 値 |
 | [`Gui.Menu.Rename`](families/gui.md) | method | Gui.Menu | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`Gui.Restore`](families/gui.md) | method | Gui | GUIウィンドウとウィンドウの自動化 | 値 |
@@ -598,7 +598,7 @@
 | [`ScreenWidth`](families/screen.md) | variable | -- | 画面キャプチャとピクセル関数 | 値 |
 | [`ScriptDir`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`ScriptFullPath`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
-| [`ScriptHwnd`](families/gui.md) | variable | -- | GUIウィンドウとウィンドウの自動化 | 拒否: このランタイムに独自のウィンドウはありません。実行されて終わるスクリプトです。 |
+| [`ScriptHwnd`](families/gui.md) | variable | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this runtime has no window of its own: it is a script that runs and ends. |
 | [`ScriptName`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`Sec`](families/time.md) | variable | -- | 日付と時刻 | 値 |
 | [`File.Seek`](families/files.md) | method | File | ファイルとディレクトリの操作 | 値 |
@@ -692,7 +692,7 @@
 | [`Gui.Control.Text`](families/gui.md) | method | Gui.Control | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`ThisFunc`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`ThisHotkey`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
-| [`Thread`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: このランタイムは1つのスクリプトを1つのスレッドで実行し、別のスレッドを開始できません。 |
+| [`Thread`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: this runtime runs one script in one thread, and it cannot start another. |
 | [`TickCount`](families/time.md) | variable | -- | 日付と時刻 | 値 |
 | [`TimeIdle`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`TimeIdleKeyboard`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
@@ -746,7 +746,7 @@
 | [`WinGetControls`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinGetControlsHwnd`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinGetCount`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinGetExStyle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinGetExStyle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetID`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinGetIDLast`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinGetList`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
@@ -755,10 +755,10 @@
 | [`WinGetPos`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinGetProcessName`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinGetProcessPath`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinGetStyle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinGetStyle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinGetTitle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinGetTransColor`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinGetTransColor`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetTransparent`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinHide`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinKill`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
@@ -773,11 +773,11 @@
 | [`WinRestore`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinSetAlwaysOnTop`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinSetEnabled`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinSetExStyle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinSetExStyle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetRegion`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinSetStyle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinSetStyle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetTitle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinSetTransColor`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinSetTransColor`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetTransparent`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinShow`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`WinWait`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
@@ -853,7 +853,7 @@
 | [`A_CoordModeMouse`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`A_CoordModePixel`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`A_CoordModeToolTip`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
-| [`A_Cursor`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 拒否: マシンのカーソル形状はこのランタイムでは読み取られません。 |
+| [`A_Cursor`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 拒否: the shape of the cursor of the machine is not read by this runtime. |
 | [`A_DD`](families/files.md) | variable | -- | ファイルとディレクトリの操作 | 値 |
 | [`A_DDD`](families/files.md) | variable | -- | ファイルとディレクトリの操作 | 値 |
 | [`A_DDDD`](families/files.md) | variable | -- | ファイルとディレクトリの操作 | 値 |
@@ -886,7 +886,7 @@
 | [`A_IconTip`](families/gui.md) | variable | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`A_Index`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`A_InitialWorkingDir`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
-| [`A_IPAddress1`](families/machine.md) | variable | -- | マシン、プロセス、環境 | 拒否: このデスクトップはマシンのネットワークアドレスを知りません。 |
+| [`A_IPAddress1`](families/machine.md) | variable | -- | マシン、プロセス、環境 | 拒否: this desktop does not know the address of the network of the machine. |
 | [`A_Is64bitOS`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`A_IsAdmin`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`A_IsCompiled`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
@@ -920,7 +920,7 @@
 | [`A_Now`](families/time.md) | variable | -- | 日付と時刻 | 値 |
 | [`A_NowUTC`](families/time.md) | variable | -- | 日付と時刻 | 値 |
 | [`A_NumBatchLines`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
-| [`A_OSType`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 拒否: この名前は Windows のことで、このマシンは Windows ではありません。 |
+| [`A_OSType`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 拒否: this name is about Windows, and this machine is not. |
 | [`A_OSVersion`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`A_PriorHotkey`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`A_PriorKey`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
@@ -934,7 +934,7 @@
 | [`A_ScreenWidth`](families/screen.md) | variable | -- | 画面キャプチャとピクセル関数 | 値 |
 | [`A_ScriptDir`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`A_ScriptFullPath`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
-| [`A_ScriptHwnd`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 拒否: このランタイムに独自のウィンドウはありません。実行されて終わるスクリプトです。 |
+| [`A_ScriptHwnd`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 拒否: this runtime has no window of its own: it is a script that runs and ends. |
 | [`A_ScriptName`](families/script.md) | variable | -- | パーサとスクリプトの実行 | 値 |
 | [`A_Sec`](families/time.md) | variable | -- | 日付と時刻 | 値 |
 | [`A_SendLevel`](families/input.md) | variable | -- | ホットキー、ホット文字列、入力 | 値 |
@@ -978,43 +978,43 @@
 | [`ASin`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`ATan`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`AutoTrim`](families/core.md) | command | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`BlockInput`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`BlockInput`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Ceil`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`Chr`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`Click`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`Clipboard`](families/clipboard.md) | variable | -- | クリップボード | 値 |
 | [`ClipWait`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
-| [`ComObjActive`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjArray`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjConnect`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjCreate`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjError`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjFlags`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjGet`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjQuery`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjType`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ComObjValue`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`ComObjActive`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjArray`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjConnect`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjCreate`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjError`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjFlags`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjGet`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjQuery`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjType`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjValue`](families/com.md) | function | -- | COM 自動化 (ComObject) | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`ComSpec`](families/machine.md) | variable | -- | マシン、プロセス、環境 | 値 |
-| [`Control`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlClick`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlFocus`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlGet`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlGetFocus`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlGetPos`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlGetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlMove`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlSend`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ControlSetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`Control`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlClick`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlFocus`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGet`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetFocus`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetPos`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlMove`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlSend`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlSetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`CoordMode`](families/script.md) | command | -- | パーサとスクリプトの実行 | 値 |
 | [`Cos`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`Critical`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: このランタイムは1つのスクリプトを1つのスレッドで実行し、クリティカルにはできません。 |
+| [`Critical`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: this runtime runs one script in one thread, and it cannot make it critical. |
 | [`DetectHiddenText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`DetectHiddenWindows`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`DllCall`](families/native.md) | function | -- | ネイティブ関数の呼び出し (DllCall) | 値 |
-| [`Drive`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`DriveGet`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`DriveSpaceFree`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`Edit`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`Drive`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`DriveGet`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`DriveSpaceFree`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`Edit`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Else`](families/script.md) | command | -- | パーサとスクリプトの実行 | 値 |
 | [`EnvAdd`](families/machine.md) | command | -- | マシン、プロセス、環境 | 値 |
 | [`EnvDiv`](families/machine.md) | command | -- | マシン、プロセス、環境 | 値 |
@@ -1031,23 +1031,23 @@
 | [`FileCopy`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileCopyDir`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileCreateDir`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
-| [`FileCreateShortcut`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`FileCreateShortcut`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`FileDelete`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileEncoding`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileExist`](families/files.md) | function | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileGetAttrib`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
-| [`FileGetShortcut`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`FileGetShortcut`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`FileGetSize`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileGetTime`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
-| [`FileGetVersion`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`FileGetVersion`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`FileInstall`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileMove`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileMoveDir`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileOpen`](families/files.md) | function | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileRead`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileReadLine`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
-| [`FileRecycle`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`FileRecycleEmpty`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`FileRecycle`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`FileRecycleEmpty`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`FileRemoveDir`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileSelectFile`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`FileSelectFolder`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
@@ -1058,13 +1058,13 @@
 | [`FormatTime`](families/time.md) | command | -- | 日付と時刻 | 値 |
 | [`Func`](families/objects.md) | function | -- | 言語のオブジェクト: Array、Map、Func | 値 |
 | [`GetKeyState`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
-| [`GroupActivate`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`GroupAdd`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`GroupClose`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`GroupDeactivate`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`Gui`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`GuiControl`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`GuiControlGet`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`GroupActivate`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`GroupAdd`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`GroupClose`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`GroupDeactivate`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`Gui`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`GuiControl`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`GuiControlGet`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Hotkey`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`Hotstring`](families/input.md) | function | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`IfInString`](families/script.md) | command | -- | パーサとスクリプトの実行 | 値 |
@@ -1076,25 +1076,25 @@
 | [`IniWrite`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`Input`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`InputBox`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`InputHook`](families/input.md) | function | -- | ホットキー、ホット文字列、入力 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`InputHook`](families/input.md) | function | -- | ホットキー、ホット文字列、入力 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`InStr`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`IsByRef`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`IsFunc`](families/script.md) | function | -- | パーサとスクリプトの実行 | 値 |
 | [`IsLabel`](families/input.md) | function | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`IsObject`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`IsSet`](families/script.md) | function | -- | パーサとスクリプトの実行 | 値 |
-| [`KeyHistory`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`KeyHistory`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`KeyWait`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
-| [`ListHotkeys`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ListLines`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`ListVars`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`ListHotkeys`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ListLines`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`ListVars`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Ln`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`LoadPicture`](families/screen.md) | function | -- | 画面キャプチャとピクセル関数 | 値 |
 | [`Log`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`Max`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`Menu`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`MenuGetHandle`](families/gui.md) | function | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`MenuGetName`](families/gui.md) | function | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`Menu`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`MenuGetHandle`](families/gui.md) | function | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`MenuGetName`](families/gui.md) | function | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Min`](families/time.md) | function | -- | 日付と時刻 | 値 |
 | [`Mod`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`MouseClick`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
@@ -1108,27 +1108,27 @@
 | [`ObjBindMethod`](families/com.md) | function | -- | COM 自動化 (ComObject) | 値 |
 | [`Object`](families/objects.md) | function | -- | 言語のオブジェクト: Array、Map、Func | 値 |
 | [`OnError`](families/script.md) | function | -- | パーサとスクリプトの実行 | 値 |
-| [`OnMessage`](families/script.md) | function | -- | パーサとスクリプトの実行 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`OnMessage`](families/script.md) | function | -- | パーサとスクリプトの実行 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Ord`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`OutputDebug`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`Pause`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`OutputDebug`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`Pause`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`PixelGetColor`](families/screen.md) | command | -- | 画面キャプチャとピクセル関数 | 値 |
 | [`PixelSearch`](families/screen.md) | command | -- | 画面キャプチャとピクセル関数 | 値 |
-| [`PostMessage`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`Process`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`PostMessage`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`Process`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`ProgramFiles`](families/machine.md) | variable | -- | マシン、プロセス、環境 | 値 |
-| [`Progress`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`Progress`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Random`](families/core.md) | command | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`RegDelete`](families/registry.md) | command | -- | レジストリの API | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`RegDelete`](families/registry.md) | command | -- | レジストリの API | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`RegExMatch`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`RegExReplace`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`RegisterCallback`](families/gui.md) | function | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`RegRead`](families/registry.md) | command | -- | レジストリの API | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`RegWrite`](families/registry.md) | command | -- | レジストリの API | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`Reload`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`RegisterCallback`](families/gui.md) | function | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`RegRead`](families/registry.md) | command | -- | レジストリの API | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`RegWrite`](families/registry.md) | command | -- | レジストリの API | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`Reload`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Round`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`Run`](families/machine.md) | command | -- | マシン、プロセス、環境 | 値 |
-| [`RunAs`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`RunAs`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`RunWait`](families/machine.md) | command | -- | マシン、プロセス、環境 | 値 |
 | [`Send`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
 | [`SendLevel`](families/input.md) | command | -- | ホットキー、ホット文字列、入力 | 値 |
@@ -1146,22 +1146,22 @@
 | [`SetTitleMatchMode`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`SetWinDelay`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
 | [`SetWorkingDir`](families/script.md) | command | -- | パーサとスクリプトの実行 | 値 |
-| [`Shutdown`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`Shutdown`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Sin`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`Sleep`](families/script.md) | command | -- | パーサとスクリプトの実行 | 値 |
 | [`Sort`](families/core.md) | command | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`SoundBeep`](families/sound.md) | command | -- | サウンド | 値 |
-| [`SoundGet`](families/sound.md) | command | -- | サウンド | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`SoundGetWaveVolume`](families/sound.md) | command | -- | サウンド | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`SoundGet`](families/sound.md) | command | -- | サウンド | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`SoundGetWaveVolume`](families/sound.md) | command | -- | サウンド | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`SoundPlay`](families/sound.md) | command | -- | サウンド | 値 |
-| [`SoundSet`](families/sound.md) | command | -- | サウンド | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`SoundSetWaveVolume`](families/sound.md) | command | -- | サウンド | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`SplashTextOn`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`SoundSet`](families/sound.md) | command | -- | サウンド | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`SoundSetWaveVolume`](families/sound.md) | command | -- | サウンド | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`SplashTextOn`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`SplitPath`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`Sqrt`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`StatusBarGetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`StatusBarWait`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`StrGet`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`StatusBarGetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`StatusBarWait`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`StrGet`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`StringCaseSense`](families/core.md) | command | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`StringGetPos`](families/files.md) | command | -- | ファイルとディレクトリの操作 | 値 |
 | [`StringLeft`](families/core.md) | command | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
@@ -1172,47 +1172,47 @@
 | [`StringSplit`](families/core.md) | command | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`StringTrimLeft`](families/core.md) | command | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`StrLen`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`StrPut`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`StrPut`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`StrReplace`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`StrSplit`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`SubStr`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`Suspend`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`SysGet`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`Suspend`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`SysGet`](families/machine.md) | command | -- | マシン、プロセス、環境 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Tan`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`Thread`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: このランタイムは1つのスクリプトを1つのスレッドで実行し、別のスレッドを開始できません。 |
-| [`ToolTip`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`Thread`](families/script.md) | command | -- | パーサとスクリプトの実行 | 拒否: this runtime runs one script in one thread, and it cannot start another. |
+| [`ToolTip`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Transform`](families/core.md) | command | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`TrayTip`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`TrayTip`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`Trim`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`URLDownloadToFile`](families/machine.md) | command | -- | マシン、プロセス、環境 | 値 |
 | [`VarSetCapacity`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
 | [`VerCompare`](families/core.md) | function | -- | 言語の中核: テキスト、数値、正規表現 | 値 |
-| [`WinActivate`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinActivateBottom`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinActivate`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinActivateBottom`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinActive`](families/gui.md) | function | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinClose`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinClose`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinExist`](families/gui.md) | function | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinGet`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinGetActiveStats`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinGetActiveTitle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinGetClass`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinGetPos`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinGetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinGet`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetActiveStats`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetActiveTitle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetClass`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetPos`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetText`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetTitle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 値 |
-| [`WinHide`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinKill`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinMaximize`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinMenuSelectItem`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinMinimize`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinMinimizeAll`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinMove`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinRestore`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinSet`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinSetTitle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinShow`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinWait`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinWaitActive`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
-| [`WinWaitClose`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| [`WinHide`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinKill`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMaximize`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMenuSelectItem`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMinimize`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMinimizeAll`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMove`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinRestore`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinSet`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetTitle`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinShow`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinWait`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinWaitActive`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
+| [`WinWaitClose`](families/gui.md) | command | -- | GUIウィンドウとウィンドウの自動化 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 
 ## KeySharp
 

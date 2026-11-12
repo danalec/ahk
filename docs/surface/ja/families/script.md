@@ -1,6 +1,6 @@
 # パーサとスクリプトの実行
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
 
 言語: 日本語
 
@@ -66,14 +66,14 @@
 | `A_MaxThreadsPerHotkey` | KeySharp | variable | -- | -- | 値 |
 | `A_MouseHookInstalled` | KeySharp | variable | -- | -- | 値 |
 | `A_NumBatchLines` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
-| `A_OSType` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒否: この名前は Windows のことで、このマシンは Windows ではありません。 |
+| `A_OSType` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒否: this name is about Windows, and this machine is not. |
 | `A_OSVersion` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
 | `A_Persistent` | KeySharp | variable | -- | -- | 値 |
 | `A_PtrSize` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
 | `A_RealThread` | KeySharp | variable | -- | -- | 値 |
 | `A_ScriptDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
 | `A_ScriptFullPath` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
-| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒否: このランタイムに独自のウィンドウはありません。実行されて終わるスクリプトです。 |
+| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒否: this runtime has no window of its own: it is a script that runs and ends. |
 | `A_ScriptName` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
 | `A_Space` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
 | `A_Tab` | AutoHotkey v1.1.37.02 | variable | -- | -- | 値 |
@@ -89,8 +89,8 @@
 | `CompileScript` | KeySharp | function | -- | -- | 値 |
 | `CoordMode` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 値 |
 | `CoordMode` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
-| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 拒否: このランタイムは1つのスクリプトを1つのスレッドで実行し、クリティカルにはできません。 |
-| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: このランタイムは1つのスクリプトを1つのスレッドで実行し、クリティカルにはできません。 |
+| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 拒否: this runtime runs one script in one thread, and it cannot make it critical. |
+| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this runtime runs one script in one thread, and it cannot make it critical. |
 | `Thread.Critical` | KeySharp | method | Thread | -- | 値 |
 | `Else` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 値 |
 | `EndChar` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
@@ -125,13 +125,13 @@
 | `OnError` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 値 |
 | `OnExit` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 値 |
 | `OnMessage` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | 値 |
-| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `OutputDebugLine` | KeySharp | function | -- | -- | 値 |
 | `Pause` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 値 |
-| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Persistent` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 値 |
-| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | 拒否: このランタイムはスクリプトを1度だけ実行し、自分を再実行できません。 |
-| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | 拒否: this runtime runs one script once, and it cannot run itself again. |
+| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `RequestCapabilities` | KeySharp | function | -- | -- | 値 |
 | `RunScript` | KeySharp | function | -- | -- | 値 |
 | `ScriptDir` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
@@ -147,10 +147,10 @@
 | `Sleep` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `Space` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `Suspend` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 値 |
-| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `Tab` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
 | `ThisFunc` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |
-| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | 拒否: このランタイムは1つのスクリプトを1つのスレッドで実行し、別のスレッドを開始できません。 |
-| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: このランタイムは1つのスクリプトを1つのスレッドで実行し、別のスレッドを開始できません。 |
+| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | 拒否: this runtime runs one script in one thread, and it cannot start another. |
+| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒否: this runtime runs one script in one thread, and it cannot start another. |
 | `ValidateScript` | KeySharp | function | -- | -- | 値 |
 | `WorkingDir` | AutoHotkey v2.0.19 | variable | -- | -- | 値 |

@@ -1,6 +1,6 @@
 # 热键、热字符串与输入
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
 
 语言: 中文
 
@@ -18,7 +18,7 @@
 | `A_CoordModeMouse` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_CoordModePixel` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_CoordModeToolTip` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
-| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：此运行时不读取机器光标的形状。 |
+| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：the shape of the cursor of the machine is not read by this runtime. |
 | `A_DefaultHotstringCaseSensitive` | KeySharp | variable | -- | -- | 值 |
 | `A_DefaultHotstringConformToCase` | KeySharp | variable | -- | -- | 值 |
 | `A_DefaultHotstringDetectWhenInsideWord` | KeySharp | variable | -- | -- | 值 |
@@ -56,7 +56,7 @@
 | `Hotkey.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | Hotkey | -- | 值 |
 | `InputHook.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | InputHook | -- | 值 |
 | `BlockInput` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
-| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `InputHook.BufferLengthMax` | KeySharp | method | InputHook | -- | 值 |
 | `CallbackCreate` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | 值 |
 | `CallbackFree` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
@@ -67,10 +67,10 @@
 | `ClipCursor` | KeySharp | function | -- | -- | 值 |
 | `ClipWait` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 值 |
 | `ClipWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 值 |
-| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `CoordModeMouse` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `CoordModePixel` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
-| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | 拒绝：此运行时不读取机器光标的形状。 |
+| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | 拒绝：the shape of the cursor of the machine is not read by this runtime. |
 | `DefaultMouseSpeed` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `InputHook.EndCharMode` | KeySharp | method | InputHook | -- | 值 |
 | `Hotkey.EndKey` | AutoHotkey v2.0.19 | method | Hotkey | -- | 值 |
@@ -106,7 +106,7 @@
 | `Hotkey.Input` | AutoHotkey v2.0.19 | method | Hotkey | -- | 值 |
 | `InputHook.Input` | AutoHotkey v2.0.19 | method | InputHook | -- | 值 |
 | `InputHook` | AutoHotkey v2.0.19 | class | -- | -- | 值 |
-| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `InstallKeybdHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 值 |
 | `InstallMouseHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | 值 |
 | `IsLabel` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
@@ -116,13 +116,13 @@
 | `KeyDuration` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `KeyDurationPlay` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `KeyHistory` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
-| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.KeyOpt` | AutoHotkey v2.0.19 | method | Hotkey | -- | 值 |
 | `InputHook.KeyOpt` | AutoHotkey v2.0.19 | method | InputHook | -- | 值 |
 | `KeyWait` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 值 |
 | `KeyWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `ListHotkeys` | AutoHotkey v2.0.19 | command | -- | 0 | 值 |
-| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.Match` | AutoHotkey v2.0.19 | method | Hotkey | -- | 值 |
 | `InputHook.Match` | AutoHotkey v2.0.19 | method | InputHook | -- | 值 |
 | `MaxHotkeysPerInterval` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |

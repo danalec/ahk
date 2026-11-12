@@ -1,6 +1,6 @@
 # Operaciones de archivos y directorios
 
-| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Español
 
@@ -48,7 +48,7 @@ Los nombres de la familia **Operaciones de archivos y directorios** en los tres 
 | `FileCopyDir` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | valor |
 | `FileCreateDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `FileCreateShortcut` | AutoHotkey v2.0.19 | command | -- | 2 to 9 | valor |
-| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `FileCreateTemp` | KeySharp | function | -- | -- | valor |
 | `FileDelete` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
 | `FileDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
@@ -60,13 +60,13 @@ Los nombres de la familia **Operaciones de archivos y directorios** en los tres 
 | `FileGetAttrib` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
 | `FileGetAttrib` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `FileGetShortcut` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | valor |
-| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `FileGetSize` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `FileGetSize` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `FileGetTime` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `FileGetTime` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `FileGetVersion` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
-| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `FileInstall` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | valor |
 | `FileInstall` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | valor |
 | `FileMove` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | valor |
@@ -78,9 +78,9 @@ Los nombres de la familia **Operaciones de archivos y directorios** en los tres 
 | `FileRead` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | valor |
 | `FileReadLine` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | valor |
 | `FileRecycle` | AutoHotkey v2.0.19 | command | -- | 1 | valor |
-| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `FileRecycleEmpty` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valor |
-| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: es un nombre de Windows, y este escritorio no es Windows. |
+| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | rechazado: this is a name of Windows, and this desktop is not Windows. |
 | `FileRemoveDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
 | `FileSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valor |
 | `FileSelectFile` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |

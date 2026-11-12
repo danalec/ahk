@@ -1,6 +1,6 @@
 # 言語の中核: テキスト、数値、正規表現
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](index.md) | [中文](../zh/index.md) |
 
 言語: 日本語
 
@@ -131,7 +131,7 @@
 | `String.StartsWith` | KeySharp | method | String | -- | 値 |
 | `StrCompare` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | 値 |
 | `StrGet` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | 値 |
-| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `String` | AutoHotkey v2.0.19 | class | -- | -- | 値 |
 | `StringCaseSense` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 値 |
 | `StringLeft` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | 値 |
@@ -146,7 +146,7 @@
 | `StrLower` | AutoHotkey v2.0.19 | function | -- | 1 | 値 |
 | `StrPtr` | AutoHotkey v2.0.19 | function | -- | 1 | 値 |
 | `StrPut` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | 値 |
-| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | 拒否: これは Windows の名前であり、このデスクトップは Windows ではありません。 |
+| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | 拒否: this is a name of Windows, and this desktop is not Windows. |
 | `StrReplace` | AutoHotkey v2.0.19 | function | -- | 2 to 6 | 値 |
 | `StrReplace` | AutoHotkey v1.1.37.02 | function | -- | 2 to 5 | 値 |
 | `StrSplit` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | 値 |

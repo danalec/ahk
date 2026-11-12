@@ -1,6 +1,6 @@
 # 全部名称索引
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
 
 语言: 中文
 
@@ -166,8 +166,8 @@
 | [`CoordModeToolTip`](families/gui.md) | variable | -- | GUI 窗口与窗口自动化 | 值 |
 | [`Cos`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`Map.Count`](families/objects.md) | method | Map | 语言的对象：Array、Map 与 Func | 值 |
-| [`Critical`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：此运行时在一个线程中运行一个脚本，无法将其设为关键。 |
-| [`Cursor`](families/input.md) | variable | -- | 热键、热字符串与输入 | 拒绝：此运行时不读取机器光标的形状。 |
+| [`Critical`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：this runtime runs one script in one thread, and it cannot make it critical. |
+| [`Cursor`](families/input.md) | variable | -- | 热键、热字符串与输入 | 拒绝：the shape of the cursor of the machine is not read by this runtime. |
 | [`DateAdd`](families/time.md) | command | -- | 日期与时间 | 值 |
 | [`DateDiff`](families/time.md) | command | -- | 日期与时间 | 值 |
 | [`DD`](families/time.md) | variable | -- | 日期与时间 | 值 |
@@ -215,7 +215,7 @@
 | [`DriveRetract`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`DriveSetLabel`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`DriveUnlock`](families/files.md) | command | -- | 文件与目录操作 | 值 |
-| [`Edit`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`Edit`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`EditGetCurrentCol`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`EditGetCurrentLine`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`EditGetLine`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
@@ -584,7 +584,7 @@
 | [`RegRead`](families/registry.md) | function | -- | 注册表 API | 值 |
 | [`RegView`](families/registry.md) | variable | -- | 注册表 API | 值 |
 | [`RegWrite`](families/registry.md) | function | -- | 注册表 API | 值 |
-| [`Reload`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：此运行时只运行一次脚本，无法再次运行自身。 |
+| [`Reload`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：this runtime runs one script once, and it cannot run itself again. |
 | [`Array.RemoveAt`](families/objects.md) | method | Array | 语言的对象：Array、Map 与 Func | 值 |
 | [`Gui.Menu.Rename`](families/gui.md) | method | Gui.Menu | GUI 窗口与窗口自动化 | 值 |
 | [`Gui.Restore`](families/gui.md) | method | Gui | GUI 窗口与窗口自动化 | 值 |
@@ -598,7 +598,7 @@
 | [`ScreenWidth`](families/screen.md) | variable | -- | 屏幕捕获与像素函数 | 值 |
 | [`ScriptDir`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`ScriptFullPath`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
-| [`ScriptHwnd`](families/gui.md) | variable | -- | GUI 窗口与窗口自动化 | 拒绝：此运行时没有自己的窗口：它是一个运行即结束的脚本。 |
+| [`ScriptHwnd`](families/gui.md) | variable | -- | GUI 窗口与窗口自动化 | 拒绝：this runtime has no window of its own: it is a script that runs and ends. |
 | [`ScriptName`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`Sec`](families/time.md) | variable | -- | 日期与时间 | 值 |
 | [`File.Seek`](families/files.md) | method | File | 文件与目录操作 | 值 |
@@ -692,7 +692,7 @@
 | [`Gui.Control.Text`](families/gui.md) | method | Gui.Control | GUI 窗口与窗口自动化 | 值 |
 | [`ThisFunc`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`ThisHotkey`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
-| [`Thread`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：此运行时在一个线程中运行一个脚本，无法再启动一个。 |
+| [`Thread`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：this runtime runs one script in one thread, and it cannot start another. |
 | [`TickCount`](families/time.md) | variable | -- | 日期与时间 | 值 |
 | [`TimeIdle`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
 | [`TimeIdleKeyboard`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
@@ -746,7 +746,7 @@
 | [`WinGetControls`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinGetControlsHwnd`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinGetCount`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinGetExStyle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinGetExStyle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetID`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinGetIDLast`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinGetList`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
@@ -755,10 +755,10 @@
 | [`WinGetPos`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinGetProcessName`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinGetProcessPath`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinGetStyle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinGetStyle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinGetTitle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinGetTransColor`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinGetTransColor`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetTransparent`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinHide`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinKill`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
@@ -773,11 +773,11 @@
 | [`WinRestore`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinSetAlwaysOnTop`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinSetEnabled`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinSetExStyle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinSetExStyle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetRegion`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinSetStyle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinSetStyle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetTitle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinSetTransColor`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinSetTransColor`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetTransparent`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinShow`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`WinWait`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
@@ -853,7 +853,7 @@
 | [`A_CoordModeMouse`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
 | [`A_CoordModePixel`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
 | [`A_CoordModeToolTip`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
-| [`A_Cursor`](families/input.md) | variable | -- | 热键、热字符串与输入 | 拒绝：此运行时不读取机器光标的形状。 |
+| [`A_Cursor`](families/input.md) | variable | -- | 热键、热字符串与输入 | 拒绝：the shape of the cursor of the machine is not read by this runtime. |
 | [`A_DD`](families/files.md) | variable | -- | 文件与目录操作 | 值 |
 | [`A_DDD`](families/files.md) | variable | -- | 文件与目录操作 | 值 |
 | [`A_DDDD`](families/files.md) | variable | -- | 文件与目录操作 | 值 |
@@ -886,7 +886,7 @@
 | [`A_IconTip`](families/gui.md) | variable | -- | GUI 窗口与窗口自动化 | 值 |
 | [`A_Index`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`A_InitialWorkingDir`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
-| [`A_IPAddress1`](families/machine.md) | variable | -- | 机器、进程与环境 | 拒绝：本桌面不知道机器的网络地址。 |
+| [`A_IPAddress1`](families/machine.md) | variable | -- | 机器、进程与环境 | 拒绝：this desktop does not know the address of the network of the machine. |
 | [`A_Is64bitOS`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`A_IsAdmin`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`A_IsCompiled`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
@@ -920,7 +920,7 @@
 | [`A_Now`](families/time.md) | variable | -- | 日期与时间 | 值 |
 | [`A_NowUTC`](families/time.md) | variable | -- | 日期与时间 | 值 |
 | [`A_NumBatchLines`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
-| [`A_OSType`](families/script.md) | variable | -- | 解析器与脚本执行 | 拒绝：此名称与 Windows 有关，而本机不是 Windows。 |
+| [`A_OSType`](families/script.md) | variable | -- | 解析器与脚本执行 | 拒绝：this name is about Windows, and this machine is not. |
 | [`A_OSVersion`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`A_PriorHotkey`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
 | [`A_PriorKey`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
@@ -934,7 +934,7 @@
 | [`A_ScreenWidth`](families/screen.md) | variable | -- | 屏幕捕获与像素函数 | 值 |
 | [`A_ScriptDir`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`A_ScriptFullPath`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
-| [`A_ScriptHwnd`](families/script.md) | variable | -- | 解析器与脚本执行 | 拒绝：此运行时没有自己的窗口：它是一个运行即结束的脚本。 |
+| [`A_ScriptHwnd`](families/script.md) | variable | -- | 解析器与脚本执行 | 拒绝：this runtime has no window of its own: it is a script that runs and ends. |
 | [`A_ScriptName`](families/script.md) | variable | -- | 解析器与脚本执行 | 值 |
 | [`A_Sec`](families/time.md) | variable | -- | 日期与时间 | 值 |
 | [`A_SendLevel`](families/input.md) | variable | -- | 热键、热字符串与输入 | 值 |
@@ -978,43 +978,43 @@
 | [`ASin`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`ATan`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`AutoTrim`](families/core.md) | command | -- | 语言核心：文本、数学与模式 | 值 |
-| [`BlockInput`](families/input.md) | command | -- | 热键、热字符串与输入 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`BlockInput`](families/input.md) | command | -- | 热键、热字符串与输入 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Ceil`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`Chr`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`Click`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
 | [`Clipboard`](families/clipboard.md) | variable | -- | 剪贴板 | 值 |
 | [`ClipWait`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
-| [`ComObjActive`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjArray`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjConnect`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjCreate`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjError`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjFlags`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjGet`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjQuery`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjType`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ComObjValue`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`ComObjActive`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjArray`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjConnect`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjCreate`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjError`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjFlags`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjGet`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjQuery`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjType`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjValue`](families/com.md) | function | -- | COM 自动化 (ComObject) | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`ComSpec`](families/machine.md) | variable | -- | 机器、进程与环境 | 值 |
-| [`Control`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlClick`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlFocus`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlGet`](families/input.md) | command | -- | 热键、热字符串与输入 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlGetFocus`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlGetPos`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlGetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlMove`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlSend`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ControlSetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`Control`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlClick`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlFocus`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGet`](families/input.md) | command | -- | 热键、热字符串与输入 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetFocus`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetPos`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlMove`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlSend`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ControlSetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`CoordMode`](families/script.md) | command | -- | 解析器与脚本执行 | 值 |
 | [`Cos`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`Critical`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：此运行时在一个线程中运行一个脚本，无法将其设为关键。 |
+| [`Critical`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：this runtime runs one script in one thread, and it cannot make it critical. |
 | [`DetectHiddenText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`DetectHiddenWindows`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`DllCall`](families/native.md) | function | -- | 原生函数调用 (DllCall) | 值 |
-| [`Drive`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`DriveGet`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`DriveSpaceFree`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`Edit`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`Drive`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`DriveGet`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`DriveSpaceFree`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`Edit`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Else`](families/script.md) | command | -- | 解析器与脚本执行 | 值 |
 | [`EnvAdd`](families/machine.md) | command | -- | 机器、进程与环境 | 值 |
 | [`EnvDiv`](families/machine.md) | command | -- | 机器、进程与环境 | 值 |
@@ -1031,23 +1031,23 @@
 | [`FileCopy`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileCopyDir`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileCreateDir`](families/files.md) | command | -- | 文件与目录操作 | 值 |
-| [`FileCreateShortcut`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`FileCreateShortcut`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`FileDelete`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileEncoding`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileExist`](families/files.md) | function | -- | 文件与目录操作 | 值 |
 | [`FileGetAttrib`](families/files.md) | command | -- | 文件与目录操作 | 值 |
-| [`FileGetShortcut`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`FileGetShortcut`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`FileGetSize`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileGetTime`](families/files.md) | command | -- | 文件与目录操作 | 值 |
-| [`FileGetVersion`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`FileGetVersion`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`FileInstall`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileMove`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileMoveDir`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileOpen`](families/files.md) | function | -- | 文件与目录操作 | 值 |
 | [`FileRead`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileReadLine`](families/files.md) | command | -- | 文件与目录操作 | 值 |
-| [`FileRecycle`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`FileRecycleEmpty`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`FileRecycle`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`FileRecycleEmpty`](families/files.md) | command | -- | 文件与目录操作 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`FileRemoveDir`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileSelectFile`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`FileSelectFolder`](families/files.md) | command | -- | 文件与目录操作 | 值 |
@@ -1058,13 +1058,13 @@
 | [`FormatTime`](families/time.md) | command | -- | 日期与时间 | 值 |
 | [`Func`](families/objects.md) | function | -- | 语言的对象：Array、Map 与 Func | 值 |
 | [`GetKeyState`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
-| [`GroupActivate`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`GroupAdd`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`GroupClose`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`GroupDeactivate`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`Gui`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`GuiControl`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`GuiControlGet`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`GroupActivate`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`GroupAdd`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`GroupClose`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`GroupDeactivate`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`Gui`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`GuiControl`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`GuiControlGet`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Hotkey`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
 | [`Hotstring`](families/input.md) | function | -- | 热键、热字符串与输入 | 值 |
 | [`IfInString`](families/script.md) | command | -- | 解析器与脚本执行 | 值 |
@@ -1076,25 +1076,25 @@
 | [`IniWrite`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`Input`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
 | [`InputBox`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
-| [`InputHook`](families/input.md) | function | -- | 热键、热字符串与输入 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`InputHook`](families/input.md) | function | -- | 热键、热字符串与输入 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`InStr`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`IsByRef`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`IsFunc`](families/script.md) | function | -- | 解析器与脚本执行 | 值 |
 | [`IsLabel`](families/input.md) | function | -- | 热键、热字符串与输入 | 值 |
 | [`IsObject`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`IsSet`](families/script.md) | function | -- | 解析器与脚本执行 | 值 |
-| [`KeyHistory`](families/input.md) | command | -- | 热键、热字符串与输入 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`KeyHistory`](families/input.md) | command | -- | 热键、热字符串与输入 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`KeyWait`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
-| [`ListHotkeys`](families/input.md) | command | -- | 热键、热字符串与输入 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ListLines`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`ListVars`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`ListHotkeys`](families/input.md) | command | -- | 热键、热字符串与输入 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ListLines`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`ListVars`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Ln`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`LoadPicture`](families/screen.md) | function | -- | 屏幕捕获与像素函数 | 值 |
 | [`Log`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`Max`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`Menu`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`MenuGetHandle`](families/gui.md) | function | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`MenuGetName`](families/gui.md) | function | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`Menu`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`MenuGetHandle`](families/gui.md) | function | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`MenuGetName`](families/gui.md) | function | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Min`](families/time.md) | function | -- | 日期与时间 | 值 |
 | [`Mod`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`MouseClick`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
@@ -1108,27 +1108,27 @@
 | [`ObjBindMethod`](families/com.md) | function | -- | COM 自动化 (ComObject) | 值 |
 | [`Object`](families/objects.md) | function | -- | 语言的对象：Array、Map 与 Func | 值 |
 | [`OnError`](families/script.md) | function | -- | 解析器与脚本执行 | 值 |
-| [`OnMessage`](families/script.md) | function | -- | 解析器与脚本执行 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`OnMessage`](families/script.md) | function | -- | 解析器与脚本执行 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Ord`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`OutputDebug`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`Pause`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`OutputDebug`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`Pause`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`PixelGetColor`](families/screen.md) | command | -- | 屏幕捕获与像素函数 | 值 |
 | [`PixelSearch`](families/screen.md) | command | -- | 屏幕捕获与像素函数 | 值 |
-| [`PostMessage`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`Process`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`PostMessage`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`Process`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`ProgramFiles`](families/machine.md) | variable | -- | 机器、进程与环境 | 值 |
-| [`Progress`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`Progress`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Random`](families/core.md) | command | -- | 语言核心：文本、数学与模式 | 值 |
-| [`RegDelete`](families/registry.md) | command | -- | 注册表 API | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`RegDelete`](families/registry.md) | command | -- | 注册表 API | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`RegExMatch`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`RegExReplace`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`RegisterCallback`](families/gui.md) | function | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`RegRead`](families/registry.md) | command | -- | 注册表 API | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`RegWrite`](families/registry.md) | command | -- | 注册表 API | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`Reload`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`RegisterCallback`](families/gui.md) | function | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`RegRead`](families/registry.md) | command | -- | 注册表 API | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`RegWrite`](families/registry.md) | command | -- | 注册表 API | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`Reload`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Round`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`Run`](families/machine.md) | command | -- | 机器、进程与环境 | 值 |
-| [`RunAs`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`RunAs`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`RunWait`](families/machine.md) | command | -- | 机器、进程与环境 | 值 |
 | [`Send`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
 | [`SendLevel`](families/input.md) | command | -- | 热键、热字符串与输入 | 值 |
@@ -1146,22 +1146,22 @@
 | [`SetTitleMatchMode`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`SetWinDelay`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
 | [`SetWorkingDir`](families/script.md) | command | -- | 解析器与脚本执行 | 值 |
-| [`Shutdown`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`Shutdown`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Sin`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`Sleep`](families/script.md) | command | -- | 解析器与脚本执行 | 值 |
 | [`Sort`](families/core.md) | command | -- | 语言核心：文本、数学与模式 | 值 |
 | [`SoundBeep`](families/sound.md) | command | -- | 声音 | 值 |
-| [`SoundGet`](families/sound.md) | command | -- | 声音 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`SoundGetWaveVolume`](families/sound.md) | command | -- | 声音 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`SoundGet`](families/sound.md) | command | -- | 声音 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`SoundGetWaveVolume`](families/sound.md) | command | -- | 声音 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`SoundPlay`](families/sound.md) | command | -- | 声音 | 值 |
-| [`SoundSet`](families/sound.md) | command | -- | 声音 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`SoundSetWaveVolume`](families/sound.md) | command | -- | 声音 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`SplashTextOn`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`SoundSet`](families/sound.md) | command | -- | 声音 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`SoundSetWaveVolume`](families/sound.md) | command | -- | 声音 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`SplashTextOn`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`SplitPath`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`Sqrt`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`StatusBarGetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`StatusBarWait`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`StrGet`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`StatusBarGetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`StatusBarWait`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`StrGet`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`StringCaseSense`](families/core.md) | command | -- | 语言核心：文本、数学与模式 | 值 |
 | [`StringGetPos`](families/files.md) | command | -- | 文件与目录操作 | 值 |
 | [`StringLeft`](families/core.md) | command | -- | 语言核心：文本、数学与模式 | 值 |
@@ -1172,47 +1172,47 @@
 | [`StringSplit`](families/core.md) | command | -- | 语言核心：文本、数学与模式 | 值 |
 | [`StringTrimLeft`](families/core.md) | command | -- | 语言核心：文本、数学与模式 | 值 |
 | [`StrLen`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`StrPut`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`StrPut`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`StrReplace`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`StrSplit`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`SubStr`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`Suspend`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`SysGet`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`Suspend`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`SysGet`](families/machine.md) | command | -- | 机器、进程与环境 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Tan`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`Thread`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：此运行时在一个线程中运行一个脚本，无法再启动一个。 |
-| [`ToolTip`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`Thread`](families/script.md) | command | -- | 解析器与脚本执行 | 拒绝：this runtime runs one script in one thread, and it cannot start another. |
+| [`ToolTip`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Transform`](families/core.md) | command | -- | 语言核心：文本、数学与模式 | 值 |
-| [`TrayTip`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`TrayTip`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`Trim`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`URLDownloadToFile`](families/machine.md) | command | -- | 机器、进程与环境 | 值 |
 | [`VarSetCapacity`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
 | [`VerCompare`](families/core.md) | function | -- | 语言核心：文本、数学与模式 | 值 |
-| [`WinActivate`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinActivateBottom`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinActivate`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinActivateBottom`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinActive`](families/gui.md) | function | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinClose`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinClose`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinExist`](families/gui.md) | function | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinGet`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinGetActiveStats`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinGetActiveTitle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinGetClass`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinGetPos`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinGetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinGet`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetActiveStats`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetActiveTitle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetClass`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetPos`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetText`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetTitle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 值 |
-| [`WinHide`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinKill`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinMaximize`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinMenuSelectItem`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinMinimize`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinMinimizeAll`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinMove`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinRestore`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinSet`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinSetTitle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinShow`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinWait`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinWaitActive`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
-| [`WinWaitClose`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| [`WinHide`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinKill`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinMaximize`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinMenuSelectItem`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinMinimize`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinMinimizeAll`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinMove`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinRestore`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinSet`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetTitle`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinShow`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinWait`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinWaitActive`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
+| [`WinWaitClose`](families/gui.md) | command | -- | GUI 窗口与窗口自动化 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 
 ## KeySharp
 

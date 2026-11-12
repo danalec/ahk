@@ -1,6 +1,6 @@
 # 解析器与脚本执行
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
 
 语言: 中文
 
@@ -66,14 +66,14 @@
 | `A_MaxThreadsPerHotkey` | KeySharp | variable | -- | -- | 值 |
 | `A_MouseHookInstalled` | KeySharp | variable | -- | -- | 值 |
 | `A_NumBatchLines` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
-| `A_OSType` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：此名称与 Windows 有关，而本机不是 Windows。 |
+| `A_OSType` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：this name is about Windows, and this machine is not. |
 | `A_OSVersion` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_Persistent` | KeySharp | variable | -- | -- | 值 |
 | `A_PtrSize` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_RealThread` | KeySharp | variable | -- | -- | 值 |
 | `A_ScriptDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_ScriptFullPath` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
-| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：此运行时没有自己的窗口：它是一个运行即结束的脚本。 |
+| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：this runtime has no window of its own: it is a script that runs and ends. |
 | `A_ScriptName` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_Space` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
 | `A_Tab` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
@@ -89,8 +89,8 @@
 | `CompileScript` | KeySharp | function | -- | -- | 值 |
 | `CoordMode` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 值 |
 | `CoordMode` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
-| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 拒绝：此运行时在一个线程中运行一个脚本，无法将其设为关键。 |
-| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：此运行时在一个线程中运行一个脚本，无法将其设为关键。 |
+| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 拒绝：this runtime runs one script in one thread, and it cannot make it critical. |
+| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this runtime runs one script in one thread, and it cannot make it critical. |
 | `Thread.Critical` | KeySharp | method | Thread | -- | 值 |
 | `Else` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 值 |
 | `EndChar` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
@@ -125,13 +125,13 @@
 | `OnError` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 值 |
 | `OnExit` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 值 |
 | `OnMessage` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | 值 |
-| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `OutputDebugLine` | KeySharp | function | -- | -- | 值 |
 | `Pause` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
-| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `Persistent` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
-| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | 拒绝：此运行时只运行一次脚本，无法再次运行自身。 |
-| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | 拒绝：this runtime runs one script once, and it cannot run itself again. |
+| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `RequestCapabilities` | KeySharp | function | -- | -- | 值 |
 | `RunScript` | KeySharp | function | -- | -- | 值 |
 | `ScriptDir` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
@@ -147,10 +147,10 @@
 | `Sleep` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
 | `Space` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `Suspend` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
-| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：this is a name of Windows, and this desktop is not Windows. |
 | `Tab` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
 | `ThisFunc` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
-| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | 拒绝：此运行时在一个线程中运行一个脚本，无法再启动一个。 |
-| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：此运行时在一个线程中运行一个脚本，无法再启动一个。 |
+| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | 拒绝：this runtime runs one script in one thread, and it cannot start another. |
+| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：this runtime runs one script in one thread, and it cannot start another. |
 | `ValidateScript` | KeySharp | function | -- | -- | 值 |
 | `WorkingDir` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |

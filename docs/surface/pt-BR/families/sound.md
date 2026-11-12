@@ -1,6 +1,6 @@
 # O som
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
 
 Idioma: Português (Brasil)
 
@@ -10,15 +10,15 @@ Os nomes da família **O som** nos três dialetos, com o que esta árvore respon
 |---|---|---|---|---|---|
 | `SoundBeep` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valor |
 | `SoundBeep` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | valor |
-| `SoundGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `SoundGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `SoundGetInterface` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | valor |
 | `SoundGetMute` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | valor |
 | `SoundGetName` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | valor |
 | `SoundGetVolume` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | valor |
-| `SoundGetWaveVolume` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `SoundGetWaveVolume` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `SoundPlay` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valor |
 | `SoundPlay` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valor |
-| `SoundSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `SoundSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
 | `SoundSetMute` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | valor |
 | `SoundSetVolume` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | valor |
-| `SoundSetWaveVolume` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: é um nome do Windows, e esta área de trabalho não é o Windows. |
+| `SoundSetWaveVolume` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | recusado: this is a name of Windows, and this desktop is not Windows. |
