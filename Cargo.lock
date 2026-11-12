@@ -4,11 +4,11 @@ version = 4
 
 [[package]]
 name = "ahk"
-version = "0.3.1"
+version = "0.3.2"
 
 [[package]]
 name = "ahk-box"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahk",
  "wayland-backend",
@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "ahk-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahk",
  "ahk-box",
