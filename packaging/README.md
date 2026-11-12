@@ -10,7 +10,7 @@ packaging names those files.
 |---|---|---|
 | Nix | [`../flake.nix`](../flake.nix) | a flake with one package per platform, and a `checks.smoke` that runs the runner |
 | Homebrew | [`../Formula/ahk.rb`](../Formula/ahk.rb) | the formula of the tap [`danalec/homebrew-ahk`](https://github.com/danalec/homebrew-ahk) |
-| WinGet | [`../.winget/`](../.winget) | the three manifests of the package `danalec.ahk`, submitted to the winget-pkgs repository |
+| WinGet | [`../.winget/`](../.winget) | the three manifests of the package `ahk-rs`, submitted to the winget-pkgs repository |
 | Arch | [`aur/PKGBUILD`](aur/PKGBUILD) | the package of the AUR, `ahk` |
 
 ## The archives
@@ -40,7 +40,7 @@ brew tap danalec/ahk
 brew install ahk
 
 # WinGet
-winget install danalec.ahk
+winget install ahk-rs
 
 # Arch
 yay -S ahk
