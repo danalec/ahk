@@ -40,10 +40,16 @@ jobs:
     # gated: only someone with write access can push, and that someone is a
     # collaborator by definition.
     #
+    # The bot of the dependencies is the exception, and it is asked for by
+    # name: a pull request of dependabot changes the gate itself -- the
+    # version of the checkout, the version of an action -- and the gate is
+    # what checks that. The pull request of a stranger still does not spend
+    # the owner's minutes.
+    #
     # The expression is on one line on purpose: a YAML folded scalar does not
     # fold a line that is indented further than the first, and a newline
     # inside an expression is not an expression the runner reads.
-    if: github.event_name != 'pull_request' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    if: github.event_name != 'pull_request' || github.actor == 'dependabot[bot]' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -94,7 +100,7 @@ jobs:
     name: no-std (${{ matrix.target }})
     # The same gate as the job above: the owner and the collaborators, and
     # nobody else.
-    if: github.event_name != 'pull_request' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    if: github.event_name != 'pull_request' || github.actor == 'dependabot[bot]' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
