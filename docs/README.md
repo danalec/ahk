@@ -20,7 +20,7 @@ with what it holds and who it is for.
 | The kind | What it is | The documents |
 |---|---|---|
 | a **user guide** | written for someone who runs scripts or writes them: plain sentences, examples, the behaviour of the language | `language-guide.md`, `ahk-v2-reference.md`, `ahk-v1-reference.md`, `ahk-ks-dialect.md`, `runner-and-report.md`, `desktop-backend.md`, `errors.md`, `dialects.md` |
-| a **user guide** | the subtree of the surface: every name of the v1, of the v2 and of KeySharp, with the state this tree answers for each, and the crosswalk between the three | `surface/README.md`, `surface/index.md`, `surface/crosswalk.md`, `surface/v2.md`, `surface/v1.md`, `surface/keysharp.md`, `surface/families/*.md` |
+| a **user guide** | the subtree of the surface: every name of the v1, of the v2 and of KeySharp, with the state this tree answers for each, and the crosswalk between the three. It is written in five languages -- English, Español, Português (Brasil), 日本語 and 中文 -- and every page carries the switcher of the languages | `surface/README.md`, `surface/index.md`, `surface/crosswalk.md`, `surface/v2.md`, `surface/v1.md`, `surface/keysharp.md`, `surface/families/*.md` |
 | a **record** | the design or the measurement of one piece of work, kept because it says *why* the tree is the way it is. The numbers and the decisions are the ones of the day it was written | `ahk-v1-dialect.md`, `v2-capability-report.md`, `wayland-toplevel-enumeration.md`, `ahk-x11-comparison.md`, `ahk-gaps-report.md`, `two-lines.md` |
 | an **index** | this page | `README.md` |
 
@@ -38,12 +38,13 @@ measurement is an opinion.
 | [errors.md](errors.md) | the error model: a load error and a run error, the fourteen classes of v2, the object a catch holds, `try` / `catch` / `throw` and `OnError`, the guard rails, and the leniency of v1 | anyone whose script failed, or who writes a `catch` |
 | [dialects.md](dialects.md) | the gate between the two dialects, a full v2-against-v1 reference, and how to port a script either way | someone who has a v1 script, or who moves between the dialects |
 | [ahk-ks-dialect.md](ahk-ks-dialect.md) | the extensions of KeySharp -- the mode `ks` of the v2: the families of the names, the table of their surface, the machine behind them, and the audit that named them | someone writing a script against the extensions, or a contributor keeping the table of them honest |
-| [surface/README.md](surface/README.md) | the surface: what the subtree is, the rules it follows, the taxonomy of the families, and how to regenerate it. It is the CHM of the tree, in Markdown | someone who wants to know where the names live and what the tree says about them |
-| [surface/index.md](surface/index.md) | the alphabetical index of every name of the three dialects | someone who has a name in mind and wants the page that carries it |
-| [surface/crosswalk.md](surface/crosswalk.md) | the crosswalk between the v1, the v2 and KeySharp: what a name of one dialect is called in the others | someone moving between the dialects |
-| [surface/v2.md](surface/v2.md) | the catalogue of the v2, grouped by family: for each name its kind, its class, its arity and the state the tree answers | someone looking up a name of the v2: is this here, and does it do the thing? |
-| [surface/v1.md](surface/v1.md) | the same catalogue for the v1 | someone looking up a name of the v1 |
-| [surface/keysharp.md](surface/keysharp.md) | the same catalogue for KeySharp | someone looking up a name of KeySharp |
+| [surface/README.md](surface/README.md) | the index of the subtree: what the surface is, the five languages it is written in, the families, the rules, and how to regenerate it. It is the CHM of the tree, in Markdown | someone who wants to know where the names live and what the tree says about them |
+| [surface/index.md](surface/index.md) | the alphabetical index of every name of the three dialects, with its family and its state | someone who has a name in mind and wants the page that carries it |
+| [surface/crosswalk.md](surface/crosswalk.md) | the crosswalk between the v1, the v2 and KeySharp: the names they share and the names only one of them has | someone moving between the dialects |
+| [surface/v2.md](surface/v2.md) | the summary of the v2: the numbers of the runner -- the names, the value, the refused and the pending -- the numbers by family and by kind, and the names that are refused or pending | someone looking up a name of the v2: is this here, and does it do the thing? |
+| [surface/v1.md](surface/v1.md) | the same summary for the v1 | someone looking up a name of the v1 |
+| [surface/keysharp.md](surface/keysharp.md) | the same summary for KeySharp | someone looking up a name of KeySharp |
+| [surface/families/](surface/families/) | one page per family: the ficha of every name of it -- the kind, the class, the parameters and the state -- of the three dialects, in one table | someone who wants the detail of a name, and the family that carries it |
 | [ahk-v2-reference.md](ahk-v2-reference.md) | every name of AutoHotkey v2.0.19 -- the commands, the functions, the built-in variables, the class types and their methods -- with the state the tree answers for each | someone looking up a name: is this here, and does it do the thing? |
 | [ahk-v1-reference.md](ahk-v1-reference.md) | the same catalogue for v1.1.37.02: the commands, the functions, the built-in variables and the directives | someone porting a v1 script, or checking what the v1 carries |
 | [runner-and-report.md](runner-and-report.md) | the command `ahk`, its flags, the standard input and output, and the whole shape of the JSON report: the steps, the `error` and `error_line`, the notes, the `exit_code`, the `variables`, the includes, the pid file and the guard rails | anyone who reads a report -- a client of the runner, a test -- and anyone changing what it prints |
@@ -87,15 +88,23 @@ meant to run in CI, which this tree does not have yet.
 
 ### You want to look up a name
 
+The subtree is written in five languages -- English, Español, Português
+(Brasil), 日本語 and 中文 -- and every page carries the switcher of the
+languages at the top.
+
 1. **[surface/README.md](surface/README.md)** -- the surface of the tree:
-   the rules, the families, and how the subtree is regenerated.
+   the five languages, the families, the rules, and how the subtree is
+   regenerated.
 2. **[surface/index.md](surface/index.md)** -- the alphabetical index of
-   every name of the v1, of the v2 and of KeySharp.
+   every name of the v1, of the v2 and of KeySharp, with its family and
+   its state.
 3. **[surface/v2.md](surface/v2.md)**, **[surface/v1.md](surface/v1.md)**,
-   **[surface/keysharp.md](surface/keysharp.md)** -- the catalogue of the
-   dialect you are in: the kind, the class, the arity and the state the
-   tree answers for each name.
-4. **[surface/crosswalk.md](surface/crosswalk.md)** -- when the name is not
+   **[surface/keysharp.md](surface/keysharp.md)** -- the summary of the
+   dialect you are in: the numbers, the names that are refused or
+   pending, and the page of the family that carries the name.
+4. **[surface/families/](surface/families/)** -- the ficha of the name:
+   the kind, the class, the parameters and the state the tree answers.
+5. **[surface/crosswalk.md](surface/crosswalk.md)** -- when the name is not
    in your dialect: what it is called in the others.
 
 ### You have a v1 script to port

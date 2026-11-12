@@ -1422,7 +1422,7 @@ of a number (`crates/ahk/src/ast.rs`), the coercion of a text
 (`crates/ahk/src/v1/numbers.rs`) and the format of the integers.
 
 The surface of the v1 has **408** entries: **308** answer with a value,
-**106** are refused and none is pending. The surface of the v2 moved with
+**100** are refused and none is pending. The surface of the v2 moved with
 the `ObjBindMethod`: **833** entries, **817** values, **16** refusals and
 no pending.
 

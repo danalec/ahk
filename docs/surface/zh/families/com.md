@@ -1,0 +1,39 @@
+# COM 自动化 (ComObject)
+
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+
+语言: 中文
+
+三个方言中属于 **COM 自动化 (ComObject)** 类的名称，以及这棵树对每个名称给出的回答。分类是脚本思考的领域，这些名称即是它的全部。
+
+| 名称 | 方言 | 种类 | 类 | 参数 | 状态 |
+|---|---|---|---|---|---|
+| `ComCall` | AutoHotkey v2.0.19 | function | -- | up to 2 | 值 |
+| `ComObjActive` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ComObjActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjArray` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjConnect` | AutoHotkey v2.0.19 | function | -- | 1 to 2 | 值 |
+| `ComObjConnect` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjCreate` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObject` | AutoHotkey v2.0.19 | class | -- | -- | 值 |
+| `ComObjError` | AutoHotkey v1.1.37.02 | function | -- | 0 to 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjFlags` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | 值 |
+| `ComObjFlags` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjFromPtr` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ComObjGet` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ComObjGet` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjQuery` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | 值 |
+| `ComObjQuery` | AutoHotkey v1.1.37.02 | function | -- | 2 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjType` | AutoHotkey v2.0.19 | function | -- | 1 to 2 | 值 |
+| `ComObjType` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComObjValue` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ComObjValue` | AutoHotkey v1.1.37.02 | function | -- | 1 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `ComValue` | AutoHotkey v2.0.19 | class | -- | -- | 值 |
+| `ObjBindMethod` | AutoHotkey v2.0.19 | function | -- | up to 1 | 值 |
+| `ObjBindMethod` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | 值 |
+| `ObjFromPtr` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ObjFromPtrAddRef` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ObjPtr` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ObjPtrAddRef` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ObjRelease` | AutoHotkey v2.0.19 | function | -- | 1 | 值 |
+| `ComValue.Ptr` | AutoHotkey v2.0.19 | method | ComValue | -- | 值 |

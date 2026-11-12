@@ -321,6 +321,14 @@ def area_of(name, dialect, klass=""):
     return _rule_area(name)
 
 
+# The families that the v2 does not have: the network and the mail are
+# names of the extensions of KeySharp, and a family of their own is
+# clearer than a name without a place.
+EXTRA_AREAS = [
+    ("network", "The network and the mail"),
+]
+
+
 def families_of():
     """The families, in the order of the pages: (key, title)."""
-    return [(key, AREA_TITLES[key]) for key in AREA_KEYS]
+    return [(key, AREA_TITLES[key]) for key in AREA_KEYS] + list(EXTRA_AREAS)

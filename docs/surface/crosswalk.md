@@ -1,12 +1,16 @@
 # The crosswalk of the three dialects
 
+| [English](index.md) | [Español](es/index.md) | [Português (Brasil)](pt-BR/index.md) | [日本語](ja/index.md) | [中文](zh/index.md) |
+
+Language: English
+
 The same name in the three dialects, and the name that only one of them has. A name of the v1 that the v2 spells another way is a line of the v1-only table, with the v2 name that replaced it.
 
 | The three | Names |
 |---|---|
-| in the v1 and in the v2 | 181 |
-| only in the v1 | 226 |
-| only in the KeySharp | 130 |
+| v1 and v2 | 181 |
+| v1 only | 226 |
+| KeySharp only | 130 |
 
 ## In the v1 and in the v2
 
@@ -490,7 +494,7 @@ The same name in the three dialects, and the name that only one of them has. A n
 | `IntPtr` | class | The core of the language: text, math and patterns |
 | `IsComponentAvailable` | function | Parser and script execution |
 | `IsSet` | function | The core of the language: text, math and patterns |
-| `Mail` | function | unclassified |
+| `Mail` | function | The network and the mail |
 | `ObjCreateWithDataPtr` | function | Native function calls (DllCall) |
 | `ObjGetDataPtr` | function | Native function calls (DllCall) |
 | `ObjGetDataSize` | function | Native function calls (DllCall) |
@@ -543,7 +547,7 @@ The same name in the three dialects, and the name that only one of them has. A n
 | `ExitCode` | method | The machine, the processes and the environment |
 | `ExitTime` | method | The machine, the processes and the environment |
 | `HasExited` | method | The machine, the processes and the environment |
-| `Kill` | method | unclassified |
+| `Kill` | method | The machine, the processes and the environment |
 | `StdErr` | method | The machine, the processes and the environment |
 | `StdIn` | method | The machine, the processes and the environment |
 | `StdOut` | method | The machine, the processes and the environment |

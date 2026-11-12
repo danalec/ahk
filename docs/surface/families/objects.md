@@ -1,90 +1,94 @@
 # The objects of the language: Array, Map and Func
 
+| [English](index.md) | [Español](es/index.md) | [Português (Brasil)](pt-BR/index.md) | [日本語](ja/index.md) | [中文](zh/index.md) |
+
+Language: English
+
 The names of the family **The objects of the language: Array, Map and Func** in the three dialects, with what this tree answers for each of them. The family is the area a script thinks in; the names are the whole of it.
 
 | Name | Dialect | Kind | Class | Parameters | State |
 |---|---|---|---|---|---|
-| `Array.__Enum` | v2 | method | Array | -- | value |
-| `Map.__Enum` | v2 | method | Map | -- | value |
-| `Array.__Item` | v2 | method | Array | -- | value |
-| `Map.__Item` | v2 | method | Map | -- | value |
-| `Array.__New` | v2 | method | Array | -- | value |
-| `Map.__New` | v2 | method | Map | -- | value |
-| `A_Args` | ks | variable | -- | -- | not measured |
-| `Array` | v2 | class | -- | -- | value |
-| `Object.Base` | v2 | method | Object | -- | value |
-| `InputHook.BeforeHotkeys` | ks | method | InputHook | -- | value |
-| `Func.Bind` | v2 | method | Func | -- | value |
-| `BoundFunc` | v2 | class | -- | -- | value |
-| `Enumerator.Call` | v2 | method | Enumerator | -- | value |
-| `Func.Call` | v2 | method | Func | -- | value |
-| `Array.Capacity` | v2 | method | Array | -- | value |
-| `Map.Capacity` | v2 | method | Map | -- | value |
-| `Map.CaseSense` | v2 | method | Map | -- | value |
-| `Map.Clear` | v2 | method | Map | -- | value |
-| `Array.Clone` | v2 | method | Array | -- | value |
-| `Map.Clone` | v2 | method | Map | -- | value |
-| `Object.Clone` | v2 | method | Object | -- | value |
-| `Closure` | v2 | class | -- | -- | value |
-| `Array.Contains` | ks | method | Array | -- | value |
-| `Map.Count` | v2 | method | Map | -- | value |
-| `Map.DefineProp` | v2 | method | Map | -- | value |
-| `Object.DefineProp` | v2 | method | Object | -- | value |
-| `Array.Delete` | v2 | method | Array | -- | value |
-| `Map.Delete` | v2 | method | Map | -- | value |
-| `Map.DeleteProp` | v2 | method | Map | -- | value |
-| `Object.DeleteProp` | v2 | method | Object | -- | value |
-| `Enumerator` | v2 | class | -- | -- | value |
-| `Array.Filter` | ks | method | Array | -- | value |
-| `Array.FindIndex` | ks | method | Array | -- | value |
-| `Func` | v2 | class | -- | -- | value |
-| `Func` | v1 | function | -- | 1 | value |
-| `Array.Get` | v2 | method | Array | -- | value |
-| `Map.Get` | v2 | method | Map | -- | value |
-| `Map.GetOwnPropDesc` | v2 | method | Map | -- | value |
-| `Object.GetOwnPropDesc` | v2 | method | Object | -- | value |
-| `Array.Has` | v2 | method | Array | -- | value |
-| `Map.Has` | v2 | method | Map | -- | value |
-| `Map.HasOwnProp` | v2 | method | Map | -- | value |
-| `Object.HasOwnProp` | v2 | method | Object | -- | value |
-| `Array.IndexOf` | ks | method | Array | -- | value |
-| `Array.InsertAt` | v2 | method | Array | -- | value |
-| `Func.IsBuiltIn` | v2 | method | Func | -- | value |
-| `Func.IsByRef` | v2 | method | Func | -- | value |
-| `Func.IsClosure` | ks | method | Func | -- | value |
-| `Func.IsMethod` | ks | method | Func | -- | value |
-| `Func.IsOptional` | v2 | method | Func | -- | value |
-| `Func.IsVariadic` | v2 | method | Func | -- | value |
-| `Array.Join` | ks | method | Array | -- | value |
-| `Array.Length` | v2 | method | Array | -- | value |
-| `Map` | v2 | class | -- | -- | value |
-| `Array.Map` | ks | method | Array | -- | value |
-| `Func.MaxParams` | v2 | method | Func | -- | value |
-| `Func.MinParams` | v2 | method | Func | -- | value |
-| `Func.Name` | v2 | method | Func | -- | value |
-| `ObjAddRef` | v2 | function | -- | 1 | value |
-| `ObjAddRef` | v1 | function | -- | 1 | value |
-| `Object` | v2 | class | -- | -- | value |
-| `Object` | v1 | function | -- | up to 0 | value |
-| `ObjGetBase` | v2 | function | -- | 1 | value |
-| `ObjGetCapacity` | v2 | function | -- | 1 | value |
-| `ObjHasOwnProp` | v2 | function | -- | 2 | value |
-| `ObjOwnPropCount` | v2 | function | -- | 1 | value |
-| `ObjOwnProps` | v2 | function | -- | 1 | value |
-| `ObjSetBase` | v2 | function | -- | 2 | value |
-| `ObjSetCapacity` | v2 | function | -- | 2 | value |
-| `Map.OwnProps` | v2 | method | Map | -- | value |
-| `Object.OwnProps` | v2 | method | Object | -- | value |
-| `Func.Params` | ks | method | Func | -- | value |
-| `Array.Pop` | v2 | method | Array | -- | value |
-| `PropRef` | ks | class | -- | -- | value |
-| `Props` | ks | function | -- | -- | value |
-| `Array.Push` | v2 | method | Array | -- | value |
-| `RegExMatchInfo` | v2 | class | -- | -- | value |
-| `Array.Remove` | ks | method | Array | -- | value |
-| `Array.RemoveAt` | v2 | method | Array | -- | value |
-| `Map.Set` | v2 | method | Map | -- | value |
-| `Struct` | ks | class | -- | -- | value |
-| `Array.ToString` | ks | method | Array | -- | value |
-| `Map.ToString` | ks | method | Map | -- | value |
-| `VarRef` | ks | class | -- | -- | value |
+| `Array.__Enum` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.__Enum` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Array.__Item` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.__Item` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Array.__New` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.__New` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `A_Args` | KeySharp | variable | -- | -- | not measured |
+| `Array` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Object.Base` | AutoHotkey v2.0.19 | method | Object | -- | value |
+| `InputHook.BeforeHotkeys` | KeySharp | method | InputHook | -- | value |
+| `Func.Bind` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `BoundFunc` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Enumerator.Call` | AutoHotkey v2.0.19 | method | Enumerator | -- | value |
+| `Func.Call` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `Array.Capacity` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.Capacity` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Map.CaseSense` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Map.Clear` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Array.Clone` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.Clone` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Object.Clone` | AutoHotkey v2.0.19 | method | Object | -- | value |
+| `Closure` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Array.Contains` | KeySharp | method | Array | -- | value |
+| `Map.Count` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Map.DefineProp` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Object.DefineProp` | AutoHotkey v2.0.19 | method | Object | -- | value |
+| `Array.Delete` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.Delete` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Map.DeleteProp` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Object.DeleteProp` | AutoHotkey v2.0.19 | method | Object | -- | value |
+| `Enumerator` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Array.Filter` | KeySharp | method | Array | -- | value |
+| `Array.FindIndex` | KeySharp | method | Array | -- | value |
+| `Func` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Func` | AutoHotkey v1.1.37.02 | function | -- | 1 | value |
+| `Array.Get` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.Get` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Map.GetOwnPropDesc` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Object.GetOwnPropDesc` | AutoHotkey v2.0.19 | method | Object | -- | value |
+| `Array.Has` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.Has` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Map.HasOwnProp` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Object.HasOwnProp` | AutoHotkey v2.0.19 | method | Object | -- | value |
+| `Array.IndexOf` | KeySharp | method | Array | -- | value |
+| `Array.InsertAt` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Func.IsBuiltIn` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `Func.IsByRef` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `Func.IsClosure` | KeySharp | method | Func | -- | value |
+| `Func.IsMethod` | KeySharp | method | Func | -- | value |
+| `Func.IsOptional` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `Func.IsVariadic` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `Array.Join` | KeySharp | method | Array | -- | value |
+| `Array.Length` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Array.Map` | KeySharp | method | Array | -- | value |
+| `Func.MaxParams` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `Func.MinParams` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `Func.Name` | AutoHotkey v2.0.19 | method | Func | -- | value |
+| `ObjAddRef` | AutoHotkey v2.0.19 | function | -- | 1 | value |
+| `ObjAddRef` | AutoHotkey v1.1.37.02 | function | -- | 1 | value |
+| `Object` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Object` | AutoHotkey v1.1.37.02 | function | -- | up to 0 | value |
+| `ObjGetBase` | AutoHotkey v2.0.19 | function | -- | 1 | value |
+| `ObjGetCapacity` | AutoHotkey v2.0.19 | function | -- | 1 | value |
+| `ObjHasOwnProp` | AutoHotkey v2.0.19 | function | -- | 2 | value |
+| `ObjOwnPropCount` | AutoHotkey v2.0.19 | function | -- | 1 | value |
+| `ObjOwnProps` | AutoHotkey v2.0.19 | function | -- | 1 | value |
+| `ObjSetBase` | AutoHotkey v2.0.19 | function | -- | 2 | value |
+| `ObjSetCapacity` | AutoHotkey v2.0.19 | function | -- | 2 | value |
+| `Map.OwnProps` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Object.OwnProps` | AutoHotkey v2.0.19 | method | Object | -- | value |
+| `Func.Params` | KeySharp | method | Func | -- | value |
+| `Array.Pop` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `PropRef` | KeySharp | class | -- | -- | value |
+| `Props` | KeySharp | function | -- | -- | value |
+| `Array.Push` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `RegExMatchInfo` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Array.Remove` | KeySharp | method | Array | -- | value |
+| `Array.RemoveAt` | AutoHotkey v2.0.19 | method | Array | -- | value |
+| `Map.Set` | AutoHotkey v2.0.19 | method | Map | -- | value |
+| `Struct` | KeySharp | class | -- | -- | value |
+| `Array.ToString` | KeySharp | method | Array | -- | value |
+| `Map.ToString` | KeySharp | method | Map | -- | value |
+| `VarRef` | KeySharp | class | -- | -- | value |

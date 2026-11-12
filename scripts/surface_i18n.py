@@ -34,7 +34,7 @@ LANG_NAMES = {
 TEXT = {}
 
 TEXT["en"] = {
-    "languages": "Languages",
+    "languages": "Language",
     "index_title": "The index of every name",
     "index_intro": (
         "Every name of the three dialects, alphabetical, with the family it "
@@ -90,7 +90,7 @@ TEXT["en"] = {
 }
 
 TEXT["es"] = {
-    "languages": "Idiomas",
+    "languages": "Idioma",
     "index_title": "El índice de todos los nombres",
     "index_intro": (
         "Todos los nombres de los tres dialectos, en orden alfabético, con "
@@ -149,7 +149,7 @@ TEXT["es"] = {
 }
 
 TEXT["pt-BR"] = {
-    "languages": "Idiomas",
+    "languages": "Idioma",
     "index_title": "O índice de todos os nomes",
     "index_intro": (
         "Todos os nomes dos três dialetos, em ordem alfabética, com a "
@@ -320,6 +320,8 @@ TEXT["zh"] = {
 # English: it is the name of the page and of the file.
 FAMILY_TITLES = {
     "en": {
+        "unclassified": "Unclassified",
+        "network": "The network and the mail",
         "script": "Parser and script execution",
         "files": "File and directory operations",
         "input": "Hotkeys, hotstrings, and input",
@@ -336,6 +338,8 @@ FAMILY_TITLES = {
         "sound": "Sound",
     },
     "es": {
+        "unclassified": "Sin clasificar",
+        "network": "La red y el correo",
         "script": "El analizador y la ejecución del script",
         "files": "Operaciones de archivos y directorios",
         "input": "Hotkeys, hotstrings y entrada",
@@ -352,6 +356,8 @@ FAMILY_TITLES = {
         "sound": "El sonido",
     },
     "pt-BR": {
+        "unclassified": "Sem classificação",
+        "network": "A rede e o correio",
         "script": "O analisador e a execução do script",
         "files": "Operações de arquivos e diretórios",
         "input": "Hotkeys, hotstrings e entrada",
@@ -368,6 +374,8 @@ FAMILY_TITLES = {
         "sound": "O som",
     },
     "ja": {
+        "unclassified": "未分類",
+        "network": "ネットワークとメール",
         "script": "パーサとスクリプトの実行",
         "files": "ファイルとディレクトリの操作",
         "input": "ホットキー、ホット文字列、入力",
@@ -384,6 +392,8 @@ FAMILY_TITLES = {
         "sound": "サウンド",
     },
     "zh": {
+        "unclassified": "未分类",
+        "network": "网络与邮件",
         "script": "解析器与脚本执行",
         "files": "文件与目录操作",
         "input": "热键、热字符串与输入",
@@ -520,3 +530,4 @@ def reason(lang, english):
     if not table:
         return english
     return table.get(lang, english)
+

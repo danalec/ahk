@@ -1,6 +1,14 @@
 # The surface of KeySharp
 
+| [English](index.md) | [Español](es/index.md) | [Português (Brasil)](pt-BR/index.md) | [日本語](ja/index.md) | [中文](zh/index.md) |
+
+Language: English
+
 The names of KeySharp, counted by family and by kind, and the names that this tree refuses or does not carry. The ficha of every name is in the page of its family.
+
+| Names | Value | Refused | Pending |
+|---|---|---|---|
+| 969 | 953 | 16 | 0 |
 
 | Family | Names | Value | Refused | Pending |
 |---|---|---|---|---|
@@ -15,9 +23,10 @@ The names of KeySharp, counted by family and by kind, and the names that this tr
 | [The core of the language: text, math and patterns](families/core.md) | 30 | 29 | 0 | 0 |
 | [The objects of the language: Array, Map and Func](families/objects.md) | 18 | 17 | 0 | 0 |
 | [Dates and times](families/time.md) | 0 | 0 | 0 | 0 |
-| [The machine, the processes and the environment](families/machine.md) | 27 | 26 | 0 | 0 |
+| [The machine, the processes and the environment](families/machine.md) | 28 | 27 | 0 | 0 |
 | [The clipboard](families/clipboard.md) | 0 | 0 | 0 | 0 |
 | [Sound](families/sound.md) | 0 | 0 | 0 | 0 |
+| [The network and the mail](families/network.md) | 1 | 1 | 0 | 0 |
 
 ## By kind
 

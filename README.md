@@ -96,8 +96,9 @@ through `wl-copy`, the dialogs through `zenity`, and the network through
 The documents are in [`docs/`](docs/README.md), and that page indexes
 them: the language guide, the errors, the dialects, the two reference
 chapters (one per dialect), the surface (every name of the three
-dialects, with the state of the tree), the runner and its report, the
-desktop backend, and the records of the design and of the measurements.
+dialects, with the state of the tree, in five languages), the runner and
+its report, the desktop backend, and the records of the design and of the
+measurements.
 
 | Document | What it holds |
 |---|---|
@@ -105,7 +106,7 @@ desktop backend, and the records of the design and of the measurements.
 | [errors.md](docs/errors.md) | the error model, the fourteen classes of the v2, and the guard rails |
 | [dialects.md](docs/dialects.md) | the gate between the two dialects, and how to port a script either way |
 | [ahk-ks-dialect.md](docs/ahk-ks-dialect.md) | the extensions of KeySharp, the table of their surface, and the machine behind them |
-| [surface/README.md](docs/surface/README.md) | the surface: it indexes every name of the v1, of the v2 and of KeySharp, with the state this tree answers for each, and the crosswalk between the three |
+| [surface/README.md](docs/surface/README.md) | the surface: it indexes every name of the v1, of the v2 and of KeySharp, with the state this tree answers for each, and the crosswalk between the three. It is written in five languages: English, Español, Português (Brasil), 日本語 and 中文 |
 | [ahk-v2-reference.md](docs/ahk-v2-reference.md) | every name of the v2, with the state the tree answers for each |
 | [ahk-v1-reference.md](docs/ahk-v1-reference.md) | the same catalogue for the v1 |
 | [runner-and-report.md](docs/runner-and-report.md) | the command, its flags, and the whole shape of the report |

@@ -1,363 +1,367 @@
 # GUI windows and window automation
 
+| [English](index.md) | [Español](es/index.md) | [Português (Brasil)](pt-BR/index.md) | [日本語](ja/index.md) | [中文](zh/index.md) |
+
+Language: English
+
 The names of the family **GUI windows and window automation** in the three dialects, with what this tree answers for each of them. The family is the area a script thinks in; the names are the whole of it.
 
 | Name | Dialect | Kind | Class | Parameters | State |
 |---|---|---|---|---|---|
-| `Gui.__Enum` | v2 | method | Gui | -- | value |
-| `Gui.__Item` | v2 | method | Gui | -- | value |
-| `Gui.__New` | v2 | method | Gui | -- | value |
-| `A_ControlDelay` | v1 | variable | -- | -- | value |
-| `A_DetectHiddenText` | v1 | variable | -- | -- | value |
-| `A_DetectHiddenWindows` | v1 | variable | -- | -- | value |
-| `A_Gui` | v1 | variable | -- | -- | value |
-| `A_GuiControl` | v1 | variable | -- | -- | value |
-| `A_GuiControlEvent` | v1 | variable | -- | -- | value |
-| `A_GuiEvent` | v1 | variable | -- | -- | value |
-| `A_GuiHeight` | v1 | variable | -- | -- | value |
-| `A_GuiTheme` | ks | variable | -- | -- | value |
-| `A_GuiWidth` | v1 | variable | -- | -- | value |
-| `A_GuiX` | v1 | variable | -- | -- | value |
-| `A_GuiY` | v1 | variable | -- | -- | value |
-| `A_IconFile` | v1 | variable | -- | -- | refused: this runtime has no tray icon. |
-| `A_IconHidden` | v1 | variable | -- | -- | value |
-| `A_IconNumber` | v1 | variable | -- | -- | refused: this runtime has no tray icon. |
-| `A_IconTip` | v1 | variable | -- | -- | value |
-| `A_TitleMatchMode` | v1 | variable | -- | -- | value |
-| `A_TitleMatchModeSpeed` | v1 | variable | -- | -- | value |
-| `A_WinDelay` | v1 | variable | -- | -- | value |
-| `A_WinDir` | v1 | variable | -- | -- | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Add` | v2 | method | Gui | -- | value |
-| `Gui.Control.Add` | v2 | method | Gui.Control | -- | value |
-| `Gui.ListView.Add` | v2 | method | Gui.ListView | -- | value |
-| `Gui.Menu.Add` | v2 | method | Gui.Menu | -- | value |
-| `Gui.StatusBar.Add` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.TreeView.Add` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.AddActiveX` | v2 | method | Gui | -- | value |
-| `Gui.AddButton` | v2 | method | Gui | -- | value |
-| `Gui.AddCheckBox` | v2 | method | Gui | -- | value |
-| `Gui.AddComboBox` | v2 | method | Gui | -- | value |
-| `Gui.AddCustom` | v2 | method | Gui | -- | value |
-| `Gui.AddDateTime` | v2 | method | Gui | -- | value |
-| `Gui.AddDDL` | v2 | method | Gui | -- | value |
-| `Gui.AddDropDownList` | v2 | method | Gui | -- | value |
-| `Gui.AddEdit` | v2 | method | Gui | -- | value |
-| `Gui.AddGroupBox` | v2 | method | Gui | -- | value |
-| `Gui.AddHotkey` | v2 | method | Gui | -- | value |
-| `Gui.AddLink` | v2 | method | Gui | -- | value |
-| `Gui.AddListBox` | v2 | method | Gui | -- | value |
-| `Gui.AddListView` | v2 | method | Gui | -- | value |
-| `Gui.AddMonthCal` | v2 | method | Gui | -- | value |
-| `Gui.AddPic` | v2 | method | Gui | -- | value |
-| `Gui.AddPicture` | v2 | method | Gui | -- | value |
-| `Gui.AddProgress` | v2 | method | Gui | -- | value |
-| `Gui.AddRadio` | v2 | method | Gui | -- | value |
-| `Gui.AddSlider` | v2 | method | Gui | -- | value |
-| `Gui.Menu.AddStandard` | v2 | method | Gui.Menu | -- | value |
-| `Gui.AddStatusBar` | v2 | method | Gui | -- | value |
-| `Gui.AddTab` | v2 | method | Gui | -- | value |
-| `Gui.AddTab2` | v2 | method | Gui | -- | value |
-| `Gui.AddTab3` | v2 | method | Gui | -- | value |
-| `Gui.AddText` | v2 | method | Gui | -- | value |
-| `Gui.AddTreeView` | v2 | method | Gui | -- | value |
-| `Gui.AddUpDown` | v2 | method | Gui | -- | value |
-| `Gui.BackColor` | v2 | method | Gui | -- | value |
-| `CaretGetPos` | v2 | function | -- | 0 to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Menu.Check` | v2 | method | Gui.Menu | -- | value |
-| `Gui.Control.Choose` | v2 | method | Gui.Control | -- | value |
-| `Gui.Control.ClassNN` | v2 | method | Gui.Control | -- | value |
-| `Gui.Menu.ClickCount` | v2 | method | Gui.Menu | -- | value |
-| `Control` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlAddItem` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlChooseIndex` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlChooseString` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlClick` | v2 | command | -- | 0 to 8 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlClick` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlDelay` | v2 | variable | -- | -- | value |
-| `ControlDeleteItem` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlFindItem` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlFocus` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlFocus` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetChecked` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetChoice` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetClassNN` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetEnabled` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetExStyle` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetFocus` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetFocus` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetHwnd` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetIndex` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetItems` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetPos` | v2 | command | -- | 0 to 9 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetPos` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetStyle` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetText` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetText` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlGetVisible` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlHide` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlHideDropDown` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlMove` | v2 | command | -- | 0 to 9 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlMove` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSend` | v2 | command | -- | 1 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSend` | v1 | command | -- | up to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSendText` | v2 | command | -- | 1 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSetChecked` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSetEnabled` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSetExStyle` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSetStyle` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSetText` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlSetText` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlShow` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ControlShowDropDown` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `CoordModeCaret` | v2 | variable | -- | -- | value |
-| `CoordModeMenu` | v2 | variable | -- | -- | value |
-| `CoordModeToolTip` | v2 | variable | -- | -- | value |
-| `Gui.Menu.Default` | v2 | method | Gui.Menu | -- | value |
-| `Gui.Control.Delete` | v2 | method | Gui.Control | -- | value |
-| `Gui.ListView.Delete` | v2 | method | Gui.ListView | -- | value |
-| `Gui.Menu.Delete` | v2 | method | Gui.Menu | -- | value |
-| `Gui.StatusBar.Delete` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.TreeView.Delete` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.StatusBar.DeleteCol` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.Destroy` | v2 | method | Gui | -- | value |
-| `DetectHiddenText` | v2 | command | -- | 1 | value |
-| `DetectHiddenText` | v1 | command | -- | up to 1 | value |
-| `DetectHiddenWindows` | v2 | command | -- | 1 | value |
-| `DetectHiddenWindows` | v1 | command | -- | up to 1 | value |
-| `Gui.Menu.Disable` | v2 | method | Gui.Menu | -- | value |
-| `Edit` | v2 | command | -- | 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Edit` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `EditGetCurrentCol` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `EditGetCurrentLine` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `EditGetLine` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `EditGetLineCount` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `EditGetSelectedText` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `EditPaste` | v2 | command | -- | 2 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Menu.Enable` | v2 | method | Gui.Menu | -- | value |
-| `Gui.Control.Enabled` | v2 | method | Gui.Control | -- | value |
-| `Gui.Flash` | v2 | method | Gui | -- | value |
-| `Gui.Control.Focus` | v2 | method | Gui.Control | -- | value |
-| `Gui.Control.Focused` | v2 | method | Gui.Control | -- | value |
-| `Gui.FocusedCtrl` | v2 | method | Gui | -- | value |
-| `Gui.ListView.Get` | v2 | method | Gui.ListView | -- | value |
-| `Gui.TreeView.Get` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.ListView.GetChild` | v2 | method | Gui.ListView | -- | value |
-| `Gui.TreeView.GetChild` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.GetClientPos` | v2 | method | Gui | -- | value |
-| `Gui.ListView.GetCount` | v2 | method | Gui.ListView | -- | value |
-| `Gui.StatusBar.GetCount` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.TreeView.GetCount` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.ListView.GetNext` | v2 | method | Gui.ListView | -- | value |
-| `Gui.StatusBar.GetNext` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.TreeView.GetNext` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.ListView.GetParent` | v2 | method | Gui.ListView | -- | value |
-| `Gui.TreeView.GetParent` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.GetPos` | v2 | method | Gui | -- | value |
-| `Gui.Control.GetPos` | v2 | method | Gui.Control | -- | value |
-| `Gui.ListView.GetPrev` | v2 | method | Gui.ListView | -- | value |
-| `Gui.TreeView.GetPrev` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.ListView.GetSelection` | v2 | method | Gui.ListView | -- | value |
-| `Gui.TreeView.GetSelection` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.ListView.GetText` | v2 | method | Gui.ListView | -- | value |
-| `Gui.StatusBar.GetText` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.TreeView.GetText` | v2 | method | Gui.TreeView | -- | value |
-| `GroupActivate` | v2 | command | -- | 1 to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GroupActivate` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GroupAdd` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GroupAdd` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GroupClose` | v2 | command | -- | 1 to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GroupClose` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GroupDeactivate` | v2 | command | -- | 1 to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GroupDeactivate` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui` | v2 | class | -- | -- | value |
-| `Gui` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Control.Gui` | v2 | method | Gui.Control | -- | value |
-| `GuiControl` | v1 | command | -- | up to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GuiControlGet` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GuiCtrlFromHwnd` | v2 | command | -- | 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `GuiFromHwnd` | v2 | command | -- | 1 to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Menu.Handle` | v2 | method | Gui.Menu | -- | value |
-| `Gui.Hide` | v2 | method | Gui | -- | value |
-| `Gui.Hwnd` | v2 | method | Gui | -- | value |
-| `Gui.Control.Hwnd` | v2 | method | Gui.Control | -- | value |
-| `IconFile` | v2 | variable | -- | -- | refused: this runtime has no tray icon. |
-| `IconHidden` | v2 | variable | -- | -- | value |
-| `IconNumber` | v2 | variable | -- | -- | refused: this runtime has no tray icon. |
-| `IconTip` | v2 | variable | -- | -- | value |
-| `IL_Add` | v2 | command | -- | 2 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `IL_Create` | v2 | command | -- | 0 to 3 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `IL_Destroy` | v2 | command | -- | 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `InputBox` | v2 | command | -- | 0 to 4 | value |
-| `InputBox` | v1 | command | -- | up to 1 | value |
-| `Gui.Menu.Insert` | v2 | method | Gui.Menu | -- | value |
-| `Gui.StatusBar.Insert` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.StatusBar.InsertCol` | v2 | method | Gui.StatusBar | -- | value |
-| `ListLines` | v2 | command | -- | 0 to 1 | value |
-| `ListLines` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ListVars` | v2 | command | -- | 0 | refused: the variables are listed in a window of v2, and this runtime has no window to show them in. |
-| `ListVars` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ListViewGetContent` | v2 | command | -- | 0 to 6 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.MarginX` | v2 | method | Gui | -- | value |
-| `Gui.MarginY` | v2 | method | Gui | -- | value |
-| `Gui.Maximize` | v2 | method | Gui | -- | value |
-| `Menu` | v2 | class | -- | -- | value |
-| `Menu` | v1 | command | -- | up to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.MenuBar` | v2 | method | Gui | -- | value |
-| `MenuFromHandle` | v2 | command | -- | 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `MenuGetHandle` | v1 | function | -- | 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `MenuGetName` | v1 | function | -- | 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `MenuSelect` | v2 | command | -- | 0 to 11 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Minimize` | v2 | method | Gui | -- | value |
-| `Gui.ListView.Modify` | v2 | method | Gui.ListView | -- | value |
-| `Gui.StatusBar.Modify` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.TreeView.Modify` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.StatusBar.ModifyCol` | v2 | method | Gui.StatusBar | -- | value |
-| `MonitorGet` | v2 | command | -- | 0 to 5 | value |
-| `MonitorGetCount` | v2 | command | -- | 0 | value |
-| `MonitorGetName` | v2 | command | -- | 0 to 1 | value |
-| `MonitorGetPrimary` | v2 | command | -- | 0 | value |
-| `MonitorGetWorkArea` | v2 | command | -- | 0 to 5 | value |
-| `Gui.Move` | v2 | method | Gui | -- | value |
-| `Gui.Control.Move` | v2 | method | Gui.Control | -- | value |
-| `MsgBox` | v2 | command | -- | 0 to 3 | value |
-| `MsgBox` | v1 | command | -- | up to 0 | value |
-| `Gui.Name` | v2 | method | Gui | -- | value |
-| `Gui.Control.Name` | v2 | method | Gui.Control | -- | value |
-| `Gui.Control.OnCommand` | v2 | method | Gui.Control | -- | value |
-| `Gui.OnEvent` | v2 | method | Gui | -- | value |
-| `Gui.Control.OnEvent` | v2 | method | Gui.Control | -- | value |
-| `Gui.Control.OnNotify` | v2 | method | Gui.Control | -- | value |
-| `Gui.Opt` | v2 | method | Gui | -- | value |
-| `Gui.Control.Opt` | v2 | method | Gui.Control | -- | value |
-| `PostMessage` | v2 | command | -- | 1 to 8 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `PostMessage` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Progress` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Control.Redraw` | v2 | method | Gui.Control | -- | value |
-| `RegisterCallback` | v1 | function | -- | 1 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Menu.Rename` | v2 | method | Gui.Menu | -- | value |
-| `Gui.Restore` | v2 | method | Gui | -- | value |
-| `ScriptHwnd` | v2 | variable | -- | -- | refused: this runtime has no window of its own: it is a script that runs and ends. |
-| `SendMessage` | v2 | command | -- | 1 to 9 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Menu.SetColor` | v2 | method | Gui.Menu | -- | value |
-| `SetControlDelay` | v2 | command | -- | 1 | value |
-| `SetControlDelay` | v1 | command | -- | up to 1 | value |
-| `Gui.SetFont` | v2 | method | Gui | -- | value |
-| `Gui.Control.SetFont` | v2 | method | Gui.Control | -- | value |
-| `Gui.Control.SetFormat` | v2 | method | Gui.Control | -- | value |
-| `Gui.ListView.SetIcon` | v2 | method | Gui.ListView | -- | value |
-| `Gui.Menu.SetIcon` | v2 | method | Gui.Menu | -- | value |
-| `Gui.TreeView.SetIcon` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.ListView.SetImageList` | v2 | method | Gui.ListView | -- | value |
-| `Gui.StatusBar.SetImageList` | v2 | method | Gui.StatusBar | -- | value |
-| `Gui.TreeView.SetImageList` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.ListView.SetParts` | v2 | method | Gui.ListView | -- | value |
-| `Gui.TreeView.SetParts` | v2 | method | Gui.TreeView | -- | value |
-| `Gui.ListView.SetText` | v2 | method | Gui.ListView | -- | value |
-| `Gui.TreeView.SetText` | v2 | method | Gui.TreeView | -- | value |
-| `SetTitleMatchMode` | v2 | command | -- | 1 | value |
-| `SetTitleMatchMode` | v1 | command | -- | up to 1 | value |
-| `SetWinDelay` | v2 | command | -- | 1 | value |
-| `SetWinDelay` | v1 | command | -- | up to 1 | value |
-| `Gui.Show` | v2 | method | Gui | -- | value |
-| `Gui.Menu.Show` | v2 | method | Gui.Menu | -- | value |
-| `SplashTextOn` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `StatusBarGetText` | v2 | command | -- | 0 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `StatusBarGetText` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `StatusBarWait` | v2 | command | -- | 0 to 8 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `StatusBarWait` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Submit` | v2 | method | Gui | -- | value |
-| `Gui.Control.Text` | v2 | method | Gui.Control | -- | value |
-| `Gui.Title` | v2 | method | Gui | -- | value |
-| `TitleMatchMode` | v2 | variable | -- | -- | value |
-| `TitleMatchModeSpeed` | v2 | variable | -- | -- | value |
-| `Gui.Menu.ToggleCheck` | v2 | method | Gui.Menu | -- | value |
-| `Gui.Menu.ToggleEnable` | v2 | method | Gui.Menu | -- | value |
-| `ToolTip` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `ToolTip` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `TrayMenu` | v2 | variable | -- | -- | refused: this runtime has no tray icon. |
-| `TraySetIcon` | v2 | command | -- | 0 to 3 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `TrayTip` | v2 | command | -- | 0 to 3 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `TrayTip` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `Gui.Menu.Uncheck` | v2 | method | Gui.Menu | -- | value |
-| `Gui.Control.UseTab` | v2 | method | Gui.Control | -- | value |
-| `Gui.Control.Value` | v2 | method | Gui.Control | -- | value |
-| `Gui.Control.Visible` | v2 | method | Gui.Control | -- | value |
-| `WinActivate` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinActivate` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinActivateBottom` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinActivateBottom` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinActive` | v2 | function | -- | 0 to 4 | value |
-| `WinActive` | v1 | function | -- | 0 to 4 | value |
-| `WinClose` | v2 | command | -- | 0 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinClose` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinDelay` | v2 | variable | -- | -- | value |
-| `WinDir` | v2 | variable | -- | -- | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinExist` | v2 | function | -- | 0 to 4 | value |
-| `WinExist` | v1 | function | -- | 0 to 4 | value |
-| `WinFromPoint` | ks | function | -- | -- | value |
-| `WinGet` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetActiveStats` | v1 | command | -- | up to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetActiveTitle` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetAlwaysOnTop` | ks | function | -- | -- | value |
-| `WinGetClass` | v2 | command | -- | 0 to 4 | value |
-| `WinGetClass` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetClientPos` | v2 | command | -- | 0 to 8 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetControls` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetControlsHwnd` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetCount` | v2 | command | -- | 0 to 4 | value |
-| `WinGetEnabled` | ks | function | -- | -- | value |
-| `WinGetExStyle` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetID` | v2 | command | -- | 0 to 4 | value |
-| `WinGetIDLast` | v2 | command | -- | 0 to 4 | value |
-| `WinGetList` | v2 | command | -- | 0 to 4 | value |
-| `WinGetMinMax` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetPID` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetPos` | v2 | command | -- | 0 to 8 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetPos` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetProcessName` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetProcessPath` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetStyle` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetText` | v2 | command | -- | 0 to 4 | refused: this runtime reads no text of a window. |
-| `WinGetText` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetTitle` | v2 | command | -- | 0 to 4 | value |
-| `WinGetTitle` | v1 | command | -- | up to 1 | value |
-| `WinGetTransColor` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinGetTransparent` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinHide` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinHide` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinKill` | v2 | command | -- | 0 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinKill` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMaximize` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMaximize` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMenuSelectItem` | v1 | command | -- | up to 3 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMinimize` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMinimize` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMinimizeAll` | v2 | command | -- | 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMinimizeAll` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMinimizeAllUndo` | v2 | command | -- | 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMove` | v2 | command | -- | 0 to 8 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMove` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMoveBottom` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinMoveTop` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinRedraw` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinRestore` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinRestore` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSet` | v1 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSetAlwaysOnTop` | v2 | command | -- | 0 to 5 | value |
-| `WinSetEnabled` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSetExStyle` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSetRegion` | v2 | command | -- | 0 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSetStyle` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSetTitle` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSetTitle` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSetTransColor` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinSetTransparent` | v2 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinShow` | v2 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinShow` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinWait` | v2 | command | -- | 0 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinWait` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinWaitActive` | v2 | command | -- | 0 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinWaitActive` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinWaitClose` | v2 | command | -- | 0 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinWaitClose` | v1 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
-| `WinWaitNotActive` | v2 | command | -- | 0 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Gui.__Enum` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.__Item` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.__New` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `A_ControlDelay` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_DetectHiddenText` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_DetectHiddenWindows` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_Gui` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_GuiControl` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_GuiControlEvent` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_GuiEvent` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_GuiHeight` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_GuiTheme` | KeySharp | variable | -- | -- | value |
+| `A_GuiWidth` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_GuiX` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_GuiY` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_IconFile` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_IconHidden` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_IconNumber` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_IconTip` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_TitleMatchMode` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_TitleMatchModeSpeed` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_WinDelay` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `A_WinDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | value |
+| `Gui.Add` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.Add` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.ListView.Add` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.Menu.Add` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.StatusBar.Add` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.TreeView.Add` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.AddActiveX` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddButton` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddCheckBox` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddComboBox` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddCustom` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddDateTime` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddDDL` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddDropDownList` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddEdit` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddGroupBox` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddHotkey` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddLink` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddListBox` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddListView` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddMonthCal` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddPic` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddPicture` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddProgress` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddRadio` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddSlider` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Menu.AddStandard` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.AddStatusBar` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddTab` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddTab2` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddTab3` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddText` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddTreeView` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.AddUpDown` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.BackColor` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `CaretGetPos` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | value |
+| `Gui.Menu.Check` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.Control.Choose` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Control.ClassNN` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Menu.ClickCount` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Control` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlAddItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `ControlChooseIndex` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `ControlChooseString` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `ControlClick` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | value |
+| `ControlClick` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlDelay` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `ControlDeleteItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `ControlFindItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `ControlFocus` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlGetChecked` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlGetChoice` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlGetClassNN` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlGetEnabled` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlGetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | refused: this runtime does not carry that name yet. |
+| `ControlGetFocus` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `ControlGetFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlGetHwnd` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlGetIndex` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlGetItems` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlGetPos` | AutoHotkey v2.0.19 | command | -- | 0 to 9 | value |
+| `ControlGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlGetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | refused: this runtime does not carry that name yet. |
+| `ControlGetText` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlGetVisible` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlHide` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlHideDropDown` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlMove` | AutoHotkey v2.0.19 | command | -- | 0 to 9 | value |
+| `ControlMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlSend` | AutoHotkey v2.0.19 | command | -- | 1 to 6 | value |
+| `ControlSend` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlSendText` | AutoHotkey v2.0.19 | command | -- | 1 to 6 | value |
+| `ControlSetChecked` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `ControlSetEnabled` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `ControlSetExStyle` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | refused: this runtime does not carry that name yet. |
+| `ControlSetStyle` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | refused: this runtime does not carry that name yet. |
+| `ControlSetText` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `ControlSetText` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ControlShow` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `ControlShowDropDown` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `CoordModeCaret` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `CoordModeMenu` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `CoordModeToolTip` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `Gui.Menu.Default` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.Control.Delete` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.ListView.Delete` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.Menu.Delete` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.StatusBar.Delete` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.TreeView.Delete` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.StatusBar.DeleteCol` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.Destroy` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `DetectHiddenText` | AutoHotkey v2.0.19 | command | -- | 1 | value |
+| `DetectHiddenText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | value |
+| `DetectHiddenWindows` | AutoHotkey v2.0.19 | command | -- | 1 | value |
+| `DetectHiddenWindows` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | value |
+| `Gui.Menu.Disable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Edit` | AutoHotkey v2.0.19 | command | -- | 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Edit` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `EditGetCurrentCol` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `EditGetCurrentLine` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `EditGetLine` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `EditGetLineCount` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `EditGetSelectedText` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `EditPaste` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | value |
+| `Gui.Menu.Enable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.Control.Enabled` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Flash` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.Focus` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Control.Focused` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.FocusedCtrl` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.ListView.Get` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.TreeView.Get` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.ListView.GetChild` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.TreeView.GetChild` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.GetClientPos` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.ListView.GetCount` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.StatusBar.GetCount` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.TreeView.GetCount` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.ListView.GetNext` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.StatusBar.GetNext` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.TreeView.GetNext` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.ListView.GetParent` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.TreeView.GetParent` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.GetPos` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.GetPos` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.ListView.GetPrev` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.TreeView.GetPrev` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.ListView.GetSelection` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.TreeView.GetSelection` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.ListView.GetText` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.StatusBar.GetText` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.TreeView.GetText` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `GroupActivate` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | value |
+| `GroupActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `GroupAdd` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `GroupAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `GroupClose` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | value |
+| `GroupClose` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `GroupDeactivate` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | value |
+| `GroupDeactivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Gui` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Gui` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Gui.Control.Gui` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `GuiControl` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `GuiControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `GuiCtrlFromHwnd` | AutoHotkey v2.0.19 | command | -- | 1 | value |
+| `GuiFromHwnd` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | value |
+| `Gui.Menu.Handle` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.Hide` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Hwnd` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.Hwnd` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `IconFile` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `IconHidden` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `IconNumber` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `IconTip` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `IL_Add` | AutoHotkey v2.0.19 | command | -- | 2 to 4 | value |
+| `IL_Create` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | value |
+| `IL_Destroy` | AutoHotkey v2.0.19 | command | -- | 1 | value |
+| `InputBox` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `InputBox` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | value |
+| `Gui.Menu.Insert` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.StatusBar.Insert` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.StatusBar.InsertCol` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `ListLines` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | value |
+| `ListLines` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ListVars` | AutoHotkey v2.0.19 | command | -- | 0 | value |
+| `ListVars` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `ListViewGetContent` | AutoHotkey v2.0.19 | command | -- | 0 to 6 | value |
+| `Gui.MarginX` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.MarginY` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Maximize` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Menu` | AutoHotkey v2.0.19 | class | -- | -- | value |
+| `Menu` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Gui.MenuBar` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `MenuFromHandle` | AutoHotkey v2.0.19 | command | -- | 1 | value |
+| `MenuGetHandle` | AutoHotkey v1.1.37.02 | function | -- | 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `MenuGetName` | AutoHotkey v1.1.37.02 | function | -- | 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `MenuSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 11 | value |
+| `Gui.Minimize` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.ListView.Modify` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.StatusBar.Modify` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.TreeView.Modify` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.StatusBar.ModifyCol` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `MonitorGet` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `MonitorGetCount` | AutoHotkey v2.0.19 | command | -- | 0 | value |
+| `MonitorGetName` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | value |
+| `MonitorGetPrimary` | AutoHotkey v2.0.19 | command | -- | 0 | value |
+| `MonitorGetWorkArea` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `Gui.Move` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.Move` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `MsgBox` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | value |
+| `MsgBox` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | value |
+| `Gui.Name` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.Name` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Control.OnCommand` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.OnEvent` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.OnEvent` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Control.OnNotify` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Opt` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.Opt` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `PostMessage` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | value |
+| `PostMessage` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Progress` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Gui.Control.Redraw` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `RegisterCallback` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Gui.Menu.Rename` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.Restore` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `ScriptHwnd` | AutoHotkey v2.0.19 | variable | -- | -- | refused: this runtime has no window of its own: it is a script that runs and ends. |
+| `SendMessage` | AutoHotkey v2.0.19 | command | -- | 1 to 9 | value |
+| `Gui.Menu.SetColor` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `SetControlDelay` | AutoHotkey v2.0.19 | command | -- | 1 | value |
+| `SetControlDelay` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | value |
+| `Gui.SetFont` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.SetFont` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Control.SetFormat` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.ListView.SetIcon` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.Menu.SetIcon` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.TreeView.SetIcon` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.ListView.SetImageList` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.StatusBar.SetImageList` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | value |
+| `Gui.TreeView.SetImageList` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.ListView.SetParts` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.TreeView.SetParts` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `Gui.ListView.SetText` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | value |
+| `Gui.TreeView.SetText` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | value |
+| `SetTitleMatchMode` | AutoHotkey v2.0.19 | command | -- | 1 | value |
+| `SetTitleMatchMode` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | value |
+| `SetWinDelay` | AutoHotkey v2.0.19 | command | -- | 1 | value |
+| `SetWinDelay` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | value |
+| `Gui.Show` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Menu.Show` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `SplashTextOn` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `StatusBarGetText` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `StatusBarGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `StatusBarWait` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | value |
+| `StatusBarWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Gui.Submit` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `Gui.Control.Text` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Title` | AutoHotkey v2.0.19 | method | Gui | -- | value |
+| `TitleMatchMode` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `TitleMatchModeSpeed` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `Gui.Menu.ToggleCheck` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.Menu.ToggleEnable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `ToolTip` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `ToolTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `TrayMenu` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `TraySetIcon` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | value |
+| `TrayTip` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | value |
+| `TrayTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `Gui.Menu.Uncheck` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | value |
+| `Gui.Control.UseTab` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Control.Value` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `Gui.Control.Visible` | AutoHotkey v2.0.19 | method | Gui.Control | -- | value |
+| `WinActivate` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinActivateBottom` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinActivateBottom` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinActive` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | value |
+| `WinActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 4 | value |
+| `WinClose` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `WinClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinDelay` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `WinDir` | AutoHotkey v2.0.19 | variable | -- | -- | value |
+| `WinExist` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | value |
+| `WinExist` | AutoHotkey v1.1.37.02 | function | -- | 0 to 4 | value |
+| `WinFromPoint` | KeySharp | function | -- | -- | value |
+| `WinGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetActiveStats` | AutoHotkey v1.1.37.02 | command | -- | up to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetActiveTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetAlwaysOnTop` | KeySharp | function | -- | -- | value |
+| `WinGetClass` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetClass` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetClientPos` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | value |
+| `WinGetControls` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetControlsHwnd` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetCount` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetEnabled` | KeySharp | function | -- | -- | value |
+| `WinGetExStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetID` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetIDLast` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetList` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetMinMax` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetPID` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetPos` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | value |
+| `WinGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetProcessName` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetProcessPath` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetText` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetTitle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinGetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | value |
+| `WinGetTransColor` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetTransparent` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinHide` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinHide` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinKill` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `WinKill` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinMaximize` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinMaximize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinMenuSelectItem` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinMinimize` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinMinimize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinMinimizeAll` | AutoHotkey v2.0.19 | command | -- | 0 | value |
+| `WinMinimizeAll` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinMinimizeAllUndo` | AutoHotkey v2.0.19 | command | -- | 0 | value |
+| `WinMove` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | value |
+| `WinMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinMoveBottom` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinMoveTop` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinRedraw` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinRestore` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinRestore` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinSetAlwaysOnTop` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `WinSetEnabled` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `WinSetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinSetRegion` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `WinSetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinSetTitle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `WinSetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinSetTransColor` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinSetTransparent` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | value |
+| `WinShow` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | value |
+| `WinShow` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinWait` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `WinWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinWaitActive` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `WinWaitActive` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinWaitClose` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |
+| `WinWaitClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refused: this is a name of Windows, and this desktop is not Windows. |
+| `WinWaitNotActive` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | value |

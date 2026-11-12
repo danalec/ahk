@@ -1,0 +1,156 @@
+# 解析器与脚本执行
+
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+
+语言: 中文
+
+三个方言中属于 **解析器与脚本执行** 类的名称，以及这棵树对每个名称给出的回答。分类是脚本思考的领域，这些名称即是它的全部。
+
+| 名称 | 方言 | 种类 | 类 | 参数 | 状态 |
+|---|---|---|---|---|---|
+| `#CommentFlag` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#ErrorStdOut` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#EscapeChar` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#HotkeyInterval` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#HotkeyModifierTimeout` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#Hotstring` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#If` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#IfTimeout` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#IfWinActive` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#Include` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#InputLevel` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#InstallKeybdHook` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#InstallMouseHook` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#KeyHistory` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#MaxHotkeysPerInterval` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#MaxMem` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#MaxThreads` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#MaxThreadsBuffer` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#MaxThreadsPerHotkey` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#MenuMaskKey` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#NoEnv` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#NoTrayIcon` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#Persistent` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#Requires` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#SingleInstance` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#UseHook` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#Warn` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `#WinActivateForce` | AutoHotkey v1.1.37.02 | directive | -- | -- | 值 |
+| `A_AhkPath` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_AhkVersion` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_AutoTrim` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_BatchLines` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_DefaultGui` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_DefaultListView` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_DefaultTreeView` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_EndChar` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ExitReason` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_Index` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_InitialWorkingDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_Is64bitOS` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_IsAdmin` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_IsCompiled` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_IsCritical` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_IsPaused` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_IsSuspended` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_IsUnicode` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_KeybdHookInstalled` | KeySharp | variable | -- | -- | 值 |
+| `A_KsCorePath` | KeySharp | variable | -- | -- | 值 |
+| `A_KsVersion` | KeySharp | variable | -- | -- | 值 |
+| `A_LastError` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_LineFile` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_LineNumber` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ListLines` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_MaxThreads` | KeySharp | variable | -- | -- | 值 |
+| `A_MaxThreadsBuffer` | KeySharp | variable | -- | -- | 值 |
+| `A_MaxThreadsPerHotkey` | KeySharp | variable | -- | -- | 值 |
+| `A_MouseHookInstalled` | KeySharp | variable | -- | -- | 值 |
+| `A_NumBatchLines` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_OSType` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：此名称与 Windows 有关，而本机不是 Windows。 |
+| `A_OSVersion` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_Persistent` | KeySharp | variable | -- | -- | 值 |
+| `A_PtrSize` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_RealThread` | KeySharp | variable | -- | -- | 值 |
+| `A_ScriptDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ScriptFullPath` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | 拒绝：此运行时没有自己的窗口：它是一个运行即结束的脚本。 |
+| `A_ScriptName` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_Space` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_Tab` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ThisFunc` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ThisLabel` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ThisMenu` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ThisMenuItem` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_ThisMenuItemPos` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `A_Timers` | KeySharp | variable | -- | -- | 值 |
+| `A_WorkingDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `AllowMainWindow` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `Collect` | KeySharp | function | -- | -- | 值 |
+| `CompileScript` | KeySharp | function | -- | -- | 值 |
+| `CoordMode` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 值 |
+| `CoordMode` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
+| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 拒绝：此运行时在一个线程中运行一个脚本，无法将其设为关键。 |
+| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：此运行时在一个线程中运行一个脚本，无法将其设为关键。 |
+| `Thread.Critical` | KeySharp | method | Thread | -- | 值 |
+| `Else` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 值 |
+| `EndChar` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `EnvGet` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
+| `EnvGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 值 |
+| `EnvSet` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 值 |
+| `EnvSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
+| `ErrorLevel` | AutoHotkey v1.1.37.02 | variable | -- | -- | 值 |
+| `Exit` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
+| `Exit` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 值 |
+| `Thread.Exit` | KeySharp | method | Thread | -- | 值 |
+| `ExitApp` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
+| `ExitApp` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 值 |
+| `IfInString` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 值 |
+| `IfMsgBox` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
+| `IfNotInString` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | 值 |
+| `Index` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `Thread.Index` | KeySharp | method | Thread | -- | 值 |
+| `InitialWorkingDir` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `Is64bitOS` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `IsAdmin` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `IsCompiled` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `IsComponentAvailable` | KeySharp | function | -- | -- | 值 |
+| `IsCritical` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `IsFunc` | AutoHotkey v1.1.37.02 | function | -- | 1 | 值 |
+| `IsPaused` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `IsSet` | AutoHotkey v1.1.37.02 | function | -- | 1 | 值 |
+| `IsSuspended` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `LineFile` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `LineNumber` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `OnError` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 值 |
+| `OnError` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | 值 |
+| `OnExit` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | 值 |
+| `OnMessage` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | 值 |
+| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `OutputDebugLine` | KeySharp | function | -- | -- | 值 |
+| `Pause` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
+| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `Persistent` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
+| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | 拒绝：此运行时只运行一次脚本，无法再次运行自身。 |
+| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `RequestCapabilities` | KeySharp | function | -- | -- | 值 |
+| `RunScript` | KeySharp | function | -- | -- | 值 |
+| `ScriptDir` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `ScriptFullPath` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `ScriptName` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `SetBatchLines` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
+| `SetTimer` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | 值 |
+| `SetTimer` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 值 |
+| `SetWorkingDir` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
+| `SetWorkingDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
+| `ShowDebug` | KeySharp | function | -- | -- | 值 |
+| `Sleep` | AutoHotkey v2.0.19 | command | -- | 1 | 值 |
+| `Sleep` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 值 |
+| `Space` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `Suspend` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | 值 |
+| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | 拒绝：这是 Windows 的名称，而本桌面不是 Windows。 |
+| `Tab` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `ThisFunc` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |
+| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | 拒绝：此运行时在一个线程中运行一个脚本，无法再启动一个。 |
+| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | 拒绝：此运行时在一个线程中运行一个脚本，无法再启动一个。 |
+| `ValidateScript` | KeySharp | function | -- | -- | 值 |
+| `WorkingDir` | AutoHotkey v2.0.19 | variable | -- | -- | 值 |

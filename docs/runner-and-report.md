@@ -387,7 +387,7 @@ target\debug\ahk.exe --surface --json --dialect=v1
 ```
 
 ```json
-{"dialect":"v1","total":408,"values":302,"refusals":106,"pending":0,"entries":[...]}
+{"dialect":"v1","total":408,"values":308,"refusals":100,"pending":0,"entries":[...]}
 ```
 
 Neither dialect has a pending name: both tables are empty, and the whole

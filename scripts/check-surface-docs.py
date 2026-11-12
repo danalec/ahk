@@ -35,20 +35,24 @@ The second half of the check is the generated subtree of the surface:
     docs/surface/keysharp.md          (the catalogue of the KeySharp dialect)
     docs/surface/families/<f>.md      (one page per family)
 
-Three things are proved about it:
+Four things are proved about it:
 
 1. Every name of `crates/ahk/reference/ahk-v2.0.19.surface.tsv`,
    `ahk-v1.1.37.02.surface.tsv` and `ahk-ks.surface.tsv` is carried by the
-   subtree -- the catalogue of the dialect and the pages of the families.
-   A name that no file of the subtree carries is a failure, and the message
-   names the dialect, the name and the file it has to be in.
+   subtree -- the page of the family of it, the catalogue of the dialect or
+   the index. A name that no file of the subtree carries is a failure, and
+   the message names the dialect, the name and the file it has to be in.
 
-2. The counts the subtree prints are the counts of the runner:
-   `ahk --surface --json --dialect=v2|v1|ks`. When no runner is there the
-   comparison of the counts is skipped -- and said so -- and the names are
-   still checked.
+2. Every name of the reference tables has its page of a family: the ficha of
+   a name is in exactly one page of `docs/surface/families/`.
 
-3. The generated files are the ones the generator writes. When
+3. The counts the subtree prints are the counts of the tree: the number of
+   the names of every dialect, of every family, and the numbers of the
+   names that answer with a value, that are refused and that are pending.
+   The names come from the reference tables, and the state of every name
+   comes from the runner: `ahk --surface --json --dialect=v2|v1|ks`.
+
+4. The generated files are the ones the generator writes. When
    `scripts/gen-surface-docs.py` is there and takes a `--check`, it is run
    and its verdict is reported; the generator is never re-implemented here.
 
@@ -57,9 +61,14 @@ the generator
 
     <!-- surface-counts: dialect=v2 total=833 values=685 refusals=148 pending=0 -->
 
-a JSON sample of the runner (`{"total":833,"values":685,...}`), and the prose
-of the page ("the surface of the v2 has 833 entries: 685 answer with a
-value, 148 are refused, 0 are pending"), including the tables of the pages.
+the table of the catalogue ("| Family | Names | Value | Refused | Pending |"),
+the table of the index ("| Dialect | Names | Refused | Pending |"), and the
+prose of the page ("the surface of the v2 has 833 entries: 685 answer with a
+value, 148 are refused, 0 are pending").
+
+The names of a dialect are counted as the tree counts them: a name with a
+class is one name ("Map.Clone"), and a name that the tree carries twice
+(the getter and the setter of a property) is one name.
 """
 
 import argparse
@@ -86,16 +95,17 @@ REFERENCE = {
     "ks": "crates/ahk/reference/ahk-ks.surface.tsv",
 }
 
-# The catalogue of every dialect in the generated subtree.
+# The catalogue of every dialect of the subtree. The first name that is
+# there is the one that is read.
 CATALOGUE = {
-    "v2": "v2.md",
-    "v1": "v1.md",
-    "ks": "keysharp.md",
+    "v2": ("v2.md",),
+    "v1": ("v1.md",),
+    "ks": ("keysharp.md", "ks.md"),
 }
 
 # The files of the generated subtree that the generator writes. The
 # `README.md` is hand-written and is not required here.
-GENERATED_FILES = ("index.md", "crosswalk.md", "v2.md", "v1.md", "keysharp.md")
+GENERATED_FILES = ("index.md", "crosswalk.md")
 
 # The generator of the subtree, and the flag that makes it compare its own
 # output with the files that are there.
@@ -137,8 +147,8 @@ def the_binary(asked):
     return None
 
 
-def read_surface(binary, dialect):
-    """The summary of one dialect, and the distinct names of it."""
+def the_surface_of(binary, dialect):
+    """The surface of one dialect, as the runner answers it."""
     result = subprocess.run(
         [str(binary), "--surface", "--json", "--dialect=" + dialect],
         capture_output=True,
@@ -156,6 +166,12 @@ def read_surface(binary, dialect):
         surface = json.loads(result.stdout)
     except json.JSONDecodeError as error:
         raise SystemExit("the runner printed no JSON for the %s: %s" % (dialect, error))
+    return surface
+
+
+def read_surface(binary, dialect):
+    """The summary of one dialect, and the distinct names of it."""
+    surface = the_surface_of(binary, dialect)
     counts = {
         "total": int(surface["total"]),
         "values": int(surface["values"]),
@@ -358,15 +374,15 @@ def put(match, groups, wanted):
     return text
 
 
-# ---------------------------------------------------------------- the subtree
-
+# ------------------------------------------------------------ the subtree
 
 def read_reference(dialect):
     """The names of the reference table of one dialect.
 
     Every row is a name of the surface of the binary, with the class of it
     when it is a method of one. The name of a method is the name of it with
-    the class of it in front, as `Map.Clone`.
+    the class of it in front, as `Map.Clone`. A name that the table names
+    twice is one name.
     """
     path = ROOT / REFERENCE[dialect]
     if not path.exists():
@@ -383,8 +399,6 @@ def read_reference(dialect):
             continue
         klass = columns[1].strip()
         names.append((klass + "." + name) if klass else name)
-    # A table may name a thing twice; the check asks for the name, not for
-    # the number of the rows of it.
     seen = set()
     unique = []
     for name in names:
@@ -392,6 +406,26 @@ def read_reference(dialect):
             seen.add(name)
             unique.append(name)
     return unique
+
+
+def the_states_of(binary, dialect):
+    """The state of every name of a dialect, as the runner answers it.
+
+    A name that the tree carries twice (the getter and the setter of a
+    property) is one name, and it is a name that answers with a value when
+    one of its rows answers with a value.
+    """
+    surface = the_surface_of(binary, dialect)
+    states = {}
+    for entry in surface["entries"]:
+        name = entry["name"]
+        if entry.get("class"):
+            name = entry["class"] + "." + name
+        state = entry.get("state", "pending")
+        old = states.get(name)
+        if old is None or (old != "value" and state == "value"):
+            states[name] = state
+    return states
 
 
 def the_subtree(where):
@@ -410,6 +444,14 @@ def the_subtree(where):
     return directory, {"files": files, "families": families}
 
 
+def the_catalogue(files, dialect):
+    """The file of the catalogue of one dialect, when it is there."""
+    for name in CATALOGUE[dialect]:
+        if name in files:
+            return files[name]
+    return None
+
+
 def mentions(text, name):
     """Whether the text carries the name, whole.
 
@@ -421,6 +463,145 @@ def mentions(text, name):
         if re.search(r"(?<![A-Za-z0-9_])" + re.escape(candidate) + r"(?![A-Za-z0-9_])", text):
             return True
     return False
+
+
+def is_a_separator(cells):
+    """Whether the cells of a row are the dashes of a table."""
+    return bool(cells) and all(re.match(r"^:?-+:?$", cell) for cell in cells)
+
+
+def the_tables(text):
+    """The tables of a text: a head of cells and the rows under it."""
+    tables = []
+    current = None
+    for number, line in enumerate(text.splitlines(), 1):
+        if not line.startswith("|"):
+            current = None
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if is_a_separator(cells):
+            continue
+        if current is None:
+            current = {"head": cells, "rows": [], "line": number}
+            tables.append(current)
+        else:
+            current["rows"].append((number, cells))
+    return tables
+
+
+def the_table(text, wanted):
+    """The first table of a text whose head carries all the words given."""
+    for table in the_tables(text):
+        head = [cell.lower() for cell in table["head"]]
+        if all(word in head for word in wanted):
+            return table
+    return None
+
+
+def the_column(table, word):
+    """The number of the column of a table that carries a word."""
+    for index, cell in enumerate(table["head"]):
+        if cell.strip().lower() == word:
+            return index
+    return None
+
+
+def the_number(cells, index):
+    """The number of a cell, when the cell carries one."""
+    if index is None or index >= len(cells):
+        return None
+    found = re.search(r"\d+", cells[index])
+    return int(found.group(0)) if found else None
+
+
+def the_name_of_a_cell(cell):
+    """The name of a cell of a table: the text in the backticks of it."""
+    found = re.search(r"`([^`]+)`", cell)
+    if found:
+        return found.group(1)
+    link = re.search(r"\[([^\]]+)\]", cell)
+    if link:
+        return link.group(1).strip("` ")
+    return cell.strip().strip("` ")
+
+
+def the_dialect_of_a_label(label):
+    """The dialect a label of the index names."""
+    lowered = label.lower()
+    if "keysharp" in lowered:
+        return "ks"
+    if "v2" in lowered or "2.0.19" in lowered:
+        return "v2"
+    if "v1" in lowered or "1.1.37" in lowered:
+        return "v1"
+    return None
+
+
+def the_expected(dialect, names, states_of):
+    """The counts of the tree for the names of one dialect.
+
+    The names come from the reference table and the state of every name
+    comes from the runner. A name of the KeySharp table that the dialect
+    of KeySharp does not carry is a name of the v1 -- the table of KeySharp
+    says so -- and it is a name of the KeySharp surface that the tree
+    carries, but not one that answers with a value of its own.
+    """
+    counts = {"total": 0, "values": 0, "refusals": 0, "pending": 0}
+    unknown = []
+    own = states_of.get(dialect, {})
+    for name in names:
+        state = own.get(name)
+        if state is None and dialect == "ks":
+            state = states_of.get("v1", {}).get(name)
+            if state is not None:
+                # The name is carried by the v1; it answers there.
+                counts["total"] += 1
+                continue
+        if state is None:
+            unknown.append(name)
+            continue
+        counts["total"] += 1
+        if state == "value":
+            counts["values"] += 1
+        elif state == "refusal":
+            counts["refusals"] += 1
+        else:
+            counts["pending"] += 1
+    return counts, unknown
+
+
+def the_units(surfaces, expected):
+    """The numbers of the tree, in the two units a document may use.
+
+    The runner counts the rows of its surface: a name that it carries
+    twice (the getter and the setter of a property) is two rows. The
+    reference tables count the names: it is one name. A document may print
+    either of the two, and the check takes the one that agrees.
+    """
+    units = {}
+    for dialect in SURFACE_DIALECTS:
+        if dialect not in expected:
+            continue
+        runner = {}
+        for label in LABELS:
+            runner[label] = surfaces.get(dialect, {}).get(label)
+        units[dialect] = {"the rows of the runner": runner,
+                          "the names of the reference": expected[dialect]}
+    return units
+
+
+def the_difference(found, units):
+    """The unit the numbers of a document agree with, and the differences."""
+    for name, unit in units.items():
+        if all(found[label] == unit[label] for label in found if label in unit):
+            return name, []
+    problems = []
+    for label, got in found.items():
+        alternatives = {name: unit[label] for name, unit in units.items()
+                        if label in unit}
+        if alternatives and all(value != got for value in alternatives.values()):
+            problems.append((label, got, alternatives))
+    return None, problems
 
 
 def the_counts_of_a_line(line):
@@ -438,14 +619,18 @@ def the_counts_of_a_line(line):
     return counts if len(counts) == len(LABELS) else None
 
 
-def the_order_of_a_header(line):
-    """The order of the labels of a table header, when it carries the four."""
+def the_order_of_a_head(head):
+    """The order of the labels of a table head, when it carries the four."""
     found = []
     for label in LABELS:
-        found_at = re.search(LABEL_WORDS[label], line, re.I)
-        if not found_at:
+        found_at = None
+        for index, cell in enumerate(head):
+            if re.search(LABEL_WORDS[label], cell, re.I):
+                found_at = index
+                break
+        if found_at is None:
             return None
-        found.append((found_at.start(), label))
+        found.append((found_at, label))
     found.sort()
     return [label for _, label in found]
 
@@ -475,9 +660,9 @@ def the_count_blocks(text):
         if counts:
             blocks.append((number, None, counts))
             continue
-        # A table of the counts: the header carries the labels and the row
+        # A table of the counts: the head carries the labels and the row
         # under it carries the numbers.
-        order = the_order_of_a_header(line)
+        order = the_order_of_a_head([cell for cell in line.strip().strip("|").split("|")])
         if order:
             for ahead in range(number + 1, min(number + 3, len(lines)) + 1):
                 numbers = re.findall(r"\d+", lines[ahead - 1])
@@ -490,22 +675,16 @@ def the_count_blocks(text):
     return blocks
 
 
-def the_block_of(text, dialect):
-    """The count block of a page of one dialect, when the page carries one."""
-    blocks = the_count_blocks(text)
-    for block in blocks:
-        if block[1] == dialect:
-            return block
-    for block in blocks:
-        if block[1] is None:
-            return block
-    return None
-
-
 def check_the_names(subtree, where, failures):
     """Every name of the reference tables is carried by the subtree."""
     files = subtree["files"]
     families = subtree["families"]
+    pages = {}
+    for name, path in files.items():
+        pages[where + "/" + name] = path.read_text(encoding="utf-8")
+    for family, path in families.items():
+        pages[where + "/families/" + family + ".md"] = path.read_text(encoding="utf-8")
+    family_text = [text for path, text in pages.items() if "/families/" in path]
     for dialect in SURFACE_DIALECTS:
         names = read_reference(dialect)
         if names is None:
@@ -513,126 +692,239 @@ def check_the_names(subtree, where, failures):
                   % (REFERENCE[dialect], dialect))
             failures += 1
             continue
-        catalogue = files.get(CATALOGUE[dialect])
+        catalogue = the_catalogue(files, dialect)
         if catalogue is None:
-            print("MISSING %s/%s: the catalogue of the %s is not there"
-                  % (where, CATALOGUE[dialect], dialect))
+            print("MISSING %s: the catalogue of the %s is not there "
+                  "(one of %s)"
+                  % (where, dialect, ", ".join(CATALOGUE[dialect])))
             failures += 1
             continue
-        pages = {where + "/" + CATALOGUE[dialect]: catalogue.read_text(encoding="utf-8")}
-        for family, path in families.items():
-            pages[where + "/families/" + family + ".md"] = path.read_text(encoding="utf-8")
-        missing = []
-        for name in names:
-            if not any(mentions(text, name) for text in pages.values()):
-                missing.append(name)
+        missing = [name for name in names
+                   if not any(mentions(text, name) for text in pages.values())]
         if missing:
             failures += 1
             print("MISSING NAMES of the %s: %d of the %d names of %s are not "
                   "carried by %s"
                   % (dialect, len(missing), len(names), REFERENCE[dialect], where))
             for name in missing:
-                print("  the %s does not carry `%s`; it has to be in "
-                      "%s/%s and in the page of its family under %s/families/"
-                      % (dialect, name, where, CATALOGUE[dialect], where))
-        else:
+                print("  the %s does not carry `%s`; it has to be in %s/%s and "
+                      "in the page of its family under %s/families/"
+                      % (dialect, name, where, CATALOGUE[dialect][0], where))
+        without = [name for name in names
+                   if not any(mentions(text, name) for text in family_text)]
+        if without:
+            failures += 1
+            print("MISSING FICHAS of the %s: %d of the %d names have no page of "
+                  "a family under %s/families/"
+                  % (dialect, len(without), len(names), where))
+            for name in without:
+                print("  the %s does not have a ficha for `%s`" % (dialect, name))
+        if not missing and not without:
             print("the %s: the %d names of %s are carried by %s/"
                   % (dialect, len(names), REFERENCE[dialect], where))
     return failures
 
 
-def check_the_counts(subtree, where, surfaces, failures):
-    """The counts the subtree prints are the counts of the runner."""
+def check_the_counts(subtree, where, units, failures):
+    """The counts the subtree prints are the counts of the tree."""
     files = subtree["files"]
     for dialect in SURFACE_DIALECTS:
-        if dialect not in surfaces:
+        if dialect not in units:
             continue
-        catalogue = files.get(CATALOGUE[dialect])
+        catalogue = the_catalogue(files, dialect)
         if catalogue is None:
             continue  # the name check has already said that it is missing
         text = catalogue.read_text(encoding="utf-8")
-        block = the_block_of(text, dialect)
-        if block is None:
-            failures += 1
-            print("DRIFT %s/%s: the page does not print the counts of "
-                  "the %s" % (where, CATALOGUE[dialect], dialect))
+        table = the_table(text, ["family", "names"])
+        if table is None:
+            blocks = the_count_blocks(text)
+            if not blocks:
+                failures += 1
+                print("DRIFT %s/%s: the page does not print the counts of the %s"
+                      % (where, CATALOGUE[dialect][0], dialect))
+                continue
+            number, _, counts = blocks[0]
+            found = {label: counts[label] for label in LABELS}
+            unit, problems = the_difference(found, units[dialect])
+            if unit is None:
+                failures += 1
+                print("DRIFT %s/%s line %d: the counts of the %s"
+                      % (where, CATALOGUE[dialect][0], number, dialect))
+                for label, got, alternatives in problems:
+                    print("  the document says %s=%d; the tree says %s"
+                          % (label, got, the_alternatives(alternatives)))
             continue
-        number, _, counts = block
-        wanted = surfaces[dialect]
-        wrong = [
-            (label, counts[label], wanted[label])
-            for label in LABELS
-            if counts[label] != wanted[label]
-        ]
-        if wrong:
+        # The table of the families: the numbers of the page are the sum
+        # of the numbers of the rows of it.
+        total = {"total": 0, "values": 0, "refusals": 0, "pending": 0}
+        for number, cells in table["rows"]:
+            for label, column in (("total", 1), ("values", 2), ("refusals", 3),
+                                  ("pending", 4)):
+                number_in_the_row = the_number(cells, column)
+                if number_in_the_row is not None:
+                    total[label] += number_in_the_row
+        unit, problems = the_difference(total, units[dialect])
+        if unit is None:
             failures += 1
-            print("DRIFT %s/%s line %d: the counts of the %s"
-                  % (where, CATALOGUE[dialect], number, dialect))
-            for label, got, expected in wrong:
-                print("  the document says %s=%d; the tree says %s=%d"
-                      % (label, got, label, expected))
+            print("DRIFT %s/%s: the table of the families does not add up to "
+                  "the surface of the %s" % (where, CATALOGUE[dialect][0], dialect))
+            for label, got, alternatives in problems:
+                print("  the document says %s=%d; the tree says %s"
+                      % (label, got, the_alternatives(alternatives)))
+            for number, cells in table["rows"]:
+                if the_number(cells, 1) is None:
+                    continue
+                print("    the row of line %d: %s"
+                      % (number, " | ".join(cells)))
         else:
-            print("the %s: %s/%s carries the counts of the tree "
-                  "(%d entries, %d values, %d refusals, %d pending)"
-                  % (dialect, where, CATALOGUE[dialect], wanted["total"], wanted["values"],
-                     wanted["refusals"], wanted["pending"]))
+            print("the %s: %s/%s carries the counts of the tree (%d names, "
+                  "%d values, %d refusals, %d pending, counted as %s)"
+                  % (dialect, where, CATALOGUE[dialect][0], total["total"],
+                     total["values"], total["refusals"], total["pending"], unit))
+    # The index of every name carries the numbers of the dialects too.
+    index = files.get("index.md")
+    if index is not None:
+        text = index.read_text(encoding="utf-8")
+        table = the_table(text, ["dialect", "names"])
+        if table is None:
+            print("NOTE %s/index.md: the page does not print the numbers of the "
+                  "dialects; they are not compared" % where)
+        else:
+            for number, cells in table["rows"]:
+                dialect = the_dialect_of_a_label(cells[0]) if cells else None
+                if dialect is None or dialect not in units:
+                    continue
+                found = {}
+                for label, column in (("total", 1), ("refusals", 2), ("pending", 3)):
+                    got = the_number(cells, column)
+                    if got is not None:
+                        found[label] = got
+                if not found:
+                    continue
+                unit, problems = the_difference(found, units[dialect])
+                if unit is None:
+                    failures += 1
+                    print("DRIFT %s/index.md line %d: the numbers of the %s"
+                          % (where, number, dialect))
+                    for label, got, alternatives in problems:
+                        print("  the document says %s=%d; the tree says %s"
+                              % (label, got, the_alternatives(alternatives)))
+                else:
+                    print("the %s: %s/index.md carries the counts of the tree "
+                          "(counted as %s)" % (dialect, where, unit))
     return failures
 
 
-def check_the_families(subtree, where, surfaces, failures):
-    """The pages of the families add up to the surface of the tree."""
+def the_alternatives(alternatives):
+    """The numbers of the tree of a label, in the two units."""
+    return " or ".join("%d (%s)" % (value, name)
+                       for name, value in sorted(alternatives.items()))
+
+
+def the_state_of(text):
+    """The state of a cell: `value`, `refusal` or `pending`.
+
+    The page writes the reason of a refusal beside the word of it, as in
+    "refused: this is a name of Windows", and the word of it is the state.
+    """
+    lowered = text.strip().lower()
+    if lowered.startswith("value") or lowered == "value":
+        return "value"
+    if lowered.startswith("refus"):
+        return "refusal"
+    if lowered.startswith("pend"):
+        return "pending"
+    return ""
+
+
+def check_the_families(subtree, where, failures):
+    """The pages of the families carry what the catalogue says of them."""
+    files = subtree["files"]
     families = subtree["families"]
-    if not families:
-        return failures
-    totals = {label: 0 for label in LABELS}
-    per_dialect = {}
-    shape = set()
-    pages = []
     for family, path in families.items():
         text = path.read_text(encoding="utf-8")
-        blocks = the_count_blocks(text)
-        if not blocks:
-            print("NOTE %s/families/%s.md: the page does not print "
-                  "counts; there is nothing to compare" % (where, family))
+        table = the_table(text, ["name", "dialect"])
+        if table is None:
+            print("NOTE %s/families/%s.md: the page does not carry a table of "
+                  "names; nothing is compared" % (where, family))
             continue
-        number, dialect, counts = blocks[0]
-        shape.add(dialect)
-        pages.append((family, number, dialect, counts))
-        if dialect is None:
-            for label in LABELS:
-                totals[label] += counts[label]
-        else:
-            bucket = per_dialect.setdefault(dialect, {label: 0 for label in LABELS})
-            for label in LABELS:
-                bucket[label] += counts[label]
-    if not pages:
-        return failures
-    if len(shape) > 1:
-        print("NOTE the pages of the families do not print their counts in one "
-              "shape; the sum of them is not compared")
-        return failures
-    if None in shape:
-        wanted = {label: sum(surfaces[d][label] for d in surfaces) for label in LABELS}
-        for label in LABELS:
-            if totals[label] != wanted[label]:
+        name_column = the_column(table, "name")
+        dialect_column = the_column(table, "dialect")
+        state_column = the_column(table, "state")
+        # A name that the tree carries twice (the getter and the setter of
+        # a property) is one name, and it answers with a value when one of
+        # its rows does.
+        carried = {}
+        for number, cells in table["rows"]:
+            if name_column is None or name_column >= len(cells):
+                continue
+            dialect = the_dialect_of_a_label(cells[dialect_column]) \
+                if dialect_column is not None and dialect_column < len(cells) else None
+            if dialect is None:
+                continue
+            name = the_name_of_a_cell(cells[name_column])
+            state = the_state_of(cells[state_column]) \
+                if state_column is not None and state_column < len(cells) else ""
+            old = carried.get((dialect, name))
+            if old is None or (old != "value" and state == "value"):
+                carried[(dialect, name)] = state
+        counted = {}
+        for (dialect, name), state in carried.items():
+            bucket = counted.setdefault(dialect, {"total": 0, "values": 0,
+                                                   "refusals": 0, "pending": 0})
+            bucket["total"] += 1
+            if state == "value":
+                bucket["values"] += 1
+            elif state == "refusal":
+                bucket["refusals"] += 1
+            elif state == "pending":
+                bucket["pending"] += 1
+        # The catalogue of the dialect has to carry a row of this family.
+        for dialect in SURFACE_DIALECTS:
+            catalogue = the_catalogue(files, dialect)
+            if catalogue is None:
+                continue
+            catalogue_text = catalogue.read_text(encoding="utf-8")
+            table_of_families = the_table(catalogue_text, ["family", "names"])
+            if table_of_families is None:
+                continue
+            linked = False
+            for number, cells in table_of_families["rows"]:
+                if family + ".md" in cells[0]:
+                    linked = True
+                    printed = {"total": the_number(cells, 1), "values": the_number(cells, 2),
+                               "refusals": the_number(cells, 3), "pending": the_number(cells, 4)}
+                    got = counted.get(dialect)
+                    if got is None:
+                        print("NOTE %s/%s: the page of the family %s has no name "
+                              "of the %s" % (where, CATALOGUE[dialect][0], family, dialect))
+                        continue
+                    wrong = [(label, printed[label], got[label]) for label in LABELS
+                             if printed[label] is not None and printed[label] != got[label]]
+                    if wrong:
+                        failures += 1
+                        print("DRIFT %s/%s line %d: the row of the family %s"
+                              % (where, CATALOGUE[dialect][0], number, family))
+                        for label, said, counted_value in wrong:
+                            print("  the document says %s=%d; the page of the "
+                                  "family says %s=%d"
+                                  % (label, said, label, counted_value))
+            if not linked:
                 failures += 1
-                print("DRIFT the pages of the families: the %s of them add up "
-                      "to %d; the tree says %d"
-                      % (label, totals[label], wanted[label]))
-                for family, number, _, counts in pages:
-                    print("  %s/families/%s.md line %d: %s=%d"
-                          % (where, family, number, label, counts[label]))
-        return failures
-    for dialect, bucket in sorted(per_dialect.items()):
-        if dialect not in surfaces:
-            continue
-        wanted = surfaces[dialect]
-        for label in LABELS:
-            if bucket[label] != wanted[label]:
+                print("DRIFT %s/%s: the family %s has no row in the table of the "
+                      "families" % (where, CATALOGUE[dialect][0], family))
+    return failures
+
+
+def check_the_links(subtree, where, failures):
+    """Every family page the subtree links to is there."""
+    for name, path in subtree["files"].items():
+        text = path.read_text(encoding="utf-8")
+        for target in set(re.findall(r"\(families/([^)]+\.md)\)", text)):
+            if not (ROOT / where / "families" / target).exists():
                 failures += 1
-                print("DRIFT the pages of the families: the %s of the %s add up "
-                      "to %d; the tree says %d"
-                      % (label, dialect, bucket[label], wanted[label]))
+                print("DRIFT %s/%s: the page links to families/%s, and that "
+                      "page is not there" % (where, name, target))
     return failures
 
 
@@ -657,10 +949,11 @@ def check_the_generator(failures):
         errors="replace",
         timeout=600,
     )
-    output = (result.stdout or "").strip()
-    if output:
-        for line in output.splitlines():
-            print("  the generator: %s" % line)
+    output = (result.stdout or "").strip().splitlines()
+    for line in output[:20]:
+        print("  the generator: %s" % line)
+    if len(output) > 20:
+        print("  the generator: ... and %d more lines" % (len(output) - 20))
     if result.returncode != 0:
         failures += 1
         print("DRIFT %s --check: the generator says the subtree is not the one "
@@ -683,12 +976,13 @@ def main():
                         help="write the numbers of the runner into the documents")
     parser.add_argument("--docs-dir", default="docs/surface", metavar="PATH",
                         help="the generated subtree (default: docs/surface)")
-    parser.add_argument("--skip-family-sums", action="store_true",
-                        help="do not compare the sum of the pages of the families")
+    parser.add_argument("--skip-families", action="store_true",
+                        help="do not compare the pages of the families")
     arguments = parser.parse_args()
 
     binary = the_binary(arguments.binary)
     surfaces = {}
+    states = {}
     if binary is None:
         print("no runner under target/release or target/debug: the numbers of "
               "the tree are not there to be compared with (build it with "
@@ -698,12 +992,11 @@ def main():
         for dialect in DIALECTS:
             surfaces[dialect] = read_surface(binary, dialect)
         for dialect in SURFACE_DIALECTS:
-            if dialect in surfaces:
-                continue
-            try:
-                surfaces[dialect] = read_surface(binary, dialect)
-            except SystemExit as error:
-                print("the runner does not answer for the %s: %s" % (dialect, error))
+            if dialect not in surfaces:
+                try:
+                    surfaces[dialect] = read_surface(binary, dialect)
+                except SystemExit as error:
+                    print("the runner does not answer for the %s: %s" % (dialect, error))
         for dialect in SURFACE_DIALECTS:
             counts = surfaces.get(dialect)
             if not counts:
@@ -774,12 +1067,35 @@ def main():
               % arguments.docs_dir)
 
     failures = check_the_names(subtree, arguments.docs_dir, failures)
-    if surfaces:
-        failures = check_the_counts(subtree, arguments.docs_dir, surfaces, failures)
-        if not arguments.skip_family_sums:
-            failures = check_the_families(subtree, arguments.docs_dir, surfaces, failures)
-    else:
+
+    expected = {}
+    if binary is None:
         print("the counts of the subtree are not compared: the runner is not there")
+    else:
+        states_of = {}
+        for dialect in SURFACE_DIALECTS:
+            try:
+                states_of[dialect] = the_states_of(binary, dialect)
+            except SystemExit as error:
+                print("the runner does not answer for the %s: %s" % (dialect, error))
+        for dialect in SURFACE_DIALECTS:
+            names = read_reference(dialect)
+            if names is None:
+                continue
+            wanted, unknown = the_expected(dialect, names, states_of)
+            expected[dialect] = wanted
+            if unknown:
+                failures += 1
+                print("DRIFT the %s: the tree does not carry %d of the names of "
+                      "%s" % (dialect, len(unknown), REFERENCE[dialect]))
+                for name in unknown:
+                    print("  the tree does not carry `%s` of the %s"
+                          % (name, dialect))
+        units = the_units(surfaces, expected)
+        failures = check_the_counts(subtree, arguments.docs_dir, units, failures)
+        if not arguments.skip_families:
+            failures = check_the_families(subtree, arguments.docs_dir, failures)
+    failures = check_the_links(subtree, arguments.docs_dir, failures)
     failures = check_the_generator(failures)
 
     if failures:
@@ -790,8 +1106,11 @@ def main():
         print("Run `python scripts/check-surface-docs.py --fix` to write the "
               "numbers of the runner into the documents, or update the prose by hand.")
         return 1
-    print("the documents carry the numbers of the tree, and the subtree is the "
-          "one the tree has")
+    print("the subtree is the one the tree has, and the documents carry the "
+          "numbers of the tree"
+          if binary is not None else
+          "the subtree is the one the tree has (the numbers of the documents "
+          "were not compared: there is no runner)")
     return 0
 
 

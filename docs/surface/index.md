@@ -1,12 +1,16 @@
 # The index of every name
 
+| [English](index.md) | [Español](es/index.md) | [Português (Brasil)](pt-BR/index.md) | [日本語](ja/index.md) | [中文](zh/index.md) |
+
+Language: English
+
 Every name of the three dialects, alphabetical, with the family it belongs to and what this tree answers for it. The **ficha** of a name -- its kind, its class, its parameters -- is in the page of its family; this page is the way in.
 
 | Dialect | Names | Refused | Pending |
 |---|---|---|---|
-| AutoHotkey v2.0.19 | 785 | 147 | 0 |
-| AutoHotkey v1.1.37.02 | 407 | 106 | 0 |
-| KeySharp | 137 | 0 | 0 |
+| AutoHotkey v2.0.19 | 833 | 16 | 0 |
+| AutoHotkey v1.1.37.02 | 408 | 100 | 0 |
+| KeySharp | 969 | 16 | 0 |
 
 ## AutoHotkey v2.0.19
 
@@ -77,17 +81,17 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`Class.Base`](families/core.md) | method | Class | The core of the language: text, math and patterns | value |
 | [`Object.Base`](families/objects.md) | method | Object | The objects of the language: Array, Map and Func | value |
 | [`Func.Bind`](families/objects.md) | method | Func | The objects of the language: Array, Map and Func | value |
-| [`BlockInput`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`BlockInput`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
 | [`BoundFunc`](families/objects.md) | class | -- | The objects of the language: Array, Map and Func | value |
 | [`Buffer`](families/native.md) | class | -- | Native function calls (DllCall) | value |
 | [`Class.Call`](families/core.md) | method | Class | The core of the language: text, math and patterns | value |
 | [`Enumerator.Call`](families/objects.md) | method | Enumerator | The objects of the language: Array, Map and Func | value |
 | [`Func.Call`](families/objects.md) | method | Func | The objects of the language: Array, Map and Func | value |
-| [`CallbackCreate`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`CallbackFree`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`CallbackCreate`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
+| [`CallbackFree`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
 | [`Array.Capacity`](families/objects.md) | method | Array | The objects of the language: Array, Map and Func | value |
 | [`Map.Capacity`](families/objects.md) | method | Map | The objects of the language: Array, Map and Func | value |
-| [`CaretGetPos`](families/gui.md) | function | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`CaretGetPos`](families/gui.md) | function | -- | GUI windows and window automation | value |
 | [`Map.CaseSense`](families/objects.md) | method | Map | The objects of the language: Array, Map and Func | value |
 | [`Hotkey.CaseSensitive`](families/input.md) | method | Hotkey | Hotkeys, hotstrings, and input | value |
 | [`InputHook.CaseSensitive`](families/input.md) | method | InputHook | Hotkeys, hotstrings, and input | value |
@@ -108,52 +112,52 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`Object.Clone`](families/objects.md) | method | Object | The objects of the language: Array, Map and Func | value |
 | [`File.Close`](families/files.md) | method | File | File and directory operations | value |
 | [`Closure`](families/objects.md) | class | -- | The objects of the language: Array, Map and Func | value |
-| [`ComCall`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjActive`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjConnect`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ComCall`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ComObjActive`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ComObjConnect`](families/com.md) | function | -- | COM automation (ComObject) | value |
 | [`ComObject`](families/com.md) | class | -- | COM automation (ComObject) | value |
-| [`ComObjFlags`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjFromPtr`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjGet`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjQuery`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjType`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ComObjValue`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjFlags`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ComObjFromPtr`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ComObjGet`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ComObjQuery`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ComObjType`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ComObjValue`](families/com.md) | function | -- | COM automation (ComObject) | value |
 | [`ComputerName`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`ComSpec`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`ComValue`](families/com.md) | class | -- | COM automation (ComObject) | value |
-| [`ControlAddItem`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlChooseIndex`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlChooseString`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlClick`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlAddItem`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlChooseIndex`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlChooseString`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlClick`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`ControlDelay`](families/gui.md) | variable | -- | GUI windows and window automation | value |
-| [`ControlDeleteItem`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlFindItem`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlFocus`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetChecked`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetChoice`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetClassNN`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetEnabled`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetExStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetFocus`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetHwnd`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetIndex`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetItems`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetPos`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetText`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlGetVisible`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlHide`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlHideDropDown`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlMove`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSend`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSendText`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSetChecked`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSetEnabled`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSetExStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSetStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlSetText`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlShow`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ControlShowDropDown`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlDeleteItem`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlFindItem`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlFocus`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetChecked`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetChoice`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetClassNN`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetEnabled`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetExStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this runtime does not carry that name yet. |
+| [`ControlGetFocus`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetHwnd`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetIndex`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetItems`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetPos`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this runtime does not carry that name yet. |
+| [`ControlGetText`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlGetVisible`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlHide`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlHideDropDown`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlMove`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlSend`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlSendText`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlSetChecked`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlSetEnabled`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlSetExStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this runtime does not carry that name yet. |
+| [`ControlSetStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this runtime does not carry that name yet. |
+| [`ControlSetText`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlShow`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ControlShowDropDown`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`CoordMode`](families/script.md) | command | -- | Parser and script execution | value |
 | [`CoordModeCaret`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`CoordModeMenu`](families/gui.md) | variable | -- | GUI windows and window automation | value |
@@ -197,27 +201,27 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`Gui.Menu.Disable`](families/gui.md) | method | Gui.Menu | GUI windows and window automation | value |
 | [`DllCall`](families/native.md) | function | -- | Native function calls (DllCall) | value |
 | [`Download`](families/files.md) | command | -- | File and directory operations | value |
-| [`DriveEject`](families/files.md) | command | -- | File and directory operations | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`DriveEject`](families/files.md) | command | -- | File and directory operations | value |
 | [`DriveGetCapacity`](families/files.md) | command | -- | File and directory operations | value |
 | [`DriveGetFilesystem`](families/files.md) | command | -- | File and directory operations | value |
 | [`DriveGetLabel`](families/files.md) | command | -- | File and directory operations | value |
-| [`DriveGetList`](families/files.md) | command | -- | File and directory operations | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`DriveGetList`](families/files.md) | command | -- | File and directory operations | value |
 | [`DriveGetSerial`](families/files.md) | command | -- | File and directory operations | value |
 | [`DriveGetSpaceFree`](families/files.md) | command | -- | File and directory operations | value |
 | [`DriveGetStatus`](families/files.md) | command | -- | File and directory operations | value |
-| [`DriveGetStatusCD`](families/files.md) | command | -- | File and directory operations | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`DriveGetStatusCD`](families/files.md) | command | -- | File and directory operations | value |
 | [`DriveGetType`](families/files.md) | command | -- | File and directory operations | value |
-| [`DriveLock`](families/files.md) | command | -- | File and directory operations | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`DriveRetract`](families/files.md) | command | -- | File and directory operations | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`DriveSetLabel`](families/files.md) | command | -- | File and directory operations | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`DriveUnlock`](families/files.md) | command | -- | File and directory operations | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`DriveLock`](families/files.md) | command | -- | File and directory operations | value |
+| [`DriveRetract`](families/files.md) | command | -- | File and directory operations | value |
+| [`DriveSetLabel`](families/files.md) | command | -- | File and directory operations | value |
+| [`DriveUnlock`](families/files.md) | command | -- | File and directory operations | value |
 | [`Edit`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`EditGetCurrentCol`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`EditGetCurrentLine`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`EditGetLine`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`EditGetLineCount`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`EditGetSelectedText`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`EditPaste`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`EditGetCurrentCol`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`EditGetCurrentLine`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`EditGetLine`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`EditGetLineCount`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`EditGetSelectedText`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`EditPaste`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`Gui.Menu.Enable`](families/gui.md) | method | Gui.Menu | GUI windows and window automation | value |
 | [`Gui.Control.Enabled`](families/gui.md) | method | Gui.Control | GUI windows and window automation | value |
 | [`File.Encoding`](families/files.md) | method | File | File and directory operations | value |
@@ -249,7 +253,7 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`FileGetShortcut`](families/files.md) | command | -- | File and directory operations | value |
 | [`FileGetSize`](families/files.md) | command | -- | File and directory operations | value |
 | [`FileGetTime`](families/files.md) | command | -- | File and directory operations | value |
-| [`FileGetVersion`](families/files.md) | command | -- | File and directory operations | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`FileGetVersion`](families/files.md) | command | -- | File and directory operations | value |
 | [`FileInstall`](families/files.md) | command | -- | File and directory operations | value |
 | [`FileMove`](families/files.md) | command | -- | File and directory operations | value |
 | [`FileOpen`](families/files.md) | function | -- | File and directory operations | value |
@@ -302,14 +306,14 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`Gui.ListView.GetText`](families/gui.md) | method | Gui.ListView | GUI windows and window automation | value |
 | [`Gui.StatusBar.GetText`](families/gui.md) | method | Gui.StatusBar | GUI windows and window automation | value |
 | [`Gui.TreeView.GetText`](families/gui.md) | method | Gui.TreeView | GUI windows and window automation | value |
-| [`GroupActivate`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`GroupAdd`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`GroupClose`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`GroupDeactivate`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`GroupActivate`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`GroupAdd`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`GroupClose`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`GroupDeactivate`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`Gui`](families/gui.md) | class | -- | GUI windows and window automation | value |
 | [`Gui.Control.Gui`](families/gui.md) | method | Gui.Control | GUI windows and window automation | value |
-| [`GuiCtrlFromHwnd`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`GuiFromHwnd`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`GuiCtrlFromHwnd`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`GuiFromHwnd`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`File.Handle`](families/files.md) | method | File | File and directory operations | value |
 | [`Gui.Menu.Handle`](families/gui.md) | method | Gui.Menu | GUI windows and window automation | value |
 | [`Array.Has`](families/objects.md) | method | Array | The objects of the language: Array, Map and Func | value |
@@ -335,13 +339,13 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`Hour`](families/time.md) | variable | -- | Dates and times | value |
 | [`Gui.Hwnd`](families/gui.md) | method | Gui | GUI windows and window automation | value |
 | [`Gui.Control.Hwnd`](families/gui.md) | method | Gui.Control | GUI windows and window automation | value |
-| [`IconFile`](families/gui.md) | variable | -- | GUI windows and window automation | refused: this runtime has no tray icon. |
+| [`IconFile`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`IconHidden`](families/gui.md) | variable | -- | GUI windows and window automation | value |
-| [`IconNumber`](families/gui.md) | variable | -- | GUI windows and window automation | refused: this runtime has no tray icon. |
+| [`IconNumber`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`IconTip`](families/gui.md) | variable | -- | GUI windows and window automation | value |
-| [`IL_Add`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`IL_Create`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`IL_Destroy`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`IL_Add`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`IL_Create`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`IL_Destroy`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`ImageSearch`](families/screen.md) | command | -- | Screen capture and pixel functions | value |
 | [`Index`](families/script.md) | variable | -- | Parser and script execution | value |
 | [`IndexError`](families/core.md) | class | -- | The core of the language: text, math and patterns | value |
@@ -404,8 +408,8 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`LineNumber`](families/script.md) | variable | -- | Parser and script execution | value |
 | [`ListHotkeys`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
 | [`ListLines`](families/gui.md) | command | -- | GUI windows and window automation | value |
-| [`ListVars`](families/gui.md) | command | -- | GUI windows and window automation | refused: the variables are listed in a window of v2, and this runtime has no window to show them in. |
-| [`ListViewGetContent`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ListVars`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`ListViewGetContent`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`Ln`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
 | [`LoadPicture`](families/screen.md) | command | -- | Screen capture and pixel functions | value |
 | [`Log`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
@@ -444,9 +448,9 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`MemoryError`](families/core.md) | class | -- | The core of the language: text, math and patterns | value |
 | [`Menu`](families/gui.md) | class | -- | GUI windows and window automation | value |
 | [`Gui.MenuBar`](families/gui.md) | method | Gui | GUI windows and window automation | value |
-| [`MenuFromHandle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`MenuFromHandle`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`MenuMaskKey`](families/input.md) | variable | -- | Hotkeys, hotstrings, and input | value |
-| [`MenuSelect`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`MenuSelect`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`Error.Message`](families/core.md) | method | Error | The core of the language: text, math and patterns | value |
 | [`MethodError`](families/core.md) | class | -- | The core of the language: text, math and patterns | value |
 | [`Min`](families/time.md) | variable | -- | Dates and times | value |
@@ -492,21 +496,21 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`ObjAddRef`](families/objects.md) | function | -- | The objects of the language: Array, Map and Func | value |
 | [`ObjBindMethod`](families/com.md) | function | -- | COM automation (ComObject) | value |
 | [`Object`](families/objects.md) | class | -- | The objects of the language: Array, Map and Func | value |
-| [`ObjFromPtr`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ObjFromPtrAddRef`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ObjFromPtr`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ObjFromPtrAddRef`](families/com.md) | function | -- | COM automation (ComObject) | value |
 | [`ObjGetBase`](families/objects.md) | function | -- | The objects of the language: Array, Map and Func | value |
 | [`ObjGetCapacity`](families/objects.md) | function | -- | The objects of the language: Array, Map and Func | value |
 | [`ObjHasOwnProp`](families/objects.md) | function | -- | The objects of the language: Array, Map and Func | value |
 | [`ObjOwnPropCount`](families/objects.md) | function | -- | The objects of the language: Array, Map and Func | value |
 | [`ObjOwnProps`](families/objects.md) | function | -- | The objects of the language: Array, Map and Func | value |
-| [`ObjPtr`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ObjPtrAddRef`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ObjRelease`](families/com.md) | function | -- | COM automation (ComObject) | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ObjPtr`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ObjPtrAddRef`](families/com.md) | function | -- | COM automation (ComObject) | value |
+| [`ObjRelease`](families/com.md) | function | -- | COM automation (ComObject) | value |
 | [`ObjSetBase`](families/objects.md) | function | -- | The objects of the language: Array, Map and Func | value |
 | [`ObjSetCapacity`](families/objects.md) | function | -- | The objects of the language: Array, Map and Func | value |
 | [`Hotkey.OnChar`](families/input.md) | method | Hotkey | Hotkeys, hotstrings, and input | value |
 | [`InputHook.OnChar`](families/input.md) | method | InputHook | Hotkeys, hotstrings, and input | value |
-| [`OnClipboardChange`](families/clipboard.md) | command | -- | The clipboard | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`OnClipboardChange`](families/clipboard.md) | command | -- | The clipboard | value |
 | [`Gui.Control.OnCommand`](families/gui.md) | method | Gui.Control | GUI windows and window automation | value |
 | [`Hotkey.OnEnd`](families/input.md) | method | Hotkey | Hotkeys, hotstrings, and input | value |
 | [`InputHook.OnEnd`](families/input.md) | method | InputHook | Hotkeys, hotstrings, and input | value |
@@ -518,7 +522,7 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`InputHook.OnKeyDown`](families/input.md) | method | InputHook | Hotkeys, hotstrings, and input | value |
 | [`Hotkey.OnKeyUp`](families/input.md) | method | Hotkey | Hotkeys, hotstrings, and input | value |
 | [`InputHook.OnKeyUp`](families/input.md) | method | InputHook | Hotkeys, hotstrings, and input | value |
-| [`OnMessage`](families/script.md) | command | -- | Parser and script execution | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`OnMessage`](families/script.md) | command | -- | Parser and script execution | value |
 | [`Gui.Control.OnNotify`](families/gui.md) | method | Gui.Control | GUI windows and window automation | value |
 | [`Gui.Opt`](families/gui.md) | method | Gui | GUI windows and window automation | value |
 | [`Gui.Control.Opt`](families/gui.md) | method | Gui.Control | GUI windows and window automation | value |
@@ -529,12 +533,12 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`Map.OwnProps`](families/objects.md) | method | Map | The objects of the language: Array, Map and Func | value |
 | [`Object.OwnProps`](families/objects.md) | method | Object | The objects of the language: Array, Map and Func | value |
 | [`Pause`](families/script.md) | command | -- | Parser and script execution | value |
-| [`Persistent`](families/script.md) | command | -- | Parser and script execution | refused: this runtime is a script that ends when it ends, and it cannot be kept alive. |
+| [`Persistent`](families/script.md) | command | -- | Parser and script execution | value |
 | [`PixelGetColor`](families/screen.md) | command | -- | Screen capture and pixel functions | value |
 | [`PixelSearch`](families/screen.md) | command | -- | Screen capture and pixel functions | value |
 | [`Array.Pop`](families/objects.md) | method | Array | The objects of the language: Array, Map and Func | value |
 | [`File.Pos`](families/files.md) | method | File | File and directory operations | value |
-| [`PostMessage`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`PostMessage`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`Primitive`](families/core.md) | class | -- | The core of the language: text, math and patterns | value |
 | [`PriorHotkey`](families/input.md) | variable | -- | Hotkeys, hotstrings, and input | value |
 | [`PriorKey`](families/input.md) | variable | -- | Hotkeys, hotstrings, and input | value |
@@ -546,7 +550,7 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`ProcessSetPriority`](families/machine.md) | command | -- | The machine, the processes and the environment | value |
 | [`ProcessWait`](families/machine.md) | command | -- | The machine, the processes and the environment | value |
 | [`ProcessWaitClose`](families/machine.md) | command | -- | The machine, the processes and the environment | value |
-| [`ProgramFiles`](families/machine.md) | variable | -- | The machine, the processes and the environment | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ProgramFiles`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`Programs`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`ProgramsCommon`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`PropertyError`](families/core.md) | class | -- | The core of the language: text, math and patterns | value |
@@ -571,15 +575,15 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`File.ReadUInt`](families/files.md) | method | File | File and directory operations | value |
 | [`File.ReadUShort`](families/files.md) | method | File | File and directory operations | value |
 | [`Gui.Control.Redraw`](families/gui.md) | method | Gui.Control | GUI windows and window automation | value |
-| [`RegCreateKey`](families/registry.md) | function | -- | Registry APIs | refused: the registry is a thing of Windows, and this runtime does not carry it. |
-| [`RegDelete`](families/registry.md) | function | -- | Registry APIs | refused: the registry is a thing of Windows, and this runtime does not carry it. |
-| [`RegDeleteKey`](families/registry.md) | function | -- | Registry APIs | refused: the registry is a thing of Windows, and this runtime does not carry it. |
+| [`RegCreateKey`](families/registry.md) | function | -- | Registry APIs | value |
+| [`RegDelete`](families/registry.md) | function | -- | Registry APIs | value |
+| [`RegDeleteKey`](families/registry.md) | function | -- | Registry APIs | value |
 | [`RegExMatch`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
 | [`RegExMatchInfo`](families/objects.md) | class | -- | The objects of the language: Array, Map and Func | value |
 | [`RegExReplace`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
-| [`RegRead`](families/registry.md) | function | -- | Registry APIs | refused: the registry is a thing of Windows, and this runtime does not carry it. |
+| [`RegRead`](families/registry.md) | function | -- | Registry APIs | value |
 | [`RegView`](families/registry.md) | variable | -- | Registry APIs | value |
-| [`RegWrite`](families/registry.md) | function | -- | Registry APIs | refused: the registry is a thing of Windows, and this runtime does not carry it. |
+| [`RegWrite`](families/registry.md) | function | -- | Registry APIs | value |
 | [`Reload`](families/script.md) | command | -- | Parser and script execution | refused: this runtime runs one script once, and it cannot run itself again. |
 | [`Array.RemoveAt`](families/objects.md) | method | Array | The objects of the language: Array, Map and Func | value |
 | [`Gui.Menu.Rename`](families/gui.md) | method | Gui.Menu | GUI windows and window automation | value |
@@ -587,9 +591,9 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`Round`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
 | [`RTrim`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
 | [`Run`](families/machine.md) | command | -- | The machine, the processes and the environment | value |
-| [`RunAs`](families/machine.md) | command | -- | The machine, the processes and the environment | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`RunAs`](families/machine.md) | command | -- | The machine, the processes and the environment | value |
 | [`RunWait`](families/machine.md) | function | -- | The machine, the processes and the environment | value |
-| [`ScreenDPI`](families/screen.md) | variable | -- | Screen capture and pixel functions | refused: this desktop does not know the scale of the output. |
+| [`ScreenDPI`](families/screen.md) | variable | -- | Screen capture and pixel functions | value |
 | [`ScreenHeight`](families/screen.md) | variable | -- | Screen capture and pixel functions | value |
 | [`ScreenWidth`](families/screen.md) | variable | -- | Screen capture and pixel functions | value |
 | [`ScriptDir`](families/script.md) | variable | -- | Parser and script execution | value |
@@ -602,7 +606,7 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`SendEvent`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
 | [`SendInput`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
 | [`SendLevel`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
-| [`SendMessage`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`SendMessage`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`SendMode`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
 | [`SendPlay`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
 | [`SendText`](families/input.md) | command | -- | Hotkeys, hotstrings, and input | value |
@@ -636,16 +640,16 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`SetWorkingDir`](families/script.md) | command | -- | Parser and script execution | value |
 | [`Gui.Show`](families/gui.md) | method | Gui | GUI windows and window automation | value |
 | [`Gui.Menu.Show`](families/gui.md) | method | Gui.Menu | GUI windows and window automation | value |
-| [`Shutdown`](families/machine.md) | command | -- | The machine, the processes and the environment | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`Shutdown`](families/machine.md) | command | -- | The machine, the processes and the environment | value |
 | [`Sin`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
 | [`Buffer.Size`](families/native.md) | method | Buffer | Native function calls (DllCall) | value |
 | [`ClipboardAll.Size`](families/clipboard.md) | method | ClipboardAll | The clipboard | value |
 | [`Sleep`](families/script.md) | command | -- | Parser and script execution | value |
 | [`Sort`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
 | [`SoundBeep`](families/sound.md) | command | -- | Sound | value |
-| [`SoundGetInterface`](families/sound.md) | function | -- | Sound | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`SoundGetInterface`](families/sound.md) | function | -- | Sound | value |
 | [`SoundGetMute`](families/sound.md) | function | -- | Sound | value |
-| [`SoundGetName`](families/sound.md) | function | -- | Sound | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`SoundGetName`](families/sound.md) | function | -- | Sound | value |
 | [`SoundGetVolume`](families/sound.md) | function | -- | Sound | value |
 | [`SoundPlay`](families/sound.md) | command | -- | Sound | value |
 | [`SoundSetMute`](families/sound.md) | function | -- | Sound | value |
@@ -660,8 +664,8 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`StartMenuCommon`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`Startup`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`StartupCommon`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
-| [`StatusBarGetText`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`StatusBarWait`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`StatusBarGetText`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`StatusBarWait`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`Hotkey.Stop`](families/input.md) | method | Hotkey | Hotkeys, hotstrings, and input | value |
 | [`InputHook.Stop`](families/input.md) | method | InputHook | Hotkeys, hotstrings, and input | value |
 | [`StoreCapsLockMode`](families/input.md) | variable | -- | Hotkeys, hotstrings, and input | value |
@@ -704,10 +708,10 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`TitleMatchModeSpeed`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`Gui.Menu.ToggleCheck`](families/gui.md) | method | Gui.Menu | GUI windows and window automation | value |
 | [`Gui.Menu.ToggleEnable`](families/gui.md) | method | Gui.Menu | GUI windows and window automation | value |
-| [`ToolTip`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`TrayMenu`](families/gui.md) | variable | -- | GUI windows and window automation | refused: this runtime has no tray icon. |
-| [`TraySetIcon`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`TrayTip`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ToolTip`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`TrayMenu`](families/gui.md) | variable | -- | GUI windows and window automation | value |
+| [`TraySetIcon`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`TrayTip`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`Trim`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
 | [`Type`](families/core.md) | function | -- | The core of the language: text, math and patterns | value |
 | [`Gui.Control.Type`](families/core.md) | method | Gui.Control | The core of the language: text, math and patterns | value |
@@ -730,56 +734,56 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`InputHook.Wait`](families/input.md) | method | InputHook | Hotkeys, hotstrings, and input | value |
 | [`WDay`](families/time.md) | variable | -- | Dates and times | value |
 | [`Error.What`](families/core.md) | method | Error | The core of the language: text, math and patterns | value |
-| [`WinActivate`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinActivateBottom`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinActivate`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinActivateBottom`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinActive`](families/gui.md) | function | -- | GUI windows and window automation | value |
-| [`WinClose`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinClose`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinDelay`](families/gui.md) | variable | -- | GUI windows and window automation | value |
-| [`WinDir`](families/gui.md) | variable | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinDir`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`WinExist`](families/gui.md) | function | -- | GUI windows and window automation | value |
 | [`WinGetClass`](families/gui.md) | command | -- | GUI windows and window automation | value |
-| [`WinGetClientPos`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetControls`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetControlsHwnd`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetClientPos`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinGetControls`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinGetControlsHwnd`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinGetCount`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinGetExStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetID`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinGetIDLast`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinGetList`](families/gui.md) | command | -- | GUI windows and window automation | value |
-| [`WinGetMinMax`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetPID`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetPos`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetProcessName`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetProcessPath`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetMinMax`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinGetPID`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinGetPos`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinGetProcessName`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinGetProcessPath`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinGetStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetText`](families/gui.md) | command | -- | GUI windows and window automation | refused: this runtime reads no text of a window. |
+| [`WinGetText`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinGetTitle`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinGetTransColor`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinGetTransparent`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinHide`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinKill`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinMaximize`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinMinimize`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinMinimizeAll`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinMinimizeAllUndo`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinMove`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinMoveBottom`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinMoveTop`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinRedraw`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinRestore`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetTransparent`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinHide`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinKill`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinMaximize`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinMinimize`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinMinimizeAll`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinMinimizeAllUndo`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinMove`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinMoveBottom`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinMoveTop`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinRedraw`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinRestore`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinSetAlwaysOnTop`](families/gui.md) | command | -- | GUI windows and window automation | value |
-| [`WinSetEnabled`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetEnabled`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinSetExStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinSetRegion`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetRegion`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinSetStyle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinSetTitle`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetTitle`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WinSetTransColor`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinSetTransparent`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinShow`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinWait`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinWaitActive`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinWaitClose`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`WinWaitNotActive`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetTransparent`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinShow`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinWait`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinWaitActive`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinWaitClose`](families/gui.md) | command | -- | GUI windows and window automation | value |
+| [`WinWaitNotActive`](families/gui.md) | command | -- | GUI windows and window automation | value |
 | [`WorkingDir`](families/script.md) | variable | -- | Parser and script execution | value |
 | [`File.Write`](families/files.md) | method | File | File and directory operations | value |
 | [`File.WriteChar`](families/files.md) | method | File | File and directory operations | value |
@@ -876,9 +880,9 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`A_GuiX`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`A_GuiY`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`A_Hour`](families/time.md) | variable | -- | Dates and times | value |
-| [`A_IconFile`](families/gui.md) | variable | -- | GUI windows and window automation | refused: this runtime has no tray icon. |
+| [`A_IconFile`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`A_IconHidden`](families/gui.md) | variable | -- | GUI windows and window automation | value |
-| [`A_IconNumber`](families/gui.md) | variable | -- | GUI windows and window automation | refused: this runtime has no tray icon. |
+| [`A_IconNumber`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`A_IconTip`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`A_Index`](families/script.md) | variable | -- | Parser and script execution | value |
 | [`A_InitialWorkingDir`](families/script.md) | variable | -- | Parser and script execution | value |
@@ -920,12 +924,12 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`A_OSVersion`](families/script.md) | variable | -- | Parser and script execution | value |
 | [`A_PriorHotkey`](families/input.md) | variable | -- | Hotkeys, hotstrings, and input | value |
 | [`A_PriorKey`](families/input.md) | variable | -- | Hotkeys, hotstrings, and input | value |
-| [`A_ProgramFiles`](families/machine.md) | variable | -- | The machine, the processes and the environment | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`A_ProgramFiles`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`A_Programs`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`A_ProgramsCommon`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`A_PtrSize`](families/script.md) | variable | -- | Parser and script execution | value |
 | [`A_RegView`](families/registry.md) | variable | -- | Registry APIs | value |
-| [`A_ScreenDPI`](families/screen.md) | variable | -- | Screen capture and pixel functions | refused: this desktop does not know the scale of the output. |
+| [`A_ScreenDPI`](families/screen.md) | variable | -- | Screen capture and pixel functions | value |
 | [`A_ScreenHeight`](families/screen.md) | variable | -- | Screen capture and pixel functions | value |
 | [`A_ScreenWidth`](families/screen.md) | variable | -- | Screen capture and pixel functions | value |
 | [`A_ScriptDir`](families/script.md) | variable | -- | Parser and script execution | value |
@@ -962,7 +966,7 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`A_UserName`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`A_WDay`](families/time.md) | variable | -- | Dates and times | value |
 | [`A_WinDelay`](families/gui.md) | variable | -- | GUI windows and window automation | value |
-| [`A_WinDir`](families/gui.md) | variable | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`A_WinDir`](families/gui.md) | variable | -- | GUI windows and window automation | value |
 | [`A_WorkingDir`](families/script.md) | variable | -- | Parser and script execution | value |
 | [`A_YDay`](families/time.md) | variable | -- | Dates and times | value |
 | [`A_Year`](families/time.md) | variable | -- | Dates and times | value |
@@ -1112,7 +1116,7 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`PixelSearch`](families/screen.md) | command | -- | Screen capture and pixel functions | value |
 | [`PostMessage`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
 | [`Process`](families/machine.md) | command | -- | The machine, the processes and the environment | refused: this is a name of Windows, and this desktop is not Windows. |
-| [`ProgramFiles`](families/machine.md) | variable | -- | The machine, the processes and the environment | refused: this is a name of Windows, and this desktop is not Windows. |
+| [`ProgramFiles`](families/machine.md) | variable | -- | The machine, the processes and the environment | value |
 | [`Progress`](families/gui.md) | command | -- | GUI windows and window automation | refused: this is a name of Windows, and this desktop is not Windows. |
 | [`Random`](families/core.md) | command | -- | The core of the language: text, math and patterns | value |
 | [`RegDelete`](families/registry.md) | command | -- | Registry APIs | refused: this is a name of Windows, and this desktop is not Windows. |
@@ -1302,9 +1306,9 @@ Every name of the three dialects, alphabetical, with the family it belongs to an
 | [`Func.IsMethod`](families/objects.md) | method | Func | The objects of the language: Array, Map and Func | value |
 | [`IsSet`](families/core.md) | function | -- | The core of the language: text, math and patterns | not measured |
 | [`Array.Join`](families/objects.md) | method | Array | The objects of the language: Array, Map and Func | value |
-| [`ScriptProcess.Kill`](families/unclassified.md) | method | ScriptProcess | unclassified | value |
+| [`ScriptProcess.Kill`](families/machine.md) | method | ScriptProcess | The machine, the processes and the environment | value |
 | [`Thread.Kind`](families/machine.md) | method | Thread | The machine, the processes and the environment | value |
-| [`Mail`](families/network.md) | function | -- | unclassified | value |
+| [`Mail`](families/network.md) | function | -- | The network and the mail | value |
 | [`Array.Map`](families/objects.md) | method | Array | The objects of the language: Array, Map and Func | value |
 | [`ObjCreateWithDataPtr`](families/native.md) | function | -- | Native function calls (DllCall) | value |
 | [`ObjGetDataPtr`](families/native.md) | function | -- | Native function calls (DllCall) | value |
