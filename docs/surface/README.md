@@ -15,7 +15,7 @@ answer of the runner (`ahk --surface --json --dialect=v2|v1|ks`). The
 generator writes them, and the check that CI is meant to run compares them
 with the tree.
 
-## The ten languages
+## The thirteen languages
 
 | Language | Where it lives |
 |---|---|
@@ -23,6 +23,9 @@ with the tree.
 | Español | `es/` |
 | Português (Brasil) | `pt-BR/` |
 | Français | `fr/` |
+| Italiano | `it/` |
+| Polski | `pl/` |
+| Türkçe | `tr/` |
 | Deutsch | `de/` |
 | Русский | `ru/` |
 | 日本語 | `ja/` |
@@ -38,6 +41,24 @@ state -- the kind of a name, the state of it, the reason of a refusal, the
 title of a family. What is **not** translated is the surface itself: a
 script writes `FileAppend` in every language of the world, and the class
 `Gui.Control` is `Gui.Control` in the Japanese page too.
+
+## What a page carries
+
+Each page of a family holds three things for every name:
+
+* the **ficha**: the kind, the class, the parameters and the state of the
+  tree -- `value`, `refused` with its reason, or `pending`;
+* the **probe**: the answer of the call of the name against a desktop that
+  does nothing, which is how the tree measures whether the call of a name
+  that answers actually works;
+* the **behavior**: what the tree does with the name, what it answers,
+  what it refuses with, and an example a script can run.
+
+The behavior is written for the names a script uses most -- the control
+flow, the text and the mathematics, the files, the input, the windows, the
+processes, the built-in variables and the classes of the language. It is
+written in **English, Chinese and Portuguese of Brazil**; a page of
+another language links to the English one instead of repeating the text.
 
 ## The pages
 
@@ -102,9 +123,12 @@ python scripts/check-surface-docs.py          # the check, with the rest
 ```
 
 The generator is `scripts/gen-surface-docs.py`; the families come from
-`scripts/surface_areas.py` and the translations from
-`scripts/surface_i18n.py`. Both are Python 3 standard library only.
+`scripts/surface_areas.py`, the translations from `scripts/surface_i18n.py`
+and the behavior from `scripts/surface_behavior.py` and the files of
+`scripts/behaviour/`. All are Python 3 standard library only.
 
 A name that no family claims lands on the page
 `families/unclassified.md`, and the generator says so on the stdout: a
-name in the wrong family is visible instead of silent.
+name in the wrong family is visible instead of silent. A name of the
+behavior that no chunk describes is missing from the behavior of its
+family, and `python scripts/check-surface-docs.py` says so.

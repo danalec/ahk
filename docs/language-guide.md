@@ -2205,7 +2205,8 @@ FileAppend a "," b, "*"
 ["1,0"]
 ```
 
-`IsSet` is not carried by this runtime. See [Known gaps](#known-gaps).
+`IsSet` is carried by this runtime: it asks whether the name it is given
+has a value.
 
 The reference of a built-in variable, of a function and of a class is
 refused. The reference is a value, so `IsObject(&x)` is 1, and an operation
@@ -2601,11 +2602,13 @@ is quiet about them would be wrong.
   `Integer` and the `Float` to the `Number`, from the `Number` and the
   `String` to the `Primitive`, and from the `Primitive` to the `Any`. The
   class of an object is the class of it, and `b is Beta` answers 1.
-- **`IsSet(x)` does not exist.** The reference binary spells the name
-  `IsSet`, and this tree carries only `IsSetRef(&x)`, which is what the
-  surface table of v2.0.19 records. A script written with `IsSet(x)` reads
-  `IsSet` as a variable and gets the unset-variable failure; write
-  `IsSetRef(&x)`.
+- **`IsSet(x)` asks about the value, not the name.** The reference binary
+  carries the name `IsSet` and this tree carries it too, but the two ask
+  different questions: the v2 asks whether the **value** it is given is a
+  variable that has one, and the v1 asks about the **name** -- `IsSet(x)`
+  asks whether `x` has a value. `IsSetRef(&x)` asks the same question of
+  the v2 with a reference, and answers 1 for a variable that has a value
+  and 0 for one that has not.
 - **`??=` is not an operator here.** `q ??= 5` is refused with a syntax
   error on the `??`. Write `q := q ?? 5`, or guard with `IsSetRef`.
 - **A bare `catch e` is not accepted.** The v2 binary accepts `catch e` and

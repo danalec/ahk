@@ -52,6 +52,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import surface_areas  # noqa: E402  (the path is set above)
+import surface_behavior  # noqa: E402
 import surface_i18n  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -121,7 +122,7 @@ def the_states(binary, dialect):
     if binary is None:
         return {}, empty
     out = subprocess.run(
-        [str(binary), "--surface", "--json", "--dialect=" + dialect],
+        [str(binary), "--surface", "--behavior", "--json", "--dialect=" + dialect],
         capture_output=True, text=True, check=False,
     )
     if out.returncode != 0:
@@ -161,6 +162,7 @@ class Name(object):
         self.flag = row.get("flag", "")
         self.state = ""
         self.reason = ""
+        self.probe = ""
 
     @property
     def key(self):
@@ -211,6 +213,7 @@ def load(dialect, table, states):
         if entry is not None:
             name.state = entry.get("state", "")
             name.reason = entry.get("reason", "") or ""
+            name.probe = entry.get("behavior", "") or ""
         if name.key in seen:
             continue
         seen.add(name.key)
@@ -392,14 +395,15 @@ def page_families(out, lang, names_by_dialect):
         )
         names = sorted(buckets.get(key, []), key=lambda n: (n.name.lower(), n.klass))
         lines += [
-            "| %s | %s | %s | %s | %s | %s |"
+            "| %s | %s | %s | %s | %s | %s | %s |"
             % (t(lang, "head_name"), t(lang, "head_dialect"), t(lang, "head_kind"),
-               t(lang, "head_class"), t(lang, "head_parameters"), t(lang, "head_state")),
-            "|---|---|---|---|---|---|",
+               t(lang, "head_class"), t(lang, "head_parameters"), t(lang, "head_state"),
+               t(lang, "head_probe")),
+            "|---|---|---|---|---|---|---|",
         ]
         for name in names:
             lines.append(
-                "| `%s` | %s | %s | %s | %s | %s |"
+                "| `%s` | %s | %s | %s | %s | %s | %s |"
                 % (
                     name.label,
                     DIALECT_TITLE[name.dialect],
@@ -407,9 +411,11 @@ def page_families(out, lang, names_by_dialect):
                     name.klass or "--",
                     name.parameters or "--",
                     name.state_text(lang),
+                    name.probe or "--",
                 )
             )
         lines.append("")
+        lines += the_behavior(out, lang, key, names)
         write_page(lang_dir(out, lang) / "families" / ("%s.md" % key), lines)
 
     leftovers = buckets.get("unclassified", [])
@@ -425,6 +431,63 @@ def page_families(out, lang, names_by_dialect):
         for name in sorted(leftovers, key=lambda n: (n.name.lower(), n.klass)):
             lines.append("| `%s` | %s | %s |" % (name.label, name.dialect, name.kind))
         write_page(lang_dir(out, lang) / "families" / "unclassified.md", lines)
+
+
+# The languages the behavior is written in. A page of another language
+# links to the English one instead of repeating the text.
+BEHAVIOR_LANGUAGES = ("en", "zh", "pt-BR")
+
+
+def slug(text):
+    """The anchor of a heading, the way GitHub makes one."""
+    out = []
+    for char in text.lower():
+        if char.isalnum() or char in "-_":
+            out.append(char)
+        elif char in " .":
+            out.append("-")
+    return "".join(out)
+
+
+def the_behavior(out, lang, key, names):
+    """The behavior of the names of a family, in a language.
+
+    The behavior is written in three languages -- English, Chinese and
+    Portuguese of Brazil. A page of another language carries a link to the
+    English page instead of the text, so the text is written once.
+    """
+    t = surface_i18n.t
+    lines = []
+    described = []
+    for name in names:
+        text = surface_behavior.behavior_of(name.label, lang)
+        if text:
+            described.append((name, text))
+    if not described:
+        return lines
+    if lang not in BEHAVIOR_LANGUAGES:
+        english = link_to(out, lang, "en", "families/%s.md" % key)
+        lines += [
+            "## %s" % t(lang, "section_behavior"),
+            "",
+            "%s [%s](%s)." % (t(lang, "behavior_only_english"), t(lang, "languages"),
+                              english),
+            "",
+        ]
+        return lines
+    lines += ["## %s" % t(lang, "section_behavior"), ""]
+    for name, text in described:
+        lines += ["### %s" % name.label, ""]
+        if text.get("summary"):
+            lines += [text["summary"], ""]
+        for field, label in (("params", "head_parameters"),
+                             ("returns", "head_returns"),
+                             ("errors", "head_errors")):
+            if text.get(field):
+                lines += ["- **%s:** %s" % (t(lang, label), text[field])]
+        if text.get("example"):
+            lines += ["", "```ahk", text["example"], "```", ""]
+    return lines
 
 
 def page_dialect(out, lang, dialect, title, names_by_dialect, summaries):
