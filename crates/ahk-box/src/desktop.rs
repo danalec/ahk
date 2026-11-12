@@ -520,20 +520,10 @@ impl ahk::desktop::Native for LabDesktop {
 
 impl ahk::desktop::Keyboard for LabDesktop {
     fn keyboard_layout_name(&mut self) -> Result<String, String> {
-        // The session declares its layout in the environment of the XKB;
-        // a session that declares none has no name to give, and the
-        // answer is a failure with the reason, and not a guess.
-        match std::env::var("XKB_DEFAULT_LAYOUT") {
-            Ok(layout) if !layout.is_empty() => {
-                let variant = std::env::var("XKB_DEFAULT_VARIANT").unwrap_or_default();
-                if variant.is_empty() {
-                    Ok(layout)
-                } else {
-                    Ok(format!("{layout}:{variant}"))
-                }
-            }
-            _ => Err("this session does not declare its keyboard layout".to_string()),
-        }
+        // The layout of the keyboard is the keymap of the X server of
+        // the session, and the machine is asked for it; the declaration
+        // of the environment of the XKB is the second answer.
+        crate::keyboard::the_layout_of_the_keyboard()
     }
     fn type_text(&mut self, text: &str) -> Result<String, String> {
         if text.is_empty() {
@@ -651,6 +641,18 @@ impl ahk::desktop::Keyboard for LabDesktop {
 }
 
 impl ahk::desktop::Pointer for LabDesktop {
+    fn clip_cursor(&mut self, rect: Option<(i64, i64, i64, i64)>) -> Result<(), String> {
+        // The confinement is the clamp of the coordinates the pointer
+        // sends: the rectangle the script asked for, the far edges
+        // exclusive, and nothing of the session is taken. The pointer is
+        // opened for it -- a confinement of a pointer that does not
+        // exist yet is a confinement of the next movement.
+        self.pointer()
+            .map_err(|error| error.to_string())?
+            .clip_to(rect);
+        Ok(())
+    }
+
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
         // The absolute pointer is the path that lands where it is aimed:
         // ydotool's device is relative, so its click lands wherever the

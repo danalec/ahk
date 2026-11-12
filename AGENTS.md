@@ -12271,3 +12271,67 @@ machine of Windows is in its registry, and the tree does not read the
 registry yet: the date of a machine de Windows is the UTC, and the
 tree says that it does not know its own timezone. The box knows its
 zone, and the tree asks it.
+
+
+## 333. The layout of the keymap, the mail against a real server, and the confine of the pointer
+
+The last three gaps of the surface, closed on 2026-11-11.
+
+**The layout of the keyboard is the keymap of the X server, not the
+declaration of the environment.** The variables of the ambiente of the
+XKB name the layout a session *declares*, which is not always the one
+that is running; the X server holds the keymap that is in use, and
+`setxkbmap -query` reads it. Measured on the box: `DISPLAY=:0
+setxkbmap -query` answers `layout: us`, and the `GetKeyboardLayout` of
+the tree answers `us` with it -- where before it refused, because the
+session of the SSH carries no `DISPLAY` and no declaration. The
+declaration of the environment is the second answer, and a session that
+has neither says so: the tree does not guess the layout of a machine.
+
+**The mail goes out against a real server.** The sending was written in
+the round before and only its refusal had been measured. On the box a
+sink of the protocol of SMTP (a socket, the greeting, the EHLO, the
+envelope, the DATA and the QUIT) received the message of the tree, and
+what it received is what the script wrote:
+
+```
+MAIL FROM:<remetente@exemplo.test> SIZE=104
+RCPT TO:<destino@exemplo.test>
+---
+From: remetente@exemplo.test
+To: destino@exemplo.test
+Subject: assunto de teste
+
+corpo da mensagem
+```
+
+The envelope carries the copies and the blind ones as well -- the
+envelope is what the server routes by, and the headers are what the
+reader sees -- and the attachment rides in a part of a multipart in the
+base64 of the RFC 4648, in lines of 76.
+
+**The confinement of the pointer is the clamp of the coordinates, and
+not a grab.** KeySharp does not grab the pointer either: it clamps the
+events of the mouse in its low-level hook (`HookThread.cs`: "Confines
+the mouse cursor to the given screen-space rectangle by clamping
+physical mouse-move events"). The pointer of the tree is the absolute
+device it drives -- the tree does not read the physical mouse at all --
+so the confinement is the clamp of the coordinates it sends, and the
+far edges of the rectangle are exclusive.
+
+The grab was refused on purpose in the round before, and the reason
+stands: an active grab takes the pointer events of the whole session to
+the client that grabbed it, and a bug in it takes the mouse of the user
+until the grab is released. The clamp cannot do that -- it is the
+pointer of the tree that stops at the edge of the rectangle, and the
+mouse of the user is not the pointer of the tree. Measured on the box:
+with the rectangle `(100, 100, 500, 400)`, a movement to `(800, 600)`
+lands at `(499, 399)`, the click outside lands there too, and the
+`ClipCursor()` of no arguments releases it: the movement to `(700, 500)`
+lands at `(700, 500)`.
+
+**The X11 backend confines the pointer the same way**, with the same
+clamp and without touching the X server: the position of the X server is
+a number of thirty-two bits and the rectangle of the script is a number
+of sixty-four, so the clamp is made in the wide one and the answer is
+cut to the narrow one, inside it.

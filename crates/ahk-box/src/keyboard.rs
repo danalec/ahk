@@ -311,3 +311,71 @@ fn open_uinput() -> Result<File, KeyboardError> {
         .open("/dev/uinput")
         .map_err(|error| KeyboardError::CannotOpen(error.to_string()))
 }
+
+/// The name of the layout of the keyboard, as the machine says it.
+///
+/// The X server of the session holds the keymap that is in use, and
+/// `setxkbmap -query` reads it: the answer is the layout and the variant
+/// of it, the way the keymap names them. The variables of the
+/// environment do not name it -- they name the layout a session
+/// declares, which is not always the one that is running -- and they
+/// are the second answer: a machine with no `setxkbmap` and no X server
+/// still declares its layout in `XKB_DEFAULT_LAYOUT`.
+///
+/// A machine that says neither has no name to give, and the tree says
+/// so instead of guessing.
+pub fn the_layout_of_the_keyboard() -> Result<String, String> {
+    if let Some(layout) = the_layout_of_the_keymap() {
+        return Ok(layout);
+    }
+    match std::env::var("XKB_DEFAULT_LAYOUT") {
+        Ok(layout) if !layout.is_empty() => {
+            let variant = std::env::var("XKB_DEFAULT_VARIANT").unwrap_or_default();
+            if variant.is_empty() {
+                Ok(layout)
+            } else {
+                Ok(format!("{layout}:{variant}"))
+            }
+        }
+        _ => Err("this session does not declare its keyboard layout".to_string()),
+    }
+}
+
+/// The layout of the keymap of the X server, read with `setxkbmap`.
+///
+/// The tool asks the X server of the session -- the one of `DISPLAY` --
+/// and prints the layout and the variant of it. The answer of a machine
+/// with no X server, or with no `setxkbmap`, is nothing: the second
+/// answer of the name of the layout is the declaration of the
+/// environment.
+fn the_layout_of_the_keymap() -> Option<String> {
+    let output = std::process::Command::new("setxkbmap")
+        .arg("-query")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut layout = None;
+    let mut variant = None;
+    for line in text.lines() {
+        let Some((name, value)) = line.split_once(':') else {
+            continue;
+        };
+        let value = value.trim();
+        match name.trim() {
+            "layout" => layout = Some(value.to_string()),
+            "variant" => variant = Some(value.to_string()),
+            _ => {}
+        }
+    }
+    let layout = layout?;
+    if layout.is_empty() {
+        return None;
+    }
+    match variant {
+        Some(variant) if !variant.is_empty() => Some(format!("{layout}:{variant}")),
+        _ => Some(layout),
+    }
+}

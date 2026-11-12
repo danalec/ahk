@@ -931,6 +931,12 @@ pub struct X11Desktop {
     display: *mut c_void,
     /// A cached reason for a failed open, so the error is stable and clear.
     failure: Option<String>,
+    /// The rectangle the pointer is confined to, when it is confined.
+    ///
+    /// The confinement is the clamp of the coordinates the pointer
+    /// sends, the way KeySharp clamps the events of the mouse: the X
+    /// server is never grabbed, and nothing of the session is taken.
+    clip: Option<(i64, i64, i64, i64)>,
 }
 
 /// The keyboard half of [`X11Desktop`], by name.
@@ -959,6 +965,7 @@ impl X11Desktop {
         Self {
             display: std::ptr::null_mut(),
             failure: None,
+            clip: None,
         }
     }
 
@@ -1326,8 +1333,17 @@ impl Keyboard for X11Desktop {
 }
 
 impl Pointer for X11Desktop {
+    fn clip_cursor(&mut self, rect: Option<(i64, i64, i64, i64)>) -> Result<(), String> {
+        // The rectangle the script asked for, the far edges exclusive,
+        // and nothing of the session is taken: the clamp of the
+        // coordinates the pointer sends is the confinement, and the X
+        // server is never grabbed.
+        self.clip = rect;
+        Ok(())
+    }
+
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
-        let (x, y) = position(x, y)?;
+        let (x, y) = self.the_clamped(x, y)?;
         let number =
             button_number(button).ok_or_else(|| format!("unknown X11 mouse button: {button:?}"))?;
         let display = self.connection()?;
@@ -1390,6 +1406,34 @@ impl X11Desktop {
     ///
     /// WHY: `mouse_down` and `mouse_up` share the move-then-button shape of
     /// the uinput backend, so the shape lives once here.
+    /// The position of the pointer, clamped to the rectangle of the
+    /// confinement when there is one.
+    ///
+    /// The far edges of the rectangle are exclusive: a movement that
+    /// leaves it is made to its edge.
+    fn the_clamped(&self, x: i64, y: i64) -> Result<(i32, i32), String> {
+        let (x, y) = position(x, y)?;
+        // The position of the X server is a number of thirty-two bits and
+        // the rectangle of the confinement is a number of sixty-four: the
+        // clamp is made in the wide one, and the answer is cut to the
+        // narrow one -- and cut inside it, so that a rectangle the
+        // script wrote with a number of the sixty-four does not wrap.
+        let (x, y) = (i64::from(x), i64::from(y));
+        let (x, y) = match self.clip {
+            Some((left, top, right, bottom)) => {
+                let left = left.min(right);
+                let top = top.min(bottom);
+                (
+                    x.clamp(left, (right - 1).max(left)),
+                    y.clamp(top, (bottom - 1).max(top)),
+                )
+            }
+            None => (x, y),
+        };
+        let narrow = |value: i64| value.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32;
+        Ok((narrow(x), narrow(y)))
+    }
+
     fn press_button(
         &mut self,
         display: *mut c_void,
