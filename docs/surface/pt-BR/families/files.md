@@ -430,7 +430,7 @@ f := FileOpen("out.txt", "w")
 
 ### FileRead
 
-Lê um arquivo inteiro e devolve o seu texto. A marca da codificação decide a codificação do arquivo, e a opção do script decide quando o arquivo não tem marca.
+Lê um arquivo inteiro e devolve o seu texto. A marca da codificação decide a codificação do arquivo, e a opção do script decide quando o arquivo não tem marca. O valor do comando se pega com o parênteteses: o jeito de comando dentro de uma expressão falha, e o referência do v2.0.19 falha do mesmo jeito.
 
 - **Parâmetros:** FileName, [Options]
 - **Responde:** o texto do arquivo; um Buffer quando a opção `RAW` está presente.

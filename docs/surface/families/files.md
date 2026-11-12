@@ -430,7 +430,7 @@ f := FileOpen("out.txt", "w")
 
 ### FileRead
 
-Reads a whole file and answers its text. The mark of the encoding decides the encoding of the file, and the option of the script decides when the file has no mark. The value of the command is taken with the parenthesis, the way `FileRead("out.txt")` is written.
+Reads a whole file and answers its text. The mark of the encoding decides the encoding of the file, and the option of the script decides when the file has no mark. The value of the command is taken with the parenthesis, the way `FileRead("out.txt")` is written: the command style inside an expression fails with "Expected a String but got a Func.", and the reference of v2.0.19 fails the same way.
 
 - **Parameters:** FileName, [Options]
 - **Answers:** the text of the file; a Buffer when the option `RAW` is there.

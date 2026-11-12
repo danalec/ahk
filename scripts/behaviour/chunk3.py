@@ -32,19 +32,19 @@ BEHAVIOR = {
     },
     "FileRead": {
         "en": {
-            "summary": "Reads a whole file and answers its text. The mark of the encoding decides the encoding of the file, and the option of the script decides when the file has no mark. The value of the command is taken with the parenthesis, the way `FileRead(\"out.txt\")` is written.",
+            "summary": "Reads a whole file and answers its text. The mark of the encoding decides the encoding of the file, and the option of the script decides when the file has no mark. The value of the command is taken with the parenthesis, the way `FileRead(\"out.txt\")` is written: the command style inside an expression fails with \"Expected a String but got a Func.\", and the reference of v2.0.19 fails the same way.",
             "params": "FileName, [Options]",
             "returns": "the text of the file; a Buffer when the option `RAW` is there.",
             "errors": "OSError when the file cannot be read; ValueError when an option is not one of v2. The options are the encoding of the file -- `UTF-8`, `UTF-16` and the code page of the machine --, `RAW` and `m<n>`, the number of bytes to read.",
             "example": 'text := FileRead("out.txt")',
         },
         "zh": {
-            "summary": "读出整个文件，答案是它的文本。编码标记决定文件用什么编码读取；文件没有标记时由脚本的选项决定。",
+            "summary": "读出整个文件，答案是它的文本。编码标记决定文件用什么编码读取；文件没有标记时由脚本的选项决定。命令的值要用括号来取：在表达式里写命令的方式会失败，而 v2.0.19 的参考实现也是这样失败。",
             "returns": "文件的文本；带 `RAW` 选项时是一个 Buffer。",
             "example": 'text := FileRead("out.txt")',
         },
         "pt-BR": {
-            "summary": "Lê um arquivo inteiro e devolve o seu texto. A marca da codificação decide a codificação do arquivo, e a opção do script decide quando o arquivo não tem marca.",
+            "summary": "Lê um arquivo inteiro e devolve o seu texto. A marca da codificação decide a codificação do arquivo, e a opção do script decide quando o arquivo não tem marca. O valor do comando se pega com o parênteteses: o jeito de comando dentro de uma expressão falha, e o referência do v2.0.19 falha do mesmo jeito.",
             "returns": "o texto do arquivo; um Buffer quando a opção `RAW` está presente.",
             "example": 'text := FileRead("out.txt")',
         },
