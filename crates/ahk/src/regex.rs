@@ -158,14 +158,12 @@ impl Regex {
     /// case. A pattern with two groups of the same name answers the first
     /// one, which is the one PCRE numbers first.
     pub fn group_number(&self, name: &str) -> Option<usize> {
-        self.names
-            .iter()
-            .position(|candidate| {
-                candidate
-                    .as_deref()
-                    .map(|candidate| candidate.eq_ignore_ascii_case(name))
-                    .unwrap_or(false)
-            })
+        self.names.iter().position(|candidate| {
+            candidate
+                .as_deref()
+                .map(|candidate| candidate.eq_ignore_ascii_case(name))
+                .unwrap_or(false)
+        })
     }
 
     /// The first match in the text, and where it is.
@@ -440,8 +438,12 @@ impl Compiler {
     fn alternation(&mut self) -> Result<(), String> {
         let mut branches: Vec<Vec<Inst>> = Vec::new();
         loop {
-            let mut branch =
-                Compiler::new(self.chars.clone(), self.index, self.groups, self.names.clone());
+            let mut branch = Compiler::new(
+                self.chars.clone(),
+                self.index,
+                self.groups,
+                self.names.clone(),
+            );
             branch.concat()?;
             branches.push(branch.program);
             self.index = branch.index;
@@ -613,8 +615,12 @@ impl Compiler {
                 self.names[group] = name;
                 // The branch of the group is compiled on its own, so that
                 // the jumps inside it are counted from its own start.
-                let mut branch =
-                    Compiler::new(self.chars.clone(), self.index, self.groups, self.names.clone());
+                let mut branch = Compiler::new(
+                    self.chars.clone(),
+                    self.index,
+                    self.groups,
+                    self.names.clone(),
+                );
                 branch.alternation()?;
                 if branch.peek() != Some(')') {
                     return Err("a group is missing its closing parenthesis.".into());

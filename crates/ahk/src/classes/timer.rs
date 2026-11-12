@@ -34,7 +34,9 @@ pub(crate) fn the_timer(function: &str, period: u64, last: u64) -> Value {
     object
         .borrow_mut()
         .put(THE_FUNCTION, Value::Text(function.to_string()));
-    object.borrow_mut().put(THE_PERIOD, Value::Int(period as i64));
+    object
+        .borrow_mut()
+        .put(THE_PERIOD, Value::Int(period as i64));
     object.borrow_mut().put(THE_LAST, Value::Int(last as i64));
     Value::Object(object)
 }
@@ -58,7 +60,10 @@ pub(crate) fn property(
     };
     let answer = match name.to_lowercase().as_str() {
         // The function the timer runs.
-        "function" => object.borrow().value_of(THE_FUNCTION).unwrap_or(Value::Unset),
+        "function" => object
+            .borrow()
+            .value_of(THE_FUNCTION)
+            .unwrap_or(Value::Unset),
         // The milliseconds between two runs.
         "period" => object.borrow().value_of(THE_PERIOD).unwrap_or(Value::Unset),
         // When it ran the last time.

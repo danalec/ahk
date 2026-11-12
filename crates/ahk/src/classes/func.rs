@@ -4,13 +4,11 @@
 //! wants, and whether it is built in. `Func` is the class of it, and
 //! the methods of the class are the ones that answer about a function.
 
-use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::runtime::{
-    BOUND, BOUND_TARGET, CLOSURE, METHOD_CLASS, METHOD_NAME, PARAMETERS, Route, Runtime,
-    RuntimeError, RuntimeFailure, Value,
+    BOUND, BOUND_TARGET, CLOSURE, METHOD_CLASS, METHOD_NAME, Route, Runtime, RuntimeFailure, Value,
 };
 
 /// The properties a function owns.
@@ -42,7 +40,10 @@ pub(crate) fn call(
     let Value::Object(_) = this else { return None };
     // The members that the KeySharp extension adds: none of their names is
     // a method of the v2.
-    if rt.dialect().carries_the_member_of_the_extension("func", method) {
+    if rt
+        .dialect()
+        .carries_the_member_of_the_extension("func", method)
+    {
         return the_extension_answer(method, this, rt, line);
     }
 
@@ -80,47 +81,6 @@ pub(crate) fn call(
         }
         _ => None,
     }
-}
-
-/// Whether the parameter at the place the call asks for answers the flag.
-///
-/// Measured on the binary of v2.0.19 on 2026-11-09: the place counts from
-/// one, and a place that the function does not have is refused with
-/// "Parameter #1 of Func.Prototype.IsOptional is invalid." -- the name of
-/// the method that was asked is the one of the failure.
-fn the_flag_of_the_parameter(
-    this: &Value,
-    arguments: &[Value],
-    optional: bool,
-    line: u32,
-) -> Result<Value, RuntimeFailure> {
-    let Value::Object(object) = this else {
-        return Ok(Value::Int(0));
-    };
-    let flags = object.borrow().value_of(PARAMETERS);
-    let place = arguments
-        .first()
-        .map(|value| value.to_text())
-        .unwrap_or_default();
-    let Ok(place) = place.trim().parse::<usize>() else {
-        return Ok(Value::Int(0));
-    };
-    let Some(Value::List(values)) = flags else {
-        return Ok(Value::Int(0));
-    };
-    let Some(Value::Int(bits)) = values.get(place.saturating_sub(1)) else {
-        let name = if optional { "IsOptional" } else { "IsByRef" };
-        return Err(RuntimeFailure::Error(RuntimeError {
-            message: format!("Parameter #1 of Func.Prototype.{name} is invalid."),
-            line,
-        }));
-    };
-    let answer = if optional {
-        (bits & 2) != 0
-    } else {
-        (bits & 1) != 0
-    };
-    Ok(Value::Int(answer as i64))
 }
 
 /// The call of a value of a function.
@@ -247,6 +207,47 @@ pub(crate) fn set_property(
     None
 }
 
+/// Whether the parameter at the place the call asks for answers the flag.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the place counts from
+/// one, and a place that the function does not have is refused with
+/// "Parameter #1 of Func.Prototype.IsOptional is invalid." -- the name of
+/// the method that was asked is the one of the failure.
+fn the_flag_of_the_parameter(
+    this: &Value,
+    arguments: &[Value],
+    optional: bool,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
+    let Value::Object(object) = this else {
+        return Ok(Value::Int(0));
+    };
+    let flags = object.borrow().value_of(PARAMETERS);
+    let place = arguments
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let Ok(place) = place.trim().parse::<usize>() else {
+        return Ok(Value::Int(0));
+    };
+    let Some(Value::List(values)) = flags else {
+        return Ok(Value::Int(0));
+    };
+    let Some(Value::Int(bits)) = values.get(place.saturating_sub(1)) else {
+        let name = if optional { "IsOptional" } else { "IsByRef" };
+        return Err(RuntimeFailure::Error(RuntimeError {
+            message: format!("Parameter #1 of Func.Prototype.{name} is invalid."),
+            line,
+        }));
+    };
+    let answer = if optional {
+        (bits & 2) != 0
+    } else {
+        (bits & 1) != 0
+    };
+    Ok(Value::Int(answer as i64))
+}
+
 /// The members the KeySharp extension adds to the `Func`.
 ///
 /// The documentation of KeySharp says the three of them expose the
@@ -266,7 +267,10 @@ fn the_extension_answer(
             object.borrow().value_of(crate::runtime::CLOSURE).is_some() as i64,
         ))),
         "ismethod" => Some(Ok(Value::Int(
-            object.borrow().value_of(crate::runtime::METHOD_CLASS).is_some() as i64,
+            object
+                .borrow()
+                .value_of(crate::runtime::METHOD_CLASS)
+                .is_some() as i64,
         ))),
         "params" => {
             let names: Vec<Value> = rt
@@ -279,3 +283,5 @@ fn the_extension_answer(
         _ => None,
     }
 }
+use crate::runtime::{PARAMETERS, RuntimeError};
+use alloc::format;

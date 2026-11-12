@@ -146,8 +146,8 @@ fn main() -> std::process::ExitCode {
             // and a Wayland box has no X11 focus for uinput to reach. Both
             // are the same AHK language, with a different desktop.
             #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-            let x11 = ahk_box::desktop_kind().eq_ignore_ascii_case("x11")
-                && ahk_box::x11_available();
+            let x11 =
+                ahk_box::desktop_kind().eq_ignore_ascii_case("x11") && ahk_box::x11_available();
             #[cfg(any(target_os = "linux", target_os = "freebsd"))]
             let mut x11_desktop = ahk_box::x11::X11Desktop::new();
             let mut lab_desktop = LabDesktop::new();
@@ -166,9 +166,9 @@ fn main() -> std::process::ExitCode {
                 .with_dialect(dialect)
                 .run(&statements);
             let mut notes = report.notes.clone();
-                notes.extend(lab_desktop.notes().iter().cloned());
-                let payload = report::the_report(&report, &notes);
-                (payload, report.ok)
+            notes.extend(lab_desktop.notes().iter().cloned());
+            let payload = report::the_report(&report, &notes);
+            (payload, report.ok)
         })
         .expect("the thread of the run starts");
     let (payload, ok) = match handle.join() {

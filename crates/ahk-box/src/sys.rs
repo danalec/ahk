@@ -163,7 +163,9 @@ pub unsafe fn ioctl_number(_fd: c_int, _request: u64, _argument: c_int) -> c_int
 fn the_number_of_a_name(name: &str) -> u32 {
     // The sum of the bytes is the number: it is the same for the same name,
     // and it is not an account number of the machine.
-    name.bytes().fold(0u32, |total, byte| total.wrapping_mul(31).wrapping_add(u32::from(byte)))
+    name.bytes().fold(0u32, |total, byte| {
+        total.wrapping_mul(31).wrapping_add(u32::from(byte))
+    })
 }
 
 #[cfg(unix)]
@@ -187,9 +189,9 @@ unsafe extern "C" {
 
 #[cfg(test)]
 mod tests {
-    use super::{geteuid, getuid};
     #[cfg(unix)]
     use super::gethostname;
+    use super::{geteuid, getuid};
 
     /// The user of the process is a number, and the two readings of it agree
     /// on a machine that does not switch the effective one.

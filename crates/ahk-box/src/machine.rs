@@ -287,7 +287,10 @@ fn on_the_disk(path: Option<String>) -> Option<String> {
 /// its own folder, and it is the answer there: a host that carries the
 /// `/tmp` of a shell is still a host whose temporary files are `%TEMP%`.
 fn the_folder_of_the_temporary_files() -> Option<String> {
-    if let Some(value) = std::env::var("TMPDIR").ok().filter(|value| !value.is_empty()) {
+    if let Some(value) = std::env::var("TMPDIR")
+        .ok()
+        .filter(|value| !value.is_empty())
+    {
         return Some(value);
     }
     if cfg!(target_os = "linux") {
@@ -295,7 +298,11 @@ fn the_folder_of_the_temporary_files() -> Option<String> {
     }
     let folder = std::env::temp_dir();
     let folder = folder.to_string_lossy().to_string();
-    if folder.is_empty() { None } else { Some(folder) }
+    if folder.is_empty() {
+        None
+    } else {
+        Some(folder)
+    }
 }
 
 /// How long the session has been idle, in milliseconds.

@@ -172,7 +172,10 @@ pub(crate) fn call(
     let method = method.to_lowercase();
     // The member that the KeySharp extension adds: none of its names is a
     // method of the v2.
-    if rt.dialect().carries_the_member_of_the_extension("file", &method) {
+    if rt
+        .dialect()
+        .carries_the_member_of_the_extension("file", &method)
+    {
         if method == "flush" {
             // The writes of a file of this runtime reach the disk as the
             // statements write them, so there is nothing to flush: the

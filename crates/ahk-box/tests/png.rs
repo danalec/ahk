@@ -100,6 +100,12 @@ fn a_capture_of_two_hundred_pixels_is_read_to_the_last_row() {
     assert_eq!((image.width, image.height), (200, 150));
     // The fixture paints every pixel (x mod 256, y mod 256, x*y mod 256).
     assert_eq!(image.colour_at(0, 0), Some((0, 0, 0)));
-    assert_eq!(image.colour_at(199, 149), Some((199, 149, (199u32 * 149u32) as u8)));
-    assert_eq!(image.colour_at(100, 100), Some((100, 100, (100u32 * 100u32) as u8)));
+    assert_eq!(
+        image.colour_at(199, 149),
+        Some((199, 149, (199u32 * 149u32) as u8))
+    );
+    assert_eq!(
+        image.colour_at(100, 100),
+        Some((100, 100, (100u32 * 100u32) as u8))
+    );
 }

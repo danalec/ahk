@@ -63,7 +63,7 @@ pub fn crc32_update(mut register: u32, bytes: &[u8]) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{crc32, crc32_update, INITIAL};
+    use super::{INITIAL, crc32, crc32_update};
 
     /// The checksum of a text that everyone knows: "123456789" is the case
     /// the standard publishes for a CRC-32, and the answer is `0xCBF43926`.

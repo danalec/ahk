@@ -73,7 +73,6 @@ pub(crate) fn the_number_of_the_code_units(text: &str) -> usize {
         .sum()
 }
 
-
 /// The text of a run of code units.
 pub(crate) fn the_text_of(units: &[u16]) -> String {
     let mut text = String::with_capacity(units.len());

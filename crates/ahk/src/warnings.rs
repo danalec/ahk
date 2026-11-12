@@ -1241,10 +1241,7 @@ fn the_globals_of_the_script(statements: &[Node]) -> BTreeSet<String> {
 }
 
 /// The names of the classes of the script.
-fn the_classes_of_the_script(
-    statements: &[Node],
-    classes: &mut BTreeSet<String>,
-) {
+fn the_classes_of_the_script(statements: &[Node], classes: &mut BTreeSet<String>) {
     for statement in statements {
         if let Node::ClassDef { name, .. } = statement {
             classes.insert(name.to_lowercase());
@@ -1291,9 +1288,7 @@ fn the_writes_of_a_level(statements: &[Node], writes: &mut Vec<(String, u32)>, d
             // Measured on the binary of v2.0.19 on 2026-11-09: a script that
             // reads the value a `catch as error` holds is not warned about.
             // The tree warned about it.
-            Node::Try {
-                catches, line, ..
-            } => {
+            Node::Try { catches, line, .. } => {
                 for catch in catches {
                     if let Some(variable) = &catch.variable {
                         writes.push((variable.clone(), *line));

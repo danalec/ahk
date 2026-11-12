@@ -18,8 +18,8 @@ against the binaries — the v1.1.37.02 and the v2.0.19.
 | | The v2 | The v1 |
 |---|---|---|
 | The names of the surface | 833 | 408 |
-| Answer with a value | 685 | 302 |
-| Refused with a reason | 148 | 106 |
+| Answer with a value | 817 | 308 |
+| Refused with a reason | 16 | 100 |
 | Pending (not carried yet) | 0 | 0 |
 | The refusals that are not the machine's | 0 | 0 |
 | The behaviour that differs from the binary | 0 measured | 0 measured, 1 known |

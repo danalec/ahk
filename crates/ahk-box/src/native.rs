@@ -35,7 +35,7 @@ use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue}
 /// The shape is the one of the x64 call, and it is compiled on every target
 /// so that the fallback of a machine that has no trampoline still names the
 /// same types. On such a machine the fields are read by nobody, and that is
-/// the point of the `allow`. 
+/// the point of the `allow`.
 #[cfg_attr(
     not(any(
         all(target_arch = "x86_64", target_os = "windows"),

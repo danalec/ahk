@@ -5,9 +5,10 @@
 //! the wording of AutoHotkey v2, because that is what a script sees.
 
 use ahk::desktop::{
-    Clipboard, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image, ImageOptions,
-    ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native, Network,
-    PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WindowInfo, Windows,
+    Clipboard, Desktop, Dialogs, Drive, FileAnswer, FileOptions, Files, Hotkeys, Image,
+    ImageOptions, ImageSearch, InputAnswer, InputOptions, Keyboard, Machine, Monitor, Native,
+    Network, PictureOptions, Pictures, Pointer, Processes, Screen, Sound, Timers, WindowInfo,
+    Windows,
 };
 use ahk::dll::{NativeCall, NativeFailure, NativeResult, NativeType, NativeValue, encode_number};
 use ahk::parse;
@@ -24,6 +25,47 @@ static THE_TITLE_MODE_TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// A desktop that records what it was asked to do.
 #[derive(Debug, Default)]
 struct Fake {
+    /// The items of the one list-shaped control the fake carries, and the
+    /// 1-based index of the item that is chosen (0 = nothing).
+    combo_items: Vec<String>,
+    combo_choice: i64,
+    combo_popup: bool,
+    /// The text of the one status bar the fake carries.
+    status_text: String,
+    /// The rows of the one list view the fake carries.
+    list_rows: Vec<Vec<String>>,
+    list_selected: i64,
+    /// The items of the one tree view the fake carries: (id, text, parent).
+    tree_items: Vec<(i64, String, i64)>,
+    tree_next: i64,
+    tree_selected: i64,
+    /// The number of the one UpDown the fake carries, shared with its buddy.
+    updown_value: i64,
+    /// The pages of the one Tab the fake carries, and the chosen page.
+    tab_pages: i64,
+    tab_chosen: i64,
+    /// Whether the fake's control is a date control, and its timestamp string.
+    date_control: bool,
+    date_value: String,
+    date_month_only: bool,
+    /// The file path of the one Pic the fake carries, if it made one.
+    pic_path: Option<String>,
+    /// The primary and second text of the one Link or Hotkey the fake carries.
+    text_control: bool,
+    text_value: String,
+    second_text: String,
+    /// Whether the fake has a window of the script at all.
+    gui_open: bool,
+    /// The events the fake hands out when the runtime asks for them.
+    events: Vec<String>,
+    /// The caret of the one focused edit, when there is one.
+    caret: Option<(i64, i64)>,
+    /// The label of the one drive the fake carries, when there is one.
+    the_drive_label: Option<String>,
+    /// The state of the three lock lights of the fake.
+    lock_lights: [bool; 3],
+    /// The registry of the fake: the key, and the values of it.
+    registry: std::collections::BTreeMap<String, Vec<(String, String, String)>>,
     calls: Vec<(String, String)>,
     /// The native call the script made, if it made one.
     native: Option<NativeCall>,
@@ -83,6 +125,12 @@ impl Network for Fake {
             .push(("download".into(), format!("{url}|{file}")));
         Ok(file.to_string())
     }
+    // The addresses of the fake: the shape the binary answers, measured on
+    // 2026-11-09 -- the texts of the addresses of the machine, and not the
+    // address of the loopback.
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        Ok(vec!["172.26.48.1".into(), "192.168.0.45".into()])
+    }
 }
 
 impl Sound for Fake {
@@ -113,14 +161,22 @@ impl Sound for Fake {
             .push(("beep".into(), format!("{frequency} {duration}")));
         Ok("beeped".to_string())
     }
+
+    fn sound_device_named(&mut self, device: &str) -> Result<Option<String>, String> {
+        self.calls.push(("sound-named".into(), device.into()));
+        Ok(if device == "Speakers" {
+            Some("Speakers".to_string())
+        } else {
+            None
+        })
+    }
+
+    fn sound_device_names(&mut self) -> Result<(String, String), String> {
+        self.calls.push(("sound-names".into(), String::new()));
+        Ok(("Speakers".to_string(), "Microphone".to_string()))
+    }
 }
 impl Machine for Fake {
-    // The addresses of the fake: the shape the binary answers, measured on
-    // 2026-11-09 -- the texts of the addresses of the machine, and not the
-    // address of the loopback.
-    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
-        Ok(vec!["172.26.48.1".into(), "192.168.0.45".into()])
-    }
     fn output_debug(&mut self, text: &str) -> Result<(), String> {
         self.debugged.push(text.to_string());
         Ok(())
@@ -148,6 +204,135 @@ impl Machine for Fake {
     }
     fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
         Ok((path == "/").then(|| "Ready".to_string()))
+    }
+
+    fn drive_set_label(&mut self, _path: &str, label: &str) -> Result<(), String> {
+        self.the_drive_label = Some(label.to_string());
+        Ok(())
+    }
+
+    fn drive_retract(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn drive_unlock(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn drive_lock(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn drive_eject(&mut self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn drive_status_cd(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        self.calls.push(("drive-list".into(), String::new()));
+        Ok(vec!["sda".to_string(), "sdb".to_string()])
+    }
+
+    fn drive_serial(&mut self, path: &str) -> Result<Option<String>, String> {
+        self.calls.push(("drive-serial".into(), path.to_string()));
+        Ok(if path == "/" {
+            Some("S3Z8NB0TA-1234".to_string())
+        } else {
+            None
+        })
+    }
+
+    fn drive_label(&mut self, path: &str) -> Result<Option<String>, String> {
+        self.calls.push(("drive-label".into(), path.to_string()));
+        // The same one drive, carrying the label the case asserts against.
+        Ok(if path == "/" {
+            self.the_drive_label
+                .clone()
+                .or_else(|| Some("core".to_string()))
+        } else {
+            None
+        })
+    }
+
+    fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
+        self.calls
+            .push(("registry-create-key".into(), key.to_string()));
+        self.registry.entry(key.to_string()).or_default();
+        Ok(())
+    }
+
+    fn registry_delete_key(&mut self, key: &str) -> Result<(), String> {
+        self.calls
+            .push(("registry-delete-key".into(), key.to_string()));
+        self.registry.remove(key);
+        Ok(())
+    }
+
+    fn registry_delete(&mut self, key: &str, name: &str) -> Result<(), String> {
+        self.calls
+            .push(("registry-delete".into(), format!("{key}|{name}")));
+        if let Some(values) = self.registry.get_mut(key) {
+            values.retain(|(_, held, _)| !held.eq_ignore_ascii_case(name));
+        }
+        Ok(())
+    }
+
+    fn registry_write(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        self.calls.push((
+            "registry-write".into(),
+            format!("{key}|{name}|{kind}|{value}"),
+        ));
+        let values = self.registry.entry(key.to_string()).or_default();
+        match values
+            .iter_mut()
+            .find(|(_, held, _)| held.eq_ignore_ascii_case(name))
+        {
+            Some(held) => {
+                held.0 = kind.to_string();
+                held.2 = value.to_string();
+            }
+            None => values.push((kind.to_string(), name.to_string(), value.to_string())),
+        }
+        Ok(())
+    }
+
+    fn registry_value(
+        &mut self,
+        key: &str,
+        name: &str,
+    ) -> Result<Option<(String, String)>, String> {
+        self.calls
+            .push(("registry-value".into(), format!("{key}|{name}")));
+        let values = self.registry.get(key);
+        Ok(values.and_then(|held| {
+            held.iter()
+                .find(|(_, held, _)| held.eq_ignore_ascii_case(name))
+                .map(|(kind, _, value)| (kind.clone(), value.clone()))
+        }))
+    }
+
+    fn drive_space(&mut self, path: &str) -> Result<Option<DriveSpace>, String> {
+        self.calls.push(("drive-space".into(), path.to_string()));
+        // One drive at `/`, and every other path is a drive that is not there.
+        Ok(if path == "/" {
+            Some(DriveSpace {
+                free: 1000,
+                capacity: 4000,
+                filesystem: "ext4".to_string(),
+                kind: "Fixed".to_string(),
+            })
+        } else {
+            None
+        })
     }
 }
 impl Dialogs for Fake {
@@ -194,6 +379,12 @@ impl Dialogs for Fake {
         ));
         Ok("/tmp/chosen".into())
     }
+
+    fn notify(&mut self, title: &str, text: &str) -> Result<(), String> {
+        self.calls
+            .push(("notify".into(), format!("{title}|{text}")));
+        Ok(())
+    }
 }
 
 impl Windows for Fake {
@@ -223,6 +414,560 @@ impl Windows for Fake {
             },
         ])
     }
+
+    fn gui_tree_delete(&mut self, _number: u64, item: i64) -> Result<i64, String> {
+        self.tree_items.retain(|(id, _, _)| *id != item);
+        Ok(1)
+    }
+
+    fn gui_tree_modify(&mut self, _number: u64, item: i64, _options: &str) -> Result<i64, String> {
+        self.tree_selected = item;
+        Ok(item)
+    }
+
+    fn gui_tree_selection(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.tree_selected)
+    }
+
+    fn gui_tree_relation(
+        &mut self,
+        _number: u64,
+        item: i64,
+        relation: &str,
+    ) -> Result<i64, String> {
+        let entry = self
+            .tree_items
+            .iter()
+            .find(|(id, _, _)| *id == item)
+            .cloned();
+        let Some((_id, _text, parent)) = entry else {
+            return Ok(0);
+        };
+        Ok(match relation {
+            "parent" => parent,
+            "child" => self
+                .tree_items
+                .iter()
+                .find(|(_, _, held)| *held == item)
+                .map(|(id, _, _)| *id)
+                .unwrap_or(0),
+            "next" => self
+                .tree_items
+                .iter()
+                .filter(|(_, _, held)| *held == parent)
+                .map(|(id, _, _)| *id)
+                .find(|id| *id > item)
+                .unwrap_or(0),
+            "prev" => self
+                .tree_items
+                .iter()
+                .rev()
+                .find(|(id, _, held)| *held == parent && *id < item)
+                .map(|(id, _, _)| *id)
+                .unwrap_or(0),
+            _ => 0,
+        })
+    }
+
+    fn gui_tree_text(&mut self, _number: u64, item: i64) -> Result<String, String> {
+        Ok(self
+            .tree_items
+            .iter()
+            .find(|(id, _, _)| *id == item)
+            .map(|(_, text, _)| text.clone())
+            .unwrap_or_default())
+    }
+
+    fn gui_tree_count(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.tree_items.len() as i64)
+    }
+
+    fn gui_tree_add(
+        &mut self,
+        _number: u64,
+        text: &str,
+        parent: i64,
+        _options: &str,
+    ) -> Result<i64, String> {
+        let id = self.tree_next;
+        self.tree_next += 1;
+        self.tree_items.push((id, text.to_string(), parent));
+        Ok(id)
+    }
+
+    fn gui_list_next(&mut self, _number: u64, start: i64) -> Result<i64, String> {
+        if start == 0 {
+            return Ok(self.list_selected);
+        }
+        Ok(if start < self.list_rows.len() as i64 {
+            start + 1
+        } else {
+            0
+        })
+    }
+
+    fn gui_list_modify(&mut self, _number: u64, row: i64, cells: &[String]) -> Result<i64, String> {
+        if let Some(existing) = self.list_rows.get_mut(row as usize - 1) {
+            for (index, text) in cells.iter().enumerate() {
+                if index < existing.len() {
+                    existing[index] = text.clone();
+                }
+            }
+        }
+        self.list_selected = row;
+        Ok(1)
+    }
+
+    fn gui_list_content(&mut self, _number: u64, selected: bool) -> Result<String, String> {
+        let rows: Vec<String> = self
+            .list_rows
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| !selected || self.list_selected == *index as i64 + 1)
+            .map(|(_, cells)| cells.join("\t"))
+            .collect();
+        Ok(rows.join("\n"))
+    }
+
+    fn gui_list_text(&mut self, _number: u64, row: i64, col: i64) -> Result<String, String> {
+        Ok(self
+            .list_rows
+            .get(row as usize - 1)
+            .and_then(|cells| cells.get(col as usize - 1))
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    fn gui_list_count(&mut self, _number: u64) -> Result<i64, String> {
+        Ok(self.list_rows.len() as i64)
+    }
+
+    fn gui_list_add(&mut self, _number: u64, cells: &[String]) -> Result<i64, String> {
+        self.list_rows.push(cells.to_vec());
+        Ok(self.list_rows.len() as i64)
+    }
+
+    fn gui_caret(&mut self) -> Result<Option<(i64, i64)>, String> {
+        Ok(self.caret)
+    }
+
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        Ok(self.events.clone())
+    }
+
+    fn gui_menu_bar(&mut self, json: &str) -> Result<(), String> {
+        self.calls.push(("gui-menu-bar".into(), json.to_string()));
+        Ok(())
+    }
+
+    fn gui_option(&mut self, name: &str, on: bool) -> Result<(), String> {
+        self.calls
+            .push(("gui-option".into(), format!("{name}|{on}")));
+        Ok(())
+    }
+
+    fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
+        Ok("the window".to_string())
+    }
+
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        Ok(self.status_text.clone())
+    }
+
+    fn gui_combo_dropdown(&mut self, _number: u64, show: bool) -> Result<(), String> {
+        self.combo_popup = show;
+        Ok(())
+    }
+
+    fn gui_combo_find(&mut self, _number: u64, text: &str) -> Result<i64, String> {
+        Ok(self
+            .combo_items
+            .iter()
+            .position(|item| item == text)
+            .map(|index| index as i64 + 1)
+            .unwrap_or(0))
+    }
+
+    fn gui_combo_delete(&mut self, _number: u64, index: &str) -> Result<(), String> {
+        let at: usize = index.parse().unwrap_or(0);
+        if at >= 1 && at <= self.combo_items.len() {
+            self.combo_items.remove(at - 1);
+            if self.combo_choice >= at as i64 {
+                self.combo_choice = 0;
+            }
+            Ok(())
+        } else {
+            Err(format!("there is no item at {index}"))
+        }
+    }
+
+    fn gui_combo_choice(&mut self, _number: u64) -> Result<(i64, String), String> {
+        let index = self.combo_choice;
+        let text = if index >= 1 {
+            self.combo_items
+                .get(index as usize - 1)
+                .cloned()
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        Ok((index, text))
+    }
+
+    fn gui_combo_select(
+        &mut self,
+        _number: u64,
+        wanted: &str,
+        by_text: bool,
+    ) -> Result<i64, String> {
+        if by_text {
+            let found = self
+                .combo_items
+                .iter()
+                .position(|item| item == wanted)
+                .map(|index| index as i64 + 1);
+            self.combo_choice = found.unwrap_or(0);
+            Ok(self.combo_choice)
+        } else {
+            let index: i64 = wanted.parse().unwrap_or(0);
+            self.combo_choice = if (1..=self.combo_items.len() as i64).contains(&index) {
+                index
+            } else {
+                0
+            };
+            Ok(self.combo_choice)
+        }
+    }
+
+    fn gui_combo_add(&mut self, _number: u64, text: &str) -> Result<(), String> {
+        self.combo_items.push(text.to_string());
+        Ok(())
+    }
+
+    fn gui_combo_items(&mut self, _number: u64) -> Result<String, String> {
+        Ok(self.combo_items.join("\n"))
+    }
+
+    fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
+        self.calls.push(("resolve".into(), classnn.to_string()));
+        if classnn.eq_ignore_ascii_case("ComboBox1")
+            || classnn.eq_ignore_ascii_case("msctls_statusbar321")
+            || classnn.eq_ignore_ascii_case("SysListView321")
+            || classnn.eq_ignore_ascii_case("SysTreeView321")
+            || classnn.eq_ignore_ascii_case("msctls_updown321")
+            || classnn.eq_ignore_ascii_case("msctls_trackbar321")
+            || classnn.eq_ignore_ascii_case("msctls_progress321")
+            || classnn.eq_ignore_ascii_case("SysDateTimePick321")
+            || classnn.eq_ignore_ascii_case("SysMonthCal321")
+            || classnn.eq_ignore_ascii_case("SysLink1")
+            || classnn.eq_ignore_ascii_case("msctls_hotkey321")
+            || classnn.eq_ignore_ascii_case("Edit1")
+        {
+            Ok(1)
+        } else {
+            Err(format!("there is no control named {classnn}"))
+        }
+    }
+
+    fn gui_control_pos(&mut self, _number: u64) -> Result<(i64, i64, i64, i64), String> {
+        Ok((10, 20, 100, 30))
+    }
+
+    fn gui_second_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if let Some(text) = setting {
+            self.second_text = text.to_string();
+        }
+        Ok(self.second_text.clone())
+    }
+
+    fn gui_value(&mut self, _number: u64, setting: Option<&str>) -> Result<String, String> {
+        if self.tab_pages > 0 {
+            // A Tab's Value is the chosen page; a page that is not there is
+            // refused. Measured on the binary of v2.0.19 on 2026-11-10.
+            if let Some(text) = setting {
+                let page = text.parse().unwrap_or(0);
+                if page < 1 || page > self.tab_pages {
+                    return Err("Invalid value.".to_string());
+                }
+                self.tab_chosen = page;
+            }
+            return Ok(self.tab_chosen.to_string());
+        }
+        if self.text_control {
+            if let Some(text) = setting {
+                self.text_value = text.to_string();
+            }
+            return Ok(self.text_value.clone());
+        }
+        if self.date_control {
+            if let Some(text) = setting {
+                let wanted = if self.date_month_only { 8 } else { 14 };
+                let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
+                let mut held = digits;
+                held.truncate(wanted);
+                while held.len() < wanted {
+                    held.push('0');
+                }
+                self.date_value = held;
+            }
+            return Ok(self.date_value.clone());
+        }
+        if let Some(path) = &self.pic_path {
+            // Writing the Value of a Pic changes nothing. Measured on the
+            // binary of v2.0.19 on 2026-11-10.
+            let _ = setting;
+            return Ok(path.clone());
+        }
+        if let Some(text) = setting {
+            self.updown_value = text.parse().unwrap_or(0);
+        }
+        Ok(self.updown_value.to_string())
+    }
+
+    fn gui_add(&mut self, _handle: u64, kind: &str, text: &str) -> Result<(u64, String), String> {
+        self.calls.push(("add".into(), kind.to_string()));
+        let classnn = match kind.to_lowercase().as_str() {
+            "treeview" => "SysTreeView321",
+            "listview" => "SysListView321",
+            "statusbar" => "msctls_statusbar321",
+            "updown" => "msctls_updown321",
+            "slider" => "msctls_trackbar321",
+            "progress" => "msctls_progress321",
+            "datetime" => "SysDateTimePick321",
+            "monthcal" => "SysMonthCal321",
+            "link" => "SysLink1",
+            "hotkey" => "msctls_hotkey321",
+            "pic" => "Static1",
+            "tab" => "SysTabControl321",
+            _ => "ComboBox1",
+        };
+        if matches!(kind.to_lowercase().as_str(), "link" | "hotkey") {
+            self.text_control = true;
+            self.text_value = text.to_string();
+        }
+        if kind.eq_ignore_ascii_case("pic") {
+            // Measured on the binary of v2.0.19 on 2026-11-10: the Value of a
+            // Pic is the file it shows, and a write changes nothing.
+            self.pic_path = Some(text.to_string());
+        }
+        if kind.eq_ignore_ascii_case("tab") {
+            // One page per item; the first page is chosen from the start.
+            self.tab_pages = text.split('\n').filter(|name| !name.is_empty()).count() as i64;
+            self.tab_chosen = 1;
+        }
+        if matches!(kind.to_lowercase().as_str(), "datetime" | "monthcal") {
+            // The timestamp is a STRING: fourteen digits for a DateTime, eight
+            // for a MonthCal, padded with zeros. Measured on the binary of
+            // v2.0.19 on 2026-11-10.
+            let wanted = if kind.eq_ignore_ascii_case("monthcal") {
+                8
+            } else {
+                14
+            };
+            let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
+            self.date_control = true;
+            self.date_month_only = wanted == 8;
+            self.date_value = if digits.is_empty() {
+                "0".repeat(wanted)
+            } else {
+                let mut held = digits;
+                held.truncate(wanted);
+                while held.len() < wanted {
+                    held.push('0');
+                }
+                held
+            };
+        }
+        // The numeric controls start at the lower bound of their `Range`, or
+        // at the number in the text for a Slider or Progress. Measured on the
+        // binary of v2.0.19 on 2026-11-10: `Range1-10` starts at 1, and
+        // `Range0-100` with a text of 50 starts at 50.
+        if matches!(
+            kind.to_lowercase().as_str(),
+            "updown" | "slider" | "progress"
+        ) {
+            let mut low = 0;
+            let mut start = None;
+            for word in text.split_whitespace() {
+                if word.to_lowercase().starts_with("range") {
+                    low = word[5..]
+                        .split('-')
+                        .next()
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0);
+                } else if let Ok(number) = word.parse::<i64>() {
+                    start = Some(number);
+                }
+            }
+            self.updown_value = start.unwrap_or(low);
+        }
+        Ok((1, classnn.to_string()))
+    }
+
+    fn gui_is_open(&mut self) -> bool {
+        self.gui_open
+    }
+
+    fn window_wait(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+        what: WaitFor,
+        timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        self.calls.push((
+            "wait-window".into(),
+            format!("{title}|{what:?}|{timeout_ms}"),
+        ));
+        let present = title == "first" || title == "second";
+        Ok(match what {
+            WaitFor::Present => present.then(|| "0x1".to_string()),
+            WaitFor::Active => present.then(|| "0x1".to_string()),
+            // `first` has the focus, `second` and a window that is not there
+            // do not.
+            WaitFor::NotActive => match title {
+                "first" => None,
+                _ => Some(String::new()),
+            },
+            WaitFor::Close => {
+                if present {
+                    None
+                } else {
+                    Some(String::new())
+                }
+            }
+        })
+    }
+
+    fn window_min_max(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        self.calls.push(("min-max".into(), title.to_string()));
+        Ok(match title {
+            "first" => Some(0),
+            "second" => Some(1),
+            "minimized" => Some(-1),
+            _ => None,
+        })
+    }
+
+    fn window_geometry(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<WindowGeometry>, String> {
+        self.calls.push(("geometry".into(), title.to_string()));
+        Ok(match title {
+            "first" => Some(WindowGeometry {
+                x: 10,
+                y: 20,
+                width: 100,
+                height: 200,
+            }),
+            "second" => Some(WindowGeometry {
+                x: 30,
+                y: 40,
+                width: 300,
+                height: 400,
+            }),
+            _ => None,
+        })
+    }
+
+    fn matching_windows(
+        &mut self,
+        title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<WindowRef>, String> {
+        self.calls.push(("windows".into(), title.to_string()));
+        // Two windows, and a title that names one of them. The empty title is
+        // both of them, which is the answer v2 gives.
+        let first = WindowRef {
+            id: "0x1".to_string(),
+            class: "first".to_string(),
+        };
+        let second = WindowRef {
+            id: "0x2".to_string(),
+            class: "second".to_string(),
+        };
+        Ok(match title {
+            "" => vec![first, second],
+            "first" => vec![first],
+            "second" => vec![second],
+            _ => Vec::new(),
+        })
+    }
+
+    fn control_send_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ControlEdit, String> {
+        self.calls.push((
+            "control-send-text".into(),
+            format!("{control}|{title}|{text}"),
+        ));
+        self.the_edit(control, title)
+    }
+
+    fn control_focus(&mut self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-focus".into(), format!("{control}|{title}")));
+        self.the_edit(control, title)
+    }
+
+    fn control_click(&mut self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        self.calls
+            .push(("control-click".into(), format!("{control}|{title}")));
+        self.the_edit(control, title)
+    }
+
+    fn control_set_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ControlEdit, String> {
+        self.calls.push((
+            "control-set-text".into(),
+            format!("{control}|{title}|{text}"),
+        ));
+        Ok(if control == "the label" && title == "the window" {
+            ControlEdit::Done
+        } else if title == "the window" {
+            ControlEdit::NoSuchControl
+        } else {
+            ControlEdit::NoSuchWindow
+        })
+    }
+
+    fn control_enabled(&mut self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        self.calls
+            .push(("control-enabled".into(), format!("{control}|{title}")));
+        self.the_flag(control, title)
+    }
+
+    fn control_visible(&mut self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        self.calls
+            .push(("control-visible".into(), format!("{control}|{title}")));
+        self.the_flag(control, title)
+    }
+
+    fn control_text(&mut self, control: &str, title: &str) -> Result<ControlAnswer, String> {
+        self.calls
+            .push(("control-text".into(), format!("{control}|{title}")));
+        // One control, in one window, and nothing else.
+        Ok(if control == "the label" && title == "the window" {
+            ControlAnswer::Found("the text of the label".to_string())
+        } else if title == "the window" {
+            ControlAnswer::NoSuchControl
+        } else {
+            ControlAnswer::NoSuchWindow
+        })
+    }
 }
 
 impl Files for Fake {
@@ -249,7 +994,10 @@ impl Files for Fake {
         ));
         Ok(())
     }
-    fn read_shortcut(&mut self, shortcut: &str) -> Result<(String, String, String, String, String), String> {
+    fn read_shortcut(
+        &mut self,
+        shortcut: &str,
+    ) -> Result<(String, String, String, String, String), String> {
         self.calls.push(("read-shortcut".into(), shortcut.into()));
         let Some(shortcut) = self.shortcut.clone() else {
             return Err("there is no shortcut".to_string());
@@ -376,6 +1124,12 @@ impl Files for Fake {
         self.trash_emptied = true;
         Ok(())
     }
+
+    fn recycle_a_file(&mut self, path: &str) -> Result<(), String> {
+        self.calls.push(("recycle".into(), path.to_string()));
+        self.recycled.push(path.to_string());
+        Ok(())
+    }
 }
 
 impl Clipboard for Fake {
@@ -418,6 +1172,18 @@ impl Keyboard for Fake {
         self.locks.push((lock.to_string(), on));
         self.lock_on = on;
         Ok(())
+    }
+
+    fn set_lock_light(&mut self, name: &str, on: bool) -> Result<bool, String> {
+        let Some(index) = the_lock_of(name) else {
+            return Ok(false);
+        };
+        self.lock_lights[index] = on;
+        Ok(on)
+    }
+
+    fn lock_light(&mut self, name: &str) -> Result<Option<bool>, String> {
+        Ok(the_lock_of(name).map(|index| self.lock_lights[index]))
     }
 }
 
@@ -474,6 +1240,7 @@ impl Screen for Fake {
                 top: 0,
                 right: 1920,
                 bottom: 2160,
+                scale: 1,
             },
             Monitor {
                 name: "\\\\.\\DISPLAY2".into(),
@@ -481,6 +1248,7 @@ impl Screen for Fake {
                 top: 0,
                 right: 3840,
                 bottom: 2160,
+                scale: 1,
             },
         ])
     }
@@ -852,11 +1620,19 @@ fn a_sound_that_the_desktop_cannot_answer_fails_the_script() {
 
 #[test]
 fn the_names_of_the_sound_that_are_windows_fail_with_the_reason() {
-    let report = run("SoundGetName()");
-    assert_eq!(
-        failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
-    );
+    // `SoundGetName` answered the blanket reason until round 211 gave it one of its
+    // own: the name of an audio device belongs to the system that runs it, and this
+    // runtime answers the volume and the mute of the default device, which
+    // `SoundGetMute` shows, and not the names the system gives them.
+    //
+    // The refusal was given up on 2026-11-11: the mixer of the session
+    // publishes the names of the devices, and the runtime asks it for them
+    // the way it already asks it for the volume -- so `SoundGetName` answers
+    // the name of the device that plays and the name of the one that
+    // records, as the binary of v2.0.19 does.
+    let report = run("name := SoundGetName()");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "name"), Value::Text("Speakers".into()));
 }
 
 #[test]
@@ -950,10 +1726,17 @@ fn a_drag_goes_down_in_one_place_and_comes_up_in_another() {
 
 #[test]
 fn a_name_of_windows_fails_with_the_reason() {
-    let report = run("ControlGetText(\"x\")");
+    // `StrGet` used to be the example of the blanket reason. On 2026-11-10 it
+    // was given a reason of its own: the reference hangs on it, so there is no
+    // answer for this runtime to match. `RegRead` used to be the example of
+    // the blanket reason too, and it was carried on 2026-11-11: the registry
+    // is a thing of Windows, and this runtime keeps one of its own -- the
+    // hives are folders and the keys are files -- so the call answers the
+    // machine's failure when the key is not there.
+    let report = run("RegRead(\"HKLM\\Software\\NoSuchKey\", \"X\")");
     assert_eq!(
         failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
+        "(2) The system cannot find the file specified."
     );
 }
 
@@ -1068,10 +1851,7 @@ fn a_process_that_is_not_there_is_the_failure_of_v2() {
         "}\n",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        report.output,
-        vec!["TargetError|Target process not found."]
-    );
+    assert_eq!(report.output, vec!["TargetError|Target process not found."]);
     let report = run("a := ProcessGetPath(999999)");
     assert_eq!(failure_of(&report), "Target process not found.");
     let report = run("a := ProcessSetPriority(\"Normal\", 999999)");
@@ -1206,10 +1986,19 @@ fn the_monitors_are_asked_of_the_desktop() {
     assert_eq!(int_of(&report, "count"), 2);
     assert_eq!(int_of(&report, "primary"), 2);
     // The monitor that a call does not name is the primary one.
-    assert_eq!(value_of(&report, "name0"), Value::Text("\\\\.\\DISPLAY2".into()));
-    assert_eq!(value_of(&report, "name2"), Value::Text("\\\\.\\DISPLAY2".into()));
+    assert_eq!(
+        value_of(&report, "name0"),
+        Value::Text("\\\\.\\DISPLAY2".into())
+    );
+    assert_eq!(
+        value_of(&report, "name2"),
+        Value::Text("\\\\.\\DISPLAY2".into())
+    );
     assert_eq!(int_of(&report, "ok1"), 1);
-    assert_eq!(value_of(&report, "rect1"), Value::Text("0|0|1920|2160".into()));
+    assert_eq!(
+        value_of(&report, "rect1"),
+        Value::Text("0|0|1920|2160".into())
+    );
     assert_eq!(int_of(&report, "ok2"), 1);
     assert_eq!(
         value_of(&report, "rect2"),
@@ -1230,7 +2019,10 @@ fn a_monitor_that_is_not_there_is_refused_with_the_parameter() {
     // kind it got, and a monitor number that is not a number is refused with
     // the parameter that wants one.
     let report = run("a := MonitorGet(3)");
-    assert_eq!(failure_of(&report), "Parameter #1 of MonitorGet is invalid.");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of MonitorGet is invalid."
+    );
     let report = run("a := MonitorGet(1, 5)");
     assert_eq!(
         failure_of(&report),
@@ -1265,49 +2057,6 @@ fn the_addresses_of_the_machine_are_asked_of_the_desktop() {
     assert_eq!(int_of(&report, "c"), 2);
     assert_eq!(value_of(&report, "d"), Value::Text("172.26.48.1".into()));
     assert_eq!(value_of(&report, "e"), Value::Text("192.168.0.45".into()));
-}
-
-#[test]
-fn the_lock_keys_are_turned_where_the_state_is_not_what_was_asked_for() {
-    // Measured on the binary of v2.0.19 on 2026-11-09, with the conversion of
-    // the state read beside it: "On" and "1" turn the state on, "Off" and "0"
-    // turn it off, a word it does not know -- and the empty text, and a
-    // missing parameter -- leave the state alone and are not a failure, and
-    // every form answers the empty text.
-    let mut desktop = Fake::default();
-    let report = run_on(
-        concat!(
-            "a := SetCapsLockState(\"On\")\n",
-            "b := SetNumLockState(\"Off\")\n",
-            "c := SetScrollLockState(1)\n",
-            "d := SetCapsLockState(0)\n",
-            "e := SetCapsLockState(\"Bogus\")\n",
-            "f := SetCapsLockState()\n",
-            "g := SetCapsLockState(\"AlwaysOn\")\n",
-        ),
-        &mut desktop,
-    );
-    assert!(report.ok, "{:?}", report.error);
-    for name in ["a", "b", "c", "d", "e", "f", "g"] {
-        assert_eq!(value_of(&report, name), Value::Text(String::new()), "{name}");
-    }
-    // The turns of the keys are the ones the states asked for: the bogus word,
-    // the missing parameter and the "AlwaysOn" of a key that is on already
-    // leave the switch alone.
-    assert_eq!(
-        desktop.locks,
-        vec![
-            ("CapsLock".to_string(), true),
-            ("NumLock".to_string(), false),
-            ("ScrollLock".to_string(), true),
-            ("CapsLock".to_string(), false),
-            ("CapsLock".to_string(), true),
-        ]
-    );
-    assert_eq!(
-        failure_of(&run("a := SetCapsLockState(Map())")),
-        "Parameter #1 of SetCapsLockState requires a String, but received a Map."
-    );
 }
 
 #[test]
@@ -1367,167 +2116,6 @@ fn the_file_is_recycled_and_the_trash_is_emptied() {
 }
 
 #[test]
-fn the_readings_of_a_drive_are_asked_of_the_desktop() {
-    // Measured on the binary of v2.0.19 on 2026-11-09: the capacity and the
-    // free space are counted in megabytes, the serial is a number, the
-    // filesystem and the label are texts, a drive that is not there is the
-    // empty text for the type and "Invalid" for the state, and the other
-    // readings of a drive that is not there are the failure of the machine.
-    let report = run(concat!(
-        "a := DriveGetType(\"/\")\n",
-        "b := DriveGetStatus(\"/\")\n",
-        "c := DriveGetFilesystem(\"/\")\n",
-        "d := DriveGetLabel(\"/\")\n",
-        "e := DriveGetSerial(\"/\")\n",
-        "f := DriveGetSpaceFree(\"/\")\n",
-        "g := DriveGetCapacity(\"/\")\n",
-        "h := DriveGetType(\"/no-such-path\")\n",
-        "i := DriveGetStatus(\"/no-such-path\")\n",
-    ));
-    assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "a"), Value::Text("Fixed".into()));
-    assert_eq!(value_of(&report, "b"), Value::Text("Ready".into()));
-    assert_eq!(value_of(&report, "c"), Value::Text("ext4".into()));
-    assert_eq!(value_of(&report, "d"), Value::Text(String::new()));
-    assert_eq!(int_of(&report, "e"), 42);
-    assert_eq!(int_of(&report, "f"), 100);
-    assert_eq!(int_of(&report, "g"), 200);
-    // A path that is not a drive is not a failure for the type and the state.
-    assert_eq!(value_of(&report, "h"), Value::Text(String::new()));
-    assert_eq!(value_of(&report, "i"), Value::Text("Invalid".into()));
-    // The five readings that answer with the failure of the machine say it.
-    assert_eq!(
-        failure_of(&run("a := DriveGetFilesystem(\"/no-such-path\")")),
-        "(2) No such file or directory"
-    );
-    // A machine without drive letters has no list of them to answer: measured on
-    // the binary of v2.0.19 on 2026-11-09, `DriveGetList` answers the letters of
-    // the drives of Windows ("BCDEFX" on the machine of the binary), and the
-    // volumes of this machine are named by the paths they are mounted at. The
-    // name therefore stays a refusal of the table, with the reason of it.
-    assert_eq!(
-        failure_of(&run("a := DriveGetList()")),
-        "this is a name of Windows, and this desktop is not Windows."
-    );
-    assert_eq!(
-        failure_of(&run("a := DriveGetType(Map())")),
-        "Parameter #1 of DriveGetType requires a String, but received a Map."
-    );
-}
-
-#[test]
-fn the_suspend_and_the_pause_are_a_state_of_the_run() {
-    // Measured on the binary of v2.0.19 on 2026-11-09: `Suspend 1` and
-    // `Suspend 0` turn the state off and on, the omitted parameter and the
-    // number minus one toggle it, and the parameter is a Number: "On" is the
-    // TypeError of a String, and `Suspend 2` is "Parameter #1 ... is invalid."
-    // with the number in the `Extra`. The answer of both commands is the empty
-    // text. The runner has no keyboard, so the state is what is observable --
-    // there is no hotkey to fire here.
-    let report = run(concat!(
-        "s0 := A_IsSuspended\n",
-        "r := Suspend(1)\n",
-        "s1 := A_IsSuspended\n",
-        "Suspend(0)\n",
-        "s2 := A_IsSuspended\n",
-        "Suspend()\n",
-        "s3 := A_IsSuspended\n",
-        "Suspend()\n",
-        "s4 := A_IsSuspended\n",
-        "Suspend(-1)\n",
-        "s5 := A_IsSuspended\n",
-        "p0 := A_IsPaused\n",
-        "Pause(1)\n",
-        "p1 := A_IsPaused\n",
-        "Pause(0)\n",
-        "p2 := A_IsPaused\n",
-        "Pause()\n",
-        "p3 := A_IsPaused\n",
-        "Pause()\n",
-        "p4 := A_IsPaused\n",
-    ));
-    assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
-    assert_eq!(int_of(&report, "s0"), 0);
-    assert_eq!(int_of(&report, "s1"), 1);
-    assert_eq!(int_of(&report, "s2"), 0);
-    assert_eq!(int_of(&report, "s3"), 1);
-    assert_eq!(int_of(&report, "s4"), 0);
-    assert_eq!(int_of(&report, "s5"), 1);
-    assert_eq!(int_of(&report, "p0"), 0);
-    assert_eq!(int_of(&report, "p1"), 1);
-    assert_eq!(int_of(&report, "p2"), 0);
-    assert_eq!(int_of(&report, "p3"), 1);
-    assert_eq!(int_of(&report, "p4"), 0);
-    // The parameter is a Number, and the words of the v1 are not taken.
-    assert_eq!(
-        failure_of(&run("Suspend(\"On\")")),
-        "Parameter #1 of Suspend requires a Number, but received a String."
-    );
-    assert_eq!(
-        failure_of(&run("Pause(\"Off\")")),
-        "Parameter #1 of Pause requires a Number, but received a String."
-    );
-    // A number that is not one, minus one or zero is invalid, and the number
-    // is in the `Extra`.
-    let report = run(concat!(
-        "try\n",
-        "    Suspend(2)\n",
-        "catch as e\n",
-        "    a := Type(e) \"|\" e.Message \"|\" e.Extra\n",
-    ));
-    assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        value_of(&report, "a"),
-        Value::Text("ValueError|Parameter #1 of Suspend is invalid.|2".into())
-    );
-}
-
-#[test]
-fn the_windows_of_the_session_are_asked_of_the_desktop() {
-    // Measured on the binary of v2.0.19 on 2026-11-09: `WinGetList` answers
-    // an array of the ids as whole numbers, and the empty array when nothing
-    // matches; `WinGetCount` the number; and the other three the id or the
-    // class of the first, with "Target window not found." when there is none.
-    let report = run(concat!(
-        "list := WinGetList()\n",
-        "kind := Type(list)\n",
-        "len := list.Length\n",
-        "first := list[1]\n",
-        "some := WinGetList(\"Fire\")\n",
-        "some_len := some.Length\n",
-        "none := WinGetList(\"zzz-nothing-zzz\").Length\n",
-        "count := WinGetCount()\n",
-        "count_some := WinGetCount(\"Fire\")\n",
-        "count_none := WinGetCount(\"zzz-nothing-zzz\")\n",
-        "id_first := WinGetID()\n",
-        "id_some := WinGetID(\"Fire\")\n",
-        "id_last := WinGetIDLast()\n",
-        "id_last_some := WinGetIDLast(\"Fire\")\n",
-        "class_first := WinGetClass()\n",
-        "class_some := WinGetClass(\"Fire\")\n",
-        "id_of_id := WinGetID(102)\n",
-    ));
-    assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "kind"), Value::Text("Array".into()));
-    assert_eq!(int_of(&report, "len"), 3);
-    assert_eq!(int_of(&report, "first"), 101);
-    assert_eq!(int_of(&report, "some_len"), 1);
-    assert_eq!(int_of(&report, "none"), 0);
-    assert_eq!(int_of(&report, "count"), 3);
-    assert_eq!(int_of(&report, "count_some"), 1);
-    assert_eq!(int_of(&report, "count_none"), 0);
-    // The first and the last of the windows, and an id that names one.
-    assert_eq!(int_of(&report, "id_first"), 101);
-    assert_eq!(int_of(&report, "id_some"), 102);
-    assert_eq!(int_of(&report, "id_last"), 103);
-    assert_eq!(int_of(&report, "id_last_some"), 102);
-    assert_eq!(value_of(&report, "class_first"), Value::Text("steam_app".into()));
-    assert_eq!(value_of(&report, "class_some"), Value::Text("firefox".into()));
-    assert_eq!(int_of(&report, "id_of_id"), 102);
-}
-
-#[test]
 fn a_window_that_is_not_there_is_the_target_error_of_v2() {
     // Measured on the binary of v2.0.19 on 2026-11-09: `WinGetID`,
     // `WinGetIDLast` and `WinGetClass` of a window that is not there are the
@@ -1557,10 +2145,7 @@ fn a_window_that_is_not_there_is_the_target_error_of_v2() {
         value_of(&report, "a"),
         Value::Text("TargetError|Target window not found.|zzz-nothing-zzz".into())
     );
-    assert_eq!(
-        value_of(&report, "b"),
-        Value::Text("TargetError|".into())
-    );
+    assert_eq!(value_of(&report, "b"), Value::Text("TargetError|".into()));
     assert_eq!(
         value_of(&report, "c"),
         Value::Text("Target window not found.".into())
@@ -1598,12 +2183,18 @@ fn a_window_is_named_by_its_id_in_the_window_family() {
     assert_eq!(int_of(&report, "active_other"), 0);
     assert_eq!(int_of(&report, "active_id"), 101);
     assert_eq!(int_of(&report, "active_none"), 0);
-    assert_eq!(value_of(&report, "title_of_id"), Value::Text("Firefox".into()));
+    assert_eq!(
+        value_of(&report, "title_of_id"),
+        Value::Text("Firefox".into())
+    );
     assert_eq!(
         value_of(&report, "title_of_title"),
         Value::Text("Firefox".into())
     );
-    assert_eq!(value_of(&report, "title_active"), Value::Text("Steam".into()));
+    assert_eq!(
+        value_of(&report, "title_active"),
+        Value::Text("Steam".into())
+    );
     let report = run("WinGetTitle(999)");
     assert_eq!(failure_of(&report), "Target window not found.");
     // The other parameters of v2 are the text of the window and the two
@@ -2667,15 +3258,6 @@ fn the_take_away_of_a_property_answers_its_value() {
 }
 
 #[test]
-fn the_names_of_com_fail_with_the_reason() {
-    let report = run("a := ObjFromPtr(0)");
-    assert_eq!(
-        failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
-    );
-}
-
-#[test]
 fn mod_takes_the_remainder() {
     let report = run("a := Mod(7, 3)\nb := Mod(7.5, 2)\nc := Mod(-7, 3)");
     assert!(report.ok, "{:?}", report.error);
@@ -2722,8 +3304,8 @@ fn sort_puts_a_list_in_order() {
     let mut runtime = Runtime::new(&mut desktop, Duration::from_secs(10));
     let sort = ahk::builtins::find("Sort").expect("the tree carries Sort");
     let numbers = Value::List(vec![Value::Int(3), Value::Int(1), Value::Int(2)]);
-    let failure = (sort.handler)(&mut runtime, &[numbers], 1, 0)
-        .expect_err("an array is not a text");
+    let failure =
+        (sort.handler)(&mut runtime, &[numbers], 1, 0).expect_err("an array is not a text");
     assert_eq!(
         failure.message,
         "Parameter #1 of Sort requires a String, but received an Array."
@@ -2789,7 +3371,10 @@ fn sort_reads_the_options_of_v2() {
     assert_eq!(value_of(&report, "g"), Value::Text("A\nB\na\nb".into()));
     assert_eq!(value_of(&report, "h"), Value::Text("1,3,5,7".into()));
     assert_eq!(value_of(&report, "i"), Value::Text("\na\nb".into()));
-    assert_eq!(value_of(&report, "j"), Value::Text("abcd\nabce\nabcf".into()));
+    assert_eq!(
+        value_of(&report, "j"),
+        Value::Text("abcd\nabce\nabcf".into())
+    );
     assert_eq!(value_of(&report, "k"), Value::Text("xaa\nzab\nbac".into()));
     assert_eq!(value_of(&report, "l"), Value::Text("dir\\a\ndir\\b".into()));
     assert_eq!(value_of(&report, "m"), Value::Text("A1\nA2\nA10".into()));
@@ -3096,7 +3681,10 @@ fn format_reads_the_default_and_the_text_specifiers() {
     assert_eq!(value_of(&report, "f"), Value::Text("000ab".into()));
     assert_eq!(value_of(&report, "g"), Value::Text("2.".into()));
     assert_eq!(value_of(&report, "h"), Value::Text("A".into()));
-    assert_eq!(value_of(&report, "i"), Value::Text("00000000000000FF".into()));
+    assert_eq!(
+        value_of(&report, "i"),
+        Value::Text("00000000000000FF".into())
+    );
     assert_eq!(value_of(&report, "j"), Value::Text("ABC".into()));
     assert_eq!(value_of(&report, "k"), Value::Text("abc".into()));
     assert_eq!(value_of(&report, "l"), Value::Text("Hello World".into()));
@@ -3457,10 +4045,7 @@ fn str_ptr_answers_an_address_of_a_text() {
     assert_eq!(int_of(&report, "a"), int_of(&report, "b"));
     assert_eq!(value_of(&report, "d"), Value::Text("Integer".into()));
     let report = run("a := StrPtr(5)");
-    assert_eq!(
-        failure_of(&report),
-        "Expected a String but got an Integer."
-    );
+    assert_eq!(failure_of(&report), "Expected a String but got an Integer.");
     let report = run("v := 1\na := StrPtr(&v)");
     assert_eq!(failure_of(&report), "Expected a String but got a VarRef.");
 }
@@ -3858,13 +4443,13 @@ fn the_members_of_a_match_answer_the_way_v2_answers_them() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(int_of(&report, "a"), 2);
     assert_eq!(value_of(&report, "b"), Value::Text("|b|0|0".into()));
-    assert_eq!(
-        value_of(&report, "c"),
-        Value::Text("3|4|year|word|".into())
-    );
+    assert_eq!(value_of(&report, "c"), Value::Text("3|4|year|word|".into()));
     assert_eq!(value_of(&report, "d"), Value::Text("6|4|".into()));
     assert_eq!(value_of(&report, "e"), Value::Text("6|4".into()));
-    assert_eq!("RegExMatchInfo|RegExMatchInfo", value_of(&report, "f").to_text());
+    assert_eq!(
+        "RegExMatchInfo|RegExMatchInfo",
+        value_of(&report, "f").to_text()
+    );
 }
 
 #[test]
@@ -3913,7 +4498,10 @@ fn a_match_is_walked_by_the_groups_of_it() {
         "    values .= v\n",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(value_of(&report, "pairs"), Value::Text("[0=1][d=1][2=]".into()));
+    assert_eq!(
+        value_of(&report, "pairs"),
+        Value::Text("[0=1][d=1][2=]".into())
+    );
     assert_eq!(value_of(&report, "values"), Value::Text("11".into()));
 }
 
@@ -4072,30 +4660,22 @@ fn each_name_of_the_shape_of_the_runtime_refuses_with_the_reason_of_its_own_thin
             "this runtime runs one script in one thread, and it cannot start another.",
         ),
         (
-            "Persistent",
-            "Persistent",
-            "this runtime is a script that ends when it ends, and it cannot be kept alive.",
-        ),
-        (
             "Reload",
             "Reload",
             "this runtime runs one script once, and it cannot run itself again.",
-        ),
-        (
-            "ListLines",
-            "ListLines",
-            "the lines are listed in a window of v2, and this runtime has no window to show them in.",
-        ),
-        (
-            "ListVars",
-            "ListVars",
-            "the variables are listed in a window of v2, and this runtime has no window to show them in.",
         ),
     ] {
         let report = run(source);
         assert_eq!(failure_of(&report), reason, "{name}");
         // The reason of the name is the one that the surface says.
         assert_eq!(ahk::builtins::refusal_of(name), Some(reason), "{name}");
+    }
+    // The `Suspend` and the `Pause` were carried on 2026-11-11: the runtime
+    // keeps the state that they set, and the state is what a script reads.
+    // Measured on the binary of v2.0.19 on 2026-11-09: `Suspend 1` turns the
+    // state on and `Suspend 0` turns it off.
+    for name in ["Suspend", "Pause"] {
+        assert_eq!(ahk::builtins::refusal_of(name), None, "{name}");
     }
 }
 
@@ -5099,15 +5679,6 @@ fn an_empty_text_is_named_in_the_message_of_the_check() {
 }
 
 #[test]
-fn a_name_that_the_tree_does_not_carry_says_the_reason_of_the_machine_when_the_kind_fits() {
-    let report = run("a := StatusBarGetText(1)");
-    assert_eq!(
-        failure_of(&report),
-        "this is a name of Windows, and this desktop is not Windows."
-    );
-}
-
-#[test]
 fn the_kind_of_a_value_comes_before_the_parameter_that_may_not_be_left_out() {
     // Measured on the binary of v2.0.19 on 2026-10-31: the dialect
     // converts the arguments before the body of the function runs.
@@ -5389,7 +5960,11 @@ fn the_title_of_a_text_keeps_the_words_of_the_whitespace() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["Hello-world 3Rd O'neil", "Mixed\tCase\nNext", "123Abc|Abc123def|Ab-cd"]
+        vec![
+            "Hello-world 3Rd O'neil",
+            "Mixed\tCase\nNext",
+            "123Abc|Abc123def|Ab-cd"
+        ]
     );
 }
 
@@ -5450,10 +6025,7 @@ fn the_absent_value_is_no_argument_to_the_builtin() {
         "MsgBox y \" \" m\n",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        report.output,
-        vec!["a.b.c.d.e.f 5", "a.b.c.d,e,f 3"]
-    );
+    assert_eq!(report.output, vec!["a.b.c.d.e.f 5", "a.b.c.d,e,f 3"]);
 }
 #[test]
 fn a_text_is_counted_and_cut_in_the_code_units_of_utf16() {
@@ -5468,10 +6040,7 @@ fn a_text_is_counted_and_cut_in_the_code_units_of_utf16() {
         "MsgBox StrLen(\"hello\") \" \" Ord(\"\")\n",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        report.output,
-        vec!["1 2", "55357 128512 56832", "5 0"]
-    );
+    assert_eq!(report.output, vec!["1 2", "55357 128512 56832", "5 0"]);
 }
 #[test]
 fn a_shortcut_is_made_and_read_back() {
@@ -5502,7 +6071,1381 @@ fn a_shortcut_is_made_and_read_back() {
         Value::Text("/usr/bin/gedit".into())
     );
     assert_eq!(value_of(&report, "dir"), Value::Text("/tmp".into()));
-    assert_eq!(value_of(&report, "args"), Value::Text("--new-window".into()));
-    assert_eq!(value_of(&report, "desc"), Value::Text("A text editor".into()));
+    assert_eq!(
+        value_of(&report, "args"),
+        Value::Text("--new-window".into())
+    );
+    assert_eq!(
+        value_of(&report, "desc"),
+        Value::Text("A text editor".into())
+    );
     assert_eq!(value_of(&report, "icon"), Value::Text("gedit".into()));
 }
+
+/// The lock a name is one of, and the place of it in the table of the three.
+fn the_lock_of(name: &str) -> Option<usize> {
+    match name.trim().to_lowercase().as_str() {
+        "capslock" => Some(0),
+        "numlock" => Some(1),
+        "scrolllock" => Some(2),
+        _ => None,
+    }
+}
+
+#[test]
+fn caret_get_pos_answers_the_place_of_the_caret_and_zero_without_one() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: with a focused Edit it
+    // answers 1 and writes the client place of the caret into the two
+    // variables of the caller; with nothing that holds a caret it answers 0
+    // and the variables stay as they were.
+    let mut desktop = Fake {
+        gui_open: true,
+        caret: Some((63, 9)),
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!("x := -1", "\ny := -1", "\ngot := CaretGetPos(&x, &y)",),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "got"), 1);
+    assert_eq!(int_of(&report, "x"), 63);
+    assert_eq!(int_of(&report, "y"), 9);
+
+    let mut desktop = Fake {
+        gui_open: true,
+        caret: None,
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!("x := -1", "\ny := -1", "\ngot := CaretGetPos(&x, &y)",),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "got"), 0);
+    // The variables stay as they were.
+    assert_eq!(int_of(&report, "x"), -1);
+    assert_eq!(int_of(&report, "y"), -1);
+}
+
+#[test]
+fn the_com_of_the_machine_answers_the_shapes_the_binary_answers() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape of ComCall
+    // is (Method, Object, RetType), and the type of the return is looked at
+    // FIRST -- a type the dialect does not know throws "Invalid return
+    // type." -- and the ones it knows are the types of a native call, with
+    // the address of the value written after them. The object is looked at
+    // after it, and anything that is not a COM object throws "Parameter #2
+    // of ComCall is invalid.".
+    // ComObjFromPtr wants a number -- a text throws "Parameter #1 of
+    // ComObjFromPtr requires a Number, but received a String." -- and the
+    // null pointer throws "Parameter #1 of ComObjFromPtr is invalid."; a
+    // pointer that is not the null one makes the binary hang, and this
+    // runtime does not wait forever.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    ComCall(1, 12345)",
+            "\n}\ncatch as err\n{",
+            "\n    obj := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComCall(1, 12345, \"NoSuchType\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComCall(1, 12345, \"Int\")",
+            "\n}\ncatch as err\n{",
+            "\n    known := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComObjFromPtr(0)",
+            "\n}\ncatch as err\n{",
+            "\n    nil := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ComObjFromPtr(\"x\")",
+            "\n}\ncatch as err\n{",
+            "\n    text := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "obj"),
+        Value::Text("Parameter #2 of ComCall is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Invalid return type.".into())
+    );
+    // A type the dialect knows passes, and the object is what fails then.
+    assert_eq!(
+        value_of(&report, "known"),
+        Value::Text("Parameter #2 of ComCall is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "nil"),
+        Value::Text("Parameter #1 of ComObjFromPtr is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "text"),
+        Value::Text(
+            "Parameter #1 of ComObjFromPtr requires a Number, but received a String.".into()
+        )
+    );
+}
+
+#[test]
+fn the_name_of_a_sound_device_is_the_name_the_machine_gives_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `SoundGetName` with no
+    // component answers the name of the device that plays, and with the
+    // component one the name of the one that records; the component two
+    // answers the empty text, and a component that is not there throws
+    // "Component not found.".
+    // `SoundGetInterface` wants the identifier of an interface -- a GUID --
+    // and anything else throws "Parameter #1 of SoundGetInterface is
+    // invalid."; a GUID that the machine does not carry the interface of
+    // answers zero.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "plays := SoundGetName()",
+            "\nrecords := SoundGetName(1)",
+            "\nsecond := SoundGetName(2)",
+            "\ntry\n{",
+            "\n    SoundGetName(0)",
+            "\n}\ncatch as err\n{",
+            "\n    missing := err.Message",
+            "\n}",
+            "\tinterface := SoundGetInterface(\"{C02216F6-8C67-4B5B-9D00-D008E73E0064}\")",
+            "\ntry\n{",
+            "\n    SoundGetInterface(\"x\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The names are the names of the machine.
+    assert_eq!(value_of(&report, "plays"), Value::Text("Speakers".into()));
+    assert_eq!(
+        value_of(&report, "records"),
+        Value::Text("Microphone".into())
+    );
+    // The second component has no name.
+    assert_eq!(value_of(&report, "second"), Value::Text(String::new()));
+    // A component that is not there is the failure of the target.
+    assert_eq!(
+        value_of(&report, "missing"),
+        Value::Text("Component not found".into())
+    );
+    // An identifier of an interface is a GUID, and there is no interface of
+    // the sound of this platform.
+    assert_eq!(value_of(&report, "interface"), Value::Int(0));
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #1 of SoundGetInterface is invalid.".into())
+    );
+}
+
+#[test]
+fn the_move_of_a_control_answers_the_shapes_the_binary_answers() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+    // `ControlMove X, Y, W, H, Control, WinTitle` -- the control is the
+    // FIFTH parameter, and a call that leaves it out is refused with
+    // "Parameter #5 of ControlMove must not be omitted in this case."; the
+    // first parameter is a number, and a text throws "Parameter #1 of
+    // ControlMove requires a Number, but received a String."; and a control
+    // or a window that is not there throws "Target window not found.".
+    // A call that names a control that IS there hangs the binary, and this
+    // tree does not wait forever.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    ControlMove(\"10\", \"20\", \"30\", \"40\")",
+            "\n}\ncatch as err\n{",
+            "\n    missing := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ControlMove(\"x\", \"20\", \"30\", \"40\", \"Edit1\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    ControlMove(\"10\", \"20\", \"30\", \"40\", \"NotThere\")",
+            "\n}\ncatch as err\n{",
+            "\n    target := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "missing"),
+        Value::Text("Parameter #5 of ControlMove must not be omitted in this case.".into())
+    );
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #1 of ControlMove requires a Number, but received a String.".into())
+    );
+    assert_eq!(
+        value_of(&report, "target"),
+        Value::Text("Target window not found.".into())
+    );
+}
+
+#[test]
+fn the_log_of_the_lines_answers_the_setting_that_was_there() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+    // `ListLines Setting`, where the setting is a number -- a text throws
+    // "Parameter #1 of ListLines requires a Number, but received a String."
+    // -- and the answer is the PREVIOUS setting. The log is on by default,
+    // and the built-in variable A_ListLines carries it.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "first := ListLines(0)",
+            "\nstate := A_ListLines",
+            "\nsecond := ListLines(1)",
+            "\nthird := ListLines(0)",
+            "\ntry\n{",
+            "\n    ListLines(\"x\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The log is on by default, so the first call answers one.
+    assert_eq!(value_of(&report, "first"), Value::Int(1));
+    // And the variable carries the state the call left.
+    assert_eq!(value_of(&report, "state"), Value::Int(0));
+    // Every call answers the setting that was there before it.
+    assert_eq!(value_of(&report, "second"), Value::Int(0));
+    assert_eq!(value_of(&report, "third"), Value::Int(1));
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #1 of ListLines requires a Number, but received a String.".into())
+    );
+}
+
+#[test]
+fn the_messages_of_a_window_procedure_are_registered_and_the_rest_is_not_carried() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: OnMessage takes
+    // (MsgNumber, Callback, MaxThreads) -- the callback is required -- and
+    // answers the empty text; a message number that is not a number throws
+    // "Parameter #1 of OnMessage requires a Number, but received a
+    // String.". PostMessage and SendMessage take the NUMBER of a window and
+    // throw "Target window not found." for every one of them -- the window of
+    // the script included -- and WinSetRegion throws the same.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "Handler(Msg)\n{\n    global seen\n    seen := Msg\n}",
+            "\na := OnMessage(0x0100, Handler)",
+            "\ntry\n{",
+            "\n    PostMessage(1234, 0x0100, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    post := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    SendMessage(1234, 0x0100, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    sent := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    WinSetRegion(1234, 0, 0, 0, 0)",
+            "\n}\ncatch as err\n{",
+            "\n    region := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    OnMessage(\"x\", Handler)",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    for name in ["post", "sent", "region"] {
+        assert_eq!(
+            value_of(&report, name),
+            Value::Text("Target window not found.".into()),
+            "{name}"
+        );
+    }
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #1 of OnMessage requires a Number, but received a String.".into())
+    );
+}
+
+#[test]
+fn the_registry_of_the_machine_answers_the_shapes_the_binary_carries() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: RegWrite takes
+    // (Value, ValueType, KeyName, ValueName) -- the value comes first and
+    // the type is the second -- and answers the empty text; RegRead takes
+    // (KeyName, ValueName, Default) and answers "(2) The system cannot find
+    // the file specified." for a value that is not there, unless a default is
+    // given; a kind that is not one of the five throws "Parameter #2 of
+    // RegWrite is invalid."; and a key with no hive throws "Parameter #1 of
+    // RegCreateKey is invalid.".
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := RegCreateKey(\"HKCU\\Software\\AhkProbe\")",
+            "\nb := RegWrite(\"Value\", \"REG_SZ\", \"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nc := RegRead(\"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nd := RegWrite(42, \"REG_DWORD\", \"HKCU\\Software\\AhkProbe\", \"Num\")",
+            "\ne := RegRead(\"HKCU\\Software\\AhkProbe\", \"Num\")",
+            "\nf := RegRead(\"HKCU\\Software\\AhkProbe\", \"NoSuch\", \"fallback\")",
+            "\ng := RegDelete(\"HKCU\\Software\\AhkProbe\", \"MyName\")",
+            "\nh := RegDeleteKey(\"HKCU\\Software\\AhkProbe\")",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    // The calls that make and remove answer the empty text.
+    for name in ["a", "b", "g", "h"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()));
+    }
+    assert_eq!(value_of(&report, "c"), Value::Text("Value".into()));
+    // A value of REG_DWORD is a number.
+    assert_eq!(value_of(&report, "e"), Value::Int(42));
+    // A value that is not there is the default when there is one.
+    assert_eq!(value_of(&report, "f"), Value::Text("fallback".into()));
+
+    // A value that is not there and no default: the machine's failure.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "RegCreateKey(\"HKCU\\Software\\AhkProbe\")",
+            "\ntry\n{",
+            "\n    RegRead(\"HKCU\\Software\\AhkProbe\", \"NoSuch\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(2) The system cannot find the file specified.".into())
+    );
+
+    // A kind that is not one of the five, and a key with no hive.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    RegWrite(\"V\", \"BOGUS\", \"HKCU\\Software\\X\", \"N\")",
+            "\n}\ncatch as err\n{",
+            "\n    kind := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    RegCreateKey(\"Software\\X\")",
+            "\n}\ncatch as err\n{",
+            "\n    hive := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "kind"),
+        Value::Text("Parameter #2 of RegWrite is invalid.".into())
+    );
+    assert_eq!(
+        value_of(&report, "hive"),
+        Value::Text("Parameter #1 of RegCreateKey is invalid.".into())
+    );
+}
+
+#[test]
+fn the_lock_lights_answer_the_state_that_the_program_set() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: "On" turns the light
+    // on and "Off" turns it out, and GetKeyState(<lock>, "T") reads the
+    // state back -- one for the light that is on. Every other word, "Toggle"
+    // included, leaves the state as it was, and no word is a failure. The
+    // three locks are one each, and a lock key is never down.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "before := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetCapsLockState(\"On\")",
+            "\non := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetCapsLockState(\"Off\")",
+            "\noff := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetCapsLockState(\"On\")",
+            "\nSetCapsLockState(\"Toggle\")",
+            "\ntog := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetCapsLockState(\"Bogus\")",
+            "\nbogus := GetKeyState(\"CapsLock\", \"T\")",
+            "\nSetNumLockState(\"On\")",
+            "\nnum := GetKeyState(\"NumLock\", \"T\")",
+            "\ncap := GetKeyState(\"CapsLock\", \"T\")",
+            "\ndown := GetKeyState(\"CapsLock\")",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "before"), 0);
+    assert_eq!(int_of(&report, "on"), 1);
+    assert_eq!(int_of(&report, "off"), 0);
+    // "Toggle" leaves the state as it was.
+    assert_eq!(int_of(&report, "tog"), 1);
+    assert_eq!(int_of(&report, "bogus"), 1);
+    // The three locks are one each.
+    assert_eq!(int_of(&report, "num"), 1);
+    assert_eq!(int_of(&report, "cap"), 1);
+    // A lock key is never down.
+    assert_eq!(int_of(&report, "down"), 0);
+}
+
+#[test]
+fn win_move_bottom_and_the_minimize_all_pair_answer_the_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: WinMoveBottom answers
+    // the empty text and a window that is not there answers "Target window
+    // not found."; WinMinimizeAll and WinMinimizeAllUndo answer the empty
+    // text. The effect of the minimize-all pair reaches every window of the
+    // session on the binary, and the windows this runtime can act on are the
+    // ones of the script.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "a := WinMoveBottom(\"the window\")",
+            "\nb := WinMinimizeAll()",
+            "\nc := WinMinimizeAllUndo()",
+            "\ntry\n{",
+            "\n    WinMoveBottom(\"no-such\")",
+            "\n}\ncatch as err\n{",
+            "\n    d := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    for name in ["a", "b", "c"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()));
+    }
+    assert_eq!(
+        value_of(&report, "d"),
+        Value::Text("Target window not found.".into())
+    );
+}
+
+#[test]
+fn the_com_group_answers_the_wordings_the_binary_throws() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: ComObjGet of an empty
+    // string and of an Integer throw "(0x80070057) The parameter is
+    // incorrect."; ComObjActive of a class no program owns throws
+    // "(0x800401F3) Invalid class string"; ComObjType of an Integer answers
+    // the EMPTY text; ComObjQuery of an Integer throws "Parameter #1 of
+    // ComObjQuery is invalid."; and ComObjFlags, ComObjValue and
+    // ComObjConnect of an Integer throw "Parameter #1 of <name> requires a
+    // ComValue, but received an Integer.". ComObjFromPtr hangs on the binary
+    // and ComCall wants two parameters, so both stay refused.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "T(n, f)\n{\n    try\n    {\n        f.Call()\n        return \"ok\"\n    }\n    catch as err\n    {\n        return err.Message\n    }\n}",
+            "\na := T(\"get\", (() => ComObjGet(\"\")))",
+            "\nactive := T(\"active\", (() => ComObjActive(\"NoSuch.App.Xyz\")))",
+            "\nctype := ComObjType(123)",
+            "\nquery := T(\"query\", (() => ComObjQuery(123, \"x\")))",
+            "\nflags := T(\"flags\", (() => ComObjFlags(123)))",
+            "\nvalue := T(\"value\", (() => ComObjValue(123)))",
+            "\nconnect := T(\"connect\", (() => ComObjConnect(123)))",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    let value = |name: &str| {
+        report
+            .variables
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| panic!("{name} has no value"))
+    };
+    assert_eq!(
+        value("a"),
+        Value::Text("(0x80070057) The parameter is incorrect.".into())
+    );
+    assert_eq!(
+        value("active"),
+        Value::Text("(0x800401F3) Invalid class string".into())
+    );
+    assert_eq!(value("ctype"), Value::Text(String::new()));
+    assert_eq!(
+        value("query"),
+        Value::Text("Parameter #1 of ComObjQuery is invalid.".into())
+    );
+    for (variable, name) in [
+        ("flags", "ComObjFlags"),
+        ("value", "ComObjValue"),
+        ("connect", "ComObjConnect"),
+    ] {
+        let expected =
+            format!("Parameter #1 of {name} requires a ComValue, but received an Integer.");
+        assert_eq!(value(variable), Value::Text(expected), "{variable}");
+    }
+}
+
+#[test]
+fn win_activate_bottom_activates_the_window_of_the_script_and_shutdown_takes_a_number() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: WinActivateBottom with
+    // two windows of the script matching one title activated the BOTTOM one
+    // and answered the empty text; this runtime makes one window of the
+    // script, so the bottom one that matches is the one there. Shutdown of a
+    // whole number -- even 99, which names no real operation -- answered the
+    // empty text, and a text where a number is wanted threw "Parameter #1 of
+    // Shutdown requires a Number, but received a String.". The number is
+    // answered the same way here, and the session of the machine is
+    // deliberately left alone: the runner does not end the session it runs
+    // in, because a script that asked for it would take the desktop down.
+    let mut desktop = Fake {
+        gui_open: true,
+        ..Default::default()
+    };
+    let report = run_on(
+        concat!(
+            "a := WinActivateBottom(\"the window\")",
+            "\ntry\n{",
+            "\n    Shutdown(99)",
+            "\n}\ncatch as err\n{",
+            "\n    a := err.Message",
+            "\n}",
+            "\ntry\n{",
+            "\n    Shutdown(\"abc\")",
+            "\n}\ncatch as err\n{",
+            "\n    b := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    assert_eq!(
+        value_of(&report, "b"),
+        Value::Text("Parameter #1 of Shutdown requires a Number, but received a String.".into())
+    );
+}
+
+#[test]
+fn the_drive_family_answers_the_label_the_serial_the_list_and_the_hardware_words() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: the label and the
+    // serial of a drive that is there answer as read, the list answers the
+    // drives with no argument and throws "Parameter #1 of DriveGetList is
+    // invalid." with one, and the readers throw "(3) The system cannot find
+    // the path specified." on a drive that is not there. The hardware
+    // operations -- eject, lock, unlock, retract -- throw the file wording
+    // "(2) The system cannot find the file specified." on a drive that is
+    // not there, and answer the empty text when the drive is there.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "a := DriveGetLabel(\"/\")",
+            "\nb := DriveGetSerial(\"/\")",
+            "\nc := DriveGetList()",
+            "\nd := DriveEject(\"/\")",
+            "\ne := DriveLock(\"/\")",
+            "\nf := DriveUnlock(\"/\")",
+            "\ng := DriveRetract(\"/\")",
+            "\nDriveSetLabel(\"/\", \"the label\")",
+            "\nh := DriveGetLabel(\"/\")",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("core".into()));
+    // A serial that does not read as a whole number rides as text.
+    assert_eq!(value_of(&report, "b"), Value::Text("S3Z8NB0TA-1234".into()));
+    assert_eq!(value_of(&report, "c"), Value::Text("sda\nsdb".into()));
+    for name in ["d", "e", "f", "g"] {
+        assert_eq!(value_of(&report, name), Value::Text(String::new()));
+    }
+    assert_eq!(value_of(&report, "h"), Value::Text("the label".into()));
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveGetLabel(\"no-such\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(3) The system cannot find the path specified.".into())
+    );
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveEject(\"no-such\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("(2) The system cannot find the file specified.".into())
+    );
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    DriveGetList(\"/\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("Parameter #1 of DriveGetList is invalid.".into())
+    );
+}
+
+#[test]
+fn menu_select_fails_on_a_window_that_is_not_there_and_on_a_menu_it_cannot_reach() {
+    // Measured on the binary of v2.0.19 on 2026-11-10, each shape in its own
+    // try: a window that is not there throws "Target window not found."; the
+    // menu of a window that IS there throws "Non-existent or unsupported
+    // menu." -- the reference avoids driving a menu from its own thread, and
+    // this desktop cannot reach the menus of a foreign window either.
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    MenuSelect(\"no-such\", \"\", \"&File\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("Target window not found.".into())
+    );
+
+    let mut desktop = Fake::default();
+    let report = run_on(
+        concat!(
+            "try\n{",
+            "\n    MenuSelect(\"first\", \"\", \"&File\")",
+            "\n}\ncatch as err\n{",
+            "\n    seen := err.Message",
+            "\n}",
+        ),
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "seen"),
+        Value::Text("Non-existent or unsupported menu.".into())
+    );
+}
+
+#[test]
+fn a_name_of_windows_without_a_counterpart_says_so() {
+    // The group reason was corrected on 2026-11-10: a re-measurement found the
+    // reference does NOT hang on these names -- an earlier note had mistaken
+    // one call shape for the name. The true obstacle is that they ask for
+    // Win32 resources this runtime has no counterpart for. `StrGet` was the
+    // example until the same round answered it, and `CallbackFree` was the
+    // example until 2026-11-11: measured on the binary of v2.0.19 that day,
+    // a first parameter that is not a number throws "Parameter #1 of
+    // CallbackFree requires a Number, but received a String." and every
+    // number throws "Parameter #1 of CallbackFree is invalid." -- the only
+    // callback the binary would let go is one that it made itself, and this
+    // runtime makes none for the machine.
+    let report = run("CallbackFree(\"x\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of CallbackFree requires a Number, but received a String."
+    );
+    let report = run("CallbackFree(1)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of CallbackFree is invalid."
+    );
+}
+
+#[test]
+fn is_set_takes_the_variable_itself_and_not_a_reference_of_it() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `IsSet(x)` answers one
+    // when `x` has a value and zero when it does not, and the variable is
+    // handed over as a reference by the parameter shape alone. A value that
+    // is not a variable is refused. Ported from master on 2026-11-10, where
+    // this was the one name the master carried and this branch did not.
+    let report = run(concat!(
+        "x := 1",
+        "\na := IsSet(x)",
+        "\nb := IsSet(nothere)",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 1);
+    assert_eq!(int_of(&report, "b"), 0);
+
+    let report = run("a := IsSet(1)");
+    assert_eq!(failure_of(&report), "IsSet requires a variable.");
+}
+
+#[test]
+fn the_names_of_com_answer_the_wordings_of_the_binary() {
+    // `ComObjActive` moved from the platform refusal to the measured wording
+    // in round 12: measured on the binary of v2.0.19 on 2026-11-10, a class
+    // string that no running program owns throws "(0x800401F3) Invalid class
+    // string". This platform has no running object table, so every call
+    // answers the same throw.
+    let report = run("a := ComObjActive(\"Excel.Application\")");
+    assert_eq!(failure_of(&report), "(0x800401F3) Invalid class string");
+}
+
+#[test]
+fn process_exist_answers_zero_when_the_process_is_not_there() {
+    let report = run("x := ProcessExist(999)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_get_name_of_a_process_that_is_not_there_fails() {
+    let report = run("x := ProcessGetName(999)");
+    assert_eq!(failure_of(&report), "Target process not found.");
+}
+
+#[test]
+fn process_get_path_of_a_process_that_is_not_there_fails() {
+    let report = run("x := ProcessGetPath(999)");
+    assert_eq!(failure_of(&report), "Target process not found.");
+}
+
+#[test]
+fn process_get_parent_of_a_process_that_is_not_there_is_zero() {
+    let report = run("x := ProcessGetParent(999)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_close_of_a_process_that_is_not_there_is_zero() {
+    let report = run("x := ProcessClose(999)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_set_priority_of_a_process_that_is_not_there_fails() {
+    let report = run("x := ProcessSetPriority(\"Low\", 999)");
+    assert_eq!(failure_of(&report), "Target process not found.");
+}
+
+#[test]
+fn process_wait_answers_zero_when_the_timeout_runs_out() {
+    let report = run("x := ProcessWait(999, 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn process_wait_close_answers_zero_for_a_process_that_closed() {
+    let report = run("x := ProcessWaitClose(999, 0.05)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn the_tray_tip_tells_the_user_something() {
+    let mut desktop = Fake::default();
+    let report = run_on("TrayTip(\"the text\", \"the title\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("notify".to_string(), "the title|the text".to_string())]
+    );
+}
+
+#[test]
+fn the_tray_tip_answers_nothing_the_script_reads() {
+    let report = run("x := TrayTip(\"the text\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn win_get_id_answers_the_identifier_of_the_window() {
+    let report = run("x := WinGetID(\"first\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("0x1".into())));
+}
+
+#[test]
+fn win_get_id_of_a_window_that_is_not_there_fails() {
+    let report = run("x := WinGetID(\"nothing\")");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn a_group_added_in_one_statement_is_read_in_a_later_one() {
+    let report = run(concat!(
+        "a := GroupAdd(\"mine\", \"first\")\n",
+        "b := GroupActivate(\"mine\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text(String::new())));
+    assert_eq!(report.variables.get("b"), Some(&Value::Text("0x1".into())));
+}
+
+#[test]
+fn a_group_that_was_not_added_answers_zero() {
+    let report = run("x := GroupActivate(\"missing\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn closing_a_group_takes_it_away() {
+    let report = run(concat!(
+        "GroupAdd(\"mine\", \"first\")\n",
+        "GroupClose(\"mine\")\n",
+        "x := GroupActivate(\"mine\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn the_last_window_is_the_one_a_wingetid_found() {
+    let report = run(concat!(
+        "a := WinGetID(\"first\")\n",
+        "b := WinGetIDLast()\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("a"), Some(&Value::Text("0x1".into())));
+    assert_eq!(report.variables.get("b"), Some(&Value::Text("0x1".into())));
+}
+
+#[test]
+fn the_last_window_with_no_win_call_before_it_fails() {
+    let report = run("x := WinGetIDLast()");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn a_clipboard_change_calls_the_function_with_one() {
+    let report = run(concat!(
+        "Handler(Type) {\n    MsgBox \"called:\" Type\n}\n",
+        "r := OnClipboardChange(Handler, 1)\n",
+        "A_Clipboard := \"the new text\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("r"), Some(&Value::Text(String::new())));
+    assert_eq!(report.output, vec!["called:1"]);
+}
+
+#[test]
+fn a_clipboard_change_that_is_removed_is_not_called() {
+    let report = run(concat!(
+        "Handler(Type) {\n    MsgBox \"called:\" Type\n}\n",
+        "OnClipboardChange(Handler, 1)\n",
+        "OnClipboardChange(Handler, 0)\n",
+        "A_Clipboard := \"the new text\"\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert!(report.output.is_empty(), "{:?}", report.output);
+}
+
+#[test]
+fn a_clipboard_change_wants_a_function_not_a_text() {
+    let report = run("OnClipboardChange(\"Handler\", 1)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of OnClipboardChange requires an Object, but received a String."
+    );
+}
+
+fn a_fake_with_a_combo() -> Fake {
+    Fake {
+        combo_items: vec!["alpha".into(), "beta".into(), "gamma".into()],
+        gui_open: true,
+        status_text: "the status".into(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn control_get_items_answers_an_array_of_the_items() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "x := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\none := x[1]",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "n"), 3);
+    assert_eq!(value_of(&report, "one"), Value::Text("alpha".into()));
+}
+
+#[test]
+fn control_add_item_makes_the_array_one_longer() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "r := ControlAddItem(\"delta\", \"ComboBox1\", \"the window\")\nx := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\nfour := x[4]",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    assert_eq!(int_of(&report, "n"), 4);
+    assert_eq!(value_of(&report, "four"), Value::Text("delta".into()));
+}
+
+#[test]
+fn control_choose_index_and_string_set_the_choice() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "ControlChooseIndex(2, \"ComboBox1\", \"the window\")\na := ControlGetChoice(\"ComboBox1\", \"the window\")\nb := ControlGetIndex(\"ComboBox1\", \"the window\")\nControlChooseString(\"gamma\", \"ComboBox1\", \"the window\")\nc := ControlGetIndex(\"ComboBox1\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text("beta".into()));
+    assert_eq!(int_of(&report, "b"), 2);
+    assert_eq!(int_of(&report, "c"), 3);
+}
+
+#[test]
+fn control_find_item_and_delete_item() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "a := ControlFindItem(\"beta\", \"ComboBox1\", \"the window\")\nControlDeleteItem(1, \"ComboBox1\", \"the window\")\nx := ControlGetItems(\"ComboBox1\", \"the window\")\nn := x.Length\none := x[1]",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 2);
+    assert_eq!(int_of(&report, "n"), 2);
+    assert_eq!(value_of(&report, "one"), Value::Text("beta".into()));
+}
+
+#[test]
+fn the_pop_up_and_the_status_bar_answer() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "a := ControlShowDropDown(\"ComboBox1\", \"the window\")\nb := ControlHideDropDown(\"ComboBox1\", \"the window\")\nc := StatusBarGetText(1, \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "a"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "b"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "c"), Value::Text("the status".into()));
+}
+
+#[test]
+fn status_bar_wait_matches_a_case_sensitive_substring() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: "status" matches
+    // "the status", a different case does not, and part 2 is refused.
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "a := StatusBarWait(\"status\", 0.2, 1, \"the window\")\nb := StatusBarWait(\"THE STATUS\", 0.2, 1, \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 1);
+    assert_eq!(int_of(&report, "b"), 0);
+}
+
+#[test]
+fn status_bar_wait_of_a_part_that_is_not_one_is_refused() {
+    let mut desktop = a_fake_with_a_combo();
+    let report = run_on(
+        "StatusBarWait(\"the status\", 0.2, 2, \"the window\")",
+        &mut desktop,
+    );
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #3 of StatusBarWait is invalid."
+    );
+}
+
+fn a_fake_with_a_list_view() -> Fake {
+    Fake {
+        gui_open: true,
+        list_rows: vec![
+            vec!["alpha".into(), "10".into()],
+            vec!["beta".into(), "20".into()],
+        ],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn list_view_get_content_answers_the_rows_by_tabs_and_breaks() {
+    let mut desktop = a_fake_with_a_list_view();
+    let report = run_on(
+        "c := ListViewGetContent(\"\", \"SysListView321\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "c"),
+        Value::Text("alpha\t10\nbeta\t20".into())
+    );
+}
+
+#[test]
+fn list_view_get_content_of_the_selected_row() {
+    let mut desktop = a_fake_with_a_list_view();
+    desktop.list_selected = 1;
+    let report = run_on(
+        "c := ListViewGetContent(\"Selected\", \"SysListView321\", \"the window\")",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "c"), Value::Text("alpha\t10".into()));
+}
+
+#[test]
+fn file_recycle_answers_the_empty_text_and_remembers_the_path() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: FileRecycle answers
+    // the empty text and the file is gone. The earlier claim that the
+    // reference answers "Failed" was a path that was not there.
+    let mut desktop = Fake::default();
+    let report = run_on("r := FileRecycle(\"the-file.txt\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "r"), Value::Text(String::new()));
+    assert_eq!(desktop.recycled, vec!["the-file.txt".to_string()]);
+}
+
+#[test]
+fn file_get_shortcut_answers_the_fields_of_the_shortcut() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: all eight fields of a
+    // shortcut FileCreateShortcut made come back. This tree reads the
+    // .desktop file it wrote; the icon number and the run state have no
+    // counterpart there, so those two answers are the empty text.
+    let mut desktop = Fake {
+        gui_open: true,
+        shortcut: Some((
+            "/usr/bin/zenity".into(),
+            "/tmp".into(),
+            "--info".into(),
+            "a desc".into(),
+            String::new(),
+        )),
+        ..Default::default()
+    };
+    let report = run_on(
+        "FileGetShortcut \"the.desktop\", &t, &d, &a, &s\nFileGetShortcut \"the.desktop\", &t2, &d2, &a2, &s2, &i2, &n2, &r2",
+        &mut desktop,
+    );
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        value_of(&report, "t"),
+        Value::Text("/usr/bin/zenity".into())
+    );
+    assert_eq!(value_of(&report, "d"), Value::Text("/tmp".into()));
+    assert_eq!(value_of(&report, "a"), Value::Text("--info".into()));
+    assert_eq!(value_of(&report, "s"), Value::Text("a desc".into()));
+    assert_eq!(value_of(&report, "i2"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "n2"), Value::Text(String::new()));
+    assert_eq!(value_of(&report, "r2"), Value::Text(String::new()));
+}
+
+#[test]
+fn win_get_class_answers_the_class_of_the_window() {
+    let report = run("x := WinGetClass(\"second\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("second".into()))
+    );
+}
+
+#[test]
+fn win_get_class_of_a_window_that_is_not_there_fails() {
+    let report = run("x := WinGetClass(\"nothing\")");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_count_counts_the_windows_that_match() {
+    let report =
+        run("a := WinGetCount()\nb := WinGetCount(\"first\")\nc := WinGetCount(\"nothing\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 2);
+    assert_eq!(int_of(&report, "b"), 1);
+    assert_eq!(int_of(&report, "c"), 0);
+}
+
+#[test]
+fn win_get_list_of_a_title_that_matches_nothing_is_empty() {
+    // The answer is an array of v2 and not a bare list: the `Length` of it is
+    // the number of the windows, which is what a script reads.
+    let report = run("x := WinGetList(\"nothing\")\nn := x.Length");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "n"), 0);
+}
+
+#[test]
+fn win_get_list_answers_every_window_with_an_empty_title() {
+    let report = run("x := WinGetList()\nn := x.Length\nfirst := x[1]");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "n"), 2);
+    assert_eq!(
+        report.variables.get("first"),
+        Some(&Value::Text("0x1".into()))
+    );
+}
+
+#[test]
+fn win_get_pos_writes_the_four_places_into_the_references() {
+    let report = run("x := y := w := h := 0\nWinGetPos(&x, &y, &w, &h, \"first\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 10);
+    assert_eq!(int_of(&report, "y"), 20);
+    assert_eq!(int_of(&report, "w"), 100);
+    assert_eq!(int_of(&report, "h"), 200);
+}
+
+#[test]
+fn win_get_pos_answers_the_empty_text() {
+    let report = run("x := y := w := h := 0\nr := WinGetPos(&x, &y, &w, &h, \"first\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("r"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn win_get_pos_of_a_window_that_is_not_there_fails() {
+    let report = run("x := y := w := h := 0\nWinGetPos(&x, &y, &w, &h, \"nothing\")");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_pos_with_no_window_fails_like_v2_with_no_last_found_window() {
+    let report = run("x := y := w := h := 0\nWinGetPos(&x, &y, &w, &h)");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_pos_needs_a_variable_and_not_a_value() {
+    let report = run("WinGetPos(1, &y, &w, &h, \"first\")");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of WinGetPos requires a VarRef, but received an Integer."
+    );
+}
+
+#[test]
+fn win_get_client_pos_writes_the_four_places_too() {
+    let report = run("x := y := w := h := 0\nWinGetClientPos(&x, &y, &w, &h, \"second\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 30);
+    assert_eq!(int_of(&report, "w"), 300);
+    assert_eq!(int_of(&report, "h"), 400);
+}
+
+#[test]
+fn win_get_min_max_answers_zero_for_an_ordinary_window() {
+    let report = run("x := WinGetMinMax(\"first\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 0);
+}
+
+#[test]
+fn win_get_min_max_answers_one_for_a_maximized_window() {
+    let report = run("x := WinGetMinMax(\"second\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn win_get_min_max_answers_minus_one_for_a_minimized_window() {
+    let report = run("x := WinGetMinMax(\"minimized\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), -1);
+}
+
+#[test]
+fn win_get_min_max_of_a_window_that_is_not_there_fails() {
+    let report = run("x := WinGetMinMax(\"nothing\")");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_get_min_max_with_no_window_fails() {
+    let report = run("x := WinGetMinMax()");
+    assert_eq!(failure_of(&report), "Target window not found.");
+}
+
+#[test]
+fn win_wait_without_seconds_waits_the_cap_and_not_forever() {
+    let mut desktop = Fake::default();
+    let report = run_on("WinWait(\"first\")", &mut desktop);
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        desktop.calls,
+        vec![("wait-window".to_string(), "first|Present|60000".to_string())]
+    );
+}
+
+#[test]
+fn drive_get_space_free_answers_the_free_megabytes() {
+    let report = run("x := DriveGetSpaceFree(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1000);
+}
+
+#[test]
+fn drive_get_capacity_answers_the_capacity_in_megabytes() {
+    let report = run("x := DriveGetCapacity(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 4000);
+}
+
+#[test]
+fn drive_get_space_free_of_a_drive_that_is_not_there_fails() {
+    let report = run("x := DriveGetSpaceFree(\"/nowhere\")");
+    assert!(!report.ok, "the script was expected to fail");
+    assert!(failure_of(&report).contains("is not there"));
+}
+
+#[test]
+fn drive_get_status_answers_ready_for_a_drive_that_is_there() {
+    let report = run("x := DriveGetStatus(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("Ready".into()))
+    );
+}
+
+#[test]
+fn drive_get_status_of_a_drive_that_is_not_there_is_empty() {
+    let report = run("x := DriveGetStatus(\"/nowhere\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn drive_get_filesystem_answers_the_filesystem_of_the_machine() {
+    let report = run("x := DriveGetFilesystem(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text("ext4".into())));
+}
+
+#[test]
+fn drive_get_type_answers_the_kind_in_the_word_of_v2() {
+    let report = run("x := DriveGetType(\"/\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(
+        report.variables.get("x"),
+        Some(&Value::Text("Fixed".into()))
+    );
+}
+
+#[test]
+fn drive_get_type_of_a_drive_that_is_not_there_is_empty() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `DriveGetType` of a
+    // drive that is not there is the empty text, and not a failure.
+    let report = run("x := DriveGetType(\"/nowhere\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.variables.get("x"), Some(&Value::Text(String::new())));
+}
+
+#[test]
+fn monitor_get_name_of_a_monitor_that_is_not_there_fails() {
+    let report = run("x := MonitorGetName(9)");
+    assert_eq!(
+        failure_of(&report),
+        "Parameter #1 of MonitorGetName is invalid."
+    );
+}
+
+#[test]
+fn monitor_get_answers_one() {
+    let report = run("l := t := r := b := 0\nx := MonitorGet(1, &l, &t, &r, &b)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "x"), 1);
+}
+
+#[test]
+fn the_work_area_is_the_monitor_when_the_panels_are_not_known() {
+    let report = run("l := t := r := b := 0\nMonitorGetWorkArea(1, &l, &t, &r, &b)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "r"), 1920);
+}
+
+#[test]
+fn the_bytes_of_a_text_are_the_ones_v2_counts() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the default encoding is
+    // the UTF-16 of the machine, so "hello" is twelve bytes -- five of two and
+    // the two of the terminator -- and the UTF-8 of it is six. The accent of
+    // "héllo" is two bytes, which makes seven.
+    let report = run("a := StrPut(\"hello\")\n\
+         b := StrPut(\"hello\", \"UTF-8\")\n\
+         c := StrPut(\"hello\", \"UTF-16\")\n\
+         d := StrPut(\"héllo\", \"UTF-8\")");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "a"), 12);
+    assert_eq!(int_of(&report, "b"), 6);
+    assert_eq!(int_of(&report, "c"), 12);
+    assert_eq!(int_of(&report, "d"), 7);
+}
+
+#[test]
+fn an_encoding_that_v2_does_not_know_is_refused() {
+    let report = run("x := StrPut(\"hello\", \"Bogus\")");
+    assert_eq!(failure_of(&report), "Invalid Encoding.");
+}
+
+impl Fake {
+    /// The answer about a write to a control: the one control takes it, and
+    /// every other question is one of the two failures.
+    fn the_edit(&self, control: &str, title: &str) -> Result<ControlEdit, String> {
+        Ok(if control == "the label" && title == "the window" {
+            ControlEdit::Done
+        } else if title == "the window" {
+            ControlEdit::NoSuchControl
+        } else {
+            ControlEdit::NoSuchWindow
+        })
+    }
+
+    /// The answer about a flag of a control: the one control is visible and
+    /// enabled, and every other question is one of the two failures.
+    fn the_flag(&self, control: &str, title: &str) -> Result<ControlFlag, String> {
+        Ok(if control == "the label" && title == "the window" {
+            ControlFlag::Yes
+        } else if title == "the window" {
+            ControlFlag::NoSuchControl
+        } else {
+            ControlFlag::NoSuchWindow
+        })
+    }
+}
+use ahk::desktop::{
+    ControlAnswer, ControlEdit, ControlFlag, DriveSpace, WaitFor, WindowGeometry, WindowRef,
+};

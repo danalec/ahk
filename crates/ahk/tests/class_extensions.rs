@@ -178,7 +178,10 @@ impl Windows for Fake {
     ) -> Result<(), String> {
         Ok(())
     }
-    fn window_enabled(&mut self, window: &ahk::desktop::WindowInfo) -> Result<Option<bool>, String> {
+    fn window_enabled(
+        &mut self,
+        window: &ahk::desktop::WindowInfo,
+    ) -> Result<Option<bool>, String> {
         match window.id {
             3 => Ok(None),
             _ => Ok(Some(true)),
@@ -186,9 +189,10 @@ impl Windows for Fake {
     }
     fn control_enabled(
         &mut self,
-        _window: &ahk::desktop::WindowInfo,
-    ) -> Result<Option<bool>, String> {
-        Ok(Some(false))
+        _control: &str,
+        _title: &str,
+    ) -> Result<ahk::desktop::ControlFlag, String> {
+        Ok(ahk::desktop::ControlFlag::No)
     }
     fn window_capabilities(&mut self) -> Vec<String> {
         vec![
@@ -297,9 +301,8 @@ fn line(report: &Report, index: usize) -> String {
 fn a_map_answers_the_array_of_the_answers_of_the_callback() {
     // The example of the documentation of KeySharp: `[10, 20, 30]` mapped
     // with `(x, i) => x * i` answers `[10, 40, 90]`.
-    let report = run_ks(
-        "arr := [10, 20, 30]\nm := arr.Map((x, i) => x * i)\nMsgBox m.ToString()\n",
-    );
+    let report =
+        run_ks("arr := [10, 20, 30]\nm := arr.Map((x, i) => x * i)\nMsgBox m.ToString()\n");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "[10, 40, 90]");
 }
@@ -309,14 +312,12 @@ fn a_contains_and_an_indexof_compare_the_underlying_values() {
     // The documentation says the comparisons compare the actual underlying
     // values, so "1" is not 1 -- a search of an array is not the `=` of an
     // `if`.
-    let report = run_ks(
-        concat!(
-            "a := [1, \"1\", 2]\n",
-            "MsgBox a.Contains(1)\n",
-            "MsgBox a.IndexOf(\"1\")\n",
-            "MsgBox a.IndexOf(9)\n",
-        ),
-    );
+    let report = run_ks(concat!(
+        "a := [1, \"1\", 2]\n",
+        "MsgBox a.Contains(1)\n",
+        "MsgBox a.IndexOf(\"1\")\n",
+        "MsgBox a.IndexOf(9)\n",
+    ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "1");
     assert_eq!(line(&report, 1), "2");
@@ -332,16 +333,14 @@ fn a_negative_start_walks_from_the_end_toward_the_beginning() {
 
 #[test]
 fn a_start_of_zero_throws() {
-    let report = run_ks(
-        concat!(
-            "a := [10, 20]\n",
-            "try {\n",
-            "    a.IndexOf(10, 0)\n",
-            "} catch as e {\n",
-            "    MsgBox e.Message\n",
-            "}\n",
-        ),
-    );
+    let report = run_ks(concat!(
+        "a := [10, 20]\n",
+        "try {\n",
+        "    a.IndexOf(10, 0)\n",
+        "} catch as e {\n",
+        "    MsgBox e.Message\n",
+        "}\n",
+    ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         line(&report, 0),
@@ -351,14 +350,12 @@ fn a_start_of_zero_throws() {
 
 #[test]
 fn a_remove_takes_the_first_match_and_answers_whether_it_did() {
-    let report = run_ks(
-        concat!(
-            "a := [10, 20, 10]\n",
-            "r := a.Remove(10)\n",
-            "MsgBox r\n",
-            "MsgBox a.ToString()\n",
-        ),
-    );
+    let report = run_ks(concat!(
+        "a := [10, 20, 10]\n",
+        "r := a.Remove(10)\n",
+        "MsgBox r\n",
+        "MsgBox a.ToString()\n",
+    ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "1");
     assert_eq!(line(&report, 1), "[20, 10]");
@@ -366,15 +363,13 @@ fn a_remove_takes_the_first_match_and_answers_whether_it_did() {
 
 #[test]
 fn a_remove_without_a_value_takes_the_first_place_that_has_none() {
-    let report = run_ks(
-        concat!(
-            "a := [1, 2, 3]\n",
-            "a.Delete(2)\n",
-            "r := a.Remove()\n",
-            "MsgBox r\n",
-            "MsgBox a.ToString()\n",
-        ),
-    );
+    let report = run_ks(concat!(
+        "a := [1, 2, 3]\n",
+        "a.Delete(2)\n",
+        "r := a.Remove()\n",
+        "MsgBox r\n",
+        "MsgBox a.ToString()\n",
+    ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "1");
     // The place that went is the hole itself: the array keeps the first and
@@ -386,26 +381,22 @@ fn a_remove_without_a_value_takes_the_first_place_that_has_none() {
 fn a_sort_keeps_the_order_of_the_equal_ones() {
     // The documentation says only the sign of the answer counts, and equal
     // elements keep their order.
-    let report = run_ks(
-        concat!(
-            "a := [\"b\", \"a\", \"c\"]\n",
-            "a.Sort((one, two) => 0)\n",
-            "MsgBox a.ToString()\n",
-        ),
-    );
+    let report = run_ks(concat!(
+        "a := [\"b\", \"a\", \"c\"]\n",
+        "a.Sort((one, two) => 0)\n",
+        "MsgBox a.ToString()\n",
+    ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "[\"b\", \"a\", \"c\"]");
 }
 
 #[test]
 fn a_tostring_quotes_the_texts_and_names_the_absent_places() {
-    let report = run_ks(
-        concat!(
-            "a := [1, \"two\"]\n",
-            "a.Delete(1)\n",
-            "MsgBox a.ToString()\n",
-        ),
-    );
+    let report = run_ks(concat!(
+        "a := [1, \"two\"]\n",
+        "a.Delete(1)\n",
+        "MsgBox a.ToString()\n",
+    ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "[unset, \"two\"]");
 }
@@ -428,10 +419,12 @@ fn the_dialect_of_the_v2_does_not_have_the_members() {
     let statements = ahk::parse("x := [10, 20]\nx.Contains(10)\n").expect("parses");
     let report = Runtime::new(&mut desktop, Duration::from_secs(10)).run(&statements);
     assert!(!report.ok);
-    assert!(report
-        .error
-        .as_deref()
-        .is_some_and(|error| error.contains("has no method named \"Contains\"")));
+    assert!(
+        report
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("has no method named \"Contains\""))
+    );
 }
 
 #[test]
@@ -549,7 +542,8 @@ fn a_replace_of_the_line_endings_takes_the_seven_of_them() {
     // the classic Mac and the Unix, the form feed, the next line of
     // Unicode and the two separators of Unicode.
     let report = run_ks(concat!(
-        "text := \"a`r`nb`nc`rd`ne\u{000C}f\u{0085}g\u{2028}h\u{2029}i\"\n",        "MsgBox ReplaceLineEndings(text, \"-\")\n",
+        "text := \"a`r`nb`nc`rd`ne\u{000C}f\u{0085}g\u{2028}h\u{2029}i\"\n",
+        "MsgBox ReplaceLineEndings(text, \"-\")\n",
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "a-b-c-d-e-f-g-h-i");
@@ -669,7 +663,7 @@ fn the_core_of_the_dialect_is_the_binary_that_runs_the_script() {
     // answers.
     let report = run_ks("MsgBox A_KsCorePath\n");
     assert!(report.ok, "{:?}", report.error);
-        assert_eq!(line(&report, 0), "/usr/bin/ahk");
+    assert_eq!(line(&report, 0), "/usr/bin/ahk");
 }
 
 #[test]
@@ -734,10 +728,7 @@ fn the_exit_of_the_thread_stops_the_script_with_the_code() {
 #[test]
 fn the_code_of_a_thread_that_has_not_exited_is_unset() {
     // The v2.1 mode reads the exit code of a thread that runs as unset.
-    let report = run_ks(concat!(
-        "t := Thread()\n",
-        "MsgBox IsSet(t.ExitCode)\n",
-    ));
+    let report = run_ks(concat!("t := Thread()\n", "MsgBox IsSet(t.ExitCode)\n",));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "0");
 }
@@ -754,10 +745,7 @@ fn the_dialect_of_the_v2_does_not_have_the_class() {
 
 #[test]
 fn the_two_booleans_answer_the_numbers_of_the_dialect() {
-    let report = run_ks(concat!(
-        "MsgBox True\n",
-        "MsgBox False\n",
-    ));
+    let report = run_ks(concat!("MsgBox True\n", "MsgBox False\n",));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "1");
     assert_eq!(line(&report, 1), "0");
@@ -822,7 +810,10 @@ fn the_props_of_a_value_that_is_not_an_object_refuses_with_the_kind() {
     let report = run_ks("MsgBox Props(42)\n");
     assert!(!report.ok);
     let message = report.error.clone().unwrap_or_default();
-    assert!(message.contains("Parameter #1 of Props requires an Object"), "{message}");
+    assert!(
+        message.contains("Parameter #1 of Props requires an Object"),
+        "{message}"
+    );
 }
 
 #[test]
@@ -896,7 +887,10 @@ fn the_struct_of_no_field_has_no_value_of_its_own() {
     let report = run_ks("MsgBox Struct().__Value\n");
     assert!(!report.ok);
     let message = report.error.clone().unwrap_or_default();
-    assert!(message.contains("This struct does not define __Value."), "{message}");
+    assert!(
+        message.contains("This struct does not define __Value."),
+        "{message}"
+    );
 }
 
 #[test]
@@ -921,7 +915,10 @@ fn the_argument_error_carries_the_message_of_keysharp() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(line(&report, 0), "ArgumentError");
-    assert_eq!(line(&report, 1), "A required parameter was omitted or unset.");
+    assert_eq!(
+        line(&report, 1),
+        "A required parameter was omitted or unset."
+    );
 }
 
 #[test]

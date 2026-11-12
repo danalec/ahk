@@ -18,7 +18,6 @@
 //! (`Keysharp/docs/reference.md`), which says what each one answers and
 //! what it does with the index it starts at.
 
-
 /// The members of the classes of AutoHotkey that the `ks` dialect adds.
 ///
 /// The pair is the class and the member, both in the spelling of the lower

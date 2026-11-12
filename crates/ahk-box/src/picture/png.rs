@@ -110,12 +110,8 @@ pub fn read(bytes: &[u8]) -> Result<Image, String> {
     let mut palette: Vec<u8> = Vec::new();
     let mut data: Vec<u8> = Vec::new();
     while at + 8 <= bytes.len() {
-        let length = u32::from_be_bytes([
-            bytes[at],
-            bytes[at + 1],
-            bytes[at + 2],
-            bytes[at + 3],
-        ]) as usize;
+        let length =
+            u32::from_be_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]) as usize;
         let kind = &bytes[at + 4..at + 8];
         let start = at + 8;
         let end = start
@@ -127,7 +123,8 @@ pub fn read(bytes: &[u8]) -> Result<Image, String> {
         let body = &bytes[start..end];
         // The CRC of a chunk covers the type and the bytes, and not the
         // length: a damaged file is refused rather than read.
-        let stored = u32::from_be_bytes([bytes[end], bytes[end + 1], bytes[end + 2], bytes[end + 3]]);
+        let stored =
+            u32::from_be_bytes([bytes[end], bytes[end + 1], bytes[end + 2], bytes[end + 3]]);
         let mut covered = Vec::with_capacity(4 + body.len());
         covered.extend_from_slice(kind);
         covered.extend_from_slice(body);
@@ -188,7 +185,11 @@ impl Header {
             3 => Colour::Indexed,
             4 => Colour::GreyAlpha,
             6 => Colour::Rgba,
-            other => return Err(format!("the kind of the pixel is {other}, which is not a kind of PNG")),
+            other => {
+                return Err(format!(
+                    "the kind of the pixel is {other}, which is not a kind of PNG"
+                ));
+            }
         };
         let allowed: &[u8] = match colour {
             Colour::Grey => &[1, 2, 4, 8, 16],
@@ -196,7 +197,9 @@ impl Header {
             _ => &[8, 16],
         };
         if !allowed.contains(&depth) {
-            return Err(format!("a depth of {depth} bits is not one of this kind of pixel"));
+            return Err(format!(
+                "a depth of {depth} bits is not one of this kind of pixel"
+            ));
         }
         if body[10] != 0 {
             return Err("the compression of the image is not the one of PNG".to_string());
@@ -359,7 +362,11 @@ fn unfilter(kind: u8, row: &mut [u8], previous: &[u8], bpp: usize) -> Result<(),
         }
         3 => {
             for index in 0..row.len() {
-                let left = if index >= bpp { row[index - bpp] as u16 } else { 0 };
+                let left = if index >= bpp {
+                    row[index - bpp] as u16
+                } else {
+                    0
+                };
                 let up = previous[index] as u16;
                 row[index] = row[index].wrapping_add(((left + up) / 2) as u8);
             }
@@ -369,7 +376,11 @@ fn unfilter(kind: u8, row: &mut [u8], previous: &[u8], bpp: usize) -> Result<(),
             for index in 0..row.len() {
                 let left = if index >= bpp { row[index - bpp] } else { 0 };
                 let up = previous[index];
-                let up_left = if index >= bpp { previous[index - bpp] } else { 0 };
+                let up_left = if index >= bpp {
+                    previous[index - bpp]
+                } else {
+                    0
+                };
                 row[index] = row[index].wrapping_add(paeth(left, up, up_left));
             }
             Ok(())
@@ -393,7 +404,11 @@ pub fn write_rgb(width: usize, height: usize, pixels: &[u8]) -> Result<Vec<u8>, 
     if width == 0 || height == 0 {
         return Err("the capture is empty".to_string());
     }
-    if width.checked_mul(height).and_then(|count| count.checked_mul(3)) != Some(pixels.len()) {
+    if width
+        .checked_mul(height)
+        .and_then(|count| count.checked_mul(3))
+        != Some(pixels.len())
+    {
         return Err("the pixels are not the size of the image".to_string());
     }
     let mut out = Vec::with_capacity(pixels.len() + height + 64);

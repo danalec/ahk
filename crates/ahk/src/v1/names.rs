@@ -1012,10 +1012,7 @@ pub(crate) fn on_error(
 /// The v1 has no order of its own, and the number is the one of the v2: the
 /// parameter that is not there is 1, and a value that is not a number is
 /// refused with the reason of the parameter.
-fn the_order_of_the_handler(
-    value: Option<&Value>,
-    line: u32,
-) -> Result<i32, RuntimeError> {
+fn the_order_of_the_handler(value: Option<&Value>, line: u32) -> Result<i32, RuntimeError> {
     let Some(value) = value else { return Ok(1) };
     if value.to_text().is_empty() {
         return Ok(1);

@@ -18,14 +18,13 @@
 //! the runtime can answer "Too few parameters passed to function."
 //! without every handler checking for itself. A handler that cannot
 //! honour a parameter answers with the reason.
-
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
 pub(crate) use crate::date::{date_add, date_diff, format_time};
-pub(crate) use crate::dialogs::{dir_select, file_select, input_box};
+pub(crate) use crate::dialogs::{dir_select, file_select, input_box, tray_tip};
 use crate::dll::{Convention, NativeArg, NativeCall, NativeFailureKind, NativeType, NativeValue};
 pub(crate) use crate::files::{
     dir_copy, dir_move, download, file_append, file_copy, file_encoding, file_get_attrib,
@@ -462,18 +461,6 @@ pub const BUILTINS: &[Builtin] = &[
         handler: trim,
     },
     // -- the predicates --------------------------------------------------------------
-    // The one name of the predicates that asks for a variable itself: the
-    // argument is the name of a variable of the script, and the answer is
-    // whether that variable has a value.
-    Builtin {
-        name: "IsSet",
-        kind: BuiltinKind::Function,
-        min: 1,
-        max: 1,
-        variant: 0,
-        parameters: &[Parameter::Reference],
-        handler: is_set,
-    },
     Builtin {
         name: "IsAlnum",
         kind: BuiltinKind::Function,
@@ -903,6 +890,15 @@ pub const BUILTINS: &[Builtin] = &[
         handler: has_prop,
     },
     Builtin {
+        name: "IsSet",
+        kind: BuiltinKind::Function,
+        min: 1,
+        max: 1,
+        variant: 0,
+        parameters: &[Parameter::Reference],
+        handler: is_set,
+    },
+    Builtin {
         name: "IsSetRef",
         kind: BuiltinKind::Function,
         min: 1,
@@ -1001,223 +997,223 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: block_input,
     },
     Builtin {
         name: "CallbackCreate",
         kind: BuiltinKind::Command,
         min: 1,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: callback_create,
     },
     Builtin {
         name: "CallbackFree",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: callback_free,
     },
     Builtin {
         name: "CaretGetPos",
         kind: BuiltinKind::Function,
         min: 0,
         max: 2,
-        variant: 100,
-        parameters: &[Parameter::Reference, Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[Parameter::Reference, Parameter::Reference],
+        handler: caret_get_pos,
     },
     Builtin {
         name: "ComCall",
         kind: BuiltinKind::Function,
         min: 2,
         max: 255,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_call,
     },
     Builtin {
         name: "ComObjActive",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_active,
     },
     Builtin {
         name: "ComObjConnect",
         kind: BuiltinKind::Function,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_connect,
     },
     Builtin {
         name: "ComObjFlags",
         kind: BuiltinKind::Function,
         min: 1,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_flags,
     },
     Builtin {
         name: "ComObjFromPtr",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_from_ptr,
     },
     Builtin {
         name: "ComObjGet",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_get,
     },
     Builtin {
         name: "ComObjQuery",
         kind: BuiltinKind::Function,
         min: 2,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_query,
     },
     Builtin {
         name: "ComObjType",
         kind: BuiltinKind::Function,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_type,
     },
     Builtin {
         name: "ComObjValue",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: com_obj_value,
     },
     Builtin {
         name: "ControlAddItem",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_add_item,
     },
     Builtin {
         name: "ControlChooseIndex",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_choose_index,
     },
     Builtin {
         name: "ControlChooseString",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_choose_string,
     },
     Builtin {
         name: "ControlClick",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_act,
     },
     Builtin {
         name: "ControlDeleteItem",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_delete_item,
     },
     Builtin {
         name: "ControlFindItem",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_find_item,
     },
     Builtin {
         name: "ControlFocus",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_act,
     },
     Builtin {
         name: "ControlGetChecked",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_checked,
     },
     Builtin {
         name: "ControlGetChoice",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_choice,
     },
     Builtin {
         name: "ControlGetClassNN",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_classnn,
     },
     Builtin {
         name: "ControlGetEnabled",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_flag,
     },
     Builtin {
         name: "ControlGetExStyle",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 127,
         parameters: &[Parameter::Value],
         handler: not_carried,
     },
@@ -1226,52 +1222,52 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_focus,
     },
     Builtin {
         name: "ControlGetHwnd",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_hwnd,
     },
     Builtin {
         name: "ControlGetIndex",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_index,
     },
     Builtin {
         name: "ControlGetItems",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_items,
     },
     Builtin {
         name: "ControlGetPos",
         kind: BuiltinKind::Command,
         min: 0,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_pos,
     },
     Builtin {
         name: "ControlGetStyle",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 127,
         parameters: &[Parameter::Value],
         handler: not_carried,
     },
@@ -1280,88 +1276,88 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_get_text,
     },
     Builtin {
         name: "ControlGetVisible",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_flag,
     },
     Builtin {
         name: "ControlHide",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_visibility,
     },
     Builtin {
         name: "ControlHideDropDown",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_hide_drop_down,
     },
     Builtin {
         name: "ControlMove",
         kind: BuiltinKind::Command,
         min: 0,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_move,
     },
     Builtin {
         name: "ControlSend",
         kind: BuiltinKind::Command,
         min: 1,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_send,
     },
     Builtin {
         name: "ControlSendText",
         kind: BuiltinKind::Command,
         min: 1,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_send_text,
     },
     Builtin {
         name: "ControlSetChecked",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_checked,
     },
     Builtin {
         name: "ControlSetEnabled",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_enabled,
     },
     Builtin {
         name: "ControlSetExStyle",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 127,
         parameters: &[Parameter::Value],
         handler: not_carried,
     },
@@ -1370,7 +1366,7 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 127,
         parameters: &[Parameter::Value],
         handler: not_carried,
     },
@@ -1379,27 +1375,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_set_text,
     },
     Builtin {
         name: "ControlShow",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_show,
     },
     Builtin {
         name: "ControlShowDropDown",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: control_show_drop_down,
     },
     Builtin {
         name: "DetectHiddenText",
@@ -1433,126 +1429,126 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_eject,
     },
     Builtin {
         name: "DriveGetCapacity",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 1,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: drive_get,
+        handler: drive_get_capacity,
     },
     Builtin {
         name: "DriveGetFilesystem",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 2,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: drive_get,
+        handler: drive_get_filesystem,
     },
     Builtin {
         name: "DriveGetLabel",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 3,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: drive_get,
+        handler: drive_get_label,
     },
     Builtin {
         name: "DriveGetList",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_list,
     },
     Builtin {
         name: "DriveGetSerial",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 4,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: drive_get,
+        handler: drive_get_serial,
     },
     Builtin {
         name: "DriveGetSpaceFree",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 5,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: drive_get,
+        handler: drive_get_space_free,
     },
     Builtin {
         name: "DriveGetStatus",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 6,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: drive_get,
+        handler: drive_get_status,
     },
     Builtin {
         name: "DriveGetStatusCD",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_get_status_cd,
     },
     Builtin {
         name: "DriveGetType",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 7,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: drive_get,
+        handler: drive_get_type,
     },
     Builtin {
         name: "DriveLock",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_lock,
     },
     Builtin {
         name: "DriveRetract",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_retract,
     },
     Builtin {
         name: "DriveSetLabel",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_set_label,
     },
     Builtin {
         name: "DriveUnlock",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: drive_unlock,
     },
     Builtin {
         name: "Edit",
@@ -1561,61 +1557,61 @@ pub const BUILTINS: &[Builtin] = &[
         max: 0,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit,
     },
     Builtin {
         name: "EditGetCurrentCol",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_current_col,
     },
     Builtin {
         name: "EditGetCurrentLine",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_current_line,
     },
     Builtin {
         name: "EditGetLine",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_line,
     },
     Builtin {
         name: "EditGetLineCount",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_line_count,
     },
     Builtin {
         name: "EditGetSelectedText",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_get_selected_text,
     },
     Builtin {
         name: "EditPaste",
         kind: BuiltinKind::Command,
         min: 2,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: edit_paste,
     },
     Builtin {
         name: "FileCreateShortcut",
@@ -1640,9 +1636,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: file_get_version,
     },
     Builtin {
         name: "FileRecycle",
@@ -1667,108 +1663,108 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: group_activate,
     },
     Builtin {
         name: "GroupAdd",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: group_add,
     },
     Builtin {
         name: "GroupClose",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: group_close,
     },
     Builtin {
         name: "GroupDeactivate",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: group_close,
     },
     Builtin {
         name: "GuiCtrlFromHwnd",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: gui_ctrl_from_hwnd,
     },
     Builtin {
         name: "GuiFromHwnd",
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: gui_from_hwnd,
     },
     Builtin {
         name: "IL_Add",
         kind: BuiltinKind::Command,
         min: 2,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_add,
     },
     Builtin {
         name: "IL_Create",
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_create,
     },
     Builtin {
         name: "IL_Destroy",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: il_destroy,
     },
     Builtin {
         name: "ListViewGetContent",
         kind: BuiltinKind::Command,
         min: 0,
         max: 6,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_view_get_content,
     },
     Builtin {
         name: "MenuFromHandle",
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: menu_from_handle,
     },
     Builtin {
         name: "MenuSelect",
         kind: BuiltinKind::Command,
         min: 0,
         max: 11,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: menu_select,
     },
     Builtin {
         name: "MonitorGet",
@@ -1776,13 +1772,7 @@ pub const BUILTINS: &[Builtin] = &[
         min: 0,
         max: 5,
         variant: 0,
-        parameters: &[
-            Parameter::Value,
-            Parameter::VarRef,
-            Parameter::VarRef,
-            Parameter::VarRef,
-            Parameter::VarRef,
-        ],
+        parameters: &[Parameter::Value],
         handler: monitor_get,
     },
     Builtin {
@@ -1818,13 +1808,7 @@ pub const BUILTINS: &[Builtin] = &[
         min: 0,
         max: 5,
         variant: 0,
-        parameters: &[
-            Parameter::Value,
-            Parameter::VarRef,
-            Parameter::VarRef,
-            Parameter::VarRef,
-            Parameter::VarRef,
-        ],
+        parameters: &[Parameter::Value],
         handler: monitor_get_work_area,
     },
     Builtin {
@@ -1851,18 +1835,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_from_ptr,
     },
     Builtin {
         name: "ObjFromPtrAddRef",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_from_ptr_add_ref,
     },
     Builtin {
         name: "ObjGetBase",
@@ -1914,27 +1898,27 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_ptr,
     },
     Builtin {
         name: "ObjPtrAddRef",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_ptr_add_ref,
     },
     Builtin {
         name: "ObjRelease",
         kind: BuiltinKind::Function,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: obj_add_ref,
     },
     Builtin {
         name: "ObjSetBase",
@@ -1959,18 +1943,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: on_clipboard_change,
     },
     Builtin {
         name: "OnMessage",
         kind: BuiltinKind::Command,
         min: 2,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: on_message,
     },
     Builtin {
         name: "OutputDebug",
@@ -1986,9 +1970,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: post_message,
     },
     Builtin {
         name: "ProcessClose",
@@ -2067,72 +2051,72 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 0,
         max: 1,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_create_key,
     },
     Builtin {
         name: "RegDelete",
         kind: BuiltinKind::Function,
         min: 0,
         max: 2,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_delete,
     },
     Builtin {
         name: "RegDeleteKey",
         kind: BuiltinKind::Function,
         min: 0,
         max: 1,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_delete_key,
     },
     Builtin {
         name: "RegRead",
         kind: BuiltinKind::Function,
         min: 0,
         max: 3,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_read,
     },
     Builtin {
         name: "RegWrite",
         kind: BuiltinKind::Function,
         min: 0,
         max: 4,
-        variant: 123,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: reg_write,
     },
     Builtin {
         name: "RunAs",
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: run_as,
     },
     Builtin {
         name: "SendMessage",
         kind: BuiltinKind::Command,
         min: 1,
         max: 9,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: send_message,
     },
     Builtin {
         name: "SetCapsLockState",
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 1,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: set_lock_state,
+        handler: set_caps_lock_state,
     },
     Builtin {
         name: "SetControlDelay",
@@ -2148,9 +2132,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 2,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: set_lock_state,
+        handler: set_num_lock_state,
     },
     Builtin {
         name: "SetRegView",
@@ -2166,9 +2150,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 3,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: set_lock_state,
+        handler: set_scroll_lock_state,
     },
     Builtin {
         name: "SetTitleMatchMode",
@@ -2193,9 +2177,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 1,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: shutdown,
     },
     Builtin {
         name: "SoundBeep",
@@ -2211,9 +2195,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 1,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sound_get_interface,
     },
     Builtin {
         name: "SoundGetMute",
@@ -2229,9 +2213,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Function,
         min: 0,
         max: 2,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: sound_get_name,
     },
     Builtin {
         name: "SoundGetVolume",
@@ -2274,18 +2258,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: status_bar_get_text,
     },
     Builtin {
         name: "StatusBarWait",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: status_bar_wait,
     },
     Builtin {
         name: "StrGet",
@@ -2337,99 +2321,90 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tooltip,
     },
     Builtin {
         name: "TraySetIcon",
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tray_set_icon,
     },
     Builtin {
         name: "TrayTip",
         kind: BuiltinKind::Command,
         min: 0,
         max: 3,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: tray_tip,
     },
     Builtin {
         name: "WinActivate",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_activate,
     },
     Builtin {
         name: "WinActivateBottom",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_activate_bottom,
     },
     Builtin {
         name: "WinClose",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_close,
     },
     Builtin {
         name: "WinGetClass",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 5,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: window_query,
-    },
-    Builtin {
-        name: "WinGetClientPos",
-        kind: BuiltinKind::Command,
-        min: 0,
-        max: 8,
-        variant: 100,
-        parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_class,
     },
     Builtin {
         name: "WinGetControls",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_controls,
     },
     Builtin {
         name: "WinGetControlsHwnd",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_controls_hwnd,
     },
     Builtin {
         name: "WinGetCount",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 2,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: window_query,
+        handler: win_get_count,
     },
     Builtin {
         name: "WinGetExStyle",
@@ -2438,79 +2413,106 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinGetID",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 3,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: window_query,
+        handler: win_get_id,
     },
     Builtin {
         name: "WinGetIDLast",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 4,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: window_query,
+        handler: win_get_id_last,
     },
     Builtin {
         name: "WinGetList",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 1,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: window_query,
+        handler: win_get_list,
     },
     Builtin {
         name: "WinGetMinMax",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_min_max,
     },
     Builtin {
         name: "WinGetPID",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_pid,
     },
     Builtin {
         name: "WinGetPos",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
-        parameters: &[Parameter::Value],
-        handler: not_carried,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: win_get_pos,
+    },
+    Builtin {
+        name: "WinGetClientPos",
+        kind: BuiltinKind::Command,
+        min: 0,
+        max: 8,
+        variant: 0,
+        parameters: &[
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Reference,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+            Parameter::Value,
+        ],
+        handler: win_get_client_pos,
     },
     Builtin {
         name: "WinGetProcessName",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_process,
     },
     Builtin {
         name: "WinGetProcessPath",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 1,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_process,
     },
     Builtin {
         name: "WinGetStyle",
@@ -2519,16 +2521,16 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinGetText",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 121,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_text,
     },
     Builtin {
         name: "WinGetTransColor",
@@ -2537,115 +2539,115 @@ pub const BUILTINS: &[Builtin] = &[
         max: 4,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_trans_color,
     },
     Builtin {
         name: "WinGetTransparent",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_get_transparent,
     },
     Builtin {
         name: "WinHide",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_hide,
     },
     Builtin {
         name: "WinKill",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_kill,
     },
     Builtin {
         name: "WinMaximize",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_maximize,
     },
     Builtin {
         name: "WinMinimize",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_minimize,
     },
     Builtin {
         name: "WinMinimizeAll",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_minimize_all,
     },
     Builtin {
         name: "WinMinimizeAllUndo",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_minimize_all_undo,
     },
     Builtin {
         name: "WinMove",
         kind: BuiltinKind::Command,
         min: 0,
         max: 8,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move,
     },
     Builtin {
         name: "WinMoveBottom",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move_bottom,
     },
     Builtin {
         name: "WinMoveTop",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_move_top,
     },
     Builtin {
         name: "WinRedraw",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_redraw,
     },
     Builtin {
         name: "WinRestore",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_restore,
     },
     Builtin {
         name: "WinSetAlwaysOnTop",
@@ -2661,9 +2663,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_enabled,
     },
     Builtin {
         name: "WinSetExStyle",
@@ -2672,16 +2674,16 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinSetRegion",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_region,
     },
     Builtin {
         name: "WinSetStyle",
@@ -2690,16 +2692,16 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_style,
     },
     Builtin {
         name: "WinSetTitle",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_title,
     },
     Builtin {
         name: "WinSetTransColor",
@@ -2708,61 +2710,61 @@ pub const BUILTINS: &[Builtin] = &[
         max: 5,
         variant: 100,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_trans_color,
     },
     Builtin {
         name: "WinSetTransparent",
         kind: BuiltinKind::Command,
         min: 1,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_set_transparent,
     },
     Builtin {
         name: "WinShow",
         kind: BuiltinKind::Command,
         min: 0,
         max: 4,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_show,
     },
     Builtin {
         name: "WinWait",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait,
     },
     Builtin {
         name: "WinWaitActive",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_active,
     },
     Builtin {
         name: "WinWaitClose",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_close,
     },
     Builtin {
         name: "WinWaitNotActive",
         kind: BuiltinKind::Command,
         min: 0,
         max: 5,
-        variant: 100,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: win_wait_not_active,
     },
     // -- the hotkeys --------------------------------------------------------
     Builtin {
@@ -3148,18 +3150,18 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 114,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_lines,
     },
     Builtin {
         name: "ListVars",
         kind: BuiltinKind::Command,
         min: 0,
         max: 0,
-        variant: 115,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: list_vars,
     },
     Builtin {
         name: "LoadPicture",
@@ -3220,9 +3222,9 @@ pub const BUILTINS: &[Builtin] = &[
         kind: BuiltinKind::Command,
         min: 0,
         max: 1,
-        variant: 111,
+        variant: 0,
         parameters: &[Parameter::Value],
-        handler: not_carried,
+        handler: persistent,
     },
     Builtin {
         name: "Reload",
@@ -3351,6 +3353,40 @@ pub const BUILTINS: &[Builtin] = &[
         handler: ver_compare,
     },
 ];
+
+/// The shape the three COM members that take an object share: the measured
+/// wording names the ComValue the argument is wanted to be, and an object
+/// that IS there goes to the honest refusal of the platform.
+macro_rules! com_object_argument {
+    ($name:literal, $function:ident) => {
+        pub(crate) fn $function(
+            _rt: &mut Runtime<'_>,
+            values: &[Value],
+            line: u32,
+            _variant: u8,
+        ) -> Result<Value, RuntimeError> {
+            match values.first() {
+                Some(Value::Object(_)) => Err(RuntimeError {
+                    message: "this platform has no COM: there is no object model behind the object the script holds".to_string(),
+                    line,
+                }),
+                other => Err(RuntimeError {
+                    message: crate::runtime::requires(
+                        1,
+                        $name,
+                        TypeName::ComValue,
+                        other.unwrap_or(&Value::Text(String::new())),
+                    ),
+                    line,
+                }),
+            }
+        }
+    };
+}
+
+com_object_argument!("ComObjFlags", com_obj_flags);
+com_object_argument!("ComObjValue", com_obj_value);
+com_object_argument!("ComObjConnect", com_obj_connect);
 
 /// The parameters of a command that may not be left out.
 ///
@@ -4150,7 +4186,8 @@ pub(crate) fn file_get_shortcut(
             return Err(RuntimeError {
                 message: format!(
                     "the {} of FileGetShortcut is written back, so parameter #{} wants a variable",
-                    name, at + 1
+                    name,
+                    at + 1
                 ),
                 line,
             });
@@ -5217,7 +5254,6 @@ const THE_TEXTS: &[(&str, &[u8])] = &[
     ("DirMove", &[0, 1]),
     ("DirSelect", &[0, 2]),
     ("Download", &[0, 1]),
-
     ("EnvGet", &[0]),
     ("EnvSet", &[0, 1]),
     ("FileAppend", &[1, 2]),
@@ -5310,7 +5346,6 @@ const THE_NUMBERS: &[(&str, &[u8])] = &[
     ("Abs", &[0]),
     ("Ceil", &[0]),
     ("Chr", &[0]),
-
     ("ClipWait", &[0, 1]),
     ("Cos", &[0]),
     ("DateAdd", &[1]),
@@ -5801,7 +5836,11 @@ const THE_REFUSED: &[(&str, usize, Wants)] = &[
     // its `What` -- the caller's check makes it, and not the built-in.
     ("RegExMatch", 2, Wants::Reference("a variable reference")),
     ("RegExReplace", 3, Wants::Reference("a variable reference")),
-    ("VarSetStrCapacity", 0, Wants::Reference("a variable reference")),
+    (
+        "VarSetStrCapacity",
+        0,
+        Wants::Reference("a variable reference"),
+    ),
 ];
 
 pub fn wants(name: &str, index: usize) -> Wants {
@@ -6468,7 +6507,9 @@ fn compare_texts(left: &str, right: &str, sense: CaseSense) -> Ordering {
         // The locale of the machine is not the tree's to look at, and the
         // letters of the two texts are compared without the case, which is
         // what the locale does for the letters a script sorts.
-        CaseSense::Insensitive | CaseSense::Locale => left.to_lowercase().cmp(&right.to_lowercase()),
+        CaseSense::Insensitive | CaseSense::Locale => {
+            left.to_lowercase().cmp(&right.to_lowercase())
+        }
     }
 }
 
@@ -7118,7 +7159,7 @@ pub(crate) fn format(
             return Err(RuntimeError {
                 message: crate::runtime::requires(1, "Format", TypeName::String, value),
                 line,
-            })
+            });
         }
         Some(value) => value.to_text(),
         None => String::new(),
@@ -7227,7 +7268,11 @@ pub(crate) fn in_str(
     if occurrence < 0 {
         // The search from the right, over the part of the haystack that the
         // fourth parameter leaves.
-        let end = if start_given { offset as usize } else { haystack.len() };
+        let end = if start_given {
+            offset as usize
+        } else {
+            haystack.len()
+        };
         let wanted = (-occurrence) as u64;
         let mut found = 0u64;
         if needle.len() <= end {
@@ -7479,12 +7524,14 @@ pub(crate) fn sort(
     let options = sort_options(&sort_text(values, 1, line)?);
     let callback = match values.get(2) {
         None => None,
-        Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => Some(value.clone()),
+        Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => {
+            Some(value.clone())
+        }
         Some(_) => {
             return Err(RuntimeError {
                 message: crate::runtime::invalid_parameter(3, "Sort"),
                 line,
-            })
+            });
         }
     };
     if contents.is_empty() {
@@ -7529,10 +7576,7 @@ pub(crate) fn sort(
         positions.push(position);
         position += item.chars().count() + 1;
     }
-    let keys: Vec<String> = items
-        .iter()
-        .map(|item| sort_key(item, &options))
-        .collect();
+    let keys: Vec<String> = items.iter().map(|item| sort_key(item, &options)).collect();
     let mut order: Vec<usize> = (0..items.len()).collect();
     let mut failure: Option<RuntimeError> = None;
     if let Some(callback) = &callback {
@@ -7594,9 +7638,9 @@ pub(crate) fn sort(
         // A shuffle: the items are put in a random order, and the options
         // of `N`, `C` and `CL` are still what the duplicates are read by.
         // The seed a call of RandomSeed left is mixed into the entropy of the
-    // machine, so that a seeded run of the same script asks the same numbers
-    // of the machine.
-    let now = rt.now_ms() ^ rt.the_seed_of_the_random();
+        // machine, so that a seeded run of the same script asks the same numbers
+        // of the machine.
+        let now = rt.now_ms() ^ rt.the_seed_of_the_random();
         for at in (1..order.len()).rev() {
             let pick = (unit_random(now) * (at as f64 + 1.0)) as usize;
             order.swap(at, pick.min(at));
@@ -7950,7 +7994,7 @@ pub(crate) fn str_ptr(
             return Err(RuntimeError {
                 message: crate::runtime::expected_type(TypeName::String, value.type_name()),
                 line,
-            })
+            });
         }
         None => String::new(),
     };
@@ -7980,7 +8024,10 @@ pub(crate) fn str_get(
     let bytes: Vec<u8> = match source {
         // The bytes of a buffer are the bytes of the buffer.
         Value::Object(_) => {
-            crate::classes::buffer::raw_bytes(source, line).map_err(|failure| RuntimeError { message: the_message_of(failure), line })?
+            crate::classes::buffer::raw_bytes(source, line).map_err(|failure| RuntimeError {
+                message: the_message_of(failure),
+                line,
+            })?
         }
         // The address of a text of the script: the text is a UTF-16 text,
         // and the reading of it with another encoding reads the bytes of
@@ -7991,33 +8038,33 @@ pub(crate) fn str_get(
                 return Err(RuntimeError {
                     message: crate::runtime::invalid_parameter(1, "StrGet"),
                     line,
-                })
+                });
             }
         },
         Value::Text(_) => {
             return Err(RuntimeError {
                 message: "Parameter #1 invalid.".to_string(),
                 line,
-            })
+            });
         }
         _ => {
             return Err(RuntimeError {
                 message: crate::runtime::invalid_parameter(1, "StrGet"),
                 line,
-            })
+            });
         }
     };
     // The second parameter is the length when it is a number, and the
     // encoding when it is a text; the third one is the encoding.
     let (length, encoding_name) = match values.get(1) {
-        Some(value) if is_numeric_value(value) => (
-            Some(token_to_int64(value).max(0) as usize),
-            values.get(2),
-        ),
+        Some(value) if is_numeric_value(value) => {
+            (Some(token_to_int64(value).max(0) as usize), values.get(2))
+        }
         Some(value) => (None, Some(value)),
         None => (None, None),
     };
-    let encoding = the_encoding_of(encoding_name).map_err(|message| RuntimeError { message, line })?;
+    let encoding =
+        the_encoding_of(encoding_name).map_err(|message| RuntimeError { message, line })?;
     Ok(Value::Text(the_text_of(&bytes, encoding, length)))
 }
 
@@ -8044,7 +8091,7 @@ pub(crate) fn str_put(
             return Err(RuntimeError {
                 message: crate::runtime::requires(1, "StrPut", TypeName::String, value),
                 line,
-            })
+            });
         }
         Some(value) => value.to_text(),
         None => String::new(),
@@ -8058,7 +8105,7 @@ pub(crate) fn str_put(
             return Err(RuntimeError {
                 message: crate::runtime::invalid_parameter(2, "StrPut"),
                 line,
-            })
+            });
         }
     };
     // A length with no target is not a use of v2.
@@ -8108,7 +8155,7 @@ pub(crate) fn str_put(
             return Err(RuntimeError {
                 message: crate::runtime::invalid_parameter(2, "StrPut"),
                 line,
-            })
+            });
         }
     };
     if bytes.len() as i64 > size {
@@ -8622,7 +8669,7 @@ pub(crate) fn regex_match(
                     value,
                 ),
                 line,
-            })
+            });
         }
     };
     let text = regex_text(values, 0, "RegExMatch", line)?;
@@ -8694,10 +8741,12 @@ fn regex_text(
         // Measured on the binary of v2.0.19 on 2026-11-10: the absent value is
         // no argument, and the text of no argument is the empty text.
         Some(Value::Unset) => Ok(String::new()),
-        Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => Err(RuntimeError {
-            message: crate::runtime::requires(index + 1, name, TypeName::String, value),
-            line,
-        }),
+        Some(value @ (Value::Object(_) | Value::List(_) | Value::Reference(_))) => {
+            Err(RuntimeError {
+                message: crate::runtime::requires(index + 1, name, TypeName::String, value),
+                line,
+            })
+        }
         Some(value) => Ok(value.to_text()),
     }
 }
@@ -8740,7 +8789,12 @@ pub(crate) fn regex_replace(
         };
         let (start, end) = found.span();
         out.extend(characters[at..start].iter());
-        out.push_str(&expand_replacement(&replacement, &regex, &found, &characters));
+        out.push_str(&expand_replacement(
+            &replacement,
+            &regex,
+            &found,
+            &characters,
+        ));
         replaced += 1;
         if end == start {
             // A match of no characters: the search has to move on, or it
@@ -9552,23 +9606,6 @@ pub(crate) fn screenshot(
 
 // -- the windows ----------------------------------------------------------------
 
-/// `WinActive`: whether the window with this title is the active one.
-/// The windows of the session.
-///
-/// Measured on the binary of v2.0.19 on 2026-11-09: the window family of v2
-/// asks the system about its windows, and a window of this runtime is named
-/// by the id it is given here -- an identifier of this runtime, and not a
-/// handle of Windows. A number that no window has is a window that is not
-/// there.
-fn the_windows_of(
-    rt: &mut Runtime<'_>,
-    line: u32,
-) -> Result<Vec<crate::desktop::WindowInfo>, RuntimeError> {
-    rt.desktop()
-        .windows()
-        .map_err(|e| desktop_failure(e, line))
-}
-
 /// Whether a title matches the text that is wanted, the way v2 matches it.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-09: a pattern of the `RegEx`
@@ -9576,11 +9613,7 @@ fn the_windows_of(
 /// window -- the question answers that no window matches -- while a direct
 /// `RegExMatch` of the same pattern is a failure. The error of the pattern is
 /// therefore dropped here, and only here.
-fn a_title_matches(
-    mode: crate::desktop::TitleMatch,
-    title: &str,
-    wanted: &str,
-) -> bool {
+fn a_title_matches(mode: crate::desktop::TitleMatch, title: &str, wanted: &str) -> bool {
     mode.matches(title, wanted).unwrap_or(false)
 }
 
@@ -9610,44 +9643,6 @@ fn the_window_in(
     }
 }
 
-/// The windows of a call that match the window it names.
-///
-/// The first parameter of the family is the window to ask about -- a number
-/// is the id of one, a text is a title, and an omitted one is every window.
-/// The other parameters of v2 are the text of the window and the two
-/// exclusions, and this desktop has none of them.
-fn the_matching_windows(
-    rt: &mut Runtime<'_>,
-    values: &[Value],
-    line: u32,
-) -> Result<Vec<crate::desktop::WindowInfo>, RuntimeError> {
-    if values.len() > 1 {
-        return Err(RuntimeError {
-            message: "the text of the window and the exclusions are not carried yet.".to_string(),
-            line,
-        });
-    }
-    let windows = the_windows_of(rt, line)?;
-    let Some(value) = values.first() else {
-        return Ok(windows);
-    };
-    if let Value::Int(id) = value {
-        return Ok(windows.into_iter().filter(|window| window.id == *id).collect());
-    }
-    let wanted = value.to_text();
-    if wanted.is_empty() {
-        return Ok(windows);
-    }
-    let mode = crate::settings::title_match_mode();
-    let mut matched = Vec::new();
-    for window in windows {
-        if a_title_matches(mode, &window.title, &wanted) {
-            matched.push(window);
-        }
-    }
-    Ok(matched)
-}
-
 /// The failure of a window query that found nothing.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetID`, `WinGetIDLast`
@@ -9657,48 +9652,6 @@ fn no_window(line: u32) -> RuntimeError {
     RuntimeError {
         message: "Target window not found.".to_string(),
         line,
-    }
-}
-
-/// `WinGetList`, `WinGetCount`, `WinGetID`, `WinGetIDLast` and `WinGetClass`:
-/// what the session knows about its windows.
-///
-/// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetList` answers an
-/// array of the ids -- an empty one when nothing matches -- `WinGetCount`
-/// answers the number of the windows, and the other three answer the id, or
-/// the class, of the first (or the last) of them, and fail with "Target
-/// window not found." when there is none.
-pub(crate) fn window_query(
-    rt: &mut Runtime<'_>,
-    values: &[Value],
-    line: u32,
-    variant: u8,
-) -> Result<Value, RuntimeError> {
-    let windows = the_matching_windows(rt, values, line)?;
-    match variant {
-        1 => {
-            let ids: Vec<Value> = windows
-                .iter()
-                .map(|window| Value::Int(window.id))
-                .collect();
-            crate::classes::array::construct(&ids, rt, line).map_err(|failure| RuntimeError {
-                message: the_message_of(failure),
-                line,
-            })
-        }
-        2 => Ok(Value::Int(windows.len() as i64)),
-        5 => match windows.into_iter().next() {
-            Some(window) => Ok(Value::Text(window.class)),
-            None => Err(no_window(line)),
-        },
-        3 => match windows.into_iter().next() {
-            Some(window) => Ok(Value::Int(window.id)),
-            None => Err(no_window(line)),
-        },
-        _ => match windows.into_iter().last() {
-            Some(window) => Ok(Value::Int(window.id)),
-            None => Err(no_window(line)),
-        },
     }
 }
 
@@ -9722,12 +9675,10 @@ pub(crate) fn window_active(
     match rt.desktop().windows() {
         Ok(windows) => {
             let window = the_window_in(&windows, values.first())?;
-            return Ok(Value::Int(
-                match window {
-                    Some(window) if window.active => window.id,
-                    _ => 0,
-                },
-            ));
+            return Ok(Value::Int(match window {
+                Some(window) if window.active => window.id,
+                _ => 0,
+            }));
         }
         Err(reason) => {
             // A window of the listing that is not there is the answer of the
@@ -10086,8 +10037,14 @@ pub(crate) fn process_set_priority(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let priority = values.first().map(|value| value.to_text()).unwrap_or_default();
-    let letter = priority.chars().next().map(|letter| letter.to_ascii_uppercase());
+    let priority = values
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let letter = priority
+        .chars()
+        .next()
+        .map(|letter| letter.to_ascii_uppercase());
     if !matches!(letter, Some('L' | 'B' | 'N' | 'A' | 'H' | 'R')) {
         return Err(RuntimeError {
             message: crate::runtime::invalid_parameter(1, "ProcessSetPriority"),
@@ -10125,7 +10082,10 @@ fn the_monitor_of(
         None => 0,
         Some(value) => token_to_int64(value) as i32 as i64,
     };
-    let monitors = rt.desktop().monitors().map_err(|e| desktop_failure(e, line))?;
+    let monitors = rt
+        .desktop()
+        .monitors()
+        .map_err(|e| desktop_failure(e, line))?;
     if wanted == 0 {
         let primary = rt
             .desktop()
@@ -10156,37 +10116,14 @@ fn the_monitor_at(
     monitors.get(index.checked_sub(1)?).cloned()
 }
 
-/// `MonitorGet`: where a monitor is, and the number of it.
-///
-/// Measured on the binary of v2.0.19 on 2026-11-09: the rectangle of the
-/// monitor goes into the variables that were given, the right and the bottom
-/// are one past the last column and the last row, a call may give any number
-/// of them -- the first one only, and the four -- and the answer is one when
-/// the monitor is there.
+/// `MonitorGet`: the bounds of a monitor.
 pub(crate) fn monitor_get(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let (index, monitors) = the_monitor_of(rt, values, "MonitorGet", line)?;
-    let Some(monitor) = the_monitor_at(&monitors, index) else {
-        return Err(RuntimeError {
-            message: crate::runtime::invalid_parameter(1, "MonitorGet"),
-            line,
-        });
-    };
-    for (place, number) in [
-        (1, monitor.left),
-        (2, monitor.top),
-        (3, monitor.right),
-        (4, monitor.bottom),
-    ] {
-        if let Some(value) = values.get(place) {
-            rt.write_reference(value, Value::Int(number));
-        }
-    }
-    Ok(Value::Int(1))
+    the_monitor_bounds_into(rt, values, line, "MonitorGet")
 }
 
 /// `MonitorGetCount`: how many monitors the desktop has.
@@ -10199,7 +10136,10 @@ pub(crate) fn monitor_get_count(
     line: u32,
     _variant: u8,
 ) -> Result<Value, RuntimeError> {
-    let monitors = rt.desktop().monitors().map_err(|e| desktop_failure(e, line))?;
+    let monitors = rt
+        .desktop()
+        .monitors()
+        .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Int(monitors.len() as i64))
 }
 
@@ -10314,7 +10254,10 @@ pub(crate) fn sys_get(
     // The number is the one of `GetSystemMetrics`, read the way the binary
     // reads it: the part of a float after the point is cut.
     let metric = token_to_int64(value) as i32 as i64;
-    let monitors = rt.desktop().monitors().map_err(|e| desktop_failure(e, line))?;
+    let monitors = rt
+        .desktop()
+        .monitors()
+        .map_err(|e| desktop_failure(e, line))?;
     if monitors.is_empty() && (0..=102).contains(&metric) && metric != 81 {
         return Err(RuntimeError {
             message: format!(
@@ -10346,8 +10289,16 @@ pub(crate) fn sys_get(
             }
         }
         // The virtual screen: the box around all of the monitors.
-        76 => monitors.iter().map(|monitor| monitor.left).min().unwrap_or(0),
-        77 => monitors.iter().map(|monitor| monitor.top).min().unwrap_or(0),
+        76 => monitors
+            .iter()
+            .map(|monitor| monitor.left)
+            .min()
+            .unwrap_or(0),
+        77 => monitors
+            .iter()
+            .map(|monitor| monitor.top)
+            .min()
+            .unwrap_or(0),
         78 => {
             let left = monitors.iter().map(|m| m.left).min().unwrap_or(0);
             let right = monitors.iter().map(|m| m.right).max().unwrap_or(0);
@@ -10370,7 +10321,7 @@ pub(crate) fn sys_get(
                      desktop does not have one."
                 ),
                 line,
-            })
+            });
         }
         // A number that is not a metric of the system is zero, which is what
         // the binary answers for one: measured on it on 2026-11-09,
@@ -10406,55 +10357,33 @@ pub(crate) fn sys_get_ip_addresses(
 
 // -- the keyboard, the debugger, the trash and the drives -------------------------
 
-/// `SetCapsLockState`, `SetNumLockState` and `SetScrollLockState`: a lock key
-/// on, off, or left as it is.
+/// `SetCapsLockState`, `SetNumLockState` and `SetScrollLockState`: the state
+/// of a lock light of the keyboard.
 ///
-/// Measured on the binary of v2.0.19 on 2026-11-09, with `ConvertOnOffAlways`
-/// read beside it:
+/// Measured on the binary of v2.0.19 on 2026-11-11: "On" turns the light on
+/// and "Off" turns it out -- and `GetKeyState(<lock>, "T")` reads the state
+/// back, one for the light that is on. Every other word, "Toggle" included,
+/// leaves the state as it was, and no word is a failure.
 ///
-/// - "On", and the text "1", turn the state on; "Off", and the text "0", turn
-///   it off, without regard to the case of the word;
-/// - "AlwaysOn" and "AlwaysOff" turn it on and off too, and they ask a
-///   keyboard hook of Windows to keep it so: the tree carries no hook, and the
-///   state is the one that was asked for and not a state forced from then on;
-/// - nothing, the empty text, and any word that is not one of those leaves the
-///   state alone, and it is not a failure: `SetCapsLockState("Bogus")` answers
-///   the empty text and the state does not change;
-/// - "-1" is not one of the words, and it does not toggle anything.
-///
-/// The answer of every form is the empty text.
-pub(crate) fn set_lock_state(
+/// The "Toggle" of the documentation presses the key of the lock, which
+/// turns the lamp of the physical keyboard; the state that `GetKeyState`
+/// reads is the one the program set, and it does not move.
+fn set_lock_state(
     rt: &mut Runtime<'_>,
     values: &[Value],
     line: u32,
-    variant: u8,
+    lock: &str,
 ) -> Result<Value, RuntimeError> {
-    let lock = match variant {
-        1 => "CapsLock",
-        2 => "NumLock",
-        _ => "ScrollLock",
-    };
-    let wanted = match values.first() {
-        None => None,
-        Some(value) => {
-            let text = value.to_text();
-            let lowered = text.to_ascii_lowercase();
-            match lowered.as_str() {
-                "on" | "alwayson" => Some(true),
-                "off" | "alwaysoff" => Some(false),
-                // The numbers are the words "1" and "0", and they are read as
-                // the texts they are: measured on the binary of v2.0.19 on
-                // 2026-11-09, `SetCapsLockState(1)` turns the state on.
-                "1" => Some(true),
-                "0" => Some(false),
-                _ => None,
-            }
-        }
+    let word = text_of(values, 0).trim().to_lowercase();
+    let wanted = match word.as_str() {
+        "on" => Some(true),
+        "off" => Some(false),
+        _ => None,
     };
     if let Some(on) = wanted {
         rt.desktop()
-            .set_lock(lock, on)
-            .map_err(|e| desktop_failure(e, line))?;
+            .set_lock_light(lock, on)
+            .map_err(|reason| desktop_failure(reason, line))?;
     }
     Ok(Value::Text(String::new()))
 }
@@ -10530,86 +10459,6 @@ pub(crate) fn file_recycle_empty(
         .empty_trash(drive.as_deref())
         .map_err(|e| desktop_failure(e, line))?;
     Ok(Value::Text(String::new()))
-}
-
-/// The name of the reading of a drive that a variant asks for.
-fn the_drive_reading(variant: u8) -> &'static str {
-    match variant {
-        1 => "DriveGetCapacity",
-        2 => "DriveGetFilesystem",
-        3 => "DriveGetLabel",
-        4 => "DriveGetSerial",
-        5 => "DriveGetSpaceFree",
-        6 => "DriveGetStatus",
-        _ => "DriveGetType",
-    }
-}
-
-/// `DriveGetCapacity`, `DriveGetFilesystem`, `DriveGetLabel`, `DriveGetSerial`,
-/// `DriveGetSpaceFree`, `DriveGetStatus` and `DriveGetType`: the readings of a
-/// drive.
-///
-/// Measured on the binary of v2.0.19 on 2026-11-09: the free space and the
-/// capacity are counted in megabytes, the serial is a number, the filesystem
-/// and the label are texts, a drive that is not there is the empty text for
-/// the type and "Invalid" for the state, and the other readings of a drive
-/// that is not there are the failure of the machine.
-///
-/// A machine has no drive letters: a drive is the path a volume is mounted at,
-/// and a text that names a drive the way Windows does is refused with the
-/// reason.
-pub(crate) fn drive_get(
-    rt: &mut Runtime<'_>,
-    values: &[Value],
-    line: u32,
-    variant: u8,
-) -> Result<Value, RuntimeError> {
-    let name = the_drive_reading(variant);
-    let Some(value) = values.first() else {
-        return Err(RuntimeError {
-            message: crate::runtime::invalid_parameter(1, name),
-            line,
-        });
-    };
-    let path = value.to_text();
-    match variant {
-        6 => Ok(Value::Text(
-            match rt
-                .desktop()
-                .drive_status(&path)
-                .map_err(|e| desktop_failure(e, line))?
-            {
-                Some(status) => status,
-                None => "Invalid".to_string(),
-            },
-        )),
-        7 => Ok(Value::Text(
-            rt.desktop()
-                .drive_type(&path)
-                .map_err(|e| desktop_failure(e, line))?
-                .unwrap_or_default(),
-        )),
-        _ => {
-            let Some(drive) = rt
-                .desktop()
-                .drive(&path)
-                .map_err(|e| desktop_failure(e, line))?
-            else {
-                return Err(RuntimeError {
-                    message: format!("the drive of {path} is not there."),
-                    line,
-                });
-            };
-            Ok(match variant {
-                1 => Value::Int(drive.capacity_megabytes),
-                2 => Value::Text(drive.filesystem),
-                3 => Value::Text(drive.label),
-                4 => Value::Int(drive.serial),
-                5 => Value::Int(drive.free_megabytes),
-                _ => Value::Int(0),
-            })
-        }
-    }
 }
 
 // -- the rest -------------------------------------------------------------------
@@ -10835,7 +10684,9 @@ fn parse_spec_number(chars: &[char]) -> Option<usize> {
         if !character.is_ascii_digit() {
             return None;
         }
-        value = value.checked_mul(10)?.checked_add(character.to_digit(10)? as usize)?;
+        value = value
+            .checked_mul(10)?
+            .checked_add(character.to_digit(10)? as usize)?;
         if value > FORMAT_LIMIT {
             return None;
         }
@@ -10981,11 +10832,7 @@ fn format_argument(
 /// and `}}` are one brace of their own; and a placeholder that names an
 /// argument that is not there, or whose spec is not one the binary reads, is
 /// left exactly as it was written.
-fn format_pattern(
-    pattern: &str,
-    values: &[Value],
-    line: u32,
-) -> Result<String, RuntimeError> {
+fn format_pattern(pattern: &str, values: &[Value], line: u32) -> Result<String, RuntimeError> {
     let chars: Vec<char> = pattern.chars().collect();
     let mut out = String::with_capacity(pattern.len() + 8);
     let mut lit = 0usize;
@@ -11098,10 +10945,13 @@ fn format_spec(spec: &FormatSpec, value: &FormatValue) -> String {
                 _ => text,
             }
         }
-        FormatKind::Int => format_integer(spec, match value {
-            FormatValue::Int(number) => *number,
-            _ => 0,
-        }),
+        FormatKind::Int => format_integer(
+            spec,
+            match value {
+                FormatValue::Int(number) => *number,
+                _ => 0,
+            },
+        ),
         FormatKind::Char => {
             let number = match value {
                 FormatValue::Int(number) => *number,
@@ -11118,10 +10968,13 @@ fn format_spec(spec: &FormatSpec, value: &FormatValue) -> String {
             let text = format!("{:016X}", number as u64);
             pad_text(&text, spec.width, ' ', spec.flags.minus)
         }
-        FormatKind::Float => format_float(spec, match value {
-            FormatValue::Float(number) => *number,
-            _ => 0.0,
-        }),
+        FormatKind::Float => format_float(
+            spec,
+            match value {
+                FormatValue::Float(number) => *number,
+                _ => 0.0,
+            },
+        ),
     }
 }
 
@@ -11191,10 +11044,7 @@ fn format_integer(spec: &FormatSpec, number: i64) -> String {
         if precision == 0 && number == 0 {
             digits.clear();
         } else if digits.chars().count() < precision {
-            digits = format!(
-                "{}{digits}",
-                "0".repeat(precision - digits.chars().count())
-            );
+            digits = format!("{}{digits}", "0".repeat(precision - digits.chars().count()));
         }
     }
     let body = format!("{sign}{prefix}{digits}");
@@ -11769,9 +11619,7 @@ pub(crate) fn ks_props(
     let Some(pairs) = rt.the_properties_of_a_value(&value) else {
         let kind = rt.the_type_of(&value);
         return Err(RuntimeError {
-            message: format!(
-                "Parameter #1 of Props requires an Object, but received a {kind}."
-            ),
+            message: format!("Parameter #1 of Props requires an Object, but received a {kind}."),
             line,
         });
     };
@@ -11804,7 +11652,7 @@ pub(crate) fn ks_is_component_available(
             return Err(RuntimeError {
                 message: format!("Unknown capability \"{name}\"."),
                 line,
-            })
+            });
         }
     };
     Ok(Value::Int(answer))
@@ -11860,14 +11708,13 @@ pub(crate) fn ks_validate_script(
             line: _line,
         })?,
     );
-    object
-        .borrow_mut()
-        .put("Warnings", crate::classes::array::construct(&[], rt, _line).map_err(
-            |failure| RuntimeError {
-                message: crate::runtime::the_message_of(&failure),
-                line: _line,
-            },
-        )?);
+    object.borrow_mut().put(
+        "Warnings",
+        crate::classes::array::construct(&[], rt, _line).map_err(|failure| RuntimeError {
+            message: crate::runtime::the_message_of(&failure),
+            line: _line,
+        })?,
+    );
     Ok(Value::Object(object))
 }
 
@@ -11928,7 +11775,12 @@ pub(crate) fn ks_obj_get_data_ptr(
 ) -> Result<Value, RuntimeError> {
     let value = match values.first() {
         Some(value) => value,
-        None => return Err(RuntimeError { message: "Too few parameters passed to function.".to_string(), line }),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            });
+        }
     };
     let Value::Object(object) = value else {
         return Err(RuntimeError {
@@ -11961,7 +11813,12 @@ pub(crate) fn ks_obj_get_data_size(
 ) -> Result<Value, RuntimeError> {
     let value = match values.first() {
         Some(value) => value,
-        None => return Err(RuntimeError { message: "Too few parameters passed to function.".to_string(), line }),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            });
+        }
     };
     let Value::Object(object) = value else {
         return Err(RuntimeError {
@@ -11989,7 +11846,12 @@ pub(crate) fn ks_obj_set_data_ptr(
 ) -> Result<Value, RuntimeError> {
     let value = match values.first() {
         Some(value) => value,
-        None => return Err(RuntimeError { message: "Too few parameters passed to function.".to_string(), line }),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            });
+        }
     };
     let Value::Object(object) = value else {
         return Err(RuntimeError {
@@ -12017,10 +11879,9 @@ pub(crate) fn ks_obj_set_data_ptr(
             line,
         });
     }
-    object.borrow_mut().put(
-        crate::classes::typed::THE_DATA_POINTER,
-        Value::Int(address),
-    );
+    object
+        .borrow_mut()
+        .put(crate::classes::typed::THE_DATA_POINTER, Value::Int(address));
     Ok(Value::Text(String::new()))
 }
 
@@ -12044,12 +11905,10 @@ pub(crate) fn ks_obj_create_with_data_ptr(
         line,
     };
     let name = match values.first() {
-        Some(Value::Object(object)) => {
-            match object.borrow().value_of(crate::runtime::CLASS_NAME) {
-                Some(Value::Text(name)) => name,
-                _ => return Err(invalid()),
-            }
-        }
+        Some(Value::Object(object)) => match object.borrow().value_of(crate::runtime::CLASS_NAME) {
+            Some(Value::Text(name)) => name,
+            _ => return Err(invalid()),
+        },
         _ => return Err(invalid()),
     };
     let class = match crate::classes::typed::the_class_of(&name) {
@@ -12071,13 +11930,7 @@ pub(crate) fn ks_obj_create_with_data_ptr(
             });
         }
     };
-    match crate::classes::typed::the_view_at(
-        &class,
-        address,
-        "ObjCreateWithDataPtr",
-        2,
-        line,
-    ) {
+    match crate::classes::typed::the_view_at(&class, address, "ObjCreateWithDataPtr", 2, line) {
         Some(Ok(value)) => {
             let _ = rt;
             Ok(value)
@@ -12172,24 +12025,19 @@ pub(crate) fn ks_mail(
                 match item {
                     Value::Text(text) if !text.is_empty() => to.push(text.clone()),
                     Value::Text(_) => {
-                        return Err(failure(format!("Recipient {} is empty.", index + 1)))
+                        return Err(failure(format!("Recipient {} is empty.", index + 1)));
                     }
                     other => {
                         return Err(failure(format!(
                             "Recipient {} is {}; every recipient must be a String.",
                             index + 1,
                             other.the_kind()
-                        )))
+                        )));
                     }
                 }
             }
         }
-        other => {
-            return Err(failure(expected_type(
-                TypeName::String,
-                other.type_name(),
-            )))
-        }
+        other => return Err(failure(expected_type(TypeName::String, other.type_name()))),
     }
     if to.is_empty() {
         return Err(failure("At least one recipient is required.".to_string()));
@@ -12210,11 +12058,7 @@ pub(crate) fn ks_mail(
         if !matches!(value, Value::Unset) {
             let pairs = match crate::classes::map::the_pairs(value) {
                 Some(pairs) => pairs,
-                None => {
-                    return Err(failure(
-                        "The options of Mail must be a Map.".to_string(),
-                    ))
-                }
+                None => return Err(failure("The options of Mail must be a Map.".to_string())),
             };
             for (key, val) in pairs {
                 let item = key.to_text();
@@ -12243,15 +12087,13 @@ pub(crate) fn ks_mail(
                                     _ => {
                                         return Err(failure(format!(
                                             "\"{right}\" is not a port between 1 and 65535."
-                                        )))
+                                        )));
                                     }
                                 }
                             }
                         }
                         if named.is_empty() {
-                            return Err(failure(format!(
-                                "The \"{item}\" option names no server."
-                            )));
+                            return Err(failure(format!("The \"{item}\" option names no server.")));
                         }
                         host = Some(named);
                     }
@@ -12286,7 +12128,7 @@ pub(crate) fn ks_mail(
                             _ => {
                                 return Err(failure(format!(
                                     "The \"{item}\" option must be a String or an Array of them."
-                                )))
+                                )));
                             }
                         };
                         match wanted.as_str() {
@@ -12298,11 +12140,10 @@ pub(crate) fn ks_mail(
                     "headers" => {
                         let pairs = match crate::classes::map::the_pairs(&val) {
                             Some(pairs) => pairs,
-                            None => {
-                                return Err(failure(
-                                    "The \"headers\" option must be a Map of header names and values.".to_string(),
-                                ))
-                            }
+                            None => return Err(failure(
+                                "The \"headers\" option must be a Map of header names and values."
+                                    .to_string(),
+                            )),
                         };
                         for (name, value) in pairs {
                             let name = name.to_text();
@@ -12315,7 +12156,7 @@ pub(crate) fn ks_mail(
                     _ => {
                         return Err(failure(format!(
                             "Unknown option \"{item}\". Accepted keys are host, from, cc, bcc, replyto, attachments and headers."
-                        )))
+                        )));
                     }
                 }
             }
@@ -12388,15 +12229,10 @@ pub(crate) fn ks_run_script(
     if let Err(failure_of_the_parse) = crate::parser::parse_with(&source, rt.dialect()) {
         return Err(failure(format!(
             "the script does not compile: {}:{}: {}",
-            failure_of_the_parse.line,
-            failure_of_the_parse.column,
-            failure_of_the_parse.message
+            failure_of_the_parse.line, failure_of_the_parse.column, failure_of_the_parse.message
         )));
     }
-    let asynchronous = values
-        .get(1)
-        .map(|value| value.truthy())
-        .unwrap_or(false);
+    let asynchronous = values.get(1).map(|value| value.truthy()).unwrap_or(false);
     // The callback takes the process alone -- the `CheckedCallback(
     // callback, 1)` of KeySharp -- and the tree calls it by the name of
     // the function, the way the callbacks of the exit are called. A
@@ -12416,7 +12252,7 @@ pub(crate) fn ks_run_script(
                 return Err(failure(format!(
                     "This value of type \"{}\" has no method named \"Call\".",
                     value.type_name().name()
-                )))
+                )));
             }
         },
     };
@@ -12491,12 +12327,12 @@ pub(crate) fn ks_run_script(
             return Err(RuntimeError {
                 message: crate::runtime::the_message_of(&failure_of_the_object),
                 line,
-            })
+            });
         }
         None => {
             return Err(failure(
                 "the object of the process could not be made".to_string(),
-            ))
+            ));
         }
     };
     if let Some(name) = &callback_name {
@@ -12564,7 +12400,7 @@ pub(crate) fn ks_clip_cursor(
                             &values[index],
                         ),
                         line,
-                    })
+                    });
                 }
             }
         }
@@ -12611,7 +12447,7 @@ pub(crate) fn ks_win_from_point(
                         &values[index],
                     ),
                     line,
-                })
+                });
             }
         }
     }
@@ -12771,7 +12607,7 @@ pub(crate) fn win_set_always_on_top(
                     "the first parameter of WinSetAlwaysOnTop is not one of 1, 0, -1, Toggle, On or Off: {other}"
                 ),
                 line,
-            })
+            });
         }
     };
     let windows = rt
@@ -12880,4 +12716,3835 @@ pub(crate) fn ks_request_capabilities(
         .put("IsGranted", Value::Int(if granted { 1 } else { 0 }));
     let _ = rt;
     Ok(Value::Object(object))
+}
+
+/// `ComObjGet`: the object of a COM class.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: an empty string and an
+/// Integer where the class string is wanted both throw "(0x80070057) The
+/// parameter is incorrect.". This platform has no COM class registry to
+/// resolve a class string against, so every call answers the same throw.
+pub(crate) fn com_obj_get(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "(0x80070057) The parameter is incorrect.".to_string(),
+        line,
+    })
+}
+
+/// `ComObjActive`: the COM object that a program has running.
+///
+/// Measured on the same day: a class string that no running program owns
+/// throws "(0x800401F3) Invalid class string". This platform has no running
+/// object table to look one up in, so every call answers the same throw.
+pub(crate) fn com_obj_active(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "(0x800401F3) Invalid class string".to_string(),
+        line,
+    })
+}
+
+/// `ComObjType`: the kind of a COM object.
+///
+/// Measured on the same day: an Integer where a COM object is wanted
+/// answers the EMPTY TEXT -- not a failure. This platform has no COM
+/// objects, so the empty text is the whole contract.
+pub(crate) fn com_obj_type(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
+/// `ComObjQuery`: an interface of a COM object.
+///
+/// Measured on the same day: an Integer where a COM object is wanted throws
+/// "Parameter #1 of ComObjQuery is invalid." -- a wording of its own, and
+/// not the one its siblings use.
+pub(crate) fn com_obj_query(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match values.first() {
+        Some(Value::Object(_)) => Err(RuntimeError {
+            message:
+                "this platform has no COM: there is no object model for an interface to be asked of"
+                    .to_string(),
+            line,
+        }),
+        _ => Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "ComObjQuery"),
+            line,
+        }),
+    }
+}
+
+/// `ListLines(Setting)`: the log of the lines that the script runs.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ListLines Setting`, where the setting is a **number** -- a text throws
+/// "Parameter #1 of ListLines requires a Number, but received a String." --
+/// and the answer is the **previous** setting: one when the log was on, and
+/// zero when it was off. The log is on by default, and the built-in variable
+/// `A_ListLines` carries it and may be written.
+///
+/// Without the setting the call shows the history of the lines in the window
+/// of the debugger of v2 and answers the previous setting too. This runtime
+/// has no debugger, so it answers the number and keeps the log.
+pub(crate) fn list_lines(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The setting that is there now is the one the call answers.
+    let before = match crate::settings::value_of("listlines") {
+        Some(Ok(Value::Int(on))) => Value::Int(on),
+        _ => Value::Int(1),
+    };
+    let Some(setting) = values.first() else {
+        return Ok(before);
+    };
+    if !matches!(setting, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ListLines", TypeName::Number, setting),
+            line,
+        });
+    }
+    let on = setting.to_number_lenient() != 0.0;
+    match crate::settings::write_of("listlines", &Value::Int(on as i64)) {
+        Some(Ok(_)) => Ok(before),
+        Some(Err(why)) => Err(RuntimeError { message: why, line }),
+        None => Err(RuntimeError {
+            message: "the log of the lines is not carried.".to_string(),
+            line,
+        }),
+    }
+}
+
+/// The kinds of a value that the v2 carries.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: a kind that is not one
+/// of these throws "Parameter #2 of RegWrite is invalid.".
+const REGISTRY_KINDS: [&str; 5] = [
+    "REG_SZ",
+    "REG_EXPAND_SZ",
+    "REG_MULTI_SZ",
+    "REG_DWORD",
+    "REG_BINARY",
+];
+
+/// The failure of the machine when a value has no name.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: a name of a value that
+/// is not given -- and one that is given empty -- throws "(161) The specified
+/// path is invalid.".
+const NO_VALUE_NAME: &str = "(161) The specified path is invalid.";
+
+/// The failure of the machine when a key or a value is not there.
+const NOTHING_THERE: &str = "(2) The system cannot find the file specified.";
+
+/// The name of the key of a registry call, and the failure when it is not
+/// there.
+///
+/// The place of the key is not the same in every call: `RegWrite` takes the
+/// value and the kind first, so its key is the third parameter.
+///
+/// The hive is **required**: measured on the binary of v2.0.19 on 2026-11-11,
+/// `RegCreateKey("Software\X")` throws "Parameter #1 of RegCreateKey is
+/// invalid." -- and so does the registry of another machine, whose name
+/// comes first and is not a hive.
+fn the_key_of(
+    values: &[Value],
+    index: usize,
+    name: &str,
+    line: u32,
+) -> Result<String, RuntimeError> {
+    let key = values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let hive = key.split('\\').next().unwrap_or("").trim().to_uppercase();
+    let known = matches!(
+        hive.as_str(),
+        "HKCU"
+            | "HKEY_CURRENT_USER"
+            | "HKLM"
+            | "HKEY_LOCAL_MACHINE"
+            | "HKU"
+            | "HKEY_USERS"
+            | "HKCR"
+            | "HKEY_CLASSES_ROOT"
+            | "HKCC"
+            | "HKEY_CURRENT_CONFIG"
+    );
+    if !known {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(index + 1, name),
+            line,
+        });
+    }
+    Ok(key)
+}
+
+/// The name of the value of a registry call.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: a name that is not
+/// given, and one that is given empty, throw "(161) The specified path is
+/// invalid." -- so the default value of a key is out of reach.
+fn the_value_name_of(values: &[Value], index: usize, line: u32) -> Result<String, RuntimeError> {
+    let name = values
+        .get(index)
+        .map(|value| value.to_text())
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if name.is_empty() {
+        return Err(RuntimeError {
+            message: NO_VALUE_NAME.to_string(),
+            line,
+        });
+    }
+    Ok(name)
+}
+
+/// `RegCreateKey`: make a key of the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers the empty
+/// text and makes the key; a key that is not given throws "Parameter #1 of
+/// RegCreateKey must not be omitted in this case."; and a key with no hive
+/// throws "Parameter #1 of RegCreateKey is invalid.".
+pub(crate) fn reg_create_key(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.is_empty() {
+        return Err(RuntimeError {
+            message: "Parameter #1 of RegCreateKey must not be omitted in this case.".to_string(),
+            line,
+        });
+    }
+    let key = the_key_of(values, 0, "RegCreateKey", line)?;
+    rt.desktop()
+        .registry_create_key(&key)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `RegWrite`: write a value into the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `RegWrite Value, ValueType, KeyName, ValueName` -- the **value comes
+/// first** and the type is the second -- and the call answers the empty
+/// text. A key that is not given throws "Parameter #3 of RegWrite must not
+/// be omitted in this case." -- the key is checked before the kind -- a
+/// kind that is not one of the five throws "Parameter #2 of RegWrite is
+/// invalid.", a name of a value that is not given throws "(161) The
+/// specified path is invalid.", and the key is **made** when it is not
+/// there -- with its ancestors.
+pub(crate) fn reg_write(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() < 3 {
+        return Err(RuntimeError {
+            message: "Parameter #3 of RegWrite must not be omitted in this case.".to_string(),
+            line,
+        });
+    }
+    let kind = text_of(values, 1).trim().to_uppercase();
+    if !REGISTRY_KINDS.contains(&kind.as_str()) {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(2, "RegWrite"),
+            line,
+        });
+    }
+    let key = the_key_of(values, 2, "RegWrite", line)?;
+    let name = the_value_name_of(values, 3, line)?;
+    // A value of REG_DWORD is a number, and the registry holds it as one.
+    let value = if kind == "REG_DWORD" {
+        format!("{}", number_argument(values, 0, line, "RegWrite")? as i64)
+    } else {
+        text_of(values, 0)
+    };
+    rt.desktop()
+        .registry_write(&key, &name, &kind, &value)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `RegRead`: the value of the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `RegRead KeyName, ValueName, Default`; a key that is not given throws
+/// "Parameter #1 of RegRead must not be omitted in this case."; a name of a
+/// value that is not given throws "(161) The specified path is invalid."; a
+/// value that is not there throws "(2) The system cannot find the file
+/// specified." unless a default is given, which is then the answer.
+pub(crate) fn reg_read(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.is_empty() {
+        return Err(RuntimeError {
+            message: "Parameter #1 of RegRead must not be omitted in this case.".to_string(),
+            line,
+        });
+    }
+    let key = the_key_of(values, 0, "RegRead", line)?;
+    let name = the_value_name_of(values, 1, line)?;
+    match rt
+        .desktop()
+        .registry_value(&key, &name)
+        .map_err(|reason| desktop_failure(reason, line))?
+    {
+        Some((kind, value)) => {
+            // A value of REG_DWORD is a number, and the registry holds it as
+            // one: the binary answers 42 for the 42 that was written.
+            if kind == "REG_DWORD" {
+                Ok(match value.parse::<i64>() {
+                    Ok(number) => Value::Int(number),
+                    Err(_) => Value::Text(value),
+                })
+            } else {
+                Ok(Value::Text(value))
+            }
+        }
+        // The value is not there: the default is the answer when there is
+        // one, and the machine's failure is the answer when there is not.
+        None => match values.get(2) {
+            Some(default) => Ok(default.clone()),
+            None => Err(RuntimeError {
+                message: NOTHING_THERE.to_string(),
+                line,
+            }),
+        },
+    }
+}
+
+/// `RegDelete`: remove a value of the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `RegDelete KeyName, ValueName` and the call answers the empty text; a
+/// name of a value that is not given throws "(161) The specified path is
+/// invalid.".
+pub(crate) fn reg_delete(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.is_empty() {
+        return Err(RuntimeError {
+            message: "Parameter #1 of RegDelete must not be omitted in this case.".to_string(),
+            line,
+        });
+    }
+    let key = the_key_of(values, 0, "RegDelete", line)?;
+    let name = the_value_name_of(values, 1, line)?;
+    rt.desktop()
+        .registry_delete(&key, &name)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `RegDeleteKey`: remove a key of the registry of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `RegDeleteKey KeyName` and the call answers the empty text; a key that is
+/// not there throws "(2) The system cannot find the file specified.".
+pub(crate) fn reg_delete_key(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.is_empty() {
+        return Err(RuntimeError {
+            message: "Parameter #1 of RegDeleteKey must not be omitted in this case.".to_string(),
+            line,
+        });
+    }
+    let key = the_key_of(values, 0, "RegDeleteKey", line)?;
+    rt.desktop()
+        .registry_delete_key(&key)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `TraySetIcon(IconFile, IconNumber)`: the icon of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the call answers the
+/// empty text, and the built-in variables carry the icon afterwards --
+/// `A_IconFile` answers the path of the file and `A_IconNumber` the number
+/// of the icon in it. An icon that cannot be loaded throws **"Can't load
+/// icon."**, and the icon of the script is not changed. A call with no
+/// argument answers the empty text and changes nothing.
+///
+/// The path that the binary answers is the canonical one of Windows, which
+/// is in upper case; this tree answers the path as the script wrote it,
+/// because the path of a file is the path of the machine it is on.
+pub(crate) fn tray_set_icon(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(file) = values.first() else {
+        // A call with no argument changes nothing.
+        return Ok(Value::Text(String::new()));
+    };
+    let file = file.to_text();
+    let number = values
+        .get(1)
+        .map(|value| value.to_number().unwrap_or(1.0) as i64);
+    let options = crate::desktop::PictureOptions {
+        width: None,
+        height: None,
+        icon: number,
+    };
+    // The icon is loaded before it is set: an icon that cannot be loaded is
+    // the failure of the call, and the icon of the script stays as it was.
+    // The binary does not tell the reasons apart -- every icon that cannot
+    // be loaded is "Can't load icon.".
+    let image = rt.desktop().load_picture(&file, &options).ok().flatten();
+    if image.is_none() {
+        return Err(RuntimeError {
+            message: "Can't load icon.".to_string(),
+            line,
+        });
+    }
+    let canonical = rt
+        .desktop()
+        .canonical_path(&file)
+        .unwrap_or_else(|_| file.clone());
+    rt.set_the_icon_of_the_script(canonical.clone(), number.unwrap_or(1));
+    // The tray of the session shows the icon, when the session has one: a
+    // desktop with no tray is not a failure of the call -- the icon of the
+    // script is set either way. A tray that refused is said in the report.
+    let refused = rt.desktop().tray_set_icon(&canonical).err();
+    if let Some(reason) = refused {
+        rt.note(format!(
+            "the tray of the session did not take the icon: {reason}"
+        ));
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `CallbackFree(Callback)`: let a callback of the machine go.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter
+/// wants a number, and a text throws "Parameter #1 of CallbackFree requires
+/// a Number, but received a String."; and every number throws "Parameter #1
+/// of CallbackFree is invalid.", because the only callback it would let go
+/// is one that it made itself.
+///
+/// This runtime makes no callback for the machine, so every number is the
+/// invalid one.
+pub(crate) fn callback_free(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "CallbackFree", TypeName::Number, &first),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "Parameter #1 of CallbackFree is invalid.".to_string(),
+        line,
+    })
+}
+
+/// `ComCall(Method, Object, RetType)`: call a method of a COM object.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ComCall Method, Object, RetType` -- the object is the second parameter
+/// and the type of the return is the third. The type is looked at **first**:
+/// a type that the dialect does not know throws "Invalid return type." --
+/// and the ones it knows are the types of a native call, with the address
+/// of the value written after them ("Int*" and "IntP" are read too).
+/// The object is looked at after it, and anything that is not a COM object
+/// throws "Parameter #2 of ComCall is invalid.".
+///
+/// The COM objects are objects of the component model of Windows, and this
+/// platform has no component model: there is no object of COM to call, so
+/// the call answers the failure of the object.
+pub(crate) fn com_call(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The type of the return is looked at before the object.
+    if let Some(kind) = values.get(2) {
+        if crate::dll::parse_type(&kind.to_text()).is_none() {
+            return Err(RuntimeError {
+                message: "Invalid return type.".to_string(),
+                line,
+            });
+        }
+    }
+    Err(RuntimeError {
+        message: "Parameter #2 of ComCall is invalid.".to_string(),
+        line,
+    })
+}
+
+/// `ComObjFromPtr(Ptr)`: the COM object of a pointer.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter
+/// wants a number, and a text throws "Parameter #1 of ComObjFromPtr
+/// requires a Number, but received a String."; the **null** pointer throws
+/// "Parameter #1 of ComObjFromPtr is invalid.".
+///
+/// A pointer that is not the null one makes the **binary hang** -- measured
+/// on 2026-11-11, the run was killed after ten seconds on
+/// `ComObjFromPtr(12345)`. There is no answer of it to match, and this
+/// runtime does not wait forever either.
+pub(crate) fn com_obj_from_ptr(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "ComObjFromPtr", TypeName::Number, &first),
+            line,
+        });
+    }
+    let pointer = first.to_number_lenient() as i64;
+    if pointer == 0 {
+        return Err(RuntimeError {
+            message: "Parameter #1 of ComObjFromPtr is invalid.".to_string(),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "the binary of v2.0.19 hangs on this call -- measured on 2026-11-11 -- and this runtime does not wait forever: the COM objects are objects of the component model of Windows, and this platform has no component model.".to_string(),
+        line,
+    })
+}
+
+/// `IL_Create(Width, Height, Grow)`: make a list of images.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers the number
+/// that names the list it made.
+pub(crate) fn il_create(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(rt.make_an_image_list()))
+}
+
+/// `IL_Add(ImageList, IconFile, IconIndex)`: put an image in a list of images.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers the place of
+/// the image in the list -- one for the first -- and **zero** when the image
+/// could not be loaded: a file that is not there, and a file that is not an
+/// image, are both zero and not a failure. The list is looked at first: a
+/// number that names no list is zero as well, and the **null** handle is
+/// refused with "Parameter #1 of IL_Add is invalid.". A first parameter
+/// that is not a number throws "Parameter #1 of IL_Add requires a Number,
+/// but received a String.".
+pub(crate) fn il_add(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "IL_Add", TypeName::Number, &first),
+            line,
+        });
+    }
+    let list = number_of(values, 0) as i64;
+    if list == 0 {
+        return Err(RuntimeError {
+            message: "Parameter #1 of IL_Add is invalid.".to_string(),
+            line,
+        });
+    }
+    let file = text_of(values, 1);
+    // The image is the one of the machine: the same path that `LoadPicture`
+    // takes, with the icon that the call names.
+    let icon = values
+        .get(2)
+        .map(|value| value.to_number().unwrap_or(1.0) as i64);
+    let options = crate::desktop::PictureOptions {
+        width: None,
+        height: None,
+        icon,
+    };
+    // An image that cannot be loaded is zero, and not a failure -- the
+    // binary answers zero for a file that is not there and for a file that
+    // is not an image.
+    let image = rt.desktop().load_picture(&file, &options).ok().flatten();
+    let Some(image) = image else {
+        return Ok(Value::Int(0));
+    };
+    // A list that is not there is zero as well.
+    Ok(Value::Int(
+        rt.put_an_image_in_a_list(list, image as i64).unwrap_or(0),
+    ))
+}
+
+/// `IL_Destroy(ImageList)`: take a list of images away.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: it answers **one** when
+/// the list was there and **zero** when it was not -- the null handle among
+/// them -- and a first parameter that is not a number throws "Parameter #1
+/// of IL_Destroy requires a Number, but received a String.".
+pub(crate) fn il_destroy(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let first = values.first().cloned().unwrap_or(Value::Int(0));
+    if !matches!(first, Value::Int(_) | Value::Float(_)) {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(1, "IL_Destroy", TypeName::Number, &first),
+            line,
+        });
+    }
+    let list = number_of(values, 0) as i64;
+    Ok(Value::Int(rt.take_an_image_list(list) as i64))
+}
+
+/// `SetCapsLockState`: the state of the lamp of the Caps Lock.
+pub(crate) fn set_caps_lock_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    set_lock_state(rt, values, line, "CapsLock")
+}
+
+/// `SetNumLockState`: the state of the lamp of the Num Lock.
+pub(crate) fn set_num_lock_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    set_lock_state(rt, values, line, "NumLock")
+}
+
+/// `SetScrollLockState`: the state of the lamp of the Scroll Lock.
+pub(crate) fn set_scroll_lock_state(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    set_lock_state(rt, values, line, "ScrollLock")
+}
+
+/// The failure v2 gives when a window is looked for and is not there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetID` and
+/// `WinGetClass` fail with it, while `WinGetList` answers an empty array and
+/// `WinGetCount` answers the zero.
+const TARGET_WINDOW: &str = "Target window not found.";
+
+/// The failure of a question about a control, when the window is there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ControlGetText("x", "A")`
+/// -- a window that is there -- fails with this, and not with an empty text.
+const TARGET_CONTROL: &str = "Target control not found.";
+
+/// The window that a `WinGet*` command asks about.
+///
+/// The parameters after the first are the text of the window and the two
+/// exclusions, and the desktop of the box has none of them.
+fn window_target(
+    values: &[Value],
+    line: u32,
+) -> Result<(String, crate::desktop::TitleMatch), RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    Ok((text_of(values, 0), crate::settings::title_match_mode()))
+}
+
+/// `CaretGetPos`: where the caret of the text is.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with a focused Edit it
+/// answers 1 and writes the place of the caret into the two variables of the
+/// caller; with no window, or nothing focused that holds a caret, it answers
+/// 0 and the variables stay as they were. A call with no variables at all
+/// still answers the one or the zero.
+pub(crate) fn caret_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let caret = rt
+        .desktop()
+        .gui_caret()
+        .map_err(|e| desktop_failure(e, line))?;
+    match caret {
+        Some((x, y)) => {
+            if let Some(value) = values.first() {
+                rt.write_reference(value, Value::Int(x));
+            }
+            if let Some(value) = values.get(1) {
+                rt.write_reference(value, Value::Int(y));
+            }
+            Ok(Value::Int(1))
+        }
+        None => Ok(Value::Int(0)),
+    }
+}
+
+/// The wording of a drive that is not there, measured on the binary of
+/// v2.0.19 on 2026-11-10: the readers of a drive -- the label and the serial
+/// -- throw the path wording, and the operations on the hardware -- eject,
+/// lock, unlock and retract -- throw the file wording. Both are the code of
+/// the system in front of what it says.
+const DRIVE_PATH: &str = "(3) The system cannot find the path specified.";
+
+const DRIVE_FILE: &str = "(2) The system cannot find the file specified.";
+
+/// `DriveGetLabel`: the label of the drive that a path is on.
+pub(crate) fn drive_get_label(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_label(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(label) => Ok(Value::Text(label)),
+        None => Err(RuntimeError {
+            message: DRIVE_PATH.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `DriveGetSerial`: the serial of the drive that a path is on.
+///
+/// Measured on the binary of the same day: `DriveGetSerial` of a drive that
+/// is there answers a whole number -- the volume serial of Windows. The
+/// serial of a Linux drive is the string of the hardware, so a serial that
+/// reads as a whole number is answered as one and the rest rides as text.
+pub(crate) fn drive_get_serial(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_serial(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(serial) => match serial.parse::<i64>() {
+            Ok(number) => Ok(Value::Int(number)),
+            Err(_) => Ok(Value::Text(serial)),
+        },
+        None => Err(RuntimeError {
+            message: DRIVE_PATH.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `DriveGetList`: the drives of the machine.
+///
+/// Measured on the binary of the same day: `DriveGetList` answers the drive
+/// letters run together -- a letter is one character, so no separator is
+/// needed -- and a call with an argument throws "Parameter #1 of
+/// DriveGetList is invalid.". A drive of this platform is a device name,
+/// which is more than one character, so the names ride apart on newlines.
+pub(crate) fn drive_get_list(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !values.is_empty() {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, "DriveGetList"),
+            line,
+        });
+    }
+    let drives = rt
+        .desktop()
+        .drive_list()
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(drives.join("\n")))
+}
+
+/// `DriveGetStatusCD`: the status of the drive a path is on, when it is a
+/// CD or DVD reader.
+///
+/// Measured on the binary of the same day: `DriveGetStatusCD` of a drive
+/// that is not a reader throws "Failed".
+pub(crate) fn drive_get_status_cd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_status_cd(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(status) => Ok(Value::Text(status)),
+        None => Err(RuntimeError {
+            message: "Failed".to_string(),
+            line,
+        }),
+    }
+}
+
+/// The shape of the hardware operations -- eject, lock, unlock and retract:
+/// the drive has to be there first, and a drive that is not there throws the
+/// file wording. Measured on the binary of the same day.
+fn the_drive_for_the_operation(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+) -> Result<String, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_label(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(_) => Ok(path),
+        None => Err(RuntimeError {
+            message: DRIVE_FILE.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `DriveEject`: eject the drive of a path.
+pub(crate) fn drive_eject(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = the_drive_for_the_operation(rt, values, line)?;
+    rt.desktop()
+        .drive_eject(&path)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `DriveLock`: lock the drive of a path against removal.
+pub(crate) fn drive_lock(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = the_drive_for_the_operation(rt, values, line)?;
+    rt.desktop()
+        .drive_lock(&path)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `DriveUnlock`: unlock the drive of a path.
+pub(crate) fn drive_unlock(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = the_drive_for_the_operation(rt, values, line)?;
+    rt.desktop()
+        .drive_unlock(&path)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `DriveRetract`: spin the drive of a path down.
+pub(crate) fn drive_retract(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = the_drive_for_the_operation(rt, values, line)?;
+    rt.desktop()
+        .drive_retract(&path)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `DriveSetLabel`: write a new label on the drive of a path.
+///
+/// Measured on the binary of the same day: `DriveSetLabel` of a drive that
+/// is not there throws the path wording, like the readers do.
+pub(crate) fn drive_set_label(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_label(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(_) => {}
+        None => {
+            return Err(RuntimeError {
+                message: DRIVE_PATH.to_string(),
+                line,
+            });
+        }
+    }
+    let label = text_of(values, 1);
+    rt.desktop()
+        .drive_set_label(&path, &label)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinGetID`: the identifier of the first window that matches.
+pub(crate) fn win_get_id(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    match windows.first() {
+        Some(window) => {
+            rt.remember_the_last_window(&window.id);
+            Ok(Value::Text(window.id.clone()))
+        }
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetIDLast()`: the identifier of the window a `Win*` call last found.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: after `WinGetID()` finds a
+/// window, `WinGetIDLast()` answers that window's id, and with no `Win*` call
+/// before it, it answers "Target window not found." (round 222). On this
+/// platform a window id is the text the compositor gives, so that is what is
+/// answered. `WinExist` cannot set it: its desktop call says only whether a
+/// window is there, not which one, and the fake desktop of the language tests
+/// carries that call alone.
+pub(crate) fn win_get_id_last(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match rt.the_last_window() {
+        Some(id) => Ok(Value::Text(id.to_string())),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetClass`: the class of the first window that matches.
+pub(crate) fn win_get_class(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    match windows.first() {
+        Some(window) => Ok(Value::Text(window.class.clone())),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetList`: the identifiers of every window that matches.
+///
+/// A title that matches nothing is an empty array, and not a failure: measured
+/// on the binary of v2.0.19 on 2026-11-09.
+///
+/// The answer is an array of v2 and not a bare list of values, because a
+/// script reads the `Length` of it and the places of it, and a list carries
+/// neither.
+pub(crate) fn win_get_list(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    let ids: Vec<Value> = windows
+        .iter()
+        .map(|window| Value::Text(window.id.clone()))
+        .collect();
+    match crate::classes::construct("array", &ids, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(ids)),
+    }
+}
+
+/// `WinGetCount`: how many windows match.
+pub(crate) fn win_get_count(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(windows.len() as i64))
+}
+
+/// `WinGetPos`: where the window is and how big it is.
+pub(crate) fn win_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    window_geometry_into(rt, values, line, "WinGetPos")
+}
+
+/// `WinGetClientPos`: the same place, of the part of the window that the
+/// program draws in.
+///
+/// A Wayland client does not draw its own frame -- the compositor does -- so
+/// the geometry that the compositor reports is the window the user sees, and
+/// it is the answer of both commands here. On Windows the two differ by the
+/// frame: measured on the binary of v2.0.19 on 2026-11-09, the frame was
+/// 819,479 1787x1262 and the client area 827,479 1771x1254.
+pub(crate) fn win_get_client_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    window_geometry_into(rt, values, line, "WinGetClientPos")
+}
+
+/// `ControlGetText`: the text of a control of a window.
+///
+/// The control is found by its name and the window by its title, through the
+/// accessibility layer, because that is the only description of the controls of
+/// a window that a Wayland session keeps.
+///
+/// **A control that the application does not publish answers the empty text,
+/// and that is not a failure.** Measured on the box on 2026-11-09 with a dump of
+/// the whole tree: `zenity` publishes its dialog -- the `Name` of the window is
+/// the title of the window, and it is a `dialog` -- and publishes no name and no
+/// text for anything inside it. Any client of AT-SPI sees the same nothing. The
+/// walk therefore answers what the tree holds, which for that program is the
+/// empty text.
+pub(crate) fn control_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the text of the
+    // window and the two exclusions, and they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .control_text(&control, &title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        crate::desktop::ControlAnswer::Found(text) => Ok(Value::Text(text)),
+        crate::desktop::ControlAnswer::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlAnswer::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `ControlGetVisible` and `ControlGetEnabled`: a flag of a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09 against a window of its own
+/// making: both answer the integer **1** for a control that is there and visible
+/// or enabled, and the two failures are the two of `ControlGetText`. The variant
+/// is the name -- this one is `ControlGetVisible` and the other is
+/// `ControlGetEnabled`.
+pub(crate) fn control_flag(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the text of the
+    // window and the two exclusions, and they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    let answer = if variant == 0 {
+        rt.desktop().control_visible(&control, &title)
+    } else {
+        rt.desktop().control_enabled(&control, &title)
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        crate::desktop::ControlFlag::Yes => Ok(Value::Int(1)),
+        crate::desktop::ControlFlag::No => Ok(Value::Int(0)),
+        crate::desktop::ControlFlag::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlFlag::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `ControlSetText`: write a text into a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the **empty
+/// text**, and the text of the control is the new one afterwards. The
+/// parameters are the *new text first*, then the control, then the title --
+/// which is the order of v2 and not the order of `ControlGetText`.
+pub(crate) fn control_set_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the three are the text of the window and the two
+    // exclusions, and they are not carried yet.
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let text = text_of(values, 0);
+    let control = text_of(values, 1);
+    let title = text_of(values, 2);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .control_set_text(&control, &title, &text)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `ControlClick` and `ControlFocus`: an act on a named control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the **empty
+/// text**, and the two failures are the two of `ControlGetText`. The variant is
+/// the name -- this one is `ControlClick` and the other is `ControlFocus`.
+pub(crate) fn control_act(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The parameters after the control and the window are the button, the
+    // count, the options, the text of the window and the two exclusions, and
+    // they are not carried yet.
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the parameters after the control and the window are not carried yet.".into(),
+            line,
+        });
+    }
+    let control = text_of(values, 0);
+    let title = text_of(values, 1);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    let answer = if variant == 0 {
+        rt.desktop().control_click(&control, &title)
+    } else {
+        rt.desktop().control_focus(&control, &title)
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `ControlSendText`: type a text into a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the answer is the **empty
+/// text**, and the control holds the text afterwards. The parameters are the
+/// text first, then the control, then the title.
+pub(crate) fn control_send_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message:
+                "the parameters after the text, the control and the window are not carried yet."
+                    .into(),
+            line,
+        });
+    }
+    let text = text_of(values, 0);
+    let control = text_of(values, 1);
+    let title = text_of(values, 2);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window of a control is found by its title, and an empty title is not carried yet.".into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .control_send_text(&control, &title, &text)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        crate::desktop::ControlEdit::Done => Ok(Value::Text(String::new())),
+        crate::desktop::ControlEdit::NoSuchWindow => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+        crate::desktop::ControlEdit::NoSuchControl => Err(RuntimeError {
+            message: TARGET_CONTROL.into(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetPID`: the process of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the **Integer** of
+/// the process, and a title that no window has is "Target window not found.".
+///
+/// The chain on this desktop is the accessibility bus: the registry names the
+/// applications, a window is a child of one and its `Name` is its title, and the
+/// bus answers the `PID` of a name -- measured on the box on 2026-11-09.
+pub(crate) fn win_get_pid(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window is found by its title, and an empty title is not carried yet."
+                .into(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .window_pid(&title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(pid) => Ok(Value::Int(pid)),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.into(),
+            line,
+        }),
+    }
+}
+
+/// `WinGetProcessName` and `WinGetProcessPath`: the program of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the name is the file name of
+/// the program (`AutoHotkey64.exe`) and the path is the whole of it, and a title
+/// that no window has is "Target window not found.".
+///
+/// They ride the chain of `WinGetPID`: the window's title names an application on
+/// the accessibility bus, the bus answers its process, and the process table
+/// answers the name and the path -- which the `Processes` capability already
+/// reads.
+pub(crate) fn win_get_process(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 1 {
+        return Err(RuntimeError {
+            message: "the text of the window and the exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: "the window is found by its title, and an empty title is not carried yet."
+                .into(),
+            line,
+        });
+    }
+    let pid = match rt
+        .desktop()
+        .window_pid(&title)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(pid) => pid,
+        None => {
+            return Err(RuntimeError {
+                message: TARGET_WINDOW.into(),
+                line,
+            });
+        }
+    };
+    let number = pid.to_string();
+    let answer = if variant == 0 {
+        rt.desktop().process_name(Some(&number))
+    } else {
+        rt.desktop().process_path(Some(&number))
+    }
+    .map_err(|e| desktop_failure(e, line))?;
+    match answer {
+        Some(text) => Ok(Value::Text(text)),
+        None => Err(RuntimeError {
+            message: "Target process not found.".into(),
+            line,
+        }),
+    }
+}
+
+/// `Persistent`: whether the script keeps running after its auto-execute ends.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the Integer **0**.
+/// A script of this runtime is persistent by its nature -- the run is one script
+/// from its first line to its last, and there is no message loop for it to stay
+/// for -- so the answer is the zero v2 gives and the setting changes nothing.
+pub(crate) fn persistent(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(0))
+}
+
+/// `ListVars`: show the variables of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the **empty
+/// text**, and it does not block. A window of v2 shows the variables; this
+/// runtime has one channel for what a script shows -- the `output` of the
+/// report, which is where a `MsgBox` goes -- so a line for each variable goes
+/// there, and the answer is the empty text.
+///
+/// **The names are the keys the runtime keeps**, which are the names of the
+/// script without their case. A script that writes `MyVar` is listed as `myvar`,
+/// and that is a difference from v2 that is written down rather than hidden.
+pub(crate) fn list_vars(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    for (name, value) in rt.variable_names() {
+        rt.push_output(format!("{name}[{value}]"));
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// The four bounds of a monitor, written into the references of the call.
+fn the_monitor_bounds_into(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    // The bounds are the parameters after the number, and they are given by
+    // reference: the second parameter of the call is the first of them.
+    for index in 0..4 {
+        let Some(value) = values.get(index + 1) else {
+            continue;
+        };
+        if !matches!(value, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(index + 2, name, "a VarRef", value),
+                line,
+            });
+        }
+    }
+    let (index, monitors) = the_monitor_of(rt, values, name, line)?;
+    let Some(monitor) = the_monitor_at(&monitors, index) else {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(1, name),
+            line,
+        });
+    };
+    let places = [monitor.left, monitor.top, monitor.right, monitor.bottom];
+    for (index, place) in places.iter().enumerate() {
+        if values.get(index + 1).is_some() {
+            rt.write_reference(&values[index + 1], Value::Int(*place));
+        }
+    }
+    Ok(Value::Int(1))
+}
+
+/// The drive that a path is on, and the failure v2 gives when it is not there.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `DriveGetSpaceFree` of a
+/// drive that is not there is a failure, while `DriveGetType` of one answers
+/// the empty text -- the two commands disagree about the same question.
+fn the_drive_of(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<crate::desktop::DriveSpace, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_space(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(space) => Ok(space),
+        None => Err(RuntimeError {
+            message: format!("{name}: the drive of {path} is not there."),
+            line,
+        }),
+    }
+}
+
+/// `DriveGetSpaceFree`: the free space of a drive, in megabytes.
+pub(crate) fn drive_get_space_free(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(
+        the_drive_of(rt, values, line, "DriveGetSpaceFree")?.free,
+    ))
+}
+
+/// `DriveGetCapacity`: the capacity of a drive, in megabytes.
+pub(crate) fn drive_get_capacity(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Int(
+        the_drive_of(rt, values, line, "DriveGetCapacity")?.capacity,
+    ))
+}
+
+/// `DriveGetStatus`: whether the drive is ready.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a drive that is there is
+/// "Ready". The answer for a drive that is not there was **not** measured; the
+/// empty text is used, which is what `DriveGetType` answers for the same drive.
+pub(crate) fn drive_get_status(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_space(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(_) => Ok(Value::Text("Ready".to_string())),
+        None => Ok(Value::Text(String::new())),
+    }
+}
+
+/// `DriveGetFilesystem`: the filesystem of a drive, as the machine names it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a drive that is not there
+/// answers the empty text, the way `DriveGetType` does -- and not a failure,
+/// the way `DriveGetSpaceFree` does.
+pub(crate) fn drive_get_filesystem(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_space(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(space) => Ok(Value::Text(space.filesystem)),
+        None => Ok(Value::Text(String::new())),
+    }
+}
+
+/// `DriveGetType`: the kind of a drive, in the word of v2.
+pub(crate) fn drive_get_type(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let path = text_of(values, 0);
+    match rt
+        .desktop()
+        .drive_space(&path)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(space) => Ok(Value::Text(space.kind)),
+        None => Ok(Value::Text(String::new())),
+    }
+}
+
+/// The longest a wait for a window may block.
+///
+/// It is the cap of `Sleep`, and it is there for the same reason: the runner's
+/// timeout is checked between two statements, so a call that blocked forever
+/// could not be stopped by it. The binary of v2.0.19 waits for a long time when
+/// the seconds are left out of a `WinWait`, measured on 2026-11-09; this
+/// runtime bounds it.
+const MAX_WINDOW_WAIT_MS: u64 = 60_000;
+
+/// The seconds of a wait, in milliseconds.
+///
+/// The third parameter of v2 is the seconds. A call without it, or with a
+/// number that is not positive, waits the cap.
+fn window_wait_timeout(values: &[Value]) -> u64 {
+    let seconds = number_of(values, 2);
+    if seconds <= 0.0 {
+        return MAX_WINDOW_WAIT_MS;
+    }
+    (seconds * 1000.0).min(MAX_WINDOW_WAIT_MS as f64) as u64
+}
+
+/// Wait for the condition of a `WinWait` family command.
+fn window_wait_into(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    what: crate::desktop::WaitFor,
+) -> Result<Option<String>, RuntimeError> {
+    // The parameters after the seconds are the two exclusions, and they are
+    // not carried yet.
+    if values.len() > 3 {
+        return Err(RuntimeError {
+            message: "the two exclusions are not carried yet.".into(),
+            line,
+        });
+    }
+    let title = text_of(values, 0);
+    let mode = crate::settings::title_match_mode();
+    let timeout = window_wait_timeout(values);
+    rt.desktop()
+        .window_wait(&title, mode, what, timeout)
+        .map_err(|e| desktop_failure(e, line))
+}
+
+/// `WinWait`: wait for a window that matches to exist.
+///
+/// The answer of v2 is the identifier of the window, or the zero when the
+/// timeout ran out -- measured on the binary of v2.0.19 on 2026-11-09. The
+/// identifier of a Wayland window is a token, so it is text here.
+pub(crate) fn win_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match window_wait_into(rt, values, line, crate::desktop::WaitFor::Present)? {
+        Some(id) => Ok(Value::Text(id)),
+        None => Ok(Value::Int(0)),
+    }
+}
+
+/// `WinWaitActive`: wait for a window that matches to have the focus.
+pub(crate) fn win_wait_active(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    match window_wait_into(rt, values, line, crate::desktop::WaitFor::Active)? {
+        Some(id) => Ok(Value::Text(id)),
+        None => Ok(Value::Int(0)),
+    }
+}
+
+/// `WinWaitNotActive`: wait for no matching window to have the focus.
+///
+/// v2 answers `1` and `0` for this one, and not the identifier -- measured on
+/// the binary of v2.0.19 on 2026-11-09.
+pub(crate) fn win_wait_not_active(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let met = window_wait_into(rt, values, line, crate::desktop::WaitFor::NotActive)?.is_some();
+    Ok(Value::Int(if met { 1 } else { 0 }))
+}
+
+/// `WinWaitClose`: wait for a matching window to be gone.
+pub(crate) fn win_wait_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let met = window_wait_into(rt, values, line, crate::desktop::WaitFor::Close)?.is_some();
+    Ok(Value::Int(if met { 1 } else { 0 }))
+}
+
+/// `WinGetMinMax`: whether the window is maximized, minimized, or neither.
+///
+/// The answer is the number of v2: `1`, `-1` or `0`. A window that is not
+/// there is the failure of v2, measured on the binary of v2.0.19 on
+/// 2026-11-09.
+pub(crate) fn win_get_min_max(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let (title, mode) = window_target(values, line)?;
+    // The no-window call of v2 falls back to the last found window, and this
+    // runtime keeps none: it is the same failure v2 gives with nothing to
+    // fall back to.
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    match rt
+        .desktop()
+        .window_min_max(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?
+    {
+        Some(answer) => Ok(Value::Int(answer)),
+        None => Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        }),
+    }
+}
+
+/// The four places of a `WinGetPos`, written into the references of the call.
+fn window_geometry_into(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    // The four places of v2 are given by reference, and a value where a
+    // variable is wanted is refused the way v2 refuses it.
+    for index in 0..4 {
+        let Some(value) = values.get(index) else {
+            continue;
+        };
+        if !matches!(value, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(index + 1, name, "a VarRef", value),
+                line,
+            });
+        }
+    }
+    let title = text_of(values, 4);
+    // v2 falls back to the last found window when the window is left out, and
+    // this runtime keeps none: a call with no window is the failure that v2
+    // gives when it has nothing to fall back to, measured on the binary of
+    // v2.0.19 on 2026-11-09.
+    if title.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    let mode = crate::settings::title_match_mode();
+    let geometry = rt
+        .desktop()
+        .window_geometry(&title, mode)
+        .map_err(|e| desktop_failure(e, line))?;
+    let Some(geometry) = geometry else {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    };
+    let places = [geometry.x, geometry.y, geometry.width, geometry.height];
+    for (index, place) in places.iter().enumerate() {
+        if values.get(index).is_some() {
+            rt.write_reference(&values[index], Value::Int(*place));
+        }
+    }
+    // The answer of v2 is the empty text.
+    Ok(Value::Text(String::new()))
+}
+
+/// `Sleep`: the pause, in milliseconds.
+/// `EditGetLineCount(Hwnd)`: how many lines the text of a control holds.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a control added with three
+/// lines answers 3. The handle of the control is the number that names it.
+pub(crate) fn edit_get_line_count(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    rt.desktop()
+        .gui_line_count(number)
+        .map(Value::Int)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `EditGetLine(N, Hwnd)`: the text of the Nth line of a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: **the number comes first and
+/// the handle second**, and called the other way round the reference answers
+/// "Target window not found.", which reads as though the handle were wrong while
+/// the two parameters had traded places. The text is read through the channel of
+/// `Value`, which already answers the whole text of a control.
+pub(crate) fn edit_get_line(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = number_of(values, 0).max(1.0) as usize;
+    let number = number_of(values, 1) as u64;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let found = text.split('\n').nth(wanted - 1).unwrap_or("");
+    Ok(Value::Text(found.to_string()))
+}
+
+/// `EditGetCurrentLine(Hwnd)`: which line the cursor of a control is on.
+///
+/// The place of the cursor is the helper's answer, and the line is the number of
+/// breaks before it plus one -- the text of an entry carries its breaks, measured
+/// in round 143.
+pub(crate) fn edit_get_current_line(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    let cursor = rt
+        .desktop()
+        .gui_cursor(number)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let before: usize = (cursor.max(0) as usize).min(text.chars().count());
+    let breaks = text.chars().take(before).filter(|c| *c == '\n').count();
+    Ok(Value::Int(breaks as i64 + 1))
+}
+
+/// `EditGetCurrentCol(Hwnd)`: which column of its line the cursor is at.
+///
+/// The place is the helper's answer and the text comes through the channel of
+/// `Value`; the column is the distance from the last break before it, counted from
+/// one, and the first line has no break to measure from.
+pub(crate) fn edit_get_current_col(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    let cursor = rt
+        .desktop()
+        .gui_cursor(number)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let text = rt
+        .desktop()
+        .gui_value(number, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let before: usize = (cursor.max(0) as usize).min(text.chars().count());
+    let seen: Vec<char> = text.chars().take(before).collect();
+    let column = match seen.iter().rposition(|held| *held == '\n') {
+        Some(at) => seen.len() - at,
+        None => seen.len() + 1,
+    };
+    Ok(Value::Int(column as i64))
+}
+
+/// `EditGetSelectedText(Hwnd)`: the text a control of the script has selected.
+pub(crate) fn edit_get_selected_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as u64;
+    rt.desktop()
+        .gui_selection(number)
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `ControlGetFocus(Title?)`: the `ClassNN` of the control that has the focus.
+///
+/// Answered for a window of the script's own, which the helper made and therefore
+/// knows the focus of; the focus of another program's window is not read, and says
+/// so rather than answering a control that is not the one the script meant.
+pub(crate) fn control_get_focus(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "the focus of a window of another program is not read by this runtime, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    rt.desktop()
+        .gui_focused()
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `ControlGetHwnd(Control)`: the handle of a control of the script's window.
+///
+/// The control is named by its `ClassNN`, and the answer is the number that names
+/// it -- the same number an event about it carries.
+pub(crate) fn control_get_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_number_named(&classnn)
+        .map(Value::Int)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `ControlHide(Control)` and `ControlShow(Control)`: hide or show a control of
+/// the script's window, named by its `ClassNN`.
+fn the_visibility_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    on: bool,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_visibility(&classnn, on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn control_visibility(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_a_control(rt, values, line, false)
+}
+
+pub(crate) fn control_show(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_a_control(rt, values, line, true)
+}
+
+/// `ControlGetClassNN(Control)`: the class and number that name a control.
+///
+/// Answered for a window of the script's own. The name is what v2 gives a control
+/// of a window it made, and the lookup that already exists is what checks that the
+/// control is really there.
+pub(crate) fn control_get_classnn(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 0);
+    rt.desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(classnn))
+}
+
+/// `ControlSetEnabled(Value, Control)`: set the sensitivity of a control of the
+/// script's window.
+///
+/// Round 35 refused this because the accessibility layer has no call to change
+/// another program's control state -- true, and not this case: the control is the
+/// helper's own, and `set_sensitive` is one call.
+fn the_state_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    what: &str,
+    on: bool,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, 1);
+    rt.desktop()
+        .gui_control_state(&classnn, what, on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn control_set_enabled(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    the_state_of_a_control(rt, values, line, "enabled", on)
+}
+
+/// `ControlGetChecked(Control)` and `ControlSetChecked(Value, Control)`: whether a
+/// check box of the script's window is ticked.
+///
+/// Round 35 refused this because the accessibility layer reports no `CHECKED` state
+/// and a click toggles, which is true of another program's window and not of this
+/// one: the check box is the helper's own and its state is one call.
+fn the_tick_of_a_control(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    at: usize,
+    setting: Option<bool>,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, at);
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))? as u64;
+    let checked = rt
+        .desktop()
+        .gui_checked(number, setting)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    match setting {
+        Some(_) => Ok(Value::Text(String::new())),
+        None => Ok(Value::Int(checked)),
+    }
+}
+
+pub(crate) fn control_get_checked(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_tick_of_a_control(rt, values, line, 0, None)
+}
+
+pub(crate) fn control_set_checked(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    the_tick_of_a_control(rt, values, line, 1, Some(on))
+}
+
+/// `EditPaste(Text, Hwnd)`: put a text into a control of the script at its cursor.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the **text comes first** and
+/// the handle second, as the whole family does.
+pub(crate) fn edit_paste(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = text_of(values, 0);
+    let number = number_of(values, 1) as u64;
+    rt.desktop()
+        .gui_paste(number, &text)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlMove(X, Y, W, H, Control, WinTitle)`: moves a control of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `ControlMove X, Y, W, H, Control, WinTitle` -- the **control is the
+/// fifth parameter**, and a call that leaves it out is refused with
+/// "Parameter #5 of ControlMove must not be omitted in this case."; the
+/// first parameter is a number, and a text throws "Parameter #1 of
+/// ControlMove requires a Number, but received a String."; and a control
+/// or a window that is not there throws "Target window not found.".
+///
+/// **A call that names a control that IS there hangs the binary.** Measured
+/// on 2026-11-11: `ControlMove("10", "20", "100", "30", "Edit1", "title")`
+/// on a window of the script never came back, and the run was killed after
+/// ten seconds. There is no answer of the binary to match, and this runtime
+/// does not wait forever either -- so the call that names a control that is
+/// there answers the reason of this tree.
+pub(crate) fn control_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The control is the fifth parameter, and the binary wants it.
+    if values.len() < 5 {
+        return Err(RuntimeError {
+            message: "Parameter #5 of ControlMove must not be omitted in this case.".to_string(),
+            line,
+        });
+    }
+    // The first parameter is the place, and it is a number: a text that
+    // holds no number is refused, and a text that holds one is taken as it
+    // is -- the binary answers "Target window not found." for a call whose
+    // place is the text "10".
+    number_argument(values, 0, line, "ControlMove")?;
+    // The target: the window of the script by its title, and the control of
+    // it by its ClassNN.
+    let title = text_of(values, 5);
+    the_window_of_the_script(rt, &title, line)?;
+    let classnn = text_of(values, 4);
+    match rt.desktop().gui_number_named(&classnn) {
+        Ok(_) => Err(RuntimeError {
+            message: "the binary of v2.0.19 hangs on this call -- measured on 2026-11-11 -- and this runtime does not wait forever: the window of this tree lays its controls out in order, so the place of a control cannot be set.".to_string(),
+            line,
+        }),
+        // A control that is not there is the failure of the target.
+        Err(_) => Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        }),
+    }
+}
+
+/// `WinSetTitle(NewTitle, WinTitle)`: rename a window of the script.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text after
+/// renaming, and a window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's**: renaming someone else's
+/// window is not something a Wayland client can do, and the title of its own window
+/// is the `Title` this tree already answers (round 71).
+pub(crate) fn win_set_title(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let new_title = text_of(values, 0);
+    let target = text_of(values, 1);
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    let current = rt
+        .desktop()
+        .gui_title(0, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    // The default match mode of v2 is that the title CONTAINS the text, and the
+    // case matters; a window that does not match is not there.
+    if !target.is_empty() && !current.contains(&target) {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    rt.desktop()
+        .gui_title(0, Some(&new_title))
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// The window of the script, if the title the script named is that window.
+///
+/// The default match of v2 is that the title **contains** the text and the case
+/// matters, and a window that does not match is not there: *"Target window not
+/// found."* Shared by the names that act on the script's own window.
+fn the_window_of_the_script(
+    rt: &mut Runtime<'_>,
+    target: &str,
+    line: u32,
+) -> Result<(), RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    let current = rt
+        .desktop()
+        .gui_title(0, None)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    if !target.is_empty() && !current.contains(target) {
+        return Err(RuntimeError {
+            message: "Target window not found.".to_string(),
+            line,
+        });
+    }
+    Ok(())
+}
+
+/// `WinHide(WinTitle)` and `WinShow(WinTitle)`: take the script's window off the
+/// screen and put it back.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the empty text, and
+/// a window that is not there answers *"Target window not found."*
+fn the_visibility_of_the_window(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    shown: bool,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let answer = if shown {
+        rt.desktop().gui_show(0)
+    } else {
+        rt.desktop().gui_hide()
+    };
+    answer.map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn win_hide(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_the_window(rt, values, line, false)
+}
+
+pub(crate) fn win_show(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_visibility_of_the_window(rt, values, line, true)
+}
+
+/// `WinActivate`, `WinMinimize`, `WinMaximize` and `WinRestore` of the script's
+/// window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: all four answer the empty text,
+/// and a window that is not there answers *"Target window not found."*
+///
+/// They go through the option channel of round 132, which already asks the helper to
+/// act on the window, so none of them needs a method of its own.
+fn the_state_of_the_window(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    state: &str,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option(state, true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn win_activate(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
+/// `WinActivateBottom`: activate the window at the bottom of the ones that
+/// match.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10, with two windows of the
+/// script matching one title: the BOTTOM one -- the first the script made --
+/// is the one that ends up active, and the call answers the empty text. This
+/// runtime makes one window of the script, so the bottom one that matches is
+/// the one there, and the activation is the same call `WinActivate` makes. A
+/// target that does not match the window of the script is "Target window not
+/// found.", the wording `WinActivate` answers for the same thing.
+pub(crate) fn win_activate_bottom(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
+pub(crate) fn win_minimize(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "minimize")
+}
+
+pub(crate) fn win_maximize(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "maximize")
+}
+
+pub(crate) fn win_restore(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "restore")
+}
+
+/// `WinSetEnabled(Value, WinTitle)`: the sensitivity of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It goes through the
+/// `disabled` word of the option channel, which is the same state the other way up.
+pub(crate) fn win_set_enabled(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let on = number_of(values, 0) != 0.0;
+    let target = text_of(values, 1);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option("disabled", !on)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinMoveTop(WinTitle)`: bring the script's window to the front.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It is the `activate`
+/// word of the option channel: presenting a window raises it.
+pub(crate) fn win_move_top(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "activate")
+}
+
+/// `WinMinimizeAll` and `WinMinimizeAllUndo`: minimize every window of the
+/// session and undo it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: both answer the empty
+/// text. The effect reaches every window of the session, and the windows
+/// this runtime can act on are the ones of the script: the wayland client
+/// reads the listing of the compositor and carries no action that moves the
+/// windows of other programs. The shape of the call is the contract here --
+/// the same shape the binary answers -- and the effect is carried for the
+/// window of the script alone.
+pub(crate) fn win_minimize_all(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Ok(Value::Text(String::new()));
+    }
+    rt.desktop()
+        .gui_option("minimize", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinMinimizeAllUndo`: put the minimized windows back.
+pub(crate) fn win_minimize_all_undo(
+    rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Ok(Value::Text(String::new()));
+    }
+    rt.desktop()
+        .gui_option("restore", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `WinMoveBottom(WinTitle)`: send the window to the bottom of the order.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty
+/// text, and a window that is not there answers "Target window not found.".
+/// An earlier note said GTK removed the call that lowers a window -- that is
+/// true of GTK 4, and the helper draws with GTK 3, which carries it. On
+/// Wayland the compositor decides the order and may refuse the request; the
+/// request is the part a program owns, and the call is made either way.
+pub(crate) fn win_move_bottom(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "movebottom")
+}
+
+/// `WinClose(WinTitle)` and `WinKill(WinTitle)`: close the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: both answer the empty text, and a
+/// window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's**: round 31 reverted a
+/// `WinClose` because the compositor's toplevel listing publishes no close request,
+/// and that is still true of a foreign window. Its own is the `close` word of the
+/// option channel -- the helper made the window and can close it.
+fn the_close_of_the_window(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_option("close", true)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn win_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_close_of_the_window(rt, values, line)
+}
+
+pub(crate) fn win_kill(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_close_of_the_window(rt, values, line)
+}
+
+/// `WinSetTransparent(Value, WinTitle)` and `WinGetTransparent(WinTitle)`: the
+/// opacity of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the set answers the empty text,
+/// the get answers the number that was set, `"Off"` means opaque, and a window that is
+/// not there answers *"Target window not found."*
+pub(crate) fn win_set_transparent(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 1);
+    the_window_of_the_script(rt, &target, line)?;
+    let written = text_of(values, 0);
+    // "Off" is what v2 means by opaque.
+    let setting = if written.eq_ignore_ascii_case("off") {
+        255
+    } else {
+        number_of(values, 0) as i64
+    };
+    rt.desktop()
+        .gui_opacity(Some(setting))
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn win_get_transparent(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_opacity(None)
+        .map(Value::Int)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `WinRedraw(WinTitle)`: ask the script's window to draw itself again.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers the empty text, and a
+/// window that is not there answers *"Target window not found."* It is the `redraw`
+/// word of the option channel.
+pub(crate) fn win_redraw(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_state_of_the_window(rt, values, line, "redraw")
+}
+
+/// `ObjPtr(Object)` and `ObjFromPtr(Ptr)`: the number that names an object, and the
+/// object a number names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ObjPtr` answers an Integer and
+/// `ObjFromPtr` of it answers the same object, so the pair round-trips. The number is
+/// an **identity and not an address**: the same object always answers the same
+/// number, and it is shaped like an address because that is what v2 answers.
+pub(crate) fn obj_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            });
+        }
+    };
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+pub(crate) fn obj_from_ptr(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as i64;
+    match rt.the_object_of(number) {
+        Some(value) => Ok(value),
+        None => Err(RuntimeError {
+            message: format!(
+                "the number {number} does not name an object this script has asked about"
+            ),
+            line,
+        }),
+    }
+}
+
+/// `ObjPtrAddRef(Object)` and `ObjFromPtrAddRef(Ptr)`: the pair of `ObjPtr` that also
+/// keeps a reference.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips, and a value
+/// that is not an object is refused as *"Expected an object but got an Integer."*
+///
+/// The reference this tree adds is the one its `Rc` already holds: the number that
+/// names the object is kept in the runtime's table, which is a holder, so the object
+/// outlives what would otherwise have dropped it.
+pub(crate) fn obj_ptr_add_ref(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            });
+        }
+    };
+    if !matches!(value, Value::Object(_)) {
+        let kind = the_kind_of(&value);
+        // The reference says "an Integer", not "a Integer".
+        let article = if kind.starts_with(['A', 'E', 'I', 'O', 'U']) {
+            "an"
+        } else {
+            "a"
+        };
+        return Err(RuntimeError {
+            message: format!("Expected an object but got {article} {kind}."),
+            line,
+        });
+    }
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+pub(crate) fn obj_from_ptr_add_ref(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_of(values, 0) as i64;
+    match rt.the_object_of(number) {
+        Some(value) => Ok(value),
+        None => Err(RuntimeError {
+            message: format!(
+                "the number {number} does not name an object this script has asked about"
+            ),
+            line,
+        }),
+    }
+}
+
+/// The name of the kind of a value, for the message of a refusal.
+fn the_kind_of(value: &Value) -> &'static str {
+    match value {
+        Value::Int(_) => "Integer",
+        Value::Float(_) => "Float",
+        Value::Text(_) => "String",
+        Value::Object(_) => "Object",
+        _ => "value that is not an object",
+    }
+}
+
+/// `SoundGetName(Component, Device)`: the name of a sound device.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `SoundGetName Component, Device`; with no component the answer is the
+/// name of the device that plays -- "Speakers (Fosi Audio K5 Pro)" on the
+/// machine of that day -- and with the component one the name of the one
+/// that records -- "Microphone". The component two answers the **empty
+/// text**, and a component that is not there throws **"Component not
+/// found."**.
+///
+/// The name is the name of the machine: the mixer of the session publishes
+/// it, and this runtime answers the volume and the mute of the same
+/// device already.
+pub(crate) fn sound_get_name(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let component = text_of(values, 0).trim().to_string();
+    let device = text_of(values, 1).trim().to_string();
+    let (plays, records) = rt
+        .desktop()
+        .sound_device_names()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    // A device that is named is the one that is asked for.
+    if !device.is_empty() {
+        return match rt
+            .desktop()
+            .sound_device_named(&device)
+            .map_err(|reason| desktop_failure(reason, line))?
+        {
+            Some(name) => Ok(Value::Text(name)),
+            None => Err(RuntimeError {
+                message: "Component not found".to_string(),
+                line,
+            }),
+        };
+    }
+    match component.as_str() {
+        // The device that plays, and the one that records.
+        "" => Ok(Value::Text(plays)),
+        "1" => Ok(Value::Text(records)),
+        // The second component of the device is there and it has no name.
+        "2" => Ok(Value::Text(String::new())),
+        _ => Err(RuntimeError {
+            message: "Component not found".to_string(),
+            line,
+        }),
+    }
+}
+
+/// `SoundGetInterface(IID, Component, Device)`: an interface of a sound device.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter is
+/// the **identifier of the interface** -- a GUID in the form
+/// "{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}" -- and anything else throws
+/// "Parameter #1 of SoundGetInterface is invalid.". A GUID that the machine
+/// does not carry the interface of answers **zero**.
+///
+/// The interfaces of the sound of Windows are COM objects of Windows, and
+/// this platform has no COM: every GUID that is a GUID answers zero, the
+/// way the binary answers for the interfaces it does not support.
+pub(crate) fn sound_get_interface(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let iid = text_of(values, 0).trim().to_string();
+    if !is_the_identifier_of_an_interface(&iid) {
+        return Err(RuntimeError {
+            message: "Parameter #1 of SoundGetInterface is invalid.".to_string(),
+            line,
+        });
+    }
+    Ok(Value::Int(0))
+}
+
+/// Whether a text is the identifier of an interface.
+///
+/// The form is the one of the binary of v2.0.19, measured on 2026-11-11:
+/// the braces, and eight hexadecimal numbers, four, four, four and twelve.
+fn is_the_identifier_of_an_interface(text: &str) -> bool {
+    let Some(inner) = text
+        .strip_prefix('{')
+        .and_then(|rest| rest.strip_suffix('}'))
+    else {
+        return false;
+    };
+    let parts: Vec<&str> = inner.split('-').collect();
+    if parts.len() != 5 {
+        return false;
+    }
+    let widths = [8, 4, 4, 4, 12];
+    parts
+        .iter()
+        .zip(widths)
+        .all(|(part, width)| part.len() == width && part.chars().all(|c| c.is_ascii_hexdigit()))
+}
+
+/// `WinGetTransColor` and `WinSetTransColor`: **refused, with a reason of their own.**
+///
+/// A transparency COLOUR is a layered window of Windows: the colour is made invisible
+/// while the rest of the window stays opaque. What this tree answers is an **opacity**
+/// applied to the whole window, which is `WinSetTransparent` and `WinGetTransparent`
+/// and is a different thing. Answering the colour would be answering a different
+/// question than the one the script asked.
+pub(crate) fn win_trans_color(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "a transparency colour is a layered window of Windows, where one colour is made invisible; this tree sets an opacity for the whole window, which is WinSetTransparent and WinGetTransparent".to_string(),
+        line,
+    })
+}
+
+/// `WinGetStyle`, `WinSetStyle`, `WinGetExStyle` and `WinSetExStyle`: **refused, with a
+/// reason of their own.**
+///
+/// A window style is a number of Windows that says how a window is decorated and what
+/// it may do -- a thick frame, a system menu, a title bar. Under this compositor **the
+/// decoration belongs to the compositor and the client has no style number at all**:
+/// there is nothing to read and nothing to set, and the words of v2's style bits have
+/// no counterpart here.
+pub(crate) fn win_style(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "a window style is a number of Windows that says how a window is decorated, and under this compositor the decoration belongs to the compositor and a client has no style number at all".to_string(),
+        line,
+    })
+}
+
+/// `WinGetText(WinTitle)`: the text of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a window with a label and an edit
+/// answers the two texts, one after the other, **each followed by a line break**, and a
+/// window that is not there answers *"Target window not found."*
+///
+/// **The script's own window and not another program's.** This name was measured and
+/// refused in an earlier round for a foreign window, and that reason still holds: the
+/// accessibility tree of another program carries its title bar with its content and no
+/// rule separates them. Its own window has only the controls the script made.
+pub(crate) fn win_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    rt.desktop()
+        .gui_all_text()
+        .map(Value::Text)
+        .map_err(|reason| desktop_failure(reason, line))
+}
+
+/// `WinGetControls(WinTitle)`: the `ClassNN` of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: a window with a label, an edit and a
+/// button answers three items, `Static1`, `Edit1` and `Button1`, and a window that is not
+/// there answers *"Target window not found."*
+pub(crate) fn win_get_controls(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let joined = rt
+        .desktop()
+        .gui_controls()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let answers: Vec<Value> = if joined.is_empty() {
+        Vec::new()
+    } else {
+        joined
+            .split('\n')
+            .map(|name| Value::Text(name.to_string()))
+            .collect()
+    };
+    // The answer of v2 is an array, and this is how `StrSplit` makes one.
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
+}
+
+/// `WinGetControlsHwnd(WinTitle)`: the handle of every control of the script's window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: it answers as many Integers as the
+/// window has controls. No channel of its own is needed: the names come from
+/// `WinGetControls` and the number of a name from the lookup of round 164.
+pub(crate) fn win_get_controls_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let target = text_of(values, 0);
+    the_window_of_the_script(rt, &target, line)?;
+    let joined = rt
+        .desktop()
+        .gui_controls()
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let mut answers: Vec<Value> = Vec::new();
+    if !joined.is_empty() {
+        for name in joined.split('\n') {
+            let number = rt
+                .desktop()
+                .gui_number_named(name)
+                .map_err(|reason| desktop_failure(reason, line))?;
+            answers.push(Value::Int(number));
+        }
+    }
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
+}
+
+/// `Edit()`: **refused, with a reason of its own.**
+///
+/// The name takes no parameters -- measured on the binary of v2.0.19 on 2026-11-09, its
+/// arity is nought to nought -- because it opens the **file of the script itself**. The
+/// script of this runtime is read from the standard input, so **there is no file**, and
+/// the same fact refuses `A_ScriptFullPath`, `A_ScriptDir` and `A_ScriptName`.
+pub(crate) fn edit(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "the script of this runtime is read from the standard input, so it has no file for an editor to open".to_string(),
+        line,
+    })
+}
+
+/// `ToolTip(Text, X, Y)`: show a small window of text, and answer its number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: showing one answers an
+/// Integer, and calling `ToolTip()` with no text takes it away. The number is an
+/// identity in this tree, taken from the same table `ObjPtr` uses.
+pub(crate) fn tooltip(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let text = text_of(values, 0);
+    if text.is_empty() {
+        rt.desktop()
+            .tooltip_show("", 0, 0)
+            .map_err(|e| desktop_failure(e, line))?;
+        return Ok(Value::Text(String::new()));
+    }
+    let x = number_of(values, 1) as i64;
+    let y = number_of(values, 2) as i64;
+    let number = rt
+        .desktop()
+        .tooltip_show(&text, x, y)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(number))
+}
+
+/// `WinMove(X, Y, Width, Height, WinTitle)`: move the script's own window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: moving the window the script
+/// made works and answers nothing. This machine is a Wayland compositor, which
+/// places windows itself and need not honour a place a client asks for, so the
+/// tree makes the call the toolkit offers and says so in the answer of `GetPos`.
+pub(crate) fn win_move(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let x = number_of(values, 0) as i64;
+    let y = number_of(values, 1) as i64;
+    let width = number_of(values, 2) as i64;
+    let height = number_of(values, 3) as i64;
+    let title = text_of(values, 4);
+    the_window_of_the_script(rt, &title, line)?;
+    rt.desktop()
+        .window_move(x, y, width, height)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlSend(Keys, Control, WinTitle)`: send plain text into a control of the
+/// script's own window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `ControlSend "abc", "Edit1"`
+/// leaves `abc` in the edit, and `ControlSend "a{Enter}b"` leaves `ab` in a
+/// single-line edit and `a` + a line break + `b` in a multi-line one. The tree
+/// carries the text path and expands the keys that have a text effect -- Enter,
+/// Tab and Backspace -- into that text. Keys that move a caret, press a modifier
+/// or act on the window are refused with a reason rather than faked.
+pub(crate) fn control_send(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let raw = rt.interpolate(&text_of(values, 0), line)?;
+    if !raw.contains('{') && !raw.contains('}') {
+        return control_send_text(rt, values, line, 0);
+    }
+    let mut text = String::new();
+    for part in split_send(&raw) {
+        match part {
+            SendPart::Text(t) => text.push_str(&t),
+            SendPart::Key { name, modifiers } => {
+                if !modifiers.is_empty() {
+                    return Err(RuntimeError {
+                        message: format!(
+                            "the {name} key with a modifier has no text to put into a control"
+                        ),
+                        line,
+                    });
+                }
+                match name.to_ascii_lowercase().as_str() {
+                    "enter" => text.push('\n'),
+                    "tab" => text.push('\t'),
+                    "backspace" | "bs" => {
+                        text.pop();
+                    }
+                    other => {
+                        return Err(RuntimeError {
+                            message: format!(
+                                "the {other} key has no text effect on a control, and this tree will not claim it did"
+                            ),
+                            line,
+                        });
+                    }
+                }
+            }
+            SendPart::Down(name) | SendPart::Up(name) => {
+                return Err(RuntimeError {
+                    message: format!("holding the {name} key down has no text effect on a control"),
+                    line,
+                });
+            }
+        }
+    }
+    let mut sent = values.to_vec();
+    if sent.is_empty() {
+        sent.push(Value::Text(text));
+    } else {
+        sent[0] = Value::Text(text);
+    }
+    control_send_text(rt, &sent, line, 0)
+}
+
+/// `RunAs(User, Password, Domain)`: set the user a later `Run` would use.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty text.
+/// The credentials are a setting of the machine and not a call that can be proved
+/// here, so the tree keeps the shape of the answer and says in a note what it did
+/// not do.
+pub(crate) fn run_as(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Ok(Value::Text(String::new()))
+}
+
+/// `BlockInput(Mode)`: **refused, with a reason of its own.**
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `BlockInput("Off")` answers
+/// the empty text. Turning input OFF for the whole machine is a privilege this
+/// compositor does not give a client, and this tree will not claim it did.
+pub(crate) fn block_input(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let mode = text_of(values, 0).to_ascii_lowercase();
+    if mode.is_empty() || mode.starts_with("off") || mode == "0" {
+        return Ok(Value::Text(String::new()));
+    }
+    Err(RuntimeError {
+        message: "blocking the input of the whole machine is a privilege this compositor does not give a client".to_string(),
+        line,
+    })
+}
+
+/// `OnClipboardChange(Func, AddRemove)`: register a function for a change of
+/// the clipboard.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: a `Func` answers the empty
+/// text, a String is refused, and the function is called with 1 when the script
+/// itself writes `A_Clipboard`. This runtime has no watcher of ANOTHER program's
+/// clipboard -- its clipboard is a read and a write -- but its own write is a
+/// change it can see, so the function is called for that one.
+pub(crate) fn on_clipboard_change(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let callback = rt.the_callback_with_one_argument(values.first(), "OnClipboardChange", line)?;
+    // Measured on the binary of v2.0.19 on 2026-11-10: a second argument of
+    // zero removes the function, and one (or none) registers it. The name
+    // answers the empty text either way. The function is called with 1 when
+    // the script itself writes `A_Clipboard` -- the only change this runtime
+    // can see, since it has no watcher of another program's clipboard.
+    let remove = match values.get(1) {
+        Some(value) => value.to_number().unwrap_or(1.0) <= 0.0,
+        None => false,
+    };
+    rt.set_the_clipboard_watcher(if remove { None } else { Some(callback.name) });
+    Ok(Value::Text(String::new()))
+}
+
+/// `CallbackCreate(Func)`: answer a number that names the function.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers an Integer, the
+/// address of a native thunk. This tree has no native thunks, but it does have
+/// the same table of identities `ObjPtr` uses, and a number from it is a value a
+/// script can hold and compare.
+pub(crate) fn callback_create(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let value = match values.first() {
+        Some(value) => value.clone(),
+        None => {
+            return Err(RuntimeError {
+                message: "Too few parameters passed to function.".to_string(),
+                line,
+            });
+        }
+    };
+    Ok(Value::Int(rt.the_pointer_of(&value)))
+}
+
+/// `Shutdown(Flag)`: **refused, with a reason of its own.**
+///
+/// Logging off, rebooting or powering down the machine is not a question a
+/// script runner answers; the reference was not executed for this reason.
+/// `Shutdown`: end the session of the machine.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: a whole number -- even
+/// one that names no real operation, like 99 -- answers the empty text, and
+/// a text where a number is wanted throws "Parameter #1 of Shutdown requires
+/// a Number, but received a String.". The number is answered the same way
+/// here, and the session of the machine is deliberately left alone: the
+/// runner does not end the session it runs in, because a script that asks
+/// for it would take the whole desktop down with it. The shape of the call
+/// is the contract, not the side effect.
+pub(crate) fn shutdown(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    number_argument(values, 0, line, "Shutdown")?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `FileGetVersion`: the version of a program of Windows.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `FileGetVersion FileName`; a program of Windows answers the version as
+/// four numbers and a point between them -- "10.0.26100.9818" for the
+/// notepad of that day -- a file that is not there throws "(2) The system
+/// cannot find the file specified.", and a file that has no section of
+/// resources throws "(1812) The specified image file did not contain a
+/// resource section.".
+///
+/// The file is read as a program of Windows wherever it is: a program of
+/// Windows may be read on any platform, and the version of it is a
+/// resource of the file and not a thing of the machine that runs it.
+pub(crate) fn file_get_version(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let Some(path) = values.first() else {
+        return Err(RuntimeError {
+            message: "Parameter #1 of FileGetVersion must not be omitted in this case.".to_string(),
+            line,
+        });
+    };
+    let path = path.to_text();
+    let bytes = rt
+        .desktop()
+        .read_the_bytes_of_a_file(&path)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    match crate::version::the_version_of(&bytes) {
+        Some(version) => Ok(Value::Text(version)),
+        // The file is there and it is not a program that carries a version.
+        None => Err(RuntimeError {
+            message: "(1812) The specified image file did not contain a resource section."
+                .to_string(),
+            line,
+        }),
+    }
+}
+
+/// `ControlGetPos(&X, &Y, &W, &H, Control, WinTitle)`: the place and size of a
+/// control of the script's own window, relative to its client area.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with four VarRef outputs it
+/// answers the four numbers (e.g. `[10,6,31,21]` for an Edit), and the answer
+/// of the command is the empty text. **An earlier note said the reference hangs
+/// on this name** -- that was a call with plain strings in place of the VarRefs,
+/// not the name itself. This tree reports the real allocation of the control in
+/// its GTK box, which is the client-area rectangle v2 describes; the numbers
+/// differ from Windows because the toolkit and the margins differ, but they are
+/// this window's true places and not an invention.
+pub(crate) fn control_get_pos(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    for index in 0..4 {
+        let Some(value) = values.get(index) else {
+            continue;
+        };
+        if !matches!(value, Value::Reference(_)) {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(
+                    index + 1,
+                    "ControlGetPos",
+                    "a VarRef",
+                    value,
+                ),
+                line,
+            });
+        }
+    }
+    let number = the_number_of_a_combo(rt, values, 4, line)?;
+    let (x, y, width, height) = rt
+        .desktop()
+        .gui_control_pos(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    let places = [x, y, width, height];
+    for (index, place) in places.iter().enumerate() {
+        if values.get(index).is_some() {
+            rt.write_reference(&values[index], Value::Int(*place));
+        }
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `OnMessage`: register a handler for the messages of a number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the shape is
+/// `OnMessage MsgNumber, Callback, MaxThreads` -- the callback is **required**
+/// and a call with one parameter is refused at the load -- and the call
+/// answers the empty text. A message number that is not a number throws
+/// "Parameter #1 of OnMessage requires a Number, but received a String.".
+///
+/// The messages are the ones of a window procedure, and a script is not
+/// one: the handler of the reference fires for the messages of the windows
+/// of other programs. This runtime keeps the registry of the handlers, and
+/// the drain of the events answers a `message:<number>` event of the helper
+/// with the handler that is registered for it.
+pub(crate) fn on_message(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, "OnMessage")? as i64;
+    let Some(callback) = values.get(1) else {
+        return Err(RuntimeError {
+            message: "Parameter #2 of OnMessage must not be omitted in this case.".to_string(),
+            line,
+        });
+    };
+    let Value::Object(function) = callback else {
+        return Err(RuntimeError {
+            message: crate::runtime::requires(2, "OnMessage", TypeName::Object, callback),
+            line,
+        });
+    };
+    let name = function
+        .borrow()
+        .properties
+        .get("name")
+        .map(|held| held.value.to_text())
+        .unwrap_or_default();
+    rt.remember_a_message_handler(number, name);
+    Ok(Value::Text(String::new()))
+}
+
+/// `PostMessage` and `SendMessage`: send a message to the window of a number.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: the first parameter is
+/// the **number** of a window -- a text throws "Parameter #1 of PostMessage
+/// requires a Number, but received a String." -- and every number throws
+/// "Target window not found.", the window of the script included: the
+/// messages go to the windows of other programs, and this runtime has no
+/// window procedure to receive them.
+pub(crate) fn post_message(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    number_argument(values, 0, line, "PostMessage")?;
+    Err(RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    })
+}
+
+/// `SendMessage`: the same as `PostMessage`, and the answer is the same.
+pub(crate) fn send_message(
+    _rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    number_argument(values, 0, line, "SendMessage")?;
+    Err(RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    })
+}
+
+/// `WinSetRegion`: the shape of a window, cut out of it.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-11: every target throws
+/// "Target window not found." -- the window of the script included -- because
+/// a region is a shape of Windows that this platform's windows do not have.
+pub(crate) fn win_set_region(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "Target window not found.".to_string(),
+        line,
+    })
+}
+
+/// `GroupAdd(GroupName, WinTitle, WinText, ExcludeTitle, ExcludeText)`: put a
+/// window title into a named set that outlives the statement.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers the empty text.
+/// The window text and the two exclusions are not carried: a call that gives
+/// them is refused rather than ignored.
+pub(crate) fn group_add(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    if values.len() > 2 {
+        return Err(RuntimeError {
+            message: "the window text and the exclusions of GroupAdd are not carried yet."
+                .to_string(),
+            line,
+        });
+    }
+    let group = text_of(values, 0);
+    let title = text_of(values, 1);
+    if group.is_empty() {
+        return Err(RuntimeError {
+            message: "the name of a window group may not be empty.".to_string(),
+            line,
+        });
+    }
+    rt.add_to_group(&group, &title);
+    Ok(Value::Text(String::new()))
+}
+
+/// `GroupActivate(GroupName, Mode)`: answer the id of the first window of the
+/// group that is on the screen, or zero when none is.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the answer is a whole
+/// number, and zero when the group has no matching window. This runtime's
+/// windows are identified by the text the compositor gives them (`WinGetID`),
+/// so the answer is that text when a window is found and a zero when it is not.
+pub(crate) fn group_activate(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let group = text_of(values, 0);
+    let titles = rt.the_titles_of_a_group(&group);
+    for title in titles {
+        let windows = rt
+            .desktop()
+            .matching_windows(&title, crate::settings::title_match_mode())
+            .map_err(|e| desktop_failure(e, line))?;
+        if let Some(window) = windows.first() {
+            return Ok(Value::Text(window.id.clone()));
+        }
+    }
+    Ok(Value::Int(0))
+}
+
+/// `GroupDeactivate` and `GroupClose`: take the group away.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: both answer the empty text.
+pub(crate) fn group_close(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    _line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let group = text_of(values, 0);
+    rt.close_a_group(&group);
+    Ok(Value::Text(String::new()))
+}
+
+/// `MenuSelect`: choose an item of the menu of a window.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10, each shape in its own
+/// try: a window that is not there is a throw of "Target window not found.";
+/// the menu of a window that IS there -- the script's own, by position or by
+/// path, an item that does not exist, or a window without a menu at all --
+/// is a throw of "Non-existent or unsupported menu." (the reference avoids
+/// driving a menu from its own thread and fails the same way for every
+/// shape). This desktop cannot reach the menus of a foreign window either,
+/// so the second wording is the answer for every window that is found.
+pub(crate) fn menu_select(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    // The shape here is (WinTitle, Menu, SubMenu1, ...): the parameters after
+    // the first are the path of the item and not the exclusions of a WinGet,
+    // so the title alone is read from the first of them.
+    let title = text_of(values, 0);
+    let windows = rt
+        .desktop()
+        .matching_windows(&title, crate::settings::title_match_mode())
+        .map_err(|e| desktop_failure(e, line))?;
+    if windows.is_empty() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    Err(RuntimeError {
+        message: "Non-existent or unsupported menu.".to_string(),
+        line,
+    })
+}
+
+/// `GuiFromHwnd` and `GuiCtrlFromHwnd`: the object that a handle names.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: `GuiFromHwnd(g.Hwnd)`
+/// gives the SAME Gui object back, `GuiCtrlFromHwnd(e.Hwnd)` gives the same
+/// control object back, and a handle that no window owns answers the EMPTY
+/// TEXT -- not a failure. On this platform a handle is the number this
+/// runtime mints for the object (the same table `ObjPtr` reads), so the
+/// inverse is the same table read backwards.
+fn the_gui_object_of_a_handle(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    name: &str,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, name)? as i64;
+    match rt.the_object_of(number) {
+        Some(object) => Ok(object),
+        None => Ok(Value::Text(String::new())),
+    }
+}
+
+/// `GuiFromHwnd`: the Gui object that a handle names.
+pub(crate) fn gui_from_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let object = the_gui_object_of_a_handle(rt, values, line, "GuiFromHwnd")?;
+    let is_gui = match &object {
+        Value::Object(o) => o.borrow().class.eq_ignore_ascii_case("gui"),
+        _ => false,
+    };
+    if is_gui {
+        Ok(object)
+    } else {
+        Ok(Value::Text(String::new()))
+    }
+}
+
+/// `GuiCtrlFromHwnd`: the control object that a handle names.
+///
+/// A control's handle lives in two tables on this platform: the identity
+/// table that `Hwnd` mints through, and the number the helper gave the
+/// control when it was added -- the one the `Control*` family reads. The
+/// inverse walks both, and answers the empty text when neither names a
+/// control.
+pub(crate) fn gui_ctrl_from_hwnd(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = number_argument(values, 0, line, "GuiCtrlFromHwnd")? as i64;
+    // First the identity table: the number `Hwnd` mints today.
+    if let Some(object) = rt.the_object_of(number) {
+        let is_control = match &object {
+            Value::Object(o) => o.borrow().class.to_lowercase().starts_with("gui."),
+            _ => false,
+        };
+        if is_control {
+            return Ok(object);
+        }
+    }
+    // Then the numbers the helper handed out when the controls were added.
+    for gui in rt.the_guis() {
+        let Value::Object(window) = gui else {
+            continue;
+        };
+        for (key, property) in window.borrow().properties.iter() {
+            if !key.starts_with("control:") {
+                continue;
+            }
+            let Value::Object(control) = &property.value else {
+                continue;
+            };
+            let stored = control
+                .borrow()
+                .value_of("hwnd")
+                .map(|value| value.to_text().parse::<i64>().unwrap_or(-1));
+            if stored == Some(number) {
+                return Ok(property.value.clone());
+            }
+        }
+    }
+    Ok(Value::Text(String::new()))
+}
+
+/// `MenuFromHandle`: **refused, with a reason of its own.**
+///
+/// The other two names take a number this runtime mints, and this one takes
+/// a Win32 HMENU: this runtime has no handle of a menu, because the menus
+/// are objects the script holds and the helper draws.
+pub(crate) fn menu_from_handle(
+    _rt: &mut Runtime<'_>,
+    _values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    Err(RuntimeError {
+        message: "a menu handle is a Win32 HMENU, and this runtime has no handle of a menu: the menus are objects the script holds and the helper draws".to_string(),
+        line,
+    })
+}
+
+/// The number of a list-shaped control of the script's own window, from its
+/// `ClassNN`. The `Control*` family names a control by its class and number;
+/// the helper knows each one by the number it gave it when it was added.
+fn the_number_of_a_combo(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    control_index: usize,
+    line: u32,
+) -> Result<u64, RuntimeError> {
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: "this name asks about a window of another program, and this script has no window of its own".to_string(),
+            line,
+        });
+    }
+    let classnn = text_of(values, control_index);
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    Ok(number as u64)
+}
+
+/// `ControlGetItems(Control, WinTitle)`: the items of a list-shaped control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: it answers an Array of the
+/// texts, in order, and `ControlAddItem` makes it one longer.
+pub(crate) fn control_get_items(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let joined = rt
+        .desktop()
+        .gui_combo_items(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    let answers: Vec<Value> = if joined.is_empty() {
+        Vec::new()
+    } else {
+        joined
+            .split('\n')
+            .map(|item| Value::Text(item.to_string()))
+            .collect()
+    };
+    match crate::classes::construct("array", &answers, rt, line) {
+        Some(result) => result.map_err(|failure| crate::runtime::as_error(failure, line)),
+        None => Ok(Value::List(answers)),
+    }
+}
+
+/// `ControlAddItem(Text, Control, WinTitle)`: append an item. Measured on the
+/// same day: the answer is nothing the script reads (the empty text).
+pub(crate) fn control_add_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_add(number, &text)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlChooseIndex(N, Control, WinTitle)`: choose by a 1-based index.
+/// Measured on the same day: the control's `Value` becomes that index.
+pub(crate) fn control_choose_index(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let index = number_of(values, 0) as i64;
+    rt.desktop()
+        .gui_combo_select(number, &index.to_string(), false)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlChooseString(Text, Control, WinTitle)`: choose by the item's text.
+pub(crate) fn control_choose_string(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_select(number, &text, true)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlGetChoice(Control, WinTitle)`: the text of the chosen item, or the
+/// empty text when nothing is chosen.
+pub(crate) fn control_get_choice(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let (_index, text) = rt
+        .desktop()
+        .gui_combo_choice(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(text))
+}
+
+/// `ControlGetIndex(Control, WinTitle)`: the 1-based index of the chosen item.
+pub(crate) fn control_get_index(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    let (index, _text) = rt
+        .desktop()
+        .gui_combo_choice(number)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Int(index))
+}
+
+/// `ControlDeleteItem(N, Control, WinTitle)`: remove an item by its 1-based
+/// index. Measured on the same day: the array becomes one shorter.
+pub(crate) fn control_delete_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let index = number_of(values, 0) as i64;
+    rt.desktop()
+        .gui_combo_delete(number, &index.to_string())
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+/// `ControlFindItem(Text, Control, WinTitle)`: the 1-based index of the first
+/// item that is this text, or zero. Measured on the same day.
+pub(crate) fn control_find_item(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 1, line)?;
+    let text = text_of(values, 0);
+    rt.desktop()
+        .gui_combo_find(number, &text)
+        .map(Value::Int)
+        .map_err(|e| desktop_failure(e, line))
+}
+
+/// `ControlShowDropDown` and `ControlHideDropDown`: open or close the pop-up of
+/// a list-shaped control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: both answer the empty text.
+/// They have one handler each because the variant field of a row is the count's
+/// answer/refusal flag and cannot carry which one this is.
+fn the_drop_down_of_a_combo(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    show: bool,
+) -> Result<Value, RuntimeError> {
+    let number = the_number_of_a_combo(rt, values, 0, line)?;
+    rt.desktop()
+        .gui_combo_dropdown(number, show)
+        .map_err(|e| desktop_failure(e, line))?;
+    Ok(Value::Text(String::new()))
+}
+
+pub(crate) fn control_show_drop_down(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_drop_down_of_a_combo(rt, values, line, true)
+}
+
+pub(crate) fn control_hide_drop_down(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    the_drop_down_of_a_combo(rt, values, line, false)
+}
+
+/// `StatusBarGetText(Part, WinTitle)`: the text of the status bar.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with part 1 and the title
+/// of a window holding a StatusBar, it answers the text the bar was made with.
+/// This tree carries one part. A window that is not the script's own is not
+/// asked of the accessibility layer, which has no status bar of its own.
+pub(crate) fn status_bar_get_text(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let title = text_of(values, 1);
+    the_window_of_the_script(rt, &title, line)?;
+    rt.desktop()
+        .gui_status_text()
+        .map(Value::Text)
+        .map_err(|e| desktop_failure(e, line))
+}
+
+/// `StatusBarWait(Text, Seconds, Part, WinTitle)`: wait for the status bar to
+/// hold a text.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: the match is a
+/// case-sensitive SUBSTRING of part 1 ("status" matches "the status"), the
+/// answer is 1 on a match and 0 when the seconds run out, and a part other
+/// than 1 is refused with "Parameter #3 of StatusBarWait is invalid.".
+/// The status text of this runtime cannot change while a script runs, so the
+/// answer is known at once -- but the wait is honoured in shape, polling until
+/// the timeout like `ClipWait` does.
+pub(crate) fn status_bar_wait(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let wanted = text_of(values, 0);
+    let seconds = number_of(values, 1);
+    let part = number_of(values, 2);
+    let title = text_of(values, 3);
+    if part != 1.0 && values.len() > 2 {
+        return Err(RuntimeError {
+            message: crate::runtime::invalid_parameter(3, "StatusBarWait"),
+            line,
+        });
+    }
+    the_window_of_the_script(rt, &title, line)?;
+    let limit = if values.len() > 1 && seconds > 0.0 {
+        Some(seconds * 1000.0)
+    } else if values.len() > 1 {
+        Some(0.0)
+    } else {
+        None
+    };
+    let started = rt.now_ms();
+    loop {
+        let text = rt
+            .desktop()
+            .gui_status_text()
+            .map_err(|e| desktop_failure(e, line))?;
+        if text.contains(&wanted) {
+            return Ok(Value::Int(1));
+        }
+        let waited = rt.now_ms().saturating_sub(started) as f64;
+        let left = match limit {
+            Some(limit) => {
+                if waited >= limit {
+                    return Ok(Value::Int(0));
+                }
+                limit - waited
+            }
+            None => {
+                let left = rt.remaining_ms();
+                if left == 0 {
+                    return Ok(Value::Int(0));
+                }
+                left as f64
+            }
+        };
+        rt.sleep_ms((left as u64).clamp(1, CLIP_POLL_MS));
+    }
+}
+
+/// `ListViewGetContent(Options, Control, WinTitle)`: the rows of a list view,
+/// cells by tabs and rows by line breaks.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-10: with no options it answers
+/// "alpha\t10\nbeta\t20", and the "Selected" option answers only the rows that
+/// are chosen. The control is named by its `ClassNN` (`SysListView321`).
+pub(crate) fn list_view_get_content(
+    rt: &mut Runtime<'_>,
+    values: &[Value],
+    line: u32,
+    _variant: u8,
+) -> Result<Value, RuntimeError> {
+    let options = text_of(values, 0);
+    let classnn = text_of(values, 1);
+    let title = text_of(values, 2);
+    the_window_of_the_script(rt, &title, line)?;
+    if !rt.desktop().gui_is_open() {
+        return Err(RuntimeError {
+            message: TARGET_WINDOW.to_string(),
+            line,
+        });
+    }
+    let number = rt
+        .desktop()
+        .gui_number_named(&classnn)
+        .map_err(|reason| desktop_failure(reason, line))?;
+    let selected = options.eq_ignore_ascii_case("selected");
+    rt.desktop()
+        .gui_list_content(number as u64, selected)
+        .map(Value::Text)
+        .map_err(|e| desktop_failure(e, line))
 }

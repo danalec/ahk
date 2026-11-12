@@ -1099,7 +1099,10 @@ mod tests {
         // fires it.
         for name in ["WheelUp", "WheelDown", "WheelLeft", "WheelRight"] {
             let code = resolve_name(name).expect("the name of the wheel is carried");
-            assert!(code > 0x2ff, "{name} is {code}, and it must be above KEY_MAX");
+            assert!(
+                code > 0x2ff,
+                "{name} is {code}, and it must be above KEY_MAX"
+            );
             assert_ne!(code, 8, "{name} must not be the `7` key");
             assert_ne!(code, 6, "{name} must not be the `5` key");
         }

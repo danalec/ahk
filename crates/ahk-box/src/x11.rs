@@ -51,9 +51,9 @@ mod ffi {
     /// `RTLD_LAZY`; `RTLD_LOCAL` is zero on both Linux and FreeBSD.
     const RTLD_LAZY: c_int = 1;
     /// The first index in `SYMBOLS` that belongs to libXtst rather than libX11.
-    pub(super) const LIBXTST_FROM: usize = 21;
+    pub(super) const LIBXTST_FROM: usize = 19;
     /// The number of resolved symbols.
-    pub(super) const SYMBOL_COUNT: usize = 24;
+    pub(super) const SYMBOL_COUNT: usize = 32;
 
     /// The symbols, in a FIXED order: entry `i` belongs to wrapper `i`.
     ///
@@ -81,12 +81,19 @@ mod ffi {
         b"XNextEvent\0",            // 16
         b"XLookupString\0",         // 17
         b"XKeysymToString\0",       // 18
-        b"XSendEvent\0",            // 19
-        b"XTranslateCoordinates\0", // 20
-
-        b"XTestFakeKeyEvent\0",     // 21 Xtst
-        b"XTestFakeButtonEvent\0",  // 22
-        b"XTestFakeMotionEvent\0",  // 23
+        b"XTestFakeKeyEvent\0",     // 19 Xtst
+        b"XTestFakeButtonEvent\0",  // 20
+        b"XTestFakeMotionEvent\0",  // 21
+        b"XSetErrorHandler\0",      // 22
+        b"XGetErrorText\0",         // 23
+        b"XQueryPointer\0",        // 24
+        b"XConvertSelection\0",     // 25
+        b"XSetSelectionOwner\0",   // 26
+        b"XGetSelectionOwner\0",   // 27
+        b"XCreateSimpleWindow\0",  // 28
+        b"XChangeProperty\0",      // 29
+        b"XSendEvent\0",           // 30
+        b"XMapWindow\0",          // 31
     ];
 
     const _: () = assert!(SYMBOLS.len() == SYMBOL_COUNT);
@@ -202,7 +209,7 @@ mod ffi {
     #[rustfmt::skip]
     xfn!(7, XFree(p: *mut c_void) -> c_int);
     #[rustfmt::skip]
-    xfn!(8, XGetWindowProperty(d: *mut c_void, w: c_ulong, property: c_ulong, long_offset: c_long, long_length: c_long, delete: c_int, req_type: c_ulong, actual_format: *mut c_int, actual_type: *mut c_ulong, nitems: *mut c_ulong, bytes_after: *mut c_ulong, prop: *mut *mut c_uchar) -> c_int);
+    xfn!(8, XGetWindowProperty(d: *mut c_void, w: c_ulong, property: c_ulong, long_offset: c_long, long_length: c_long, delete: c_int, req_type: c_ulong, actual_type: *mut c_ulong, actual_format: *mut c_int, nitems: *mut c_ulong, bytes_after: *mut c_ulong, prop: *mut *mut c_uchar) -> c_int);
     #[rustfmt::skip]
     xfn!(9, XInternAtom(d: *mut c_void, name: *const c_char, only_if_exists: c_int) -> c_ulong);
     #[rustfmt::skip]
@@ -224,201 +231,51 @@ mod ffi {
     #[rustfmt::skip]
     xfn!(18, XKeysymToString(ks: c_ulong) -> *const c_char);
     #[rustfmt::skip]
-    xfn!(19, XSendEvent(d: *mut c_void, e: *mut c_void, propagate: c_int, mask: c_long, w: c_ulong) -> c_int);
+    xfn!(19, XTestFakeKeyEvent(d: *mut c_void, keycode: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
     #[rustfmt::skip]
-    xfn!(20, XTranslateCoordinates(d: *mut c_void, src: c_ulong, dst: c_ulong, src_x: c_int, src_y: c_int, dst_x: *mut c_int, dst_y: *mut c_int, child: *mut c_ulong) -> c_int);
-
-    xfn!(21, XTestFakeKeyEvent(d: *mut c_void, keycode: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
+    xfn!(20, XTestFakeButtonEvent(d: *mut c_void, button: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
     #[rustfmt::skip]
-    xfn!(22, XTestFakeButtonEvent(d: *mut c_void, button: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
+    xfn!(21, XTestFakeMotionEvent(d: *mut c_void, screen: c_int, x: c_int, y: c_int, delay: c_ulong) -> c_int);
+    // `XSetErrorHandler`: the handler of the errors of the server.
+    //
+    // WHY the handler is a symbol of the table: Xlib's OWN handler prints
+    // the error and EXITS the process. A capture the server refuses would
+    // then take the runner with it, and the report of the run would be
+    // empty -- the tree would answer nothing where it must answer the
+    // reason.
     #[rustfmt::skip]
-    xfn!(23, XTestFakeMotionEvent(d: *mut c_void, screen: c_int, x: c_int, y: c_int, delay: c_ulong) -> c_int);
-    /// The client message of the EWMH, as Xlib lays it out.
-    ///
-    /// The layout is the one of `XClientMessageEvent` on a 64-bit Linux:
-    /// the `long` of the union is eight bytes, and the union is five of
-    /// them. The padding of the C struct is the padding of this one.
-    #[repr(C)]
-    struct ClientMessage {
-        kind: c_int,
-        serial: c_ulong,
-        send_event: c_int,
-        display: *mut c_void,
-        window: c_ulong,
-        message_type: c_ulong,
-        format: c_int,
-        data: [c_long; 5],
-    }
-
-    /// The kind of the event of a client message.
-    const CLIENT_MESSAGE: c_int = 33;
-    /// The mask of the events that the root window wants to hear about.
-    ///
-    /// It is `SubstructureRedirectMask | SubstructureNotifyMask`.
-    const SUBSTRUCTURE_MASK: c_long = 0x0018_0000;
-    /// The type of the property of a list of atoms.
-    const XA_ATOM: c_ulong = 4;
-
-    /// Whether the window is above the others, when the server says.
-    ///
-    /// The state of a window is the property `_NET_WM_STATE`, a list of
-    /// atoms, and `_NET_WM_STATE_ABOVE` among them is the always on top.
-    /// `None` is the answer of a window that is not there.
-    pub(super) fn always_on_top(d: *mut c_void, window: c_ulong) -> Option<bool> {
-        let state = XInternAtom(d, CString::new("_NET_WM_STATE").ok()?.as_ptr(), 1);
-        let above = XInternAtom(d, CString::new("_NET_WM_STATE_ABOVE").ok()?.as_ptr(), 1);
-        if state == 0 || above == 0 {
-            return None;
-        }
-        let mut format: c_int = 0;
-        let mut actual_type: c_ulong = 0;
-        let mut nitems: c_ulong = 0;
-        let mut after: c_ulong = 0;
-        let mut prop: *mut c_uchar = std::ptr::null_mut();
-        let status = XGetWindowProperty(
-            d,
-            window,
-            state,
-            0,
-            32,
-            0,
-            XA_ATOM,
-            &mut format,
-            &mut actual_type,
-            &mut nitems,
-            &mut after,
-            &mut prop,
-        );
-        let mut found = false;
-        if status == 0 && format == 32 && !prop.is_null() {
-            let atoms = prop.cast::<c_ulong>();
-            for index in 0..nitems as usize {
-                if unsafe { *atoms.add(index) } == above {
-                    found = true;
-                }
-            }
-        }
-        if !prop.is_null() {
-            XFree(prop.cast());
-        }
-        if status != 0 {
-            // The window is not there, and the server says so.
-            return None;
-        }
-        Some(found)
-    }
-
-    /// Put the window above the others, or take it from there.
-    ///
-    /// The window manager is asked with the client message of the EWMH:
-    /// the property `_NET_WM_STATE` of the root window carries the atom
-    /// `_NET_WM_STATE_ABOVE` and the action, and the window manager is the
-    /// one that changes the state of the window.
-    pub(super) fn set_always_on_top(
-        d: *mut c_void,
-        root: c_ulong,
-        window: c_ulong,
-        on: bool,
-    ) -> bool {
-        let state = match CString::new("_NET_WM_STATE") {
-            Ok(name) => XInternAtom(d, name.as_ptr(), 0),
-            Err(_) => return false,
-        };
-        let above = match CString::new("_NET_WM_STATE_ABOVE") {
-            Ok(name) => XInternAtom(d, name.as_ptr(), 0),
-            Err(_) => return false,
-        };
-        if state == 0 || above == 0 {
-            return false;
-        }
-        let mut event = ClientMessage {
-            kind: CLIENT_MESSAGE,
-            serial: 0,
-            send_event: 1,
-            display: d,
-            window,
-            message_type: state,
-            format: 32,
-            // The action is the first item: zero removes the state, one
-            // adds it and two toggles it. The last item says that the
-            // request comes from the application.
-            data: [if on { 1 } else { 0 }, above as c_long, state as c_long, 1, 0],
-        };
-        XSendEvent(
-            d,
-            (&mut event as *mut ClientMessage).cast(),
-            0,
-            SUBSTRUCTURE_MASK,
-            root,
-        ) != 0
-    }
-
-    /// Whether the window is mapped and not iconified.
-    ///
-    /// This is the enabled state of a window of X11: a window that is not
-    /// mapped is not there, and a window that is iconified is not on the
-    /// screen.
-    pub(super) fn window_is_enabled(d: *mut c_void, window: c_ulong) -> Option<bool> {
-        // The attributes of a window are read into a buffer of the size of
-        // `XWindowAttributes`, and the map state is its ninth field.
-        #[repr(C)]
-        struct Attributes {
-            x: c_int,
-            y: c_int,
-            width: c_int,
-            height: c_int,
-            border_width: c_int,
-            depth: c_int,
-            visual: *mut c_void,
-            root: c_ulong,
-            class: c_int,
-            bit_gravity: c_int,
-            win_gravity: c_int,
-            backing_store: c_int,
-            backing_planes: c_ulong,
-            backing_pixel: c_ulong,
-            save_under: c_int,
-            colormap: c_ulong,
-            map_installed: c_int,
-            map_state: c_int,
-            all_event_masks: c_long,
-            your_event_mask: c_long,
-            do_not_propagate_mask: c_long,
-            override_redirect: c_int,
-            screen: *mut c_void,
-        }
-        let mut attributes = Attributes {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-            border_width: 0,
-            depth: 0,
-            visual: std::ptr::null_mut(),
-            root: 0,
-            class: 0,
-            bit_gravity: 0,
-            win_gravity: 0,
-            backing_store: 0,
-            backing_planes: 0,
-            backing_pixel: 0,
-            save_under: 0,
-            colormap: 0,
-            map_installed: 0,
-            map_state: 0,
-            all_event_masks: 0,
-            your_event_mask: 0,
-            do_not_propagate_mask: 0,
-            override_redirect: 0,
-            screen: std::ptr::null_mut(),
-        };
-        if XGetWindowAttributes(d, window, (&mut attributes as *mut Attributes).cast()) == 0 {
-            return None;
-        }
-        // The map state is 0 when the window is unmapped, 1 when it is
-        // viewable and 2 when it is iconified.
-        Some(attributes.map_state == 1)
-    }
+    xfn!(22, XSetErrorHandler(handler: Option<unsafe extern "C" fn(*mut c_void, *mut c_void) -> c_int>) -> Option<unsafe extern "C" fn(*mut c_void, *mut c_void) -> c_int>);
+    // `XGetErrorText`: the name of an error of the server.
+    #[rustfmt::skip]
+    xfn!(23, XGetErrorText(d: *mut c_void, code: c_int, buffer: *mut c_char, length: c_int) -> c_int);
+    // `XQueryPointer`: the place of the pointer on the screen.
+    #[rustfmt::skip]
+    xfn!(24, XQueryPointer(d: *mut c_void, w: c_ulong, root_return: *mut c_ulong, child_return: *mut c_ulong, root_x: *mut c_int, root_y: *mut c_int, win_x: *mut c_int, win_y: *mut c_int, mask_return: *mut c_uint) -> c_int);
+    // `XConvertSelection`: the ask of a selection to its owner.
+    #[rustfmt::skip]
+    xfn!(25, XConvertSelection(d: *mut c_void, selection: c_ulong, target: c_ulong, property: c_ulong, requestor: c_ulong, time: c_ulong) -> c_int);
+    // `XSetSelectionOwner`: the script becomes the owner of a selection.
+    #[rustfmt::skip]
+    xfn!(26, XSetSelectionOwner(d: *mut c_void, selection: c_ulong, owner: c_ulong, time: c_ulong) -> c_int);
+    // `XGetSelectionOwner`: the window that owns a selection.
+    #[rustfmt::skip]
+    xfn!(27, XGetSelectionOwner(d: *mut c_void, selection: c_ulong) -> c_ulong);
+    // `XCreateSimpleWindow`: the window of the script.
+    #[rustfmt::skip]
+    xfn!(28, XCreateSimpleWindow(d: *mut c_void, parent: c_ulong, x: c_int, y: c_int, width: c_uint, height: c_uint, border_width: c_uint, border: c_ulong, background: c_ulong) -> c_ulong);
+    // `XChangeProperty`: the answer of the owner of a selection.
+    #[rustfmt::skip]
+    xfn!(29, XChangeProperty(d: *mut c_void, w: c_ulong, property: c_ulong, kind: c_ulong, format: c_int, mode: c_int, data: *const c_uchar, items: c_int) -> c_int);
+    // `XSendEvent`: the answer of the owner, sent to the one that asked.
+    #[rustfmt::skip]
+    xfn!(30, XSendEvent(d: *mut c_void, w: c_ulong, propagate: c_int, mask: c_long, event: *mut c_void) -> c_int);
+    // `XMapWindow`: the window of the script, shown.
+    //
+    // WHY it is shown: the X server accepts the ownership of a selection
+    // only from a VIEWABLE window, and an unmapped one is refused with
+    // a `BadWindow` -- the clipboard would then have no owner at all.
+    #[rustfmt::skip]
+    xfn!(31, XMapWindow(d: *mut c_void, w: c_ulong) -> c_int);
 
     // The libc dynamic loader, declared by hand (no `#[link]`, no crate).
     unsafe extern "C" {
@@ -498,8 +355,8 @@ mod ffi {
             1,
             0,
             0,
-            &mut format,
             &mut actual_type,
+            &mut format,
             &mut nitems,
             &mut after,
             &mut prop,
@@ -913,9 +770,201 @@ const CURRENT_TIME: c_ulong = 0;
 const REVERT_TO_PARENT: c_int = 2;
 /// `KeyPress`, the event type whose keysym `pending_keys` reports.
 const KEY_PRESS: c_int = 2;
+
+/// The event of a request of a selection: another client asks.
+const SELECTION_REQUEST: c_int = 30;
+/// The event that carries the answer of the owner of a selection.
+const SELECTION_NOTIFY: c_int = 31;
+
+// ---------------------------------------------------------------------------
+// The errors of the X server.
+// ---------------------------------------------------------------------------
+
+/// The mirror of Xlib's `XErrorEvent`, used only for its offsets.
+///
+/// WHY a mirror and not a cast: Xlib writes the struct itself and this
+/// one is never handed to it. The layout is the one of the X11 headers --
+/// `int type; Display *display; XID resourceid; unsigned long serial;`
+/// and then the three bytes -- and the assertions below pin the offsets
+/// of the bytes this tree reads.
+#[repr(C)]
+struct XErrorEvent {
+    kind: c_int,
+    display: *mut c_void,
+    resourceid: c_ulong,
+    serial: c_ulong,
+    error_code: u8,
+    request_code: u8,
+    minor_code: u8,
+}
+
+const _: () = {
+    assert!(std::mem::offset_of!(XErrorEvent, error_code) == 32);
+    assert!(std::mem::offset_of!(XErrorEvent, request_code) == 33);
+    assert!(std::mem::offset_of!(XErrorEvent, minor_code) == 34);
+};
+
+/// The error the X server reported last, as the handler caught it.
+#[derive(Clone, Copy)]
+struct XErrorRecord {
+    code: u8,
+    request: u8,
+}
+
+/// The last error the X server reported, if any.
+///
+/// WHY a slot: the handler must not print and must not exit, so it has
+/// to leave the error somewhere the call that failed can read it.
+static LAST_X_ERROR: std::sync::Mutex<Option<XErrorRecord>> = std::sync::Mutex::new(None);
+
+/// The handler of the errors of the X server: record the error, and let
+/// the program live.
+///
+/// WHY return zero: Xlib reads the value as "the error is not fatal". Any
+/// other value makes Xlib call `exit()`, which would take the runner
+/// with it and leave the report of the run empty.
+unsafe extern "C" fn the_error_handler(_display: *mut c_void, event: *mut c_void) -> c_int {
+    if !event.is_null() {
+        // SAFETY: Xlib hands a pointer to an `XErrorEvent` that lives as
+        // long as the call; the mirror has the layout of that struct.
+        let record = unsafe {
+            let event = event.cast::<XErrorEvent>();
+            XErrorRecord {
+                code: std::ptr::addr_of!((*event).error_code).read(),
+                request: std::ptr::addr_of!((*event).request_code).read(),
+            }
+        };
+        if let Ok(mut slot) = LAST_X_ERROR.lock() {
+            *slot = Some(record);
+        }
+    }
+    0
+}
+
+/// Install the handler of the errors of the X server, once per process.
+///
+/// WHY once: the handler is global to the process, not to a display, and
+/// it must be there before the first call that can fail.
+fn install_the_error_handler() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        ffi::XSetErrorHandler(Some(the_error_handler));
+    });
+}
+
+/// Forget the error the server reported last.
+///
+/// WHY: an error of an earlier call must not be reported as the reason
+/// of a later one.
+fn clear_the_x_error() {
+    if let Ok(mut slot) = LAST_X_ERROR.lock() {
+        *slot = None;
+    }
+}
+
+/// The reason of the error the server reported, if it reported one.
+///
+/// The name of the error comes from the server itself (`XGetErrorText`),
+/// and from the table of the protocol when the server does not name it:
+/// the codes of the core errors are fixed by the X11 headers, so the tree
+/// always says what happened and not only a number.
+fn take_the_reason_of_the_x_error(display: *mut c_void) -> Option<String> {
+    let record = LAST_X_ERROR.lock().ok().and_then(|mut slot| slot.take())?;
+    let mut buffer = [0u8; 256];
+    let length = ffi::XGetErrorText(
+        display,
+        record.code as c_int,
+        buffer.as_mut_ptr().cast::<c_char>(),
+        buffer.len() as c_int,
+    );
+    let text = if length > 0 {
+        let bytes = &buffer[..buffer.len().min(length as usize)];
+        let end = bytes
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(bytes.len());
+        let named = String::from_utf8_lossy(&bytes[..end]).into_owned();
+        if named.is_empty() {
+            the_name_of_the_x_error(record.code).map(str::to_string)
+        } else {
+            Some(named)
+        }
+    } else {
+        the_name_of_the_x_error(record.code).map(str::to_string)
+    };
+    let text = text.unwrap_or_else(|| format!("error code {}", record.code));
+    Some(format!(
+        "the X server refused it: {text} (code {}, request {})",
+        record.code, record.request
+    ))
+}
+
+/// The name of a core error of the X protocol.
+///
+/// WHY a table: the codes of the core errors are fixed by the X11
+/// headers, and `XGetErrorText` answers nothing for a code it does not
+/// know -- and this tree must always name what happened.
+fn the_name_of_the_x_error(code: u8) -> Option<&'static str> {
+    Some(match code {
+        1 => "BadRequest",
+        2 => "BadValue",
+        3 => "BadWindow",
+        4 => "BadPixmap",
+        5 => "BadAtom",
+        6 => "BadCursor",
+        7 => "BadFont",
+        8 => "BadMatch",
+        9 => "BadDrawable",
+        10 => "BadAccess",
+        11 => "BadAlloc",
+        12 => "BadColor",
+        13 => "BadGC",
+        14 => "BadIDChoice",
+        15 => "BadName",
+        16 => "BadLength",
+        17 => "BadImplementation",
+        _ => return None,
+    })
+}
 /// Xlib's `XEvent` is a union of 24 `long`s on LP64.
 const EVENT_WORDS: usize = 24;
 /// Xlib's `XWindowAttributes` is 136 bytes on LP64; a larger buffer is safe.
+/// The events of the selections of X11.
+///
+/// WHY one mirror for the two: `XSelectionRequestEvent` and
+/// `XSelectionNotifyEvent` carry the SAME fields in the SAME order, and
+/// the `type` of the event says which one it is.
+///
+/// WHY the word before the requestor: the measurement on the VM on
+/// 2026-11-11 read the words of the event and found the window of the
+/// requestor in TWO of them -- the one that is at the offset 32 and the
+/// one that is at the offset 40. The requestor is the second one: the
+/// selection of the event was read at the offset 48, the target at the
+/// offset 56, the property at the offset 64 and the time at the offset
+/// 72. The mirror carries the word that is before the requestor, and the
+/// offsets are pinned so that a wrong one is a failure of the build and
+/// not a wrong answer at the run.
+#[repr(C)]
+struct XSelectionEvent {
+    kind: c_int,
+    serial: c_ulong,
+    send_event: c_int,
+    display: *mut c_void,
+    /// The word that the event carries before the requestor: it holds the
+    /// window of the requestor as well.
+    before_the_requester: c_ulong,
+    requestor: c_ulong,
+    selection: c_ulong,
+    target: c_ulong,
+    property: c_ulong,
+    time: c_ulong,
+}
+
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, requestor) == 40);
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, selection) == 48);
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, target) == 56);
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, property) == 64);
+const _: () = assert!(std::mem::offset_of!(XSelectionEvent, time) == 72);
 const ATTRS_BYTES: usize = 256;
 
 /// The X11 desktop, implementing `Keyboard`, `Pointer`, `Screen` and `Windows`.
@@ -931,12 +980,22 @@ pub struct X11Desktop {
     display: *mut c_void,
     /// A cached reason for a failed open, so the error is stable and clear.
     failure: Option<String>,
-    /// The rectangle the pointer is confined to, when it is confined.
+    /// The desktop of the box, for the capabilities that are not about
+    /// X11: the files, the dialogs, the machine, the pictures and the
+    /// network.
     ///
-    /// The confinement is the clamp of the coordinates the pointer
-    /// sends, the way KeySharp clamps the events of the mouse: the X
-    /// server is never grabbed, and nothing of the session is taken.
-    clip: Option<(i64, i64, i64, i64)>,
+    /// WHY it is kept and not made for each call: the files that are
+    /// open and the pictures that were loaded are STATE, and a desktop
+    /// made for each call would lose them between the calls.
+    lab: crate::desktop::LabDesktop,
+    /// The window of the script that owns the clipboard of the
+    /// session.
+    ///
+    /// WHY a window of its own: the owner of a selection is a
+    /// WINDOW, and the root window of the screen is not one.
+    clipboard_window: c_ulong,
+    /// The text the script owns in the clipboard of the session.
+    clipboard_text: Option<String>,
 }
 
 /// The keyboard half of [`X11Desktop`], by name.
@@ -965,7 +1024,9 @@ impl X11Desktop {
         Self {
             display: std::ptr::null_mut(),
             failure: None,
-            clip: None,
+            lab: crate::desktop::LabDesktop::new(),
+            clipboard_window: 0,
+            clipboard_text: None,
         }
     }
 
@@ -1006,6 +1067,10 @@ impl X11Desktop {
             return Err(reason);
         }
         self.display = display;
+        // The handler goes in BEFORE the first call that can fail: Xlib's
+        // own handler exits the process, and a run that dies leaves no
+        // report at all.
+        install_the_error_handler();
         Ok(display)
     }
 
@@ -1042,11 +1107,17 @@ impl X11Desktop {
         let (x, y, w, h) = rectangle(x, y, width, height)?;
         let display = self.connection()?;
         let root = ffi::XDefaultRootWindow(display);
+        // The slot is emptied before the call: an error of an earlier call
+        // must not be the reason of this one.
+        clear_the_x_error();
         let image = ffi::XGetImage(display, root, x, y, w, h, ALL_PLANES, ZPIXMAP);
         if image.is_null() {
-            return Err(format!(
-                "XGetImage({x}, {y}, {w}x{h}) failed on the root window"
-            ));
+            // The server refused the capture and said why in its own
+            // words; the reason is the answer of the question, not a
+            // crash of the run.
+            return Err(take_the_reason_of_the_x_error(display).unwrap_or_else(|| {
+                format!("XGetImage({x}, {y}, {w}x{h}) failed on the root window")
+            }));
         }
         let mut rgb = Vec::with_capacity((w as usize) * (h as usize) * 3);
         let mut problem = None;
@@ -1110,6 +1181,13 @@ impl X11Desktop {
             let mut event = [0usize; EVENT_WORDS];
             ffi::XNextEvent(display, event.as_mut_ptr().cast::<c_void>());
             if (event[0] as c_int) != KEY_PRESS {
+                if (event[0] as c_int) == SELECTION_REQUEST {
+                    // Another client asks for the clipboard: the script
+                    // owns it, and the script answers.
+                    let request = unsafe { &*(event.as_ptr().cast::<XSelectionEvent>()) };
+                    self.serve_the_selection(display, request);
+                    continue;
+                }
                 continue;
             }
             let mut buffer: [c_char; 32] = [0; 32];
@@ -1333,17 +1411,8 @@ impl Keyboard for X11Desktop {
 }
 
 impl Pointer for X11Desktop {
-    fn clip_cursor(&mut self, rect: Option<(i64, i64, i64, i64)>) -> Result<(), String> {
-        // The rectangle the script asked for, the far edges exclusive,
-        // and nothing of the session is taken: the clamp of the
-        // coordinates the pointer sends is the confinement, and the X
-        // server is never grabbed.
-        self.clip = rect;
-        Ok(())
-    }
-
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
-        let (x, y) = self.the_clamped(x, y)?;
+        let (x, y) = position(x, y)?;
         let number =
             button_number(button).ok_or_else(|| format!("unknown X11 mouse button: {button:?}"))?;
         let display = self.connection()?;
@@ -1393,11 +1462,32 @@ impl Pointer for X11Desktop {
     }
 
     fn mouse_position(&mut self) -> Result<(i64, i64), String> {
-        Err(
-            "this desktop cannot tell where the pointer is: XQueryPointer is not \
-             resolved, and XTEST only writes positions"
-                .to_string(),
-        )
+        // The X server knows where the pointer is, and it says it with
+        // `XQueryPointer`: XTEST only WRITES places.
+        let display = self.connection()?;
+        let root = ffi::XDefaultRootWindow(display);
+        let mut root_return: c_ulong = 0;
+        let mut child_return: c_ulong = 0;
+        let mut root_x: c_int = 0;
+        let mut root_y: c_int = 0;
+        let mut win_x: c_int = 0;
+        let mut win_y: c_int = 0;
+        let mut mask: c_uint = 0;
+        let asked = ffi::XQueryPointer(
+            display,
+            root,
+            &mut root_return,
+            &mut child_return,
+            &mut root_x,
+            &mut root_y,
+            &mut win_x,
+            &mut win_y,
+            &mut mask,
+        );
+        if asked == 0 {
+            return Err("XQueryPointer answered nothing about the pointer".to_string());
+        }
+        Ok((root_x as i64, root_y as i64))
     }
 }
 
@@ -1406,34 +1496,6 @@ impl X11Desktop {
     ///
     /// WHY: `mouse_down` and `mouse_up` share the move-then-button shape of
     /// the uinput backend, so the shape lives once here.
-    /// The position of the pointer, clamped to the rectangle of the
-    /// confinement when there is one.
-    ///
-    /// The far edges of the rectangle are exclusive: a movement that
-    /// leaves it is made to its edge.
-    fn the_clamped(&self, x: i64, y: i64) -> Result<(i32, i32), String> {
-        let (x, y) = position(x, y)?;
-        // The position of the X server is a number of thirty-two bits and
-        // the rectangle of the confinement is a number of sixty-four: the
-        // clamp is made in the wide one, and the answer is cut to the
-        // narrow one -- and cut inside it, so that a rectangle the
-        // script wrote with a number of the sixty-four does not wrap.
-        let (x, y) = (i64::from(x), i64::from(y));
-        let (x, y) = match self.clip {
-            Some((left, top, right, bottom)) => {
-                let left = left.min(right);
-                let top = top.min(bottom);
-                (
-                    x.clamp(left, (right - 1).max(left)),
-                    y.clamp(top, (bottom - 1).max(top)),
-                )
-            }
-            None => (x, y),
-        };
-        let narrow = |value: i64| value.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32;
-        Ok((narrow(x), narrow(y)))
-    }
-
     fn press_button(
         &mut self,
         display: *mut c_void,
@@ -1538,6 +1600,35 @@ impl Screen for X11Desktop {
         }
         Ok(None)
     }
+    /// The scale of the output: the toolkit of the session says it, and
+    /// the helper of the window asks the toolkit.
+    fn screen_scale(&mut self) -> Result<i64, String> {
+        self.lab.screen_scale()
+    }
+    /// The text that a tip shows.
+    fn tooltip_show(&mut self, text: &str, x: i64, y: i64) -> Result<i64, String> {
+        self.lab.tooltip_show(text, x, y)
+    }
+    /// The place and the size of a window of the script.
+    fn window_move(&mut self, x: i64, y: i64, width: i64, height: i64) -> Result<(), String> {
+        self.lab.window_move(x, y, width, height)
+    }
+    /// The controls of the window of the script.
+    fn gui_controls(&mut self) -> Result<String, String> {
+        self.lab.gui_controls()
+    }
+    /// The text of every control of the window of the script.
+    fn gui_all_text(&mut self) -> Result<String, String> {
+        self.lab.gui_all_text()
+    }
+    /// The opacity of the window of the script.
+    fn gui_opacity(&mut self, setting: Option<i64>) -> Result<i64, String> {
+        self.lab.gui_opacity(setting)
+    }
+    /// The paste of a text into a control of the window of the script.
+    fn gui_paste(&mut self, number: u64, text: &str) -> Result<(), String> {
+        self.lab.gui_paste(number, text)
+    }
 }
 
 /// Parse `#rrggbb`, `#rgb` or `rrggbb` into three bytes.
@@ -1566,87 +1657,6 @@ impl Windows for X11Desktop {
             return Ok(None);
         };
         Ok(ffi::fetch_name(display, id))
-    }
-
-    fn always_on_top(
-        &mut self,
-        window: &ahk::desktop::WindowInfo,
-    ) -> Result<Option<bool>, String> {
-        let display = self.connection()?;
-        Ok(ffi::always_on_top(display, window.id as c_ulong))
-    }
-
-    fn set_always_on_top(
-        &mut self,
-        window: &ahk::desktop::WindowInfo,
-        on: bool,
-    ) -> Result<(), String> {
-        let display = self.connection()?;
-        let root = ffi::XDefaultRootWindow(display);
-        if ffi::set_always_on_top(display, root, window.id as c_ulong, on) {
-            Ok(())
-        } else {
-            Err("the X server refused the client message of the EWMH.".to_string())
-        }
-    }
-
-    fn window_enabled(
-        &mut self,
-        window: &ahk::desktop::WindowInfo,
-    ) -> Result<Option<bool>, String> {
-        let display = self.connection()?;
-        Ok(ffi::window_is_enabled(display, window.id as c_ulong))
-    }
-
-    fn control_enabled(
-        &mut self,
-        _window: &ahk::desktop::WindowInfo,
-    ) -> Result<Option<bool>, String> {
-        // The state of a control is the state of a widget, and it needs the
-        // accessibility tree. This backend does not read it.
-        Ok(None)
-    }
-
-    fn the_window_at(&mut self, x: i64, y: i64) -> Result<Option<i64>, String> {
-        // The translation from the root to the root answers the child of
-        // the root that holds the point -- the top-level window there --
-        // and a child of zero is the root itself, with no window at the
-        // point. The identifier is the window of the X server, the same
-        // one the enumeration of the windows of this backend carries.
-        let display = self.connection()?;
-        let root = ffi::XDefaultRootWindow(display);
-        let mut dst_x: c_int = 0;
-        let mut dst_y: c_int = 0;
-        let mut child: c_ulong = 0;
-        let translated = ffi::XTranslateCoordinates(
-            display,
-            root,
-            root,
-            x as c_int,
-            y as c_int,
-            &mut dst_x,
-            &mut dst_y,
-            &mut child,
-        );
-        if translated == 0 {
-            return Err("the X server did not translate the point".to_string());
-        }
-        Ok(if child == 0 {
-            None
-        } else {
-            Some(child as i64)
-        })
-    }
-
-    fn window_capabilities(&mut self) -> Vec<String> {
-
-        vec![
-            "AlwaysOnTopGet".to_string(),
-            "AlwaysOnTopSet".to_string(),
-            "WindowEnabledGet".to_string(),
-            "WindowList".to_string(),
-            "WindowActivate".to_string(),
-        ]
     }
 
     fn window_active(&mut self, title: &str, mode: TitleMatch) -> Result<WindowAnswer, String> {
@@ -1778,15 +1788,547 @@ impl Files for X11Desktop {
     fn empty_trash(&mut self, _drive: Option<&str>) -> Result<(), String> {
         crate::trash::empty()
     }
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn canonical_path(&mut self, path: &str) -> Result<String, String> {
+        self.lab.canonical_path(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn open_file(&mut self, path: &str, mode: &str) -> Result<i64, String> {
+        self.lab.open_file(path, mode)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn read_file_at(&mut self, handle: i64, pos: i64, count: i64) -> Result<Vec<u8>, String> {
+        self.lab.read_file_at(handle, pos, count)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn write_file_at(&mut self, handle: i64, pos: i64, bytes: &[u8]) -> Result<usize, String> {
+        self.lab.write_file_at(handle, pos, bytes)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn file_size(&mut self, handle: i64) -> Result<i64, String> {
+        self.lab.file_size(handle)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn close_file(&mut self, handle: i64) -> Result<(), String> {
+        self.lab.close_file(handle)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn delete_file(&mut self, path: &str) -> Result<String, String> {
+        self.lab.delete_file(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn create_dir(&mut self, path: &str) -> Result<String, String> {
+        self.lab.create_dir(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn dir_delete(&mut self, path: &str, recurse: bool) -> Result<String, String> {
+        self.lab.dir_delete(path, recurse)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn set_working_directory(&mut self, directory: &str) -> Result<String, String> {
+        self.lab.set_working_directory(directory)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn working_directory(&mut self) -> Result<String, String> {
+        self.lab.working_directory()
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn initial_working_directory(&mut self) -> Result<String, String> {
+        self.lab.initial_working_directory()
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn list_files(
+        &mut self,
+        folder: &str,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
+        self.lab.list_files(folder, pattern, mode)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn read_file(&mut self, path: &str) -> Result<Vec<String>, String> {
+        self.lab.read_file(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn read_the_bytes_of_a_file(&mut self, path: &str) -> Result<Vec<u8>, String> {
+        self.lab.read_the_bytes_of_a_file(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn write_file(&mut self, path: &str, text: &str) -> Result<String, String> {
+        self.lab.write_file(path, text)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn append_file(&mut self, path: &str, bytes: &[u8], mark: &[u8]) -> Result<String, String> {
+        self.lab.append_file(path, bytes, mark)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn copy_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.lab.copy_file(from, to, overwrite)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn move_file(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.lab.move_file(from, to, overwrite)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn copy_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.lab.copy_dir(from, to, overwrite)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn move_dir(&mut self, from: &str, to: &str, overwrite: bool) -> Result<String, String> {
+        self.lab.move_dir(from, to, overwrite)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn attributes_of_the_pattern(
+        &mut self,
+        pattern: &str,
+        mode: &str,
+    ) -> Result<Vec<String>, String> {
+        self.lab.attributes_of_the_pattern(pattern, mode)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn file_attributes(&mut self, path: &str) -> Result<Vec<String>, String> {
+        self.lab.file_attributes(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn the_size_of_a_file(&mut self, path: &str) -> Result<i64, String> {
+        self.lab.the_size_of_a_file(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn set_file_attributes(&mut self, path: &str, attributes: &[String]) -> Result<String, String> {
+        self.lab.set_file_attributes(path, attributes)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn file_times(&mut self, path: &str) -> Result<(i64, i64, i64), String> {
+        self.lab.file_times(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn set_file_times(
+        &mut self,
+        path: &str,
+        created: Option<i64>,
+        modified: Option<i64>,
+        accessed: Option<i64>,
+    ) -> Result<String, String> {
+        self.lab.set_file_times(path, created, modified, accessed)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn ini_read(
+        &mut self,
+        path: &str,
+        section: &str,
+        key: &str,
+        default: &str,
+    ) -> Result<String, String> {
+        self.lab.ini_read(path, section, key, default)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn ini_write(
+        &mut self,
+        path: &str,
+        section: &str,
+        key: &str,
+        value: &str,
+    ) -> Result<String, String> {
+        self.lab.ini_write(path, section, key, value)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn ini_delete(&mut self, path: &str, section: &str, key: &str) -> Result<String, String> {
+        self.lab.ini_delete(path, section, key)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn create_shortcut(
+        &mut self,
+        target: &str,
+        shortcut: &str,
+        working_directory: &str,
+        arguments: &str,
+        description: &str,
+        icon: &str,
+    ) -> Result<(), String> {
+        self.lab.create_shortcut(
+            target,
+            shortcut,
+            working_directory,
+            arguments,
+            description,
+            icon,
+        )
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn full_path(&mut self, path: &str) -> Result<String, String> {
+        self.lab.full_path(path)
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn create_temp_file(&mut self) -> Result<String, String> {
+        self.lab.create_temp_file()
+    }
+
+    /// The files of the machine: the file system of the box, which is
+    /// not about X11 at all.
+    fn read_shortcut(
+        &mut self,
+        shortcut: &str,
+    ) -> Result<(String, String, String, String, String), String> {
+        self.lab.read_shortcut(shortcut)
+    }
 }
-impl Clipboard for X11Desktop {}
+impl X11Desktop {
+    /// The atom of a name of the X server.
+    fn the_atom(display: *mut c_void, name: &str) -> c_ulong {
+        let mut bytes = name.as_bytes().to_vec();
+        bytes.push(0);
+        ffi::XInternAtom(display, bytes.as_ptr().cast::<c_char>(), 0)
+    }
+
+    /// The window of the script that owns the clipboard of the session.
+    ///
+    /// WHY a window of its own: the owner of a selection is a WINDOW, and
+    /// the root window of the screen is not one.
+    fn the_clipboard_window(&mut self, display: *mut c_void) -> Result<c_ulong, String> {
+        if self.clipboard_window != 0 {
+            return Ok(self.clipboard_window);
+        }
+        let root = ffi::XDefaultRootWindow(display);
+        let window = ffi::XCreateSimpleWindow(display, root, 0, 0, 1, 1, 0, 0, 0);
+        if window == 0 {
+            return Err("the X server did not give a window to the script".to_string());
+        }
+        // The window is shown: the X server accepts the ownership of a
+        // selection only from a VIEWABLE window, and it refuses an
+        // unmapped one with a `BadWindow` -- the clipboard would then have
+        // no owner at all, and every read of it would answer nothing.
+        ffi::XMapWindow(display, window);
+        ffi::XFlush(display);
+        self.clipboard_window = window;
+        Ok(window)
+    }
+
+    /// Answer a request of the clipboard, with the text the script owns.
+    ///
+    /// WHY the answer is sent and not left to the server: the owner of a
+    /// selection is the client itself, and the client is this tree.
+    fn serve_the_selection(&mut self, display: *mut c_void, request: &XSelectionEvent) {
+        let Some(text) = self.clipboard_text.clone() else {
+            return;
+        };
+        let utf8 = Self::the_atom(display, "UTF8_STRING");
+        let targets = Self::the_atom(display, "TARGETS");
+        let mut property = if request.property == 0 {
+            request.target
+        } else {
+            request.property
+        };
+        if request.target == utf8 {
+            let bytes = text.as_bytes();
+            ffi::XChangeProperty(
+                display,
+                request.requestor,
+                property,
+                utf8,
+                8,
+                0,
+                bytes.as_ptr().cast::<c_uchar>(),
+                bytes.len() as c_int,
+            );
+        } else if request.target == targets {
+            let mut list = [targets, utf8];
+            ffi::XChangeProperty(
+                display,
+                request.requestor,
+                property,
+                4,
+                32,
+                0,
+                list.as_mut_ptr().cast::<c_uchar>(),
+                list.len() as c_int,
+            );
+        } else {
+            // A target the script does not carry: the property is None,
+            // and that is how an owner says "no".
+            property = 0;
+        }
+        let mut notify = XSelectionEvent {
+            kind: SELECTION_NOTIFY,
+            serial: 0,
+            send_event: 1,
+            display,
+            before_the_requester: request.requestor,
+            requestor: request.requestor,
+            selection: request.selection,
+            target: request.target,
+            property,
+            time: request.time,
+        };
+        ffi::XSendEvent(
+            display,
+            request.requestor,
+            0,
+            0,
+            (&mut notify as *mut XSelectionEvent).cast::<c_void>(),
+        );
+        ffi::XFlush(display);
+    }
+
+    /// The text of a property of the window of the script.
+    fn the_text_of_the_property(
+        &self,
+        display: *mut c_void,
+        window: c_ulong,
+        property: c_ulong,
+    ) -> String {
+        let mut actual_type: c_ulong = 0;
+        let mut actual_format: c_int = 0;
+        let mut items: c_ulong = 0;
+        let mut after: c_ulong = 0;
+        let mut data: *mut c_uchar = std::ptr::null_mut();
+        let got = ffi::XGetWindowProperty(
+            display,
+            window,
+            property,
+            0,
+            1_048_575,
+            0,
+            0,
+            &mut actual_type,
+            &mut actual_format,
+            &mut items,
+            &mut after,
+            &mut data,
+        );
+        if got != 0 || data.is_null() {
+            return String::new();
+        }
+        let length = match actual_format {
+            8 => items as usize,
+            16 => items as usize * 2,
+            32 => items as usize * 4,
+            _ => 0,
+        };
+        let bytes = unsafe { std::slice::from_raw_parts(data, length) };
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        ffi::XFree(data.cast::<c_void>());
+        text
+    }
+
+    /// The text of the clipboard of the session.
+    fn read_the_clipboard(&mut self, display: *mut c_void) -> Result<String, String> {
+        let window = self.the_clipboard_window(display)?;
+        let clipboard = Self::the_atom(display, "CLIPBOARD");
+        let utf8 = Self::the_atom(display, "UTF8_STRING");
+        let property = Self::the_atom(display, "AHK_CLIPBOARD");
+        // Nobody owns the clipboard: there is nothing to read, and that
+        // is not a failure.
+        if ffi::XGetSelectionOwner(display, clipboard) == 0 {
+            return Ok(String::new());
+        }
+        ffi::XConvertSelection(display, clipboard, utf8, property, window, CURRENT_TIME);
+        ffi::XFlush(display);
+        // The owner answers with an EVENT, and the event arrives in the
+        // queue of the connection: the wait is bounded, because a client
+        // that never answers must not take the run with it.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1500);
+        loop {
+            while ffi::XPending(display) > 0 {
+                let mut event = [0usize; EVENT_WORDS];
+                ffi::XNextEvent(display, event.as_mut_ptr().cast::<c_void>());
+                let kind = event[0] as c_int;
+                if kind == SELECTION_REQUEST {
+                    // Another client asks for the clipboard: the script
+                    // owns it, and the script answers.
+                    let request = unsafe { &*(event.as_ptr().cast::<XSelectionEvent>()) };
+                    self.serve_the_selection(display, request);
+                    continue;
+                }
+                if kind == SELECTION_NOTIFY {
+                    let notify = unsafe { &*(event.as_ptr().cast::<XSelectionEvent>()) };
+                    if notify.property == 0 {
+                        // The owner refused the request.
+                        return Ok(String::new());
+                    }
+                    return Ok(self.the_text_of_the_property(display, window, notify.property));
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        Err("the owner of the clipboard did not answer in time".to_string())
+    }
+}
+impl Clipboard for X11Desktop {
+    /// The text of the clipboard of the session.
+    ///
+    /// WHY the protocol of the selections: the clipboard of an X11
+    /// session is a SELECTION, and it is asked of the window that owns
+    /// it. The tree of the box uses `wl-paste`, and that speaks
+    /// Wayland.
+    fn clipboard_read(&mut self) -> Result<String, String> {
+        let display = self.connection()?;
+        self.read_the_clipboard(display)
+    }
+
+    /// Put a text in the clipboard of the session.
+    ///
+    /// WHY the script owns it: the owner of a selection is a WINDOW, and
+    /// the script needs a window of its own to be one. The text is
+    /// answered when another client asks for it.
+    fn clipboard_write(&mut self, text: &str) -> Result<String, String> {
+        let display = self.connection()?;
+        let window = self.the_clipboard_window(display)?;
+        let clipboard = Self::the_atom(display, "CLIPBOARD");
+        self.clipboard_text = Some(text.to_string());
+        let owned = ffi::XSetSelectionOwner(display, clipboard, window, CURRENT_TIME);
+        ffi::XFlush(display);
+        if owned == 0 {
+            return Err("the X server did not accept the ownership of the clipboard".to_string());
+        }
+        Ok(format!("the clipboard of the session holds {text:?}"))
+    }
+}
 impl Timers for X11Desktop {}
-impl Hotkeys for X11Desktop {}
-impl Native for X11Desktop {}
-impl Sound for X11Desktop {}
+impl Hotkeys for X11Desktop {
+    /// The hotkeys of the script: the watcher of the keyboard of the
+    /// machine answers for them.
+    fn register_hotkey(&mut self, name: &str) -> Result<String, String> {
+        self.lab.register_hotkey(name)
+    }
+    fn unregister_hotkey(&mut self, name: &str) -> Result<String, String> {
+        self.lab.unregister_hotkey(name)
+    }
+    fn hotkeys(&mut self) -> Result<Vec<String>, String> {
+        self.lab.hotkeys()
+    }
+    fn fired_hotkey(&mut self) -> Result<Option<String>, String> {
+        self.lab.fired_hotkey()
+    }
+}
+impl Native for X11Desktop {
+    /// The call of a library: the raven answers for the libraries of
+    /// Windows, and the machine answers for the ones of the machine.
+    fn call_native(
+        &mut self,
+        call: &mut ahk::dll::NativeCall,
+    ) -> Result<ahk::dll::NativeResult, ahk::dll::NativeFailure> {
+        self.lab.call_native(call)
+    }
+}
+impl Sound for X11Desktop {
+    /// The sound of the machine: `pactl` answers for the devices.
+    fn sound_device_named(&mut self, device: &str) -> Result<Option<String>, String> {
+        self.lab.sound_device_named(device)
+    }
+    fn sound_device_names(&mut self) -> Result<(String, String), String> {
+        self.lab.sound_device_names()
+    }
+    fn sound_volume(&mut self, device: &str) -> Result<f64, String> {
+        self.lab.sound_volume(device)
+    }
+    fn sound_set_volume(&mut self, device: &str, volume: f64) -> Result<(), String> {
+        self.lab.sound_set_volume(device, volume)
+    }
+    fn sound_muted(&mut self, device: &str) -> Result<bool, String> {
+        self.lab.sound_muted(device)
+    }
+    fn sound_set_muted(&mut self, device: &str, muted: bool) -> Result<(), String> {
+        self.lab.sound_set_muted(device, muted)
+    }
+}
 impl Machine for X11Desktop {
-    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
-        crate::network::ip_addresses()
+    fn drive_space(&mut self, path: &str) -> Result<Option<ahk::desktop::DriveSpace>, String> {
+        crate::desktop::LabDesktop::new().drive_space(path)
+    }
+    fn drive_label(&mut self, path: &str) -> Result<Option<String>, String> {
+        crate::desktop::LabDesktop::new().drive_label(path)
+    }
+    fn drive_serial(&mut self, path: &str) -> Result<Option<String>, String> {
+        crate::desktop::LabDesktop::new().drive_serial(path)
+    }
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        crate::desktop::LabDesktop::new().drive_list()
+    }
+    fn drive_status_cd(&mut self, path: &str) -> Result<Option<String>, String> {
+        crate::desktop::LabDesktop::new().drive_status_cd(path)
+    }
+    fn drive_eject(&mut self, path: &str) -> Result<(), String> {
+        crate::desktop::LabDesktop::new().drive_eject(path)
+    }
+    fn drive_lock(&mut self, path: &str) -> Result<(), String> {
+        crate::desktop::LabDesktop::new().drive_lock(path)
+    }
+    fn drive_unlock(&mut self, path: &str) -> Result<(), String> {
+        crate::desktop::LabDesktop::new().drive_unlock(path)
+    }
+    fn drive_retract(&mut self, path: &str) -> Result<(), String> {
+        crate::desktop::LabDesktop::new().drive_retract(path)
+    }
+    fn drive_set_label(&mut self, path: &str, label: &str) -> Result<(), String> {
+        crate::desktop::LabDesktop::new().drive_set_label(path, label)
     }
     fn output_debug(&mut self, text: &str) -> Result<(), String> {
         // The debugger of the machine is the standard error of the process,
@@ -1797,30 +2339,185 @@ impl Machine for X11Desktop {
     fn drive(&mut self, path: &str) -> Result<Option<ahk::desktop::Drive>, String> {
         crate::drives::drive(path)
     }
-    fn drive_type(&mut self, path: &str) -> Result<Option<String>, String> {
-        crate::drives::drive_type(path)
+    /// The name of the user of the machine.
+    fn user_name(&mut self) -> Result<String, String> {
+        self.lab.user_name()
     }
-    fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
-        crate::drives::drive_status(path)
+    /// The name of the machine.
+    fn computer_name(&mut self) -> Result<String, String> {
+        self.lab.computer_name()
+    }
+    /// The shell of the user.
+    fn shell(&mut self) -> Result<String, String> {
+        self.lab.shell()
+    }
+    /// The folders of the machine.
+    fn folders(&mut self) -> Result<ahk::desktop::Folders, String> {
+        self.lab.folders()
+    }
+    /// The version of the system of the machine.
+    fn os_version(&mut self) -> Result<String, String> {
+        self.lab.os_version()
+    }
+    /// The language of the machine.
+    fn language(&mut self) -> Result<String, String> {
+        self.lab.language()
+    }
+    /// Whether the machine is an administrator one.
+    fn is_admin(&mut self) -> Result<bool, String> {
+        self.lab.is_admin()
+    }
+    /// The times the machine has been idle.
+    fn idle_times(&mut self) -> Result<ahk::desktop::Idle, String> {
+        self.lab.idle_times()
+    }
+    /// The path of the program that runs the script.
+    fn executable(&mut self) -> Result<String, String> {
+        self.lab.executable()
+    }
+    /// The icon of the script in the tray of the session.
+    fn tray_set_icon(&mut self, name: &str) -> Result<(), String> {
+        self.lab.tray_set_icon(name)
+    }
+    /// The directory of the programs of the user.
+    fn program_files(&mut self) -> Result<String, String> {
+        self.lab.program_files()
+    }
+    /// The directory of the Windows of the machine.
+    fn windows_directory(&mut self) -> Result<String, String> {
+        self.lab.windows_directory()
+    }
+    /// The registry of the machine: the store of the box.
+    fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
+        self.lab.registry_create_key(key)
+    }
+    fn registry_delete_key(&mut self, key: &str) -> Result<(), String> {
+        self.lab.registry_delete_key(key)
+    }
+    fn registry_delete(&mut self, key: &str, name: &str) -> Result<(), String> {
+        self.lab.registry_delete(key, name)
+    }
+    fn registry_write(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        self.lab.registry_write(key, name, kind, value)
+    }
+    fn registry_value(
+        &mut self,
+        key: &str,
+        name: &str,
+    ) -> Result<Option<(String, String)>, String> {
+        self.lab.registry_value(key, name)
     }
 }
-impl Dialogs for X11Desktop {}
+impl Dialogs for X11Desktop {
+    /// A notification of the session: the box answers with
+    /// `notify-send`, and the failure is the reason of the desktop.
+    fn notify(&mut self, title: &str, text: &str) -> Result<(), String> {
+        self.lab.notify(title, text)
+    }
+    /// The question of the user: `zenity` opens it on the display
+    /// of the session.
+    fn input_box(
+        &mut self,
+        prompt: &str,
+        title: &str,
+        options: &ahk::desktop::InputOptions,
+        default: &str,
+    ) -> Result<ahk::desktop::InputAnswer, String> {
+        self.lab.input_box(prompt, title, options, default)
+    }
+    /// The choice of a file.
+    fn file_select(
+        &mut self,
+        options: &ahk::desktop::FileOptions,
+        root: &str,
+        title: &str,
+        filter: &str,
+    ) -> Result<ahk::desktop::FileAnswer, String> {
+        self.lab.file_select(options, root, title, filter)
+    }
+    /// The choice of a folder.
+    fn dir_select(&mut self, starting: &str, options: i64, prompt: &str) -> Result<String, String> {
+        self.lab.dir_select(starting, options, prompt)
+    }
+}
 impl Network for X11Desktop {
+    /// The download is the machine's, and the machine is the box.
     fn download(&mut self, url: &str, file: &str) -> Result<String, String> {
-        // The curl of the box does not care which session is up.
-        crate::network::download(url, file)
+        self.lab.download(url, file)
     }
 
-    fn send_mail(&mut self, message: &ahk::desktop::MailMessage) -> Result<(), String> {
-        crate::network::send_mail(message)
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        crate::network::ip_addresses()
     }
 }
-
-impl Pictures for X11Desktop {}
+impl Pictures for X11Desktop {
+    /// The picture of a file: the `png` crate reads it, and it is
+    /// not about X11 at all.
+    fn load_picture(
+        &mut self,
+        filename: &str,
+        options: &ahk::desktop::PictureOptions,
+    ) -> Result<Option<u32>, String> {
+        self.lab.load_picture(filename, options)
+    }
+    /// The look for a picture on the screen: the capture is the
+    /// X11 one (`XGetImage`), and the matching is the one of the box.
+    fn image_search(
+        &mut self,
+        x1: i64,
+        y1: i64,
+        x2: i64,
+        y2: i64,
+        image: &ahk::desktop::Image,
+        options: &ahk::desktop::ImageOptions,
+    ) -> Result<ahk::desktop::ImageSearch, String> {
+        let picture = match crate::pictures::the_picture_of(&self.lab, image) {
+            Ok(picture) => picture,
+            Err(answer) => return Ok(answer),
+        };
+        let picture = crate::pictures::resized(picture, options.width, options.height);
+        let (left, top, width, height) = crate::pictures::the_region(x1, y1, x2, y2);
+        if width == 0 || height == 0 {
+            return Ok(ahk::desktop::ImageSearch::NotFound);
+        }
+        let pixels = self.image_rgb(left, top, width as i64, height as i64)?;
+        let screen = crate::pictures::Picture {
+            pixels,
+            width,
+            height,
+        };
+        Ok(
+            match crate::pictures::search_in(&picture, &screen, options) {
+                Some((x, y)) => ahk::desktop::ImageSearch::Found(x + left, y + top),
+                None => ahk::desktop::ImageSearch::NotFound,
+            },
+        )
+    }
+}
 impl Desktop for X11Desktop {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The codes of the core errors of the X protocol are fixed by the
+    /// X11 headers, and the tree must name every one of them: the name
+    /// is what a script reads, and "code 8" says nothing.
+    #[test]
+    fn the_core_errors_of_the_x_protocol_are_named() {
+        assert_eq!(the_name_of_the_x_error(8), Some("BadMatch"));
+        assert_eq!(the_name_of_the_x_error(3), Some("BadWindow"));
+        assert_eq!(the_name_of_the_x_error(1), Some("BadRequest"));
+        assert_eq!(the_name_of_the_x_error(17), Some("BadImplementation"));
+        // A code the protocol does not carry has no name, and the reason
+        // says the number instead of inventing one.
+        assert_eq!(the_name_of_the_x_error(200), None);
+    }
 
     /// At least twelve AHK names map to the X11 spelling XStringToKeysym
     /// accepts, and the single-character names keep their case.

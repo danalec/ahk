@@ -27,13 +27,7 @@ pub(crate) fn names() -> Vec<&'static str> {
 }
 
 /// The object of a key: what the tree knows of it.
-pub(crate) fn the_key_info(
-    vk: u32,
-    sc: u32,
-    name: &str,
-    modifiers: u32,
-    prefix: &str,
-) -> Value {
+pub(crate) fn the_key_info(vk: u32, sc: u32, name: &str, modifiers: u32, prefix: &str) -> Value {
     let Value::Object(object) = crate::classes::object("keyinfo") else {
         return Value::Text(String::new());
     };
@@ -73,10 +67,19 @@ pub(crate) fn property(
         return None;
     };
     let answer = match name.to_lowercase().as_str() {
-        "vk" => object.borrow().value_of(THE_VIRTUAL_KEY).unwrap_or(Value::Unset),
-        "sc" => object.borrow().value_of(THE_SCAN_CODE).unwrap_or(Value::Unset),
+        "vk" => object
+            .borrow()
+            .value_of(THE_VIRTUAL_KEY)
+            .unwrap_or(Value::Unset),
+        "sc" => object
+            .borrow()
+            .value_of(THE_SCAN_CODE)
+            .unwrap_or(Value::Unset),
         "name" => object.borrow().value_of(THE_NAME).unwrap_or(Value::Unset),
-        "modifiers" => object.borrow().value_of(THE_MODIFIERS).unwrap_or(Value::Unset),
+        "modifiers" => object
+            .borrow()
+            .value_of(THE_MODIFIERS)
+            .unwrap_or(Value::Unset),
         "prefix" => object.borrow().value_of(THE_PREFIX).unwrap_or(Value::Unset),
         _ => return None,
     };

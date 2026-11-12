@@ -75,22 +75,20 @@ pub(crate) fn of(
             ])),
             None => spans.push(Value::List(Vec::new())),
         }
-        names.push(Value::Text(
-            regex.name_of(group).unwrap_or("").to_string(),
-        ));
+        names.push(Value::Text(regex.name_of(group).unwrap_or("").to_string()));
     }
     let mut state = Object {
         class: STATE_CLASS.to_string(),
         properties: BTreeMap::new(),
     };
-    put(&mut state.properties, "text", Value::Text(haystack.to_string()));
-    put(&mut state.properties, "spans", Value::List(spans));
-    put(&mut state.properties, "names", Value::List(names));
     put(
         &mut state.properties,
-        "mark",
-        Value::Text(String::new()),
+        "text",
+        Value::Text(haystack.to_string()),
     );
+    put(&mut state.properties, "spans", Value::List(spans));
+    put(&mut state.properties, "names", Value::List(names));
+    put(&mut state.properties, "mark", Value::Text(String::new()));
     let mut table = BTreeMap::new();
     put(
         &mut table,
@@ -228,12 +226,7 @@ pub(crate) fn item(
 }
 
 /// The answer of a member for a place or a name.
-fn answer(
-    this: &Value,
-    member: &str,
-    key: &Value,
-    line: u32,
-) -> Result<Value, RuntimeFailure> {
+fn answer(this: &Value, member: &str, key: &Value, line: u32) -> Result<Value, RuntimeFailure> {
     let group = resolve(this, key, member, line)?;
     match member {
         "Len.Get" => Ok(Value::Int(group.1)),
@@ -294,11 +287,7 @@ fn resolve(
 }
 
 /// The place and the length of the whole match.
-fn whole_span(
-    this: &Value,
-    member: &str,
-    line: u32,
-) -> Result<(i64, i64), RuntimeFailure> {
+fn whole_span(this: &Value, member: &str, line: u32) -> Result<(i64, i64), RuntimeFailure> {
     let Some(state) = state(this) else {
         return Err(not_a_match(line));
     };
@@ -338,11 +327,7 @@ fn mark(this: &Value, line: u32) -> Result<Value, RuntimeFailure> {
 /// that took no part is the empty text. The parameter of the enumeration
 /// is the number of the variables of the loop, and the loop reads that
 /// itself: the enumerator of the tree is the same for either number.
-fn enumeration(
-    this: &Value,
-    _arguments: &[Value],
-    line: u32,
-) -> Result<Value, RuntimeFailure> {
+fn enumeration(this: &Value, _arguments: &[Value], line: u32) -> Result<Value, RuntimeFailure> {
     let count = count_of(this, line)?;
     let mut pairs: Vec<(Value, Value)> = Vec::new();
     let mut group = 0i64;

@@ -143,7 +143,7 @@ fn the_line(command: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{the_line, TheWindow};
+    use super::{TheWindow, the_line};
 
     #[test]
     fn a_command_is_one_line_of_the_pipe() {
@@ -170,15 +170,13 @@ mod tests {
     #[test]
     #[ignore = "needs a graphical session and the helper; run it on the box"]
     fn the_helper_starts_and_answers() {
-        let path = std::env::var("AHK_GUI_HELPER").expect("AHK_GUI_HELPER is the path of the helper");
+        let path =
+            std::env::var("AHK_GUI_HELPER").expect("AHK_GUI_HELPER is the path of the helper");
         let mut window = TheWindow::open(std::path::Path::new(&path)).expect("the helper starts");
         let answer = window
             .send("{\"op\": \"window\", \"title\": \"ahk-transport-probe\"}")
             .expect("the helper answers");
-        assert!(
-            answer.contains("\"ok\": true"),
-            "the helper said {answer}"
-        );
+        assert!(answer.contains("\"ok\": true"), "the helper said {answer}");
         window.close().expect("the helper goes");
     }
 }

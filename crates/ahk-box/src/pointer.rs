@@ -204,12 +204,6 @@ pub struct Pointer {
     width: i64,
     height: i64,
     last: (i64, i64),
-    /// The rectangle the pointer is confined to, when it is confined.
-    ///
-    /// The rectangle is the one the script asked for: the left, the top,
-    /// the right and the bottom, the far edges exclusive. `None` is a
-    /// pointer that is not confined.
-    clip: Option<(i64, i64, i64, i64)>,
 }
 
 impl Pointer {
@@ -228,7 +222,6 @@ impl Pointer {
                 width,
                 height,
                 last: (0, 0),
-                clip: None,
             };
             pointer.configure()?;
             Ok(pointer)
@@ -243,23 +236,6 @@ impl Pointer {
     /// The last position the pointer was put at.
     pub fn last_position(&self) -> (i64, i64) {
         self.last
-    }
-
-    /// Confine the pointer to a rectangle of the screen, or release it.
-    ///
-    /// The rectangle is the one the script asked for, and the far edges
-    /// are exclusive: a movement that leaves it is made to its edge. The
-    /// confinement is the clamp of the coordinates the pointer sends --
-    /// the same thing KeySharp does with the events of the mouse -- and
-    /// it takes nothing of the session: the mouse of the user is not the
-    /// pointer of the tree.
-    pub fn clip_to(&mut self, rect: Option<(i64, i64, i64, i64)>) {
-        self.clip = rect;
-    }
-
-    /// The rectangle the pointer is confined to, when it is confined.
-    pub fn the_clip(&self) -> Option<(i64, i64, i64, i64)> {
-        self.clip
     }
 
     /// Put the pointer at an absolute screen position.
@@ -277,11 +253,7 @@ impl Pointer {
     /// The speed of v2 is the number of steps the movement is made of,
     /// and a speed of 0 is a movement at once.
     fn move_in_steps(&mut self, x: i64, y: i64) -> Result<(), PointerError> {
-        // The confinement comes before the screen: the rectangle of the
-        // script is the one that answers, and the screen is the bound of
-        // the pointer whatever it is asked.
         let (x, y) = clamp_to_screen(x, y, self.width, self.height);
-        let (x, y) = clamp_to_the_clip(x, y, self.clip);
         let (from_x, from_y) = self.last;
         let steps = steps(SPEED.load(Ordering::Relaxed));
         for index in 1..=steps {
@@ -450,7 +422,10 @@ impl Pointer {
             self.ioctl(abi::UI_SET_ABSBIT, code as crate::sys::Int)?;
         }
         // This is the bit that makes libinput treat the node as a pointer.
-        self.ioctl(abi::UI_SET_PROPBIT, abi::INPUT_PROP_DIRECT as crate::sys::Int)?;
+        self.ioctl(
+            abi::UI_SET_PROPBIT,
+            abi::INPUT_PROP_DIRECT as crate::sys::Int,
+        )?;
 
         // struct uinput_setup { struct input_id id; char name[80]; __u32 ff_effects_max; }
         let mut setup = [0u8; abi::UINPUT_SETUP_SIZE];
@@ -510,30 +485,6 @@ fn clamp_to_screen(x: i64, y: i64, width: i64, height: i64) -> (i64, i64) {
     )
 }
 
-
-/// The position of the pointer, clamped to the rectangle of the
-/// confinement.
-///
-/// The far edges of the rectangle are exclusive: a movement that leaves
-/// it is made to its edge, and the edge of the right is the one before
-/// the right of the rectangle. A rectangle whose corners are in the
-/// wrong order is the one of the two corners that are the right one.
-fn clamp_to_the_clip(
-    x: i64,
-    y: i64,
-    clip: Option<(i64, i64, i64, i64)>,
-) -> (i64, i64) {
-    let Some((left, top, right, bottom)) = clip else {
-        return (x, y);
-    };
-    let left = left.min(right);
-    let top = top.min(bottom);
-    (
-        x.clamp(left, (right - 1).max(left)),
-        y.clamp(top, (bottom - 1).max(top)),
-    )
-}
-
 /// The speed of the pointer of the box.
 ///
 /// The speed of v2 is the number of steps a movement is made of, and a
@@ -589,27 +540,6 @@ fn open_uinput() -> Result<File, PointerError> {
         .map_err(|error| PointerError::CannotOpen(error.to_string()))
 }
 
-
-    /// The confinement of the pointer is the clamp of the coordinates,
-    /// and the far edges of the rectangle are exclusive.
-    #[test]
-    fn the_confinement_of_the_pointer_is_the_clamp_of_the_coordinates() {
-        let clip = Some((100, 100, 500, 400));
-        // Inside the rectangle, the position is the one that was asked.
-        assert_eq!(clamp_to_the_clip(300, 200, clip), (300, 200));
-        // Outside it, the position is the edge of it -- and the edge of
-        // the right is the one before it: the far edges are exclusive.
-        assert_eq!(clamp_to_the_clip(800, 600, clip), (499, 399));
-        assert_eq!(clamp_to_the_clip(10, 10, clip), (100, 100));
-        // The exact edges are inside.
-        assert_eq!(clamp_to_the_clip(100, 100, clip), (100, 100));
-        assert_eq!(clamp_to_the_clip(499, 399, clip), (499, 399));
-        // A pointer that is not confined goes where it is told.
-        assert_eq!(clamp_to_the_clip(800, 600, None), (800, 600));
-        // A rectangle whose corners are in the wrong order is the one of
-        // the two corners that are the right one.
-        assert_eq!(clamp_to_the_clip(800, 600, Some((500, 400, 100, 100))), (100, 100));
-    }
 #[cfg(test)]
 mod tests {
     //! The numbers the kernel sees.

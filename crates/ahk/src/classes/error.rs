@@ -13,7 +13,6 @@
 //! not there is an `UnsetError`, a `MemberError` and a `PropertyError`
 //! at the same time, and an index that is out of range is a `ValueError`
 //! and an `IndexError`.
-
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::{String, ToString};
@@ -44,83 +43,6 @@ pub(crate) const CLASSES: [(&str, &str, &str); 14] = [
     ("zerodivisionerror", "ZeroDivisionError", "error"),
 ];
 
-/// The classes of the errors that the `ks` dialect adds: the name in
-/// lower case, the name as KeySharp spells it, the class each one derives
-/// from, and the message it carries when the caller gives it none.
-///
-/// The `ArgumentError` is the error of a call that left out a parameter or
-/// passed one that was unset, and the `UnsupportedError` is the error of
-/// an operation the platform of the machine cannot do. They are of the
-/// `ks` dialect alone: the v2.0.19 has neither of them.
-pub(crate) const KS_CLASSES: [(&str, &str, &str, &str); 2] = [
-    (
-        "argumenterror",
-        "ArgumentError",
-        "error",
-        "A required parameter was omitted or unset.",
-    ),
-    ("unsupportederror", "UnsupportedError", "oserror", ""),
-];
-
-/// The name of a class of the errors of the `ks` dialect, as it spells it.
-pub(crate) fn the_spelling_of_the_extension(class: &str) -> Option<String> {
-    let class = class.to_lowercase();
-    KS_CLASSES
-        .iter()
-        .find(|(name, _, _, _)| *name == class)
-        .map(|(_, spelled, _, _)| spelled.to_string())
-}
-
-/// The class an error class of the `ks` dialect derives from.
-pub(crate) fn the_base_of_the_extension(class: &str) -> Option<&'static str> {
-    let class = class.to_lowercase();
-    KS_CLASSES
-        .iter()
-        .find(|(name, _, _, _)| *name == class)
-        .map(|(_, _, base, _)| *base)
-        .filter(|base| !base.is_empty())
-}
-
-/// The message a class of the errors of the `ks` dialect carries when the
-/// caller gives it none.
-pub(crate) fn the_message_of_the_extension(class: &str) -> Option<&'static str> {
-    let class = class.to_lowercase();
-    KS_CLASSES
-        .iter()
-        .find(|(name, _, _, _)| *name == class)
-        .map(|(_, _, _, message)| *message)
-}
-
-/// The object of an error of the `ks` dialect.
-pub(crate) fn construct_the_extension(
-    class: &str,
-    arguments: &[Value],
-    rt: &mut Runtime,
-    line: u32,
-) -> Option<Result<Value, RuntimeFailure>> {
-    let default = the_message_of_the_extension(class)?;
-    let message = arguments
-        .first()
-        .map(|value| value.to_text())
-        .unwrap_or_else(|| default.to_string());
-    let what = arguments
-        .get(1)
-        .map(|value| value.to_text())
-        .unwrap_or_default();
-    let extra = arguments
-        .get(2)
-        .map(|value| value.to_text())
-        .unwrap_or_default();
-    Some(Ok(error_value_of(
-        &class.to_lowercase(),
-        &message,
-        &what,
-        &extra,
-        line,
-        &rt.the_stack(),
-    )))
-}
-
 /// The name of a class of the errors, the way v2 spells it.
 ///
 /// `None` means that the name is not one of the classes of the errors.
@@ -130,7 +52,6 @@ pub(crate) fn the_spelling_of(class: &str) -> Option<String> {
         .iter()
         .find(|(name, _, _)| *name == class)
         .map(|(_, spelled, _)| spelled.to_string())
-        .or_else(|| the_spelling_of_the_extension(&class))
 }
 
 /// The class an error class derives from.
@@ -144,12 +65,7 @@ pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
         .find(|(name, _, _)| *name == class)
         .map(|(_, _, base)| *base)
         .filter(|base| !base.is_empty())
-        // The classes of the errors of the `ks` dialect derive from their
-        // own base as well: the `ArgumentError` is an `Error` and the
-        // `UnsupportedError` is an `OSError`.
-        .or_else(|| the_base_of_the_extension(&class))
 }
-
 
 /// The class of a failure, the way v2 names it.
 ///
@@ -369,4 +285,62 @@ pub(crate) fn set_property(
     _line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
     None
+}
+
+/// The classes of the errors that the `ks` dialect adds: the name in
+/// lower case, the name as KeySharp spells it, the class each one derives
+/// from, and the message it carries when the caller gives it none.
+///
+/// The `ArgumentError` is the error of a call that left out a parameter or
+/// passed one that was unset, and the `UnsupportedError` is the error of
+/// an operation the platform of the machine cannot do. They are of the
+/// `ks` dialect alone: the v2.0.19 has neither of them.
+pub(crate) const KS_CLASSES: [(&str, &str, &str, &str); 2] = [
+    (
+        "argumenterror",
+        "ArgumentError",
+        "error",
+        "A required parameter was omitted or unset.",
+    ),
+    ("unsupportederror", "UnsupportedError", "oserror", ""),
+];
+
+/// The message a class of the errors of the `ks` dialect carries when the
+/// caller gives it none.
+pub(crate) fn the_message_of_the_extension(class: &str) -> Option<&'static str> {
+    let class = class.to_lowercase();
+    KS_CLASSES
+        .iter()
+        .find(|(name, _, _, _)| *name == class)
+        .map(|(_, _, _, message)| *message)
+}
+
+/// The object of an error of the `ks` dialect.
+pub(crate) fn construct_the_extension(
+    class: &str,
+    arguments: &[Value],
+    rt: &mut Runtime,
+    line: u32,
+) -> Option<Result<Value, RuntimeFailure>> {
+    let default = the_message_of_the_extension(class)?;
+    let message = arguments
+        .first()
+        .map(|value| value.to_text())
+        .unwrap_or_else(|| default.to_string());
+    let what = arguments
+        .get(1)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    let extra = arguments
+        .get(2)
+        .map(|value| value.to_text())
+        .unwrap_or_default();
+    Some(Ok(error_value_of(
+        &class.to_lowercase(),
+        &message,
+        &what,
+        &extra,
+        line,
+        &rt.the_stack(),
+    )))
 }

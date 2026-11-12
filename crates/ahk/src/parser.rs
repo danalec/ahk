@@ -755,9 +755,15 @@ fn collect_the_labels_of_a_scope(body: &[Node], labels: &mut Vec<(String, u32)>)
                     collect_the_labels_of_a_scope(&case.body, labels);
                 }
             }
-            Node::While { body, otherwise, .. }
-            | Node::Loop { body, otherwise, .. }
-            | Node::For { body, otherwise, .. } => {
+            Node::While {
+                body, otherwise, ..
+            }
+            | Node::Loop {
+                body, otherwise, ..
+            }
+            | Node::For {
+                body, otherwise, ..
+            } => {
                 collect_the_labels_of_a_scope(body, labels);
                 if let Some(otherwise) = otherwise {
                     collect_the_labels_of_a_scope(otherwise, labels);
@@ -835,9 +841,15 @@ impl TheNamesOfTheScript {
                         self.collect_in_a_block(&case.body, chain, false);
                     }
                 }
-                Node::While { body, otherwise, .. }
-                | Node::Loop { body, otherwise, .. }
-                | Node::For { body, otherwise, .. } => {
+                Node::While {
+                    body, otherwise, ..
+                }
+                | Node::Loop {
+                    body, otherwise, ..
+                }
+                | Node::For {
+                    body, otherwise, ..
+                } => {
                     self.collect_in_a_block(body, chain, false);
                     if let Some(otherwise) = otherwise {
                         self.collect_in_a_block(otherwise, chain, false);
@@ -988,9 +1000,15 @@ fn collect_the_gotos_of_a_scope(body: &[Node], gotos: &mut Vec<(String, u32)>) {
                     collect_the_gotos_of_a_scope(&case.body, gotos);
                 }
             }
-            Node::While { body, otherwise, .. }
-            | Node::Loop { body, otherwise, .. }
-            | Node::For { body, otherwise, .. } => {
+            Node::While {
+                body, otherwise, ..
+            }
+            | Node::Loop {
+                body, otherwise, ..
+            }
+            | Node::For {
+                body, otherwise, ..
+            } => {
                 collect_the_gotos_of_a_scope(body, gotos);
                 if let Some(otherwise) = otherwise {
                     collect_the_gotos_of_a_scope(otherwise, gotos);
@@ -1202,9 +1220,15 @@ fn the_declarations_of_a_statement(
                 the_declarations_of_a_body_of(&case.body, declarations, dialect)?;
             }
         }
-        Node::While { body, otherwise, .. }
-        | Node::Loop { body, otherwise, .. }
-        | Node::For { body, otherwise, .. } => {
+        Node::While {
+            body, otherwise, ..
+        }
+        | Node::Loop {
+            body, otherwise, ..
+        }
+        | Node::For {
+            body, otherwise, ..
+        } => {
             the_declarations_of_a_body_of(body, declarations, dialect)?;
             if let Some(otherwise) = otherwise {
                 the_declarations_of_a_body_of(otherwise, declarations, dialect)?;
@@ -1488,7 +1512,8 @@ pub struct Parser {
     /// The hotkey of the v2 is not the label of the v1, and the name of it is
     /// kept as the script spelled it: the duplicate is refused without its
     /// case.
-    hotkeys_of_the_v2: Vec<String>,    /// Whether the parser is reading the action of a hotkey of the v1.
+    hotkeys_of_the_v2: Vec<String>,
+    /// Whether the parser is reading the action of a hotkey of the v1.
     ///
     /// The action of a hotkey is a statement of the script, and the line of
     /// it is not the line of another hotkey.
@@ -1578,7 +1603,8 @@ pub struct Parser {
     /// The labels that are written before a loop, with the depth of the
     /// loops where each of them is written: `break label` counts the loops
     /// between its own and the one that the label names.
-    label_loops: Vec<(String, usize, bool)>,    /// Whether the `*` that follows an argument spreads the value of it.
+    label_loops: Vec<(String, usize, bool)>,
+    /// Whether the `*` that follows an argument spreads the value of it.
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: the last argument
     /// of a call may carry a star -- `f(arr*)` calls `f` with every item of
@@ -2220,9 +2246,9 @@ impl Parser {
                         && builtin.kind == crate::builtins::BuiltinKind::Function
                 })
                 .or_else(|| {
-                    self.dialect.the_builtin_of_the_extension(wanted).filter(|builtin| {
-                        builtin.kind == crate::builtins::BuiltinKind::Function
-                    })
+                    self.dialect
+                        .the_builtin_of_the_extension(wanted)
+                        .filter(|builtin| builtin.kind == crate::builtins::BuiltinKind::Function)
                 });
             if let Some(function) = function {
                 // The table says 255 when the built-in takes any number of
@@ -3304,10 +3330,7 @@ impl Parser {
         } else {
             name.as_str()
         };
-        if without_up.is_empty()
-            || without_up.contains(' ')
-            || without_up.contains('\t')
-        {
+        if without_up.is_empty() || without_up.contains(' ') || without_up.contains('\t') {
             return None;
         }
         Some(name)
@@ -3331,9 +3354,7 @@ impl Parser {
         let name = the_source_of_the_tokens(self, self.statement_start, at);
         // The name has to be the name of a key of the table of the hotkeys.
         if crate::hotkeys::parse(&name).is_err() {
-            return Err(self.error(format!(
-                "Invalid key name.\n     Specifically: {name}"
-            )));
+            return Err(self.error(format!("Invalid key name.\n     Specifically: {name}")));
         }
         // The name that is declared twice is refused when the script loads.
         if self
@@ -3435,24 +3456,18 @@ impl Parser {
             None => {
                 let rest = &text[1..];
                 let Some(colon) = rest.find(':') else {
-                    return Err(
-                        self.error(format!("Invalid hotkey.\n     Specifically: {text}"))
-                    );
+                    return Err(self.error(format!("Invalid hotkey.\n     Specifically: {text}")));
                 };
                 &rest[colon + 1..]
             }
         };
         let Some(at) = after.find("::") else {
-            return Err(self.error(format!(
-                "Invalid hotkey.\n     Specifically: {text}"
-            )));
+            return Err(self.error(format!("Invalid hotkey.\n     Specifically: {text}")));
         };
         // The trigger is the text between the options and the two colons, and
         // a trigger that is empty is not a hotstring.
         if after[..at].is_empty() {
-            return Err(self.error(format!(
-                "Invalid hotkey.\n     Specifically: {text}"
-            )));
+            return Err(self.error(format!("Invalid hotkey.\n     Specifically: {text}")));
         }
         // Measured on the binary of v2.0.19 on 2026-11-10: a replacement that
         // is empty has to be the text of the continuation section that follows
@@ -3460,9 +3475,7 @@ impl Parser {
         // opening brace.". The text of that section is not carried yet, so the
         // line is refused rather than read as a hotstring with no text.
         if after[at + 2..].is_empty() {
-            return Err(self.error(
-                "Hotkey or hotstring is missing its opening brace.".to_string(),
-            ));
+            return Err(self.error("Hotkey or hotstring is missing its opening brace.".to_string()));
         }
         self.end_of_statement()?;
         Ok(Node::HotkeyDefinition {
@@ -4806,7 +4819,8 @@ impl Parser {
             .is_some_and(|builtin| {
                 !self.dialect.the_command_has_to_be_a_command()
                     || builtin.kind == crate::builtins::BuiltinKind::Command
-            });        if !carried {
+            });
+        if !carried {
             return Err(self.error(format!(
                 "This line does not contain a recognized action.\n     Specifically: {}",
                 self.the_source_of_the_legacy_command(name_at)
@@ -6041,7 +6055,9 @@ impl Parser {
             // -- `x := 1` and then `, ++x` is one line of two statements --
             // and a line that begins with a comma at the start of the script is
             // refused, because there is no line before it to continue.
-            if !self.dialect.a_comma_separates_statements() || !self.the_next_line_begins_with_a_comma() {
+            if !self.dialect.a_comma_separates_statements()
+                || !self.the_next_line_begins_with_a_comma()
+            {
                 return Ok(Vec::new());
             }
             self.skip_newlines();
@@ -6507,9 +6523,7 @@ impl Parser {
             if !optional
                 && !variadic
                 && default.is_none()
-                && parameters
-                    .iter()
-                    .any(|parameter| parameter.optional)
+                && parameters.iter().any(|parameter| parameter.optional)
             {
                 return Err(SyntaxError {
                     message: format!("Parameter default required.\n     Specifically: {name}"),
@@ -8140,7 +8154,8 @@ impl Parser {
                 // "Parameter #1 invalid." when a break names it.
                 let names_a_loop = self.a_loop_follows_the_label();
                 self.label_loops
-                    .push((name.to_lowercase(), self.loops, names_a_loop));                Ok(Some(Node::Label {
+                    .push((name.to_lowercase(), self.loops, names_a_loop));
+                Ok(Some(Node::Label {
                     name,
                     line: token.line,
                 }))
@@ -8446,7 +8461,10 @@ impl Parser {
                 continue;
             }
             return token.kind == TokenKind::Keyword
-                && matches!(token.value.to_lowercase().as_str(), "loop" | "while" | "for");
+                && matches!(
+                    token.value.to_lowercase().as_str(),
+                    "loop" | "while" | "for"
+                );
         }
     }
 
@@ -8527,7 +8545,7 @@ impl Parser {
     ) -> Result<(Vec<Node>, u32), SyntaxError> {
         let loops = self.loops;
         let label_loops = self.label_loops.len();
-        self.loops = 0;        // The line of the brace that opens the body. Measured on the binary of
+        self.loops = 0; // The line of the brace that opens the body. Measured on the binary of
         // AutoHotkey v1.1.37.02 on 2026-11-05: the v1 names this line when it
         // warns about a local that has the name of a global one, and the
         // brace may be on a line of its own.
@@ -9626,8 +9644,7 @@ impl Parser {
                     });
                 }
                 let operator = self.next();
-                if operator.kind != TokenKind::Op
-                    || !matches!(operator.value.as_str(), "=" | ":=")
+                if operator.kind != TokenKind::Op || !matches!(operator.value.as_str(), "=" | ":=")
                 {
                     return Err(SyntaxError {
                         message: format!(
@@ -10835,8 +10852,7 @@ impl Parser {
                 // line above, so the colon may be on the line that comes.
                 if self.peek().kind == TokenKind::Newline {
                     let mut at = self.position;
-                    while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline
-                    {
+                    while at < self.tokens.len() && self.tokens[at].kind == TokenKind::Newline {
                         at += 1;
                     }
                     let the_colon_is_there = self
@@ -11034,8 +11050,8 @@ impl Parser {
             // even when it is not indented -- `x := "a"` and `. "b"` on the
             // next line join the two texts.
             if token.value == "." && !(token.spaced && self.the_space_after_is_there()) {
-                let begins_a_line = self.position > 0
-                    && self.tokens[self.position - 1].kind == TokenKind::Newline;
+                let begins_a_line =
+                    self.position > 0 && self.tokens[self.position - 1].kind == TokenKind::Newline;
                 // Measured on the binary of v2.0.19 on 2026-11-09: the dot
                 // that ends the line continues it, so the operand of it is
                 // on the line below.
@@ -13048,9 +13064,7 @@ impl Parser {
             // absent value when it has none. The node of the value that may be
             // absent is the same node that `(v?)` makes: the read of a name that
             // has no value is the absent value, and not a failure.
-            if self.dialect.the_chain_may_be_skipped()
-                && self.at_op(&["?"])
-                && !self.peek().spaced
+            if self.dialect.the_chain_may_be_skipped() && self.at_op(&["?"]) && !self.peek().spaced
             {
                 let glued = self
                     .tokens
@@ -13763,9 +13777,7 @@ impl Parser {
         }) || self
             .dialect
             .the_builtin_of_the_extension(&wanted)
-            .is_some_and(|builtin| {
-                builtin.kind == crate::builtins::BuiltinKind::Function
-            })
+            .is_some_and(|builtin| builtin.kind == crate::builtins::BuiltinKind::Function)
     }
 
     /// The `new` of the v1: `new C` and `new C(5)`.

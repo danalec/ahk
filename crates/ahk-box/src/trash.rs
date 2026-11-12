@@ -36,11 +36,16 @@ pub fn the_trash_root() -> Result<PathBuf, String> {
         }
     }
     let Some(home) = std::env::var_os("HOME") else {
-        return Err("this machine does not say where the home directory of the user is, and the \
+        return Err(
+            "this machine does not say where the home directory of the user is, and the \
                     trash of the desk is in it."
-            .to_string());
+                .to_string(),
+        );
     };
-    Ok(PathBuf::from(home).join(".local").join("share").join("Trash"))
+    Ok(PathBuf::from(home)
+        .join(".local")
+        .join("share")
+        .join("Trash"))
 }
 
 /// The trash a file goes into: the one of its own volume.
@@ -230,7 +235,8 @@ fn the_pattern_matches(pattern: &str, name: &str) -> bool {
     let (mut at_pattern, mut at_name) = (0usize, 0usize);
     let (mut star, mut after_star) = (None, 0usize);
     while at_name < name.len() {
-        if at_pattern < pattern.len() && (pattern[at_pattern] == '?' || pattern[at_pattern] == name[at_name])
+        if at_pattern < pattern.len()
+            && (pattern[at_pattern] == '?' || pattern[at_pattern] == name[at_name])
         {
             at_pattern += 1;
             at_name += 1;
@@ -285,7 +291,10 @@ fn the_free_name(root: &Path, name: &str) -> String {
     let mut candidate = name.to_string();
     let mut counter = 1;
     while root.join("files").join(&candidate).exists()
-        || root.join("info").join(format!("{candidate}.trashinfo")).exists()
+        || root
+            .join("info")
+            .join(format!("{candidate}.trashinfo"))
+            .exists()
     {
         candidate = format!("{stem}.{counter}{extension}");
         counter += 1;
@@ -311,8 +320,7 @@ fn the_record_of(path: &Path) -> String {
 fn the_encoded(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for byte in text.bytes() {
-        let kept = byte.is_ascii_alphanumeric()
-            || matches!(byte, b'/' | b'-' | b'.' | b'_' | b'~');
+        let kept = byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'.' | b'_' | b'~');
         if kept {
             out.push(byte as char);
         } else {
@@ -382,7 +390,8 @@ fn the_civil_date(days: i64) -> (i64, i64, i64) {
     let days = days + 719_468;
     let era = if days >= 0 { days } else { days - 146_096 } / 146_097;
     let day_of_era = days - era * 146_097;
-    let year_of_era = (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
     let year = year_of_era + era * 400;
     let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
     let month_of_year = (5 * day_of_year + 2) / 153;
@@ -534,10 +543,8 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn a_file_of_another_volume_goes_to_the_trash_of_that_volume() {
-        let path = std::env::temp_dir().join(format!(
-            "ahk-wp6-cross-volume-{}.txt",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("ahk-wp6-cross-volume-{}.txt", std::process::id()));
         std::fs::write(&path, "hello").expect("the file is written");
         let trash = the_trash_of(&path).expect("the trash of the file is named");
         let home = the_trash_root().expect("the trash of the home is named");

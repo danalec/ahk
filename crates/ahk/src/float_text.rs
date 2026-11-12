@@ -63,7 +63,12 @@ pub fn the_text_of(number: f64) -> String {
     // library of the machine; that one a script cannot reach, and it is
     // written the same way.
     if number.is_nan() {
-        return if number.is_sign_negative() { "-nan(ind)" } else { "nan(ind)" }.to_string();
+        return if number.is_sign_negative() {
+            "-nan(ind)"
+        } else {
+            "nan(ind)"
+        }
+        .to_string();
     }
     if number.is_infinite() {
         return if number < 0.0 { "-inf" } else { "inf" }.to_string();
@@ -77,8 +82,13 @@ pub fn the_text_of(number: f64) -> String {
     // them: measured on 2026-11-09, `"" (1/(2**25))` is
     // "2.9802322387695312e-08".
     let exact = format!("{:.16e}", number.abs());
-    let (mantissa, exponent) = exact.split_once('e').expect("the exponential form has an exponent");
-    let digits: String = mantissa.chars().filter(|character| character.is_ascii_digit()).collect();
+    let (mantissa, exponent) = exact
+        .split_once('e')
+        .expect("the exponential form has an exponent");
+    let digits: String = mantissa
+        .chars()
+        .filter(|character| character.is_ascii_digit())
+        .collect();
     let exponent: i32 = exponent.parse().expect("the exponent is a number");
     let mut text = String::new();
     if negative {

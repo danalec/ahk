@@ -36,15 +36,6 @@ pub enum WindowAnswer {
 
 /// The keyboard of the desktop.
 pub trait Keyboard {
-    /// The name of the keyboard layout of the machine.
-    ///
-    /// The name is the one the platform gives it -- the KLID of Windows,
-    /// the keymap of the session -- and the empty text when the platform
-    /// has no name to give, the way KeySharp answers it. A machine that
-    /// cannot say at all is a failure with the reason.
-    fn keyboard_layout_name(&mut self) -> Result<String, String> {
-        Err("this desktop cannot say the keyboard layout".to_string())
-    }
     /// Type text exactly, and say how it was typed.
     fn type_text(&mut self, text: &str) -> Result<String, String>;
 
@@ -71,6 +62,32 @@ pub trait Keyboard {
         Err("this desktop cannot tell which keys are down".to_string())
     }
 
+    /// The state of a lock light of the keyboard.
+    ///
+    /// The three locks of a keyboard are CapsLock, NumLock and ScrollLock.
+    /// `None` is a name that is not a lock of a keyboard.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `SetCapsLockState
+    /// ("On")` makes `GetKeyState("CapsLock", "T")` answer 1, and "Off"
+    /// makes it answer 0 -- the state a program sets is the state it reads
+    /// back.
+    fn lock_light(&mut self, _name: &str) -> Result<Option<bool>, String> {
+        Err("this desktop cannot tell the state of a lock light".to_string())
+    }
+
+    /// Set a lock light of the keyboard, and say whether it is on now.
+    fn set_lock_light(&mut self, _name: &str, _on: bool) -> Result<bool, String> {
+        Err("this desktop cannot set a lock light".to_string())
+    }
+
+    /// Turn a lock key on or off.
+    ///
+    /// The desktop that can read the state of a lock key but not change it
+    /// says so, and the state of the key is not touched.
+    fn set_lock(&mut self, _lock: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot change the state of the lock keys".to_string())
+    }
+
     /// Whether a lock key is on: "CapsLock", "NumLock" or "ScrollLock".
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-09: a lock key is a key
@@ -81,25 +98,27 @@ pub trait Keyboard {
         Err("this desktop cannot read the state of the lock keys".to_string())
     }
 
-    /// Turn a lock key on or off.
+    /// The name of the keyboard layout of the machine.
     ///
-    /// The desktop that can read the state of a lock key but not change it
-    /// says so, and the state of the key is not touched.
-    fn set_lock(&mut self, _lock: &str, _on: bool) -> Result<(), String> {
-        Err("this desktop cannot change the state of the lock keys".to_string())
+    /// The name is the one the platform gives it -- the KLID of Windows,
+    /// the keymap of the session -- and the empty text when the platform
+    /// has no name to give, the way KeySharp answers it. A machine that
+    /// cannot say at all is a failure with the reason.
+    fn keyboard_layout_name(&mut self) -> Result<String, String> {
+        Err("this desktop cannot say the keyboard layout".to_string())
     }
 }
 
 /// The pointer of the desktop.
 pub trait Pointer {
-    /// Confine the pointer to a rectangle of the screen, or release it.
+    /// The name of the shape of the cursor of the machine.
     ///
-    /// The rectangle is `(left, top, right, bottom)`, the far edges
-    /// exclusive, and `None` releases the confinement. A desktop that
-    /// does not own the pointer cannot confine it, and says so.
-    fn clip_cursor(&mut self, _rect: Option<(i64, i64, i64, i64)>) -> Result<(), String> {
-        Err("this desktop cannot confine the pointer".to_string())
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `A_Cursor` answers
+    /// the name of the shape -- "IBeam" for the shape of a field of text.
+    fn cursor_shape(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the shape of the cursor".to_string())
     }
+
     /// Click at a screen position.
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String>;
 
@@ -150,6 +169,15 @@ pub trait Pointer {
     fn set_mouse_delay(&mut self, _delay: i64) -> Result<String, String> {
         Err("this desktop cannot change the delay of the pointer".to_string())
     }
+
+    /// Confine the pointer to a rectangle of the screen, or release it.
+    ///
+    /// The rectangle is `(left, top, right, bottom)`, the far edges
+    /// exclusive, and `None` releases the confinement. A desktop that
+    /// does not own the pointer cannot confine it, and says so.
+    fn clip_cursor(&mut self, _rect: Option<(i64, i64, i64, i64)>) -> Result<(), String> {
+        Err("this desktop cannot confine the pointer".to_string())
+    }
 }
 
 /// The screen of the desktop.
@@ -171,8 +199,82 @@ pub trait Screen {
     ///
     /// The width comes first and the height second, the way the two
     /// variables of v2 ask for them.
+    /// The `ClassNN` of every control of the script's window, one per line.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetControls` answers the
+    /// three of a window with a label, an edit and a button, as `Static1`, `Edit1` and
+    /// `Button1`.
+    fn gui_controls(&mut self) -> Result<String, String> {
+        Err("this desktop cannot list the controls of the window of the script".to_string())
+    }
+
+    /// The text of every control of the script's window, each followed by a line break.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetText` of a window with a
+    /// label and an edit answers the two texts, one after the other, each with a break.
+    fn gui_all_text(&mut self) -> Result<String, String> {
+        Err("this desktop cannot read the text of the window of the script".to_string())
+    }
+
+    /// The opacity of the window of the script, or set it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinSetTransparent` counts
+    /// from nought to 255, and `WinGetTransparent` answers the number that was set.
+    fn gui_opacity(&mut self, _setting: Option<i64>) -> Result<i64, String> {
+        Err("this desktop cannot read the opacity of the window of the script".to_string())
+    }
+
+    /// Put a text into a control of the script at its cursor.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `EditPaste` takes the text
+    /// **first** and the handle second, as the whole family does.
+    fn gui_paste(&mut self, _number: u64, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot put a text into a control of the script".to_string())
+    }
+
+    /// Whether a check box of the script is ticked, and ticking it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: the `Value` of a check box
+    /// is a **number**, nought or one, and its `Text` is its label.
+    fn gui_checked(&mut self, _number: u64, _setting: Option<bool>) -> Result<i64, String> {
+        Err("this desktop cannot read the tick of a check box of the script".to_string())
+    }
+
+    /// The scale factor of the output, as the session reports it.
+    ///
+    /// `A_ScreenDPI` is 96 times this, the number v2 gives with the scale of the
+    /// session applied.
+    fn screen_scale(&mut self) -> Result<i64, String> {
+        Err("this desktop does not know the scale of the output".to_string())
+    }
+
     fn screen_size(&mut self) -> Result<(i64, i64), String> {
         Err("this desktop cannot tell how big the screen is".to_string())
+    }
+
+    /// Show a small window of text, and answer the number that names it. An empty
+    /// text takes it away. Measured on the binary of v2.0.19 on 2026-11-10:
+    /// showing one answers an Integer and `ToolTip()` clears it.
+    fn tooltip_show(&mut self, _text: &str, _x: i64, _y: i64) -> Result<i64, String> {
+        Err("this desktop cannot show a tooltip".to_string())
+    }
+
+    /// Move and size the window of the script. Measured on the binary of v2.0.19
+    /// on 2026-11-10: `WinMove` of the window the script made works and answers
+    /// nothing. A Wayland compositor places windows itself, so the call is the
+    /// one the toolkit offers and need not be honoured on the screen.
+    fn window_move(&mut self, _x: i64, _y: i64, _width: i64, _height: i64) -> Result<(), String> {
+        Err("this desktop cannot move the window of the script".to_string())
+    }
+
+    /// The monitors of the desktop, in the order it lists them.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `MonitorGetCount`
+    /// answers a whole number, `MonitorGetName(1)` answers the name of the
+    /// first output, and a monitor that is not there is refused with
+    /// "Parameter #1 of MonitorGetName is invalid.".
+    fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
+        Err("this desktop cannot list the monitors".to_string())
     }
 
     /// The first pixel of a colour inside a region, if there is one.
@@ -187,66 +289,21 @@ pub trait Screen {
         Err("this desktop cannot search the screen for a colour".to_string())
     }
 
-    /// The monitors of the desktop.
+    /// The work area of a monitor: left, top, right and bottom.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-11-09: a monitor is a
-    /// rectangle of the screen -- the right and the bottom are one past the
-    /// last column and row, the way the rectangles of the system are -- and
-    /// the monitors are counted from one, the way `MonitorGet` numbers them.
-    /// A desktop that has one screen answers the one monitor of it; a
-    /// desktop that cannot say says why.
-    fn monitors(&mut self) -> Result<Vec<Monitor>, String> {
-        Err("this desktop cannot say what monitors it has".to_string())
+    /// The work area is the part of the monitor that the panels and the
+    /// taskbars leave. `None` is a monitor that is not there.
+    fn monitor_work_area(
+        &mut self,
+        _monitor: usize,
+    ) -> Result<Option<(i64, i64, i64, i64)>, String> {
+        Err("this desktop cannot say the work area of its monitors".to_string())
     }
 
     /// The place of the primary monitor, counted from one, among the
     /// monitors of the desktop.
     fn primary_monitor(&mut self) -> Result<usize, String> {
         Err("this desktop cannot say which monitor is the primary one".to_string())
-    }
-
-    /// The work area of a monitor: left, top, right and bottom.
-    ///
-    /// The work area is the part of the monitor that the panels and the
-    /// taskbars leave. `None` is a monitor that is not there.
-    fn monitor_work_area(&mut self, _monitor: usize) -> Result<Option<(i64, i64, i64, i64)>, String> {
-        Err("this desktop cannot say the work area of its monitors".to_string())
-    }
-}
-
-/// A monitor of the desktop: a rectangle of the screen, and the name of it.
-///
-/// Measured on the binary of v2.0.19 on 2026-11-09: the rectangle of
-/// `MonitorGet` is left, top, right and bottom, and the right and the bottom
-/// are one past the last column and the last row -- the rectangle of the
-/// system, and not the inclusive corners a person counts. The name is the
-/// name the system gives the monitor: "\\.\DISPLAY1" on the binary, and the
-/// name of the output of a compositor on a Wayland session.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Monitor {
-    /// The name of the monitor.
-    ///
-    /// The empty text is a monitor whose name the desktop cannot say.
-    pub name: String,
-    /// The left edge, in pixels.
-    pub left: i64,
-    /// The top edge, in pixels.
-    pub top: i64,
-    /// The right edge: one past the last column.
-    pub right: i64,
-    /// The bottom edge: one past the last row.
-    pub bottom: i64,
-}
-
-impl Monitor {
-    /// The number of the columns of the monitor.
-    pub fn width(&self) -> i64 {
-        self.right - self.left
-    }
-
-    /// The number of the rows of the monitor.
-    pub fn height(&self) -> i64 {
-        self.bottom - self.top
     }
 }
 
@@ -304,17 +361,149 @@ impl TitleMatch {
     }
 }
 
+/// A window of the desktop, as the listing of the windows describes it.
+///
+/// The two things that v2 reads of a window are the ones here: the identifier,
+/// which is what `WinGetID` answers and what the entries of `WinGetList` are,
+/// and the class, which is what `WinGetClass` answers.
+///
+/// The identifier of a Wayland window is a token that the compositor gives it,
+/// and not a number, so it is text here. Measured on the binary of v2.0.19 on
+/// 2026-11-09: the id of a window of Windows is a whole number, and a script
+/// that does arithmetic on it would not have the same thing on Wayland.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WindowRef {
+    /// The identifier the compositor gives the window, or the empty text when
+    /// it did not give one.
+    pub id: String,
+    /// The class of the window: the application id of it on Wayland, and the
+    /// class of the window on X11.
+    pub class: String,
+}
+
+/// Where a window is and how big it is.
+///
+/// The x and the y are the upper-left corner of the window, and not its
+/// center; the width and the height are of the window that the user sees.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WindowGeometry {
+    /// The left of the window.
+    pub x: i64,
+    /// The top of the window.
+    pub y: i64,
+    /// How wide the window is.
+    pub width: i64,
+    /// How tall the window is.
+    pub height: i64,
+}
+
+/// What a command of the `WinWait` family waits for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WaitFor {
+    /// A window that matches exists.
+    Present,
+    /// A window that matches exists and has the focus.
+    Active,
+    /// No window that matches has the focus.
+    NotActive,
+    /// No window that matches exists.
+    Close,
+}
+
+/// The space of the drive that a path is on, in megabytes.
+///
+/// v2 answers the two numbers of a drive in megabytes, measured on the binary
+/// of v2.0.19 on 2026-11-09: `DriveGetSpaceFree("C:\")` answered `836675` and
+/// `DriveGetCapacity("C:\")` answered `3905969`, both whole numbers.
+///
+/// A drive of this tree is the filesystem that a path is on, because a Linux
+/// box has mount points and not the letters of a drive.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DriveSpace {
+    /// The space that is free, in megabytes.
+    pub free: i64,
+    /// The capacity of the drive, in megabytes.
+    pub capacity: i64,
+    /// The filesystem of the drive, as the machine names it: "ext4", "zfs".
+    pub filesystem: String,
+    /// The kind of the drive, in the word of v2: "Fixed", "Network",
+    /// "Removable", "CDROM", "RAMDisk" or "Unknown".
+    pub kind: String,
+}
+
+/// A monitor: an output of the desktop, and the rectangle of it.
+///
+/// The rectangle is in the space of the desktop, which is the space the windows
+/// are placed in. It is what `MonitorGet` answers.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Monitor {
+    /// The name of the output, when the desktop gives one.
+    pub name: String,
+    /// The left of the monitor.
+    pub left: i64,
+    /// The top of the monitor.
+    pub top: i64,
+    /// The right of the monitor.
+    pub right: i64,
+    /// The bottom of the monitor.
+    pub bottom: i64,
+    /// The scale of the monitor: 1 is the ordinary one.
+    pub scale: i64,
+}
+
+/// What became of a question about a control of a window.
+///
+/// The two failures are different facts and v2 tells them apart. Measured on the
+/// binary of v2.0.19 on 2026-11-09: `ControlGetText("x", "zzz-no-such-window-zzz")`
+/// fails with **"Target window not found."** and the title in the `Extra`, and
+/// `ControlGetText("x", "A")` -- a window that is there -- fails with **"Target
+/// control not found."**. Neither of them answers an empty text, which is what
+/// this tree answered before the measurement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ControlAnswer {
+    /// The control is there, and this is its text.
+    Found(String),
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
+/// What became of a question about a property of a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09 with a window of its own
+/// making: `ControlGetVisible` and `ControlGetEnabled` answer **1** for a control
+/// that is there and visible or enabled, so the answer is a number and not a
+/// truth of the host; and the two failures are the two of `ControlGetText`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlFlag {
+    /// The control is there and the flag is set.
+    Yes,
+    /// The control is there and the flag is not set.
+    No,
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
+/// What became of a question that writes to a control.
+///
+/// Measured on the binary of v2.0.19 on 2026-11-09: `ControlSetText` answers the
+/// **empty text** when it worked, and the two failures are the two of
+/// `ControlGetText`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlEdit {
+    /// The text was written.
+    Done,
+    /// No window of the session has this title.
+    NoSuchWindow,
+    /// The window is there and the control is not in it.
+    NoSuchControl,
+}
+
 /// The windows of the desktop.
 pub trait Windows {
-    /// The window at a point of the screen.
-    ///
-    /// The answer is `None` when no window is at the point, and a failure
-    /// with the reason when the machine cannot say: zero means "no
-    /// window", and a desktop that does not publish what is under a point
-    /// does not answer zero for it.
-    fn the_window_at(&mut self, _x: i64, _y: i64) -> Result<Option<i64>, String> {
-        Err("this desktop cannot say which window is at a point".to_string())
-    }
     /// Whether the window with this title is the active one.
     ///
     /// The mode is the way the title is matched with the text that is
@@ -338,6 +527,537 @@ pub trait Windows {
         Err("this desktop cannot tell which window is active".to_string())
     }
 
+    /// The windows whose title matches, in the order the desktop lists them.
+    ///
+    /// The empty title matches every window. Measured on the binary of
+    /// v2.0.19 on 2026-11-09: `WinGetList()` and `WinGetList("")` both
+    /// answered every window of the desktop, and `WinGetCount()` with no
+    /// argument answered the number of them -- so an empty title is not "no
+    /// window", and it is not "the last found window" either, because this
+    /// runtime keeps none.
+    fn matching_windows(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+    ) -> Result<Vec<WindowRef>, String> {
+        Err("this desktop cannot list the windows".to_string())
+    }
+
+    /// Where the window is and how big it is.
+    ///
+    /// `None` is a window that is not there. A window that **is** there but
+    /// whose geometry the compositor did not describe is a failure with the
+    /// reason, and not a geometry of zeros: a script must be told that the
+    /// place is not known, and not be given a window at the origin.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `WinGetPos` writes
+    /// its four answers into four variables given by reference, and it
+    /// answers the empty text. A window that is not there is a failure --
+    /// "Target window not found." -- and a call with no window at all is the
+    /// same failure, because there is no last found window to fall back to.
+    fn window_geometry(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+    ) -> Result<Option<WindowGeometry>, String> {
+        Err("this desktop cannot tell where a window is".to_string())
+    }
+
+    /// Whether a window is maximized, minimized, or neither.
+    ///
+    /// The answer is the number of v2: `1` for maximized, `-1` for minimized
+    /// and `0` for neither. `None` is a window that is not there.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09, on a window of its
+    /// own: `0` before, `1` after `WinMaximize`, `0` after `WinRestore`, and
+    /// `-1` after `WinMinimize`.
+    fn window_min_max(&mut self, _title: &str, _mode: TitleMatch) -> Result<Option<i64>, String> {
+        Err("this desktop cannot tell whether a window is maximized".to_string())
+    }
+
+    /// Wait until a condition about a window holds.
+    ///
+    /// `Some` is the condition met, and the empty text is the answer of the
+    /// conditions that are about the absence of a window -- `NotActive` and
+    /// `Close` -- because there is no window to identify. `None` is the
+    /// timeout.
+    ///
+    /// The empty title is no window at all: v2 falls back to the last found
+    /// window, and this runtime keeps none, so the conditions that talk about
+    /// the absence of a window hold at once and the ones that talk about its
+    /// presence never do. Measured on the binary of v2.0.19 on 2026-11-09:
+    /// `WinWaitNotActive("no-such")` and `WinWaitClose("no-such")` answered
+    /// `1` at once, and `WinWait`/`WinWaitActive` answered `0` when the
+    /// timeout ran out.
+    fn window_wait(
+        &mut self,
+        _title: &str,
+        _mode: TitleMatch,
+        _what: WaitFor,
+        _timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        Err("this desktop cannot wait for a window".to_string())
+    }
+
+    /// The text of a named control of the window with this title.
+    ///
+    /// This is the **accessibility** layer: AT-SPI is a D-Bus protocol, and
+    /// D-Bus is what a Wayland session keeps, so it is the one way to reach the
+    /// controls of a window on the box. The AHK_X11 reaches the same layer
+    /// through `at-spi.cr`, and it is the most valuable piece it has.
+    ///
+    /// A control is named, and the name is what a script writes: the text of a
+    /// label, the caption of a button. The window is found by its title, which
+    /// is the `Name` of a window in the tree.
+    ///
+    /// It is a method here and not a capability trait of its own, because the
+    /// controls are the windows' and every fake desktop of the suite already
+    /// answers `Windows`. A trait of its own is the rule of this tree, and it
+    /// would have cost an empty `impl` in eighteen test files for no gain the
+    /// suite can see.
+    ///
+    /// `None` is a window or a control that is not there, and not a failure: a
+    /// script asks about a control that may be absent.
+    fn control_text(&mut self, _control: &str, _title: &str) -> Result<ControlAnswer, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Whether a named control of the window with this title is visible.
+    fn control_visible(&mut self, _control: &str, _title: &str) -> Result<ControlFlag, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Whether a named control of the window with this title is enabled.
+    fn control_enabled(&mut self, _control: &str, _title: &str) -> Result<ControlFlag, String> {
+        Err("this desktop cannot read the controls of a window".to_string())
+    }
+
+    /// Write a text into a named control of the window with this title.
+    fn control_set_text(
+        &mut self,
+        _control: &str,
+        _title: &str,
+        _text: &str,
+    ) -> Result<ControlEdit, String> {
+        Err("this desktop cannot write to the controls of a window".to_string())
+    }
+
+    /// Click a named control of the window with this title.
+    fn control_click(&mut self, _control: &str, _title: &str) -> Result<ControlEdit, String> {
+        Err("this desktop cannot click the controls of a window".to_string())
+    }
+
+    /// Put the focus on a named control of the window with this title.
+    fn control_focus(&mut self, _control: &str, _title: &str) -> Result<ControlEdit, String> {
+        Err("this desktop cannot focus the controls of a window".to_string())
+    }
+
+    /// Type a text into a named control of the window with this title.
+    ///
+    /// The way in is two capabilities together: the focus goes on the control
+    /// through the accessibility layer, and the keys go through the keyboard.
+    fn control_send_text(
+        &mut self,
+        _control: &str,
+        _title: &str,
+        _text: &str,
+    ) -> Result<ControlEdit, String> {
+        Err("this desktop cannot type into the controls of a window".to_string())
+    }
+
+    /// The process of the window with this title.
+    ///
+    /// `None` is a window that is not there. Measured on the binary of v2.0.19 on
+    /// 2026-11-09: `WinGetPID` answers the number of the process, and a title that
+    /// no window has is "Target window not found.".
+    fn window_pid(&mut self, _title: &str) -> Result<Option<i64>, String> {
+        Err("this desktop cannot say the process of a window".to_string())
+    }
+
+    /// Whether a window of the script is open.
+    ///
+    /// It is what makes the lazy open composable: `gui_open` refuses a second
+    /// window, so a member that needs one has to ask first whether there is one
+    /// already. Without it, the second `Show` of a script would be refused by
+    /// its own desktop.
+    fn gui_is_open(&mut self) -> bool {
+        false
+    }
+
+    /// Open a window of the script's own, and answer the handle of it.
+    ///
+    /// This is the `Gui` of v2. The window is **not shown**: measured on the
+    /// binary of v2.0.19 on 2026-11-09, `Gui()` makes it and `Show()` puts it on
+    /// the screen, and a script may add to it in between.
+    fn gui_open(&mut self, _title: &str) -> Result<u64, String> {
+        Err("this desktop cannot make a window of the script".to_string())
+    }
+
+    /// Add a control to a window of the script.
+    ///
+    /// The answer is the number that names the control and its `ClassNN`, which
+    /// is the file name of the kind and the count of that kind -- `Edit1` for the
+    /// first edit, whatever else was added before it. Measured on the binary of
+    /// v2.0.19 on 2026-11-09.
+    fn gui_add(&mut self, _handle: u64, _kind: &str, _text: &str) -> Result<(u64, String), String> {
+        Err("this desktop cannot add a control to a window of the script".to_string())
+    }
+
+    /// The items of a list-shaped control of the script's window, one per line.
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `ControlGetItems`
+    /// answers an array of them.
+    fn gui_combo_items(&mut self, _number: u64) -> Result<String, String> {
+        Err("this desktop cannot read the items of a list-shaped control".to_string())
+    }
+
+    /// Append an item to a list-shaped control. Measured on the same day:
+    /// `ControlAddItem("gamma", ...)` makes the array one longer.
+    fn gui_combo_add(&mut self, _number: u64, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot add an item to a list-shaped control".to_string())
+    }
+
+    /// Choose an item by its 1-based index or by its text. Returns the index.
+    /// Measured on the same day: `ControlChooseIndex(2, ...)` leaves the
+    /// control's `Value` at 2.
+    fn gui_combo_select(
+        &mut self,
+        _number: u64,
+        _wanted: &str,
+        _by_text: bool,
+    ) -> Result<i64, String> {
+        Err("this desktop cannot choose an item of a list-shaped control".to_string())
+    }
+
+    /// The chosen item as (index, text). Measured on the same day: nothing
+    /// chosen is (0, ""), and `ControlGetChoice` reads the text alone.
+    fn gui_combo_choice(&mut self, _number: u64) -> Result<(i64, String), String> {
+        Err("this desktop cannot read the choice of a list-shaped control".to_string())
+    }
+
+    /// Remove an item by its 1-based index. Measured on the binary of v2.0.19
+    /// on 2026-11-10: `ControlDeleteItem(1, ...)` leaves the array one shorter.
+    fn gui_combo_delete(&mut self, _number: u64, _index: &str) -> Result<(), String> {
+        Err("this desktop cannot remove an item of a list-shaped control".to_string())
+    }
+
+    /// The 1-based index of the first item that is this text, or zero.
+    fn gui_combo_find(&mut self, _number: u64, _text: &str) -> Result<i64, String> {
+        Err("this desktop cannot find an item of a list-shaped control".to_string())
+    }
+
+    /// Open or close the pop-up of a list-shaped control. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: `ControlShowDropDown` and
+    /// `ControlHideDropDown` both answer the empty text.
+    fn gui_combo_dropdown(&mut self, _number: u64, _show: bool) -> Result<(), String> {
+        Err("this desktop cannot open the pop-up of a list-shaped control".to_string())
+    }
+
+    /// The text of the status bar of the script's window. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: `StatusBarGetText(1, WinTitle)`
+    /// answers it.
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        Err("this desktop cannot read the text of a status bar".to_string())
+    }
+
+    // -- the list view ------------------------------------------------------------
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-10: a ListView is
+    // `SysListView321`, `lv.Add("", "a", "b")` answers a 1-based row number,
+    // `lv.GetCount()` counts them, `lv.GetText(row, col)` reads a cell,
+    // `lv.Modify(row, ...)` changes and selects one, `lv.GetNext()` gives the
+    // next row, and `ListViewGetContent` answers the cells separated by tabs
+    // and the rows by line breaks.
+
+    /// Append a row of cells; answers its 1-based number.
+    fn gui_list_add(&mut self, _number: u64, _cells: &[String]) -> Result<i64, String> {
+        Err("this desktop cannot add a row to a list view".to_string())
+    }
+
+    /// The number of rows.
+    fn gui_list_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the rows of a list view".to_string())
+    }
+
+    /// The text of one cell, by 1-based row and column.
+    fn gui_list_text(&mut self, _number: u64, _row: i64, _col: i64) -> Result<String, String> {
+        Err("this desktop cannot read a cell of a list view".to_string())
+    }
+
+    /// Every row, cells by tabs and rows by line breaks; `selected` limits it
+    /// to the row that is chosen.
+    fn gui_list_content(&mut self, _number: u64, _selected: bool) -> Result<String, String> {
+        Err("this desktop cannot read the content of a list view".to_string())
+    }
+
+    /// Change the cells of a row and select it; answers 1.
+    fn gui_list_modify(
+        &mut self,
+        _number: u64,
+        _row: i64,
+        _cells: &[String],
+    ) -> Result<i64, String> {
+        Err("this desktop cannot change a row of a list view".to_string())
+    }
+
+    /// The row after this one, or zero when there is none.
+    fn gui_list_next(&mut self, _number: u64, _start: i64) -> Result<i64, String> {
+        Err("this desktop cannot read the next row of a list view".to_string())
+    }
+
+    // -- the tree view ------------------------------------------------------------
+    //
+    // Measured on the binary of v2.0.19 on 2026-11-10: a TreeView is
+    // `SysTreeView321`, `tv.Add(text, parent)` answers an item id, and the
+    // Get* family walks the tree by those ids. This runtime numbers its items
+    // sequentially from one, which is an identity a script can hold and compare.
+
+    /// Add an item under a parent (0 = a root); answers its id.
+    fn gui_tree_add(
+        &mut self,
+        _number: u64,
+        _text: &str,
+        _parent: i64,
+        _options: &str,
+    ) -> Result<i64, String> {
+        Err("this desktop cannot add an item to a tree view".to_string())
+    }
+
+    /// The number of items.
+    fn gui_tree_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the items of a tree view".to_string())
+    }
+
+    /// The text of an item.
+    fn gui_tree_text(&mut self, _number: u64, _item: i64) -> Result<String, String> {
+        Err("this desktop cannot read the text of an item of a tree view".to_string())
+    }
+
+    /// A related item's id: "parent", "child", "next" or "prev".
+    fn gui_tree_relation(
+        &mut self,
+        _number: u64,
+        _item: i64,
+        _relation: &str,
+    ) -> Result<i64, String> {
+        Err("this desktop cannot walk a tree view".to_string())
+    }
+
+    /// The id of the selected item, or zero.
+    fn gui_tree_selection(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot read the selection of a tree view".to_string())
+    }
+
+    /// Select or expand an item; answers its id.
+    fn gui_tree_modify(&mut self, _number: u64, _item: i64, _options: &str) -> Result<i64, String> {
+        Err("this desktop cannot change an item of a tree view".to_string())
+    }
+
+    /// Remove an item.
+    fn gui_tree_delete(&mut self, _number: u64, _item: i64) -> Result<i64, String> {
+        Err("this desktop cannot delete an item of a tree view".to_string())
+    }
+
+    /// A second, independent text slot on a control.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: on an Edit or a Text
+    /// control `Value` and `Text` are the SAME text, but a Hotkey keeps them
+    /// apart -- writing `hk.Text` does not change `hk.Value` and the other way
+    /// round. A Link is the other shape: its `Value` is always empty and
+    /// writing it is refused with "Invalid usage.", while `Text` is its
+    /// caption. This slot is the second string for those two kinds.
+    fn gui_second_value(&mut self, _number: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop has no second text slot for a control".to_string())
+    }
+
+    /// The place and size of a control of the script's window, relative to its
+    /// client area: (x, y, width, height).
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `ControlGetPos` with
+    /// four VarRef outputs answers the four numbers. The reference does NOT
+    /// hang on this name -- the earlier note was a call with plain strings.
+    fn gui_control_pos(&mut self, _number: u64) -> Result<(i64, i64, i64, i64), String> {
+        Err("this desktop cannot say where a control of the window is".to_string())
+    }
+
+    /// Show a menu bar on the window of the script.
+    ///
+    /// The JSON is an array of `[name, callback]` entries. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: a `MenuBar` attached with
+    /// `Gui.Menu :=` shows at the top of the window.
+    fn gui_menu_bar(&mut self, _json: &str) -> Result<(), String> {
+        Err("this desktop cannot show a menu bar on the window of the script".to_string())
+    }
+
+    /// Where the caret of the text is, in the client coordinates of the
+    /// window of the script.
+    ///
+    /// `None` is no caret: no window, or nothing focused that holds one.
+    /// Measured on the binary of v2.0.19 on 2026-11-10: with no window
+    /// `CaretGetPos` answers 0 and the variables of the caller are left
+    /// untouched; with a focused Edit it answers 1 and the place of the
+    /// caret in the client area.
+    fn gui_caret(&mut self) -> Result<Option<(i64, i64)>, String> {
+        Err("this desktop cannot find the caret of the window".to_string())
+    }
+
+    /// Put a window of the script on the screen.
+    fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
+        Err("this desktop cannot show a window of the script".to_string())
+    }
+
+    /// Take a window of the script away.
+    fn gui_destroy(&mut self, _handle: u64) -> Result<(), String> {
+        Err("this desktop cannot take away a window of the script".to_string())
+    }
+
+    /// Read the text of a control of a window of the script, or write it.
+    ///
+    /// The number is the one `gui_add` answered, which is the `Hwnd` of the
+    /// control. Measured on the binary of v2.0.19 on 2026-11-09: `Value` of a
+    /// control is read and written as text.
+    fn gui_value(&mut self, _number: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop cannot read the text of a control of the script".to_string())
+    }
+
+    /// Read a flag of a control of a window of the script, or write it.
+    ///
+    /// The flag is `"enabled"` or `"visible"`. Measured on the binary of v2.0.19
+    /// on 2026-11-09: both are integers of nought and one, read and written.
+    fn gui_flag(
+        &mut self,
+        _number: u64,
+        _name: &str,
+        _setting: Option<bool>,
+    ) -> Result<i64, String> {
+        Err("this desktop cannot read a flag of a control of the script".to_string())
+    }
+
+    /// Set a state of a control of the script's window, named by its `ClassNN`.
+    ///
+    /// The states are `"visible"` and `"enabled"`.
+    fn gui_control_state(&mut self, _classnn: &str, _what: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot set a state of a control of the script".to_string())
+    }
+
+    /// Show or hide a control of the script's window, named by its `ClassNN`.
+    fn gui_visibility(&mut self, _classnn: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot show or hide a control of the script".to_string())
+    }
+
+    /// The number that names a control of the script's window, from its `ClassNN`.
+    fn gui_number_named(&mut self, _classnn: &str) -> Result<i64, String> {
+        Err("this desktop cannot find a control of the script by its name".to_string())
+    }
+
+    /// Which control of the script's window has the focus, as its `ClassNN`.
+    fn gui_focused(&mut self) -> Result<String, String> {
+        Err("this desktop cannot read the focus of a control of the script".to_string())
+    }
+
+    /// The text a control of the script has selected.
+    fn gui_selection(&mut self, _number: u64) -> Result<String, String> {
+        Err("this desktop cannot read the selection of a control of the script".to_string())
+    }
+
+    /// Where the cursor of a control of the script is, as a place in its text.
+    fn gui_cursor(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot read the cursor of a control of the script".to_string())
+    }
+
+    /// How many lines the text of a control of the script holds.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `EditGetLineCount` of a
+    /// control added with three lines answers 3.
+    fn gui_line_count(&mut self, _number: u64) -> Result<i64, String> {
+        Err("this desktop cannot count the lines of a control of the script".to_string())
+    }
+
+    /// Apply one option to a window of the script, with the sign the script wrote.
+    ///
+    /// The options a program controls under this compositor are `AlwaysOnTop`,
+    /// `Resize`, `Caption` and `Disabled`; the rest are refused with the reason.
+    fn gui_option(&mut self, _name: &str, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot set an option of the window of the script".to_string())
+    }
+
+    /// Take a window of the script off the screen.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `Hide` answers the empty
+    /// text and takes no parameters.
+    fn gui_hide(&mut self) -> Result<(), String> {
+        Err("this desktop cannot hide the window of the script".to_string())
+    }
+
+    /// Put the focus on a control of a window of the script.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `Focus` answers the empty
+    /// text and takes no parameters.
+    fn gui_focus(&mut self, _number: u64) -> Result<(), String> {
+        Err("this desktop cannot put the focus on a control of the script".to_string())
+    }
+
+    /// Set the size of a control of a window of the script.
+    ///
+    /// The **size** and not the place: measured on 2026-11-09, the window this
+    /// tree makes lays its controls out in order, and GTK gives a child of a
+    /// layout no place of its own.
+    fn gui_size(&mut self, _number: u64, _width: i64, _height: i64) -> Result<(), String> {
+        Err("this desktop cannot size a control of the script".to_string())
+    }
+
+    /// Read the events of the windows of the script that have happened.
+    ///
+    /// The answer is the events **since the last time it was asked**, one name
+    /// each, and an empty answer is the common case and must cost almost
+    /// nothing. Measured on the binary of v2.0.19 on 2026-11-09: the events a
+    /// window of a script has are `close`, `escape`, and a click on a control.
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        Ok(Vec::new())
+    }
+
+    /// Read the title of a window of the script, or write it.
+    fn gui_title(&mut self, _handle: u64, _setting: Option<&str>) -> Result<String, String> {
+        Err("this desktop cannot say the title of a window of the script".to_string())
+    }
+
+    /// The capabilities of the windows of this desktop.
+    ///
+    /// The names are the ones of `WinGetCapability`: `AlwaysOnTopGet`,
+    /// `AlwaysOnTopSet`, `WindowEnabledGet`, `ControlEnabledGet`,
+    /// `WindowList`, `WindowActivate`, `WindowMinimize` and `WindowClose`.
+    /// Only a capability the machine can really answer is here.
+    fn window_capabilities(&mut self) -> Vec<String> {
+        Vec::new()
+    }
+
+    /// Whether a window is enabled, when the machine knows.
+    ///
+    /// This is the state of the window itself. On a session of X11 it is
+    /// the state of the window of the machine; on a native Wayland session
+    /// it is mapped and not minimized, because the compositor publishes no
+    /// more than that.
+    fn window_enabled(&mut self, _window: &WindowInfo) -> Result<Option<bool>, String> {
+        Err("this desktop cannot say whether a window is enabled".to_string())
+    }
+
+    /// Put a window above the others, or take it from there.
+    ///
+    /// The answer is a failure with the reason when the machine cannot do
+    /// it: a change that did not happen is never reported as a change that
+    /// did.
+    fn set_always_on_top(&mut self, _window: &WindowInfo, _on: bool) -> Result<(), String> {
+        Err("this desktop cannot put a window above the others".to_string())
+    }
+
+    /// Whether a window is above the others, when the machine knows.
+    ///
+    /// `Ok(None)` is the answer of a machine that cannot say: it is not
+    /// `false`, and the caller refuses with the reason. A question that
+    /// cannot be answered does not answer `false` in this tree.
+    fn always_on_top(&mut self, _window: &WindowInfo) -> Result<Option<bool>, String> {
+        Err("this desktop cannot say whether a window is above the others".to_string())
+    }
+
     /// The windows of the session, in the order the desktop lists them.
     ///
     /// The id of a window is the identifier of this runtime, and not a handle
@@ -352,114 +1072,20 @@ pub trait Windows {
     fn windows(&mut self) -> Result<Vec<WindowInfo>, String> {
         Err("this desktop cannot list the windows".to_string())
     }
-    /// Whether a window is above the others, when the machine knows.
+
+    /// The window at a point of the screen.
     ///
-    /// `Ok(None)` is the answer of a machine that cannot say: it is not
-    /// `false`, and the caller refuses with the reason. A question that
-    /// cannot be answered does not answer `false` in this tree.
-    fn always_on_top(&mut self, _window: &WindowInfo) -> Result<Option<bool>, String> {
-        Err("this desktop cannot say whether a window is above the others".to_string())
+    /// The answer is `None` when no window is at the point, and a failure
+    /// with the reason when the machine cannot say: zero means "no
+    /// window", and a desktop that does not publish what is under a point
+    /// does not answer zero for it.
+    fn the_window_at(&mut self, _x: i64, _y: i64) -> Result<Option<i64>, String> {
+        Err("this desktop cannot say which window is at a point".to_string())
     }
-
-    /// Put a window above the others, or take it from there.
-    ///
-    /// The answer is a failure with the reason when the machine cannot do
-    /// it: a change that did not happen is never reported as a change that
-    /// did.
-    fn set_always_on_top(&mut self, _window: &WindowInfo, _on: bool) -> Result<(), String> {
-        Err("this desktop cannot put a window above the others".to_string())
-    }
-
-    /// Whether a window is enabled, when the machine knows.
-    ///
-    /// This is the state of the window itself. On a session of X11 it is
-    /// the state of the window of the machine; on a native Wayland session
-    /// it is mapped and not minimized, because the compositor publishes no
-    /// more than that.
-    fn window_enabled(&mut self, _window: &WindowInfo) -> Result<Option<bool>, String> {
-        Err("this desktop cannot say whether a window is enabled".to_string())
-    }
-
-    /// Whether the control of a window is enabled, when the machine can say.
-    ///
-    /// This is the state of a widget, and it needs the accessibility tree
-    /// (AT-SPI). A machine without it cannot say.
-    fn control_enabled(&mut self, _window: &WindowInfo) -> Result<Option<bool>, String> {
-        Err("this desktop cannot say whether a control is enabled".to_string())
-    }
-
-    /// The capabilities of the windows of this desktop.
-    ///
-    /// The names are the ones of `WinGetCapability`: `AlwaysOnTopGet`,
-    /// `AlwaysOnTopSet`, `WindowEnabledGet`, `ControlEnabledGet`,
-    /// `WindowList`, `WindowActivate`, `WindowMinimize` and `WindowClose`.
-    /// Only a capability the machine can really answer is here.
-    fn window_capabilities(&mut self) -> Vec<String> {
-        Vec::new()
-    }
-}
-
-/// A window of the session, as the window family of v2 reads it.
-///
-/// Measured on the binary of v2.0.19 on 2026-11-09: a window has an
-/// identifier, a title and a class name, and the question about the active
-/// window is answered by the same listing.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct WindowInfo {
-    /// The identifier of the window, as this runtime names it.
-    pub id: i64,
-    /// The title of the window.
-    pub title: String,
-    /// The class of the window.
-    pub class: String,
-    /// Whether the window is the active one.
-    pub active: bool,
-}
-
-/// The state of a process.
-///
-/// The code and the moment are there when the process has exited; while it
-/// runs, they are not.
-#[derive(Debug, Clone)]
-pub struct ProcessState {
-    /// Whether the process has exited.
-    pub has_exited: bool,
-    /// The code it exited with, when it has exited.
-    pub exit_code: Option<i32>,
-    /// The moment it exited, as the text of the date and the time.
-    pub exit_time: Option<String>,
 }
 
 /// The processes of the desktop.
 pub trait Processes {
-    /// Start a program with a text on its standard input, and do not
-    /// wait for it; return the pid of it.
-    ///
-    /// The runner of the tree reads its script on the standard input, so
-    /// a program that is started this way receives what the script gives
-    /// it there. A desktop that cannot start a program says so.
-    fn launch_with_stdin(
-        &mut self,
-        _program: &str,
-        _arguments: &[String],
-        _standard_input: &str,
-        _working_dir: &str,
-    ) -> Result<u32, String> {
-        Err("this desktop cannot launch a program".to_string())
-    }
-
-    /// Start a program with a text on its standard input and wait for
-    /// it; return the pid, the code of the exit and what it wrote.
-    fn run_with_stdin(
-        &mut self,
-        _program: &str,
-        _arguments: &[String],
-        _standard_input: &str,
-        _working_dir: &str,
-    ) -> Result<(u32, i32, String, String), String> {
-        Err("this desktop cannot launch a program".to_string())
-    }
-
     /// Run a command; return its exit code, stdout and stderr.
     fn run(&mut self, command: &str, window: &str) -> Result<(i32, String, String), String>;
 
@@ -587,11 +1213,7 @@ pub trait Processes {
     ) -> Result<Option<u32>, String> {
         Err("this desktop cannot set the priority of a process".to_string())
     }
-    fn the_state_of_a_process(&mut self, _pid: u32) -> Result<Option<ProcessState>, String> {
 
-        Err("this desktop cannot say the state of a process".to_string())
-
-    }
     /// Kill a process.
     ///
     /// The answer is a failure with the reason when the machine cannot do
@@ -600,34 +1222,46 @@ pub trait Processes {
         Err("this desktop cannot kill a process".to_string())
     }
 
+    fn the_state_of_a_process(&mut self, _pid: u32) -> Result<Option<ProcessState>, String> {
+        Err("this desktop cannot say the state of a process".to_string())
+    }
+
+    /// Start a program with a text on its standard input and wait for
+    /// it; return the pid, the code of the exit and what it wrote.
+    fn run_with_stdin(
+        &mut self,
+        _program: &str,
+        _arguments: &[String],
+        _standard_input: &str,
+        _working_dir: &str,
+    ) -> Result<(u32, i32, String, String), String> {
+        Err("this desktop cannot launch a program".to_string())
+    }
+
+    /// Start a program with a text on its standard input, and do not
+    /// wait for it; return the pid of it.
+    ///
+    /// The runner of the tree reads its script on the standard input, so
+    /// a program that is started this way receives what the script gives
+    /// it there. A desktop that cannot start a program says so.
+    fn launch_with_stdin(
+        &mut self,
+        _program: &str,
+        _arguments: &[String],
+        _standard_input: &str,
+        _working_dir: &str,
+    ) -> Result<u32, String> {
+        Err("this desktop cannot launch a program".to_string())
+    }
 }
 
 /// The files of the desktop.
 pub trait Files {
-    /// The directory the script is in.
-    ///
-    /// The name of the directory is a subfolder of the working directory
-    /// when it is not an absolute path.
     /// Create a shortcut to a program, the way this platform makes one.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-11-09: `FileCreateShortcut`
-    /// answers the empty text and makes the file, and it makes it even for a
-    /// target that is not there.
-    /// The full path to a file, the way the platform writes one.
-    ///
-    /// Measured on the documentation of KeySharp on 2026-11-11:
-    /// `FileFullPath(Filename)` answers the full path to the file.
-    fn full_path(&mut self, _path: &str) -> Result<String, String> {
-        Err("this desktop cannot say the full path of a file".to_string())
-    }
-
-    /// Make an empty temporary file, and answer its full path.
-    ///
-    /// Measured on the documentation of KeySharp on 2026-11-11:
-    /// `FileCreateTemp()` makes the file and answers where it is.
-    fn create_temp_file(&mut self) -> Result<String, String> {
-        Err("this desktop cannot make a temporary file".to_string())
-    }
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `FileCreateShortcut` answers the
+    /// empty text and makes the file, and it makes it even for a target that is not
+    /// there.
     fn create_shortcut(
         &mut self,
         _target: &str,
@@ -640,14 +1274,41 @@ pub trait Files {
         Err("this desktop cannot create a shortcut".to_string())
     }
 
+    /// Empty the trash of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `FileRecycleEmpty` answers the
+    /// empty text.
+    fn empty_the_trash(&mut self) -> Result<(), String> {
+        Err("this desktop cannot empty the trash".to_string())
+    }
+
+    /// Put one file in the trash of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `FileRecycle(path)`
+    /// answers the empty text and the file is gone. An earlier note said the
+    /// reference answers "Failed" for a file that exists -- that was a path
+    /// that was not there, not the name.
+    fn recycle_a_file(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot put a file in the trash".to_string())
+    }
+
     /// Read a shortcut back: (target, dir, args, description, icon).
     ///
     /// Measured on the binary of v2.0.19 on 2026-11-10: `FileGetShortcut` of a
-    /// shortcut answers all eight of its fields.
-    fn read_shortcut(&mut self, _shortcut: &str) -> Result<(String, String, String, String, String), String> {
+    /// shortcut answers all eight of its fields. The icon NUMBER and the run
+    /// state have no counterpart in a `.desktop` file, so those two answers
+    /// are the empty text here.
+    fn read_shortcut(
+        &mut self,
+        _shortcut: &str,
+    ) -> Result<(String, String, String, String, String), String> {
         Err("this desktop cannot read a shortcut".to_string())
     }
 
+    /// The directory the script is in.
+    ///
+    /// The name of the directory is a subfolder of the working directory
+    /// when it is not an absolute path.
     fn set_working_directory(&mut self, _directory: &str) -> Result<String, String> {
         Err("this desktop cannot change the working directory".to_string())
     }
@@ -694,23 +1355,14 @@ pub trait Files {
         Err("this desktop cannot read a file".to_string())
     }
 
-    /// Recycle a file or a folder, or the files that a pattern matches.
+    /// The path of a file, in the form the machine writes it.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-11-09: a file that is there
-    /// is recycled and the answer is nothing; a plain path that is not there
-    /// is the failure "Failed"; and a pattern that matches nothing is not a
-    /// failure. A desktop with no trash says so.
-    fn recycle(&mut self, _pattern: &str) -> Result<(), String> {
-        Err("this desktop has no trash to recycle a file into".to_string())
-    }
-
-    /// Empty the trash of the machine.
-    ///
-    /// The answer is nothing. A `drive` that is given names the trash to
-    /// empty, and the deskop that has one trash for the whole machine
-    /// empties it for any drive.
-    fn empty_trash(&mut self, _drive: Option<&str>) -> Result<(), String> {
-        Err("this desktop has no trash to empty".to_string())
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script, and `A_IconFile` answers the path of it in
+    /// the canonical form of the machine -- "C:\WINDOWS\System32\SHELL32.dll"
+    /// for the shell32.dll that the script wrote in another case.
+    fn canonical_path(&mut self, _path: &str) -> Result<String, String> {
+        Err("this desktop cannot write the canonical form of a path".to_string())
     }
 
     /// Write a file, replacing what was in it; return what was written.
@@ -875,6 +1527,50 @@ pub trait Files {
     fn ini_delete(&mut self, _path: &str, _section: &str, _key: &str) -> Result<String, String> {
         Err("this desktop cannot write an ini file".to_string())
     }
+
+    /// Empty the trash of the machine.
+    ///
+    /// The answer is nothing. A `drive` that is given names the trash to
+    /// empty, and the deskop that has one trash for the whole machine
+    /// empties it for any drive.
+    fn empty_trash(&mut self, _drive: Option<&str>) -> Result<(), String> {
+        Err("this desktop has no trash to empty".to_string())
+    }
+
+    /// Recycle a file or a folder, or the files that a pattern matches.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a file that is there
+    /// is recycled and the answer is nothing; a plain path that is not there
+    /// is the failure "Failed"; and a pattern that matches nothing is not a
+    /// failure. A desktop with no trash says so.
+    fn recycle(&mut self, _pattern: &str) -> Result<(), String> {
+        Err("this desktop has no trash to recycle a file into".to_string())
+    }
+
+    /// Make an empty temporary file, and answer its full path.
+    ///
+    /// Measured on the documentation of KeySharp on 2026-11-11:
+    /// `FileCreateTemp()` makes the file and answers where it is.
+    fn create_temp_file(&mut self) -> Result<String, String> {
+        Err("this desktop cannot make a temporary file".to_string())
+    }
+
+    /// The directory the script is in.
+    ///
+    /// The name of the directory is a subfolder of the working directory
+    /// when it is not an absolute path.
+    /// Create a shortcut to a program, the way this platform makes one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `FileCreateShortcut`
+    /// answers the empty text and makes the file, and it makes it even for a
+    /// target that is not there.
+    /// The full path to a file, the way the platform writes one.
+    ///
+    /// Measured on the documentation of KeySharp on 2026-11-11:
+    /// `FileFullPath(Filename)` answers the full path to the file.
+    fn full_path(&mut self, _path: &str) -> Result<String, String> {
+        Err("this desktop cannot say the full path of a file".to_string())
+    }
 }
 
 /// The clipboard of the desktop.
@@ -980,46 +1676,7 @@ pub trait Pictures {
 ///
 /// A download is a file that comes from the network, and the network is
 /// the machine's: a desktop that does not reach it says so.
-/// One mail message, validated by the dialect.
-///
-/// The shape is the one the `Mail` of KeySharp accepts: the recipients,
-/// the subject, the body, the sender and the optional copies, replies,
-/// attachments and headers of it, beside the server and the port to
-/// send it through. The validation of all of it is the dialect's, and
-/// the sending is the machine's.
-pub struct MailMessage {
-    /// The recipients of the message.
-    pub to: Vec<String>,
-    /// The copies.
-    pub cc: Vec<String>,
-    /// The blind copies.
-    pub bcc: Vec<String>,
-    /// The subject of the message.
-    pub subject: String,
-    /// The body of the message.
-    pub body: String,
-    /// The sender.
-    pub from: String,
-    /// The address the replies go to, when it is not the sender.
-    pub reply_to: Option<String>,
-    /// The paths of the attachments.
-    pub attachments: Vec<String>,
-    /// The headers beside the ones the message carries.
-    pub headers: Vec<(String, String)>,
-    /// The SMTP server.
-    pub host: String,
-    /// The port of the server, 25 when the host named none.
-    pub port: u16,
-}
-
 pub trait Network {
-    /// Send a mail message through the network of the machine.
-    ///
-    /// A desktop that cannot send a mail says so with the reason: a
-    /// message that was not sent is never reported as sent.
-    fn send_mail(&mut self, _message: &MailMessage) -> Result<(), String> {
-        Err("this desktop cannot send mail".to_string())
-    }
     /// Fetch a file of the network and write it on the disk.
     ///
     /// The answer is the path of the file that was written.
@@ -1028,6 +1685,23 @@ pub trait Network {
             "the download is made by the desktop, and this desktop does not reach the network."
                 .to_string(),
         )
+    }
+
+    /// The IPv4 addresses of the interfaces of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `SysGetIPAddresses`
+    /// answers an **array** of the addresses as text, in the order the machine
+    /// lists them.
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        Err("this desktop cannot list the addresses of its interfaces.".to_string())
+    }
+
+    /// Send a mail message through the network of the machine.
+    ///
+    /// A desktop that cannot send a mail says so with the reason: a
+    /// message that was not sent is never reported as sent.
+    fn send_mail(&mut self, _message: &MailMessage) -> Result<(), String> {
+        Err("this desktop cannot send mail".to_string())
     }
 }
 
@@ -1090,6 +1764,25 @@ pub enum ImageSearch {
 /// with the name of the device, or with `#` and its number -- `#1` is
 /// the first device -- and the empty name is the device of the system.
 pub trait Sound {
+    /// The names of the sound devices of the machine: the one that plays
+    /// and the one that records.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `SoundGetName` with
+    /// no component answers the name of the device that plays -- "Speakers
+    /// (Fosi Audio K5 Pro)" on the machine of that day -- and with the
+    /// component one the name of the one that records -- "Microphone".
+    fn sound_device_names(&mut self) -> Result<(String, String), String> {
+        Err("this desktop cannot tell the names of the sound devices".to_string())
+    }
+
+    /// The name of the sound device of this name, if the machine has one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `SoundGetName` with
+    /// a device that the machine does not have throws "Component not
+    /// found.".
+    fn sound_device_named(&mut self, _device: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the names of the sound devices".to_string())
+    }
     /// The volume of a device, as a number between 0 and 100.
     fn sound_volume(&mut self, _device: &str) -> Result<f64, String> {
         Err("this desktop cannot say the volume of a device".to_string())
@@ -1132,26 +1825,6 @@ pub trait Sound {
 /// does not have is not in the answer: the name that asks for it says
 /// so.
 pub trait Machine {
-    /// The identity of the thread the run is on.
-    ///
-    /// The identity of a thread is the machine's, and a machine that
-    /// cannot say is a failure with the reason: the number of a thread
-    /// is not guessed.
-    fn the_current_thread_id(&mut self) -> Result<i64, String> {
-        Err("this desktop cannot say the thread it runs on".to_string())
-    }
-    /// The path of the executable that is running the script.
-    ///
-    /// It is what `A_AhkPath` answers. A desktop that cannot tell says so,
-    /// and the variable is then a refusal and not an empty text: a script that
-    /// reads the path of the interpreter must be told that it is not known.
-    ///
-    /// Measured on the binary of v2.0.19 on 2026-11-11: `A_AhkPath` answers
-    /// the path of the executable that runs the script.
-    fn executable(&mut self) -> Result<String, String> {
-        Err("this desktop cannot tell the path of the interpreter".to_string())
-    }
-
     /// The name of the user that launched the session.
     fn user_name(&mut self) -> Result<String, String> {
         Err("this desktop cannot say the name of the user".to_string())
@@ -1191,27 +1864,173 @@ pub trait Machine {
     }
 
     /// How long the session has been idle, in milliseconds.
+    /// The path of the executable that is running the script.
+    ///
+    /// It is what `A_AhkPath` answers. A desktop that cannot tell says so, and
+    /// the variable is then a refusal and not an empty text: a script that
+    /// reads the path of the interpreter must be told that it is not known.
+    fn executable(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the path of the interpreter".to_string())
+    }
+
+    /// The space of the drive that a path is on.
+    ///
+    /// `None` is a path whose drive is not there. A path that is there and a
+    /// drive whose space cannot be read is a failure with the reason.
+    fn drive_space(&mut self, _path: &str) -> Result<Option<DriveSpace>, String> {
+        Err("this desktop cannot tell the space of a drive".to_string())
+    }
+
+    /// The value of the registry of the machine, and its kind.
+    ///
+    /// `None` is a value that is not there; a key that is not there is a
+    /// failure with the reason of the machine. Measured on the binary of
+    /// v2.0.19 on 2026-11-11: `RegRead` of a value that is not there
+    /// throws "(2) The system cannot find the file specified.".
+    fn registry_value(
+        &mut self,
+        _key: &str,
+        _name: &str,
+    ) -> Result<Option<(String, String)>, String> {
+        Err("this desktop cannot read the registry of the machine".to_string())
+    }
+
+    /// Write a value into the registry of the machine.
+    ///
+    /// The key is made when it is not there, with its ancestors: measured
+    /// on the binary of v2.0.19 on 2026-11-11.
+    fn registry_write(
+        &mut self,
+        _key: &str,
+        _name: &str,
+        _kind: &str,
+        _value: &str,
+    ) -> Result<(), String> {
+        Err("this desktop cannot write the registry of the machine".to_string())
+    }
+
+    /// Remove a value of the registry of the machine.
+    fn registry_delete(&mut self, _key: &str, _name: &str) -> Result<(), String> {
+        Err("this desktop cannot remove a value of the registry".to_string())
+    }
+
+    /// Remove a key of the registry of the machine.
+    fn registry_delete_key(&mut self, _key: &str) -> Result<(), String> {
+        Err("this desktop cannot remove a key of the registry".to_string())
+    }
+
+    /// Make a key of the registry of the machine.
+    fn registry_create_key(&mut self, _key: &str) -> Result<(), String> {
+        Err("this desktop cannot make a key of the registry".to_string())
+    }
+
+    /// The directory of the Windows of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `A_WinDir` answers
+    /// "C:\WINDOWS" on a machine of Windows.
+    fn windows_directory(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the directory of the Windows of the machine".to_string())
+    }
+
+    /// The directory of the programs of the user, in the Windows of the machine.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `A_ProgramFiles`
+    /// answers "C:\Program Files" on a machine of Windows.
+    fn program_files(&mut self) -> Result<String, String> {
+        Err("this desktop cannot tell the directory of the programs of the machine".to_string())
+    }
+
+    /// Put the icon of the script in the tray of the session.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script in the tray, and the built-in variables carry
+    /// it afterwards.
+    fn tray_set_icon(&mut self, _name: &str) -> Result<(), String> {
+        Err("this desktop has no tray to put the icon of the script in".to_string())
+    }
+
+    /// The label of the drive that a path is on.
+    ///
+    /// `None` is a drive that is not there. Measured on the binary of
+    /// v2.0.19 on 2026-11-10: `DriveGetLabel` of a drive that is not there
+    /// throws "(3) The system cannot find the path specified.".
+    fn drive_label(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the label of a drive".to_string())
+    }
+
+    /// The serial of the drive that a path is on, as the machine writes it.
+    ///
+    /// Measured on the binary of the same day: `DriveGetSerial` of a drive
+    /// that is not there throws the same "(3) ..." as the label, and of a
+    /// drive that is there answers a whole number -- the volume serial of
+    /// Windows. The serial of a Linux drive is the string of the hardware,
+    /// so the shape is the machine's.
+    fn drive_serial(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the serial of a drive".to_string())
+    }
+
+    /// The drives of the machine, one name per line.
+    ///
+    /// Measured on the binary of the same day: `DriveGetList` answers the
+    /// drive letters run together -- a letter is one character, so no
+    /// separator is needed. A drive of this platform is a device name, which
+    /// is more than one character, so the names ride apart on newlines.
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        Err("this desktop cannot list the drives".to_string())
+    }
+
+    /// The status of the drive a path is on, when that drive is a CD or DVD
+    /// reader. `None` is a drive that is not a reader.
+    ///
+    /// Measured on the binary of the same day: `DriveGetStatusCD` of a drive
+    /// that is not a reader throws "Failed".
+    fn drive_status_cd(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot tell the status of a CD drive".to_string())
+    }
+
+    /// Eject the drive of a path.
+    fn drive_eject(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot eject a drive".to_string())
+    }
+
+    /// Lock the drive of a path against removal.
+    fn drive_lock(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot lock a drive".to_string())
+    }
+
+    /// Unlock the drive of a path.
+    fn drive_unlock(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot unlock a drive".to_string())
+    }
+
+    /// Spin the drive of a path down.
+    fn drive_retract(&mut self, _path: &str) -> Result<(), String> {
+        Err("this desktop cannot spin a drive down".to_string())
+    }
+
+    /// Write a new label on the drive of a path.
+    fn drive_set_label(&mut self, _path: &str, _label: &str) -> Result<(), String> {
+        Err("this desktop cannot write the label of a drive".to_string())
+    }
+
     fn idle_times(&mut self) -> Result<Idle, String> {
         Err("this desktop cannot say how long the session has been idle".to_string())
     }
 
-    /// The IPv4 addresses of the machine.
+    /// The state of the drive that a path is on.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-11-09: `SysGetIPAddresses`
-    /// answers an array of the addresses of the machine, one for each of
-    /// them, and the address of the loopback is not one of them: the binary
-    /// answered three addresses and none of them was 127.0.0.1.
-    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
-        Err("this desktop cannot say the addresses of the machine".to_string())
+    /// `None` is a path that is not a drive of this machine: the binary
+    /// answers "Invalid" for it.
+    fn drive_status(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot say what state a drive is in".to_string())
     }
 
-    /// Write a text to the debugger of the machine.
+    /// The kind of the drive that a path is on.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-11-09: `OutputDebug` writes
-    /// the text to the debugger and answers nothing. A machine whose debugger
-    /// is the standard error of the process writes it there.
-    fn output_debug(&mut self, _text: &str) -> Result<(), String> {
-        Err("this desktop has no debugger to write to".to_string())
+    /// `None` is a path that is not a drive of this machine: the binary
+    /// answers the empty text for it.
+    fn drive_type(&mut self, _path: &str) -> Result<Option<String>, String> {
+        Err("this desktop cannot say what kind a drive is".to_string())
     }
 
     /// The drive that a path is on, when the path is one.
@@ -1224,46 +2043,23 @@ pub trait Machine {
         Err("this desktop cannot say what a drive is".to_string())
     }
 
-    /// The kind of the drive that a path is on.
+    /// Write a text to the debugger of the machine.
     ///
-    /// `None` is a path that is not a drive of this machine: the binary
-    /// answers the empty text for it.
-    fn drive_type(&mut self, _path: &str) -> Result<Option<String>, String> {
-        Err("this desktop cannot say what kind a drive is".to_string())
+    /// Measured on the binary of v2.0.19 on 2026-11-09: `OutputDebug` writes
+    /// the text to the debugger and answers nothing. A machine whose debugger
+    /// is the standard error of the process writes it there.
+    fn output_debug(&mut self, _text: &str) -> Result<(), String> {
+        Err("this desktop has no debugger to write to".to_string())
     }
 
-    /// The state of the drive that a path is on.
+    /// The identity of the thread the run is on.
     ///
-    /// `None` is a path that is not a drive of this machine: the binary
-    /// answers "Invalid" for it.
-    fn drive_status(&mut self, _path: &str) -> Result<Option<String>, String> {
-        Err("this desktop cannot say what state a drive is in".to_string())
+    /// The identity of a thread is the machine's, and a machine that
+    /// cannot say is a failure with the reason: the number of a thread
+    /// is not guessed.
+    fn the_current_thread_id(&mut self) -> Result<i64, String> {
+        Err("this desktop cannot say the thread it runs on".to_string())
     }
-}
-
-/// A drive of the machine, as the `DriveGet` family of v2 reads it.
-///
-/// Measured on the binary of v2.0.19 on 2026-11-09: the filesystem is the
-/// name of the format of the volume ("NTFS"), the label is the name of it,
-/// the serial is a number, the free space and the capacity are counted in
-/// megabytes, and the state of a drive that is there is "Ready".
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Drive {
-    /// The kind of the drive: "Fixed", "Removable", "Network", "CDROM",
-    /// "RAMDisk" or "Unknown".
-    pub drive_type: String,
-    /// The name of the format of the volume.
-    pub filesystem: String,
-    /// The label of the volume, and the empty text when it has none.
-    pub label: String,
-    /// The number that identifies the volume.
-    pub serial: i64,
-    /// The free space, in megabytes.
-    pub free_megabytes: i64,
-    /// The capacity, in megabytes.
-    pub capacity_megabytes: i64,
-    /// The state of the drive: "Ready" and the like.
-    pub status: String,
 }
 
 /// The dialogs of the desktop.
@@ -1317,6 +2113,20 @@ pub trait Dialogs {
         _prompt: &str,
     ) -> Result<String, String> {
         Err("this desktop cannot ask the user for a folder".to_string())
+    }
+
+    /// Tell the user something, without asking anything back.
+    ///
+    /// The title is the first line of it and the text is the body. A desktop
+    /// that has no way to tell the user anything says so, and not `false`.
+    ///
+    /// The `TrayTip` of v2 is the name of this: on Windows it is a balloon in
+    /// the tray, and on a Linux desktop it is a notification of the session,
+    /// which is the same thing said to the same person. The refusal of the
+    /// tree used to call it a name of Windows, which was false: the box has
+    /// `notify-send` on it.
+    fn notify(&mut self, _title: &str, _text: &str) -> Result<(), String> {
+        Err("this desktop cannot show a notification".to_string())
     }
 }
 
@@ -1443,4 +2253,93 @@ pub trait Desktop:
     + Network
     + Pictures
 {
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WindowInfo {
+    /// The identifier of the window, as this runtime names it.
+    pub id: i64,
+    /// The title of the window.
+    pub title: String,
+    /// The class of the window.
+    pub class: String,
+    /// Whether the window is the active one.
+    pub active: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProcessState {
+    /// Whether the process has exited.
+    pub has_exited: bool,
+    /// The code it exited with, when it has exited.
+    pub exit_code: Option<i32>,
+    /// The moment it exited, as the text of the date and the time.
+    pub exit_time: Option<String>,
+}
+
+/// The network of the desktop.
+///
+/// A download is a file that comes from the network, and the network is
+/// the machine's: a desktop that does not reach it says so.
+/// One mail message, validated by the dialect.
+///
+/// The shape is the one the `Mail` of KeySharp accepts: the recipients,
+/// the subject, the body, the sender and the optional copies, replies,
+/// attachments and headers of it, beside the server and the port to
+/// send it through. The validation of all of it is the dialect's, and
+/// the sending is the machine's.
+pub struct MailMessage {
+    /// The recipients of the message.
+    pub to: Vec<String>,
+    /// The copies.
+    pub cc: Vec<String>,
+    /// The blind copies.
+    pub bcc: Vec<String>,
+    /// The subject of the message.
+    pub subject: String,
+    /// The body of the message.
+    pub body: String,
+    /// The sender.
+    pub from: String,
+    /// The address the replies go to, when it is not the sender.
+    pub reply_to: Option<String>,
+    /// The paths of the attachments.
+    pub attachments: Vec<String>,
+    /// The headers beside the ones the message carries.
+    pub headers: Vec<(String, String)>,
+    /// The SMTP server.
+    pub host: String,
+    /// The port of the server, 25 when the host named none.
+    pub port: u16,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Drive {
+    /// The kind of the drive: "Fixed", "Removable", "Network", "CDROM",
+    /// "RAMDisk" or "Unknown".
+    pub drive_type: String,
+    /// The name of the format of the volume.
+    pub filesystem: String,
+    /// The label of the volume, and the empty text when it has none.
+    pub label: String,
+    /// The number that identifies the volume.
+    pub serial: i64,
+    /// The free space, in megabytes.
+    pub free_megabytes: i64,
+    /// The capacity, in megabytes.
+    pub capacity_megabytes: i64,
+    /// The state of the drive: "Ready" and the like.
+    pub status: String,
+}
+
+impl Monitor {
+    /// The number of the columns of the monitor.
+    pub fn width(&self) -> i64 {
+        self.right - self.left
+    }
+
+    /// The number of the rows of the monitor.
+    pub fn height(&self) -> i64 {
+        self.bottom - self.top
+    }
 }

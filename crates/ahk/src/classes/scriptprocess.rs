@@ -55,7 +55,7 @@ pub(crate) fn construct(
                     other,
                 ),
                 line,
-            })))
+            })));
         }
     };
     let Value::Object(object) = crate::classes::object("scriptprocess") else {
@@ -121,7 +121,7 @@ pub(crate) fn property(
             return Some(Err(RuntimeFailure::Error(RuntimeError {
                 message: reason,
                 line,
-            })))
+            })));
         }
     };
     let Some(state) = state else {
@@ -169,7 +169,10 @@ pub(crate) fn call(
         Err(failure) => return Some(Err(failure)),
     };
     if let Err(reason) = rt.desktop().kill_a_process(pid) {
-        return Some(Err(RuntimeFailure::Error(RuntimeError { message: reason, line })));
+        return Some(Err(RuntimeFailure::Error(RuntimeError {
+            message: reason,
+            line,
+        })));
     }
     // The answer of a method that answers nothing is the empty text.
     Some(Ok(Value::Text(String::new())))

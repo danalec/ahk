@@ -105,10 +105,16 @@ const PROBES: &[(&str, &str)] = &[
     ("SubStr", "FileAppend(SubStr(\"abc\", 2), \"*\")"),
     ("StrUpper", "FileAppend(StrUpper(\"abc\"), \"*\")"),
     ("StrLower", "FileAppend(StrLower(\"ABC\"), \"*\")"),
-    ("StrReplace", "FileAppend(StrReplace(\"abc\", \"b\", \"x\"), \"*\")"),
+    (
+        "StrReplace",
+        "FileAppend(StrReplace(\"abc\", \"b\", \"x\"), \"*\")",
+    ),
     ("Trim", "FileAppend(Trim(\"  a  \"), \"*\")"),
     ("StrCompare", "FileAppend(StrCompare(\"a\", \"b\"), \"*\")"),
-    ("StrSplit", "FileAppend(StrSplit(\"a,b\", \",\").Length, \"*\")"),
+    (
+        "StrSplit",
+        "FileAppend(StrSplit(\"a,b\", \",\").Length, \"*\")",
+    ),
     // The audit measured the tree refusing the options of the `Sort`; v2
     // reads "N" as the numeric order and answers `40`n`233` for this text.
     ("Sort", "FileAppend(Sort(\"233`n40\", \"N\"), \"*\")"),
@@ -118,16 +124,31 @@ const PROBES: &[(&str, &str)] = &[
     // -- the patterns ------------------------------------------------------
     // The audit measured the tree refusing the output variable of the
     // `RegExMatch`: the matches are not carried into it yet.
-    ("RegExMatch", "FileAppend(RegExMatch(\"abc123\", \"\\d+\", &m), \"*\")"),
-    ("RegExReplace", "FileAppend(RegExReplace(\"abc123\", \"\\d+\", \"X\"), \"*\")"),
+    (
+        "RegExMatch",
+        "FileAppend(RegExMatch(\"abc123\", \"\\d+\", &m), \"*\")",
+    ),
+    (
+        "RegExReplace",
+        "FileAppend(RegExReplace(\"abc123\", \"\\d+\", \"X\"), \"*\")",
+    ),
     // The audit measured the tree refusing the third and the fourth
     // parameter of the `InStr`; v2 reads them, and the real answer is 8.
-    ("InStr", "FileAppend(InStr(\"abcabc\", \"bc\", \"Off\", 4), \"*\")"),
+    (
+        "InStr",
+        "FileAppend(InStr(\"abcabc\", \"bc\", \"Off\", 4), \"*\")",
+    ),
     // -- the dates ---------------------------------------------------------
     // The audit measured the tree refusing the long unit names; v2 reads
     // "Days" as it reads "D".
-    ("DateAdd", "FileAppend(DateAdd(\"20200101000000\", 1, \"Days\"), \"*\")"),
-    ("DateDiff", "FileAppend(DateDiff(\"20200110000000\", \"20200101000000\", \"Days\"), \"*\")"),
+    (
+        "DateAdd",
+        "FileAppend(DateAdd(\"20200101000000\", 1, \"Days\"), \"*\")",
+    ),
+    (
+        "DateDiff",
+        "FileAppend(DateDiff(\"20200110000000\", \"20200101000000\", \"Days\"), \"*\")",
+    ),
     // -- the types ---------------------------------------------------------
     ("Type", "FileAppend(Type(42), \"*\")"),
     ("IsObject", "FileAppend(IsObject({}), \"*\")"),
@@ -144,9 +165,18 @@ const PROBES: &[(&str, &str)] = &[
     // the surface writes a `Length` in three classes.
     ("Push", "a := []\na.Push(1, 2)\nFileAppend(a.Length, \"*\")"),
     ("Pop", "a := [1, 2]\nFileAppend(a.Pop(), \"*\")"),
-    ("InsertAt", "a := [1]\na.InsertAt(1, 0)\nFileAppend(a[1], \"*\")"),
-    ("RemoveAt", "a := [1, 2]\na.RemoveAt(1)\nFileAppend(a.Length, \"*\")"),
-    ("Set", "m := Map()\nm.Set(\"a\", 1)\nFileAppend(m.Count, \"*\")"),
+    (
+        "InsertAt",
+        "a := [1]\na.InsertAt(1, 0)\nFileAppend(a[1], \"*\")",
+    ),
+    (
+        "RemoveAt",
+        "a := [1, 2]\na.RemoveAt(1)\nFileAppend(a.Length, \"*\")",
+    ),
+    (
+        "Set",
+        "m := Map()\nm.Set(\"a\", 1)\nFileAppend(m.Count, \"*\")",
+    ),
     ("Count", "m := Map(\"a\", 1)\nFileAppend(m.Count, \"*\")"),
     // The names that the surface writes in more than one class carry the
     // class in the probe, so that a bare name of the runner answers nothing
@@ -154,12 +184,27 @@ const PROBES: &[(&str, &str)] = &[
     // over with the name, and then these are the answers.
     ("Array.Length", "a := [1, 2]\nFileAppend(a.Length, \"*\")"),
     ("Array.__Item", "a := [7]\nFileAppend(a[1], \"*\")"),
-    ("Map.Get", "m := Map(\"a\", 1)\nFileAppend(m.Get(\"a\"), \"*\")"),
-    ("Map.Has", "m := Map(\"a\", 1)\nFileAppend(m.Has(\"a\"), \"*\")"),
-    ("Map.Delete", "m := Map(\"a\", 1)\nm.Delete(\"a\")\nFileAppend(m.Count, \"*\")"),
-    ("Map.__Item", "m := Map()\nm[\"a\"] := 1\nFileAppend(m[\"a\"], \"*\")"),
+    (
+        "Map.Get",
+        "m := Map(\"a\", 1)\nFileAppend(m.Get(\"a\"), \"*\")",
+    ),
+    (
+        "Map.Has",
+        "m := Map(\"a\", 1)\nFileAppend(m.Has(\"a\"), \"*\")",
+    ),
+    (
+        "Map.Delete",
+        "m := Map(\"a\", 1)\nm.Delete(\"a\")\nFileAppend(m.Count, \"*\")",
+    ),
+    (
+        "Map.__Item",
+        "m := Map()\nm[\"a\"] := 1\nFileAppend(m[\"a\"], \"*\")",
+    ),
     // -- the errors --------------------------------------------------------
-    ("Error", "e := Error(\"boom\")\nFileAppend(e.Message, \"*\")"),
+    (
+        "Error",
+        "e := Error(\"boom\")\nFileAppend(e.Message, \"*\")",
+    ),
     // -- the script --------------------------------------------------------
     // The audit measured the tree raising on an unset variable. The name is
     // not in the extracted surface of v2 -- the table of the binary has the
@@ -187,7 +232,10 @@ const PROBES: &[(&str, &str)] = &[
     // probe says only that.
     ("FloatPrinting", "FileAppend(1 / 3, \"*\")"),
     // -- the versions ------------------------------------------------------
-    ("VerCompare", "FileAppend(VerCompare(\"1.2\", \"1.10\"), \"*\")"),
+    (
+        "VerCompare",
+        "FileAppend(VerCompare(\"1.2\", \"1.10\"), \"*\")",
+    ),
 ];
 
 /// The behaviour of the name when it is called, or `None` when the name has
@@ -496,11 +544,42 @@ mod tests {
     #[test]
     fn the_names_of_the_language_answer_with_a_value() {
         for name in [
-            "Abs", "Ceil", "Floor", "Round", "Sqrt", "Mod", "Max", "Min", "Chr", "Ord", "StrLen",
-            "SubStr", "StrUpper", "StrLower", "StrReplace", "Trim", "StrCompare", "StrSplit",
-            "RegExReplace", "Type", "IsObject", "IsNumber", "Push", "Pop", "InsertAt",
-            "RemoveAt", "Set", "Count", "Array.Length", "Array.__Item", "Map.Get", "Map.Has",
-            "Map.Delete", "Map.__Item", "Error", "VerCompare",
+            "Abs",
+            "Ceil",
+            "Floor",
+            "Round",
+            "Sqrt",
+            "Mod",
+            "Max",
+            "Min",
+            "Chr",
+            "Ord",
+            "StrLen",
+            "SubStr",
+            "StrUpper",
+            "StrLower",
+            "StrReplace",
+            "Trim",
+            "StrCompare",
+            "StrSplit",
+            "RegExReplace",
+            "Type",
+            "IsObject",
+            "IsNumber",
+            "Push",
+            "Pop",
+            "InsertAt",
+            "RemoveAt",
+            "Set",
+            "Count",
+            "Array.Length",
+            "Array.__Item",
+            "Map.Get",
+            "Map.Has",
+            "Map.Delete",
+            "Map.__Item",
+            "Error",
+            "VerCompare",
         ] {
             assert_eq!(
                 the_answer(name),
@@ -566,7 +645,11 @@ mod tests {
 
     #[test]
     fn a_refused_name_answers_with_its_reason() {
-        let answer = the_answer("WinActivate");
+        // The name is one that the tree still refuses with the reason of the
+        // names of Windows: `WinActivate` was carried on 2026-11-11 and
+        // answers a value now, and the family of the styles is still refused,
+        // because a GTK widget carries no Win32 style number.
+        let answer = the_answer("WinGetStyle");
         assert!(answer.starts_with("refusal: "), "{answer}");
         // The reason is the one the surface prints.
         assert_eq!(

@@ -5,7 +5,6 @@ use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-
 /// A value written in the script.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralValue {
@@ -950,10 +949,7 @@ pub enum Node {
     /// the label whose name the expression answers, and the label is resolved
     /// when the jump runs -- among the labels of the blocks that enclose it --
     /// so the load does not know it.
-    GotoComputed {
-        value: Box<Node>,
-        line: u32,
-    },
+    GotoComputed { value: Box<Node>, line: u32 },
     /// A hotkey of the v1: the line that defines it, and its action.
     ///
     /// Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-03: the v1

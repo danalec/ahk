@@ -109,15 +109,17 @@ pub(crate) fn call(
     let failure_with = |message: &str, extra: &str| {
         Some(Err(crate::classes::the_failure_with(message, extra, line)))
     };
-    // The member that the KeySharp extension adds: none of its names is a
-    // method of the v2.
-    if rt.dialect().carries_the_member_of_the_extension("map", &method) {
+    // The member that the KeySharp extension adds: none of its names is
+    // a method of the v2.
+    if rt
+        .dialect()
+        .carries_the_member_of_the_extension("map", &method)
+    {
         if method == "tostring" {
             return Some(the_extension_tostring(this, rt, line));
         }
         return None;
     }
-
     match method.as_str() {
         // `Set` and `__New` are the same thing in v2: both put the pairs
         // in, and both answer the map, so that the calls can be chained.
@@ -350,16 +352,6 @@ fn entries(state: &Object) -> Vec<(Value, Value)> {
             _ => (Value::Text(String::new()), Value::Text(String::new())),
         })
         .collect()
-}
-
-/// The pairs of a map, in the order they were put in.
-///
-/// The built-ins that take a Map of options read it through here: the
-/// entries are the data of the class, and only the module of the map
-/// touches them. The answer is nothing when the value is not a map.
-pub(crate) fn the_pairs(this: &Value) -> Option<Vec<(Value, Value)>> {
-    let state = state(this)?;
-    Some(entries(&state.borrow()))
 }
 
 /// The entries of a map, written back.
@@ -681,12 +673,26 @@ fn own_property(object: &Rc<RefCell<Object>>, key: &str) -> bool {
     key != STATE && object.borrow().properties.contains_key(key)
 }
 
+/// The pairs of a map, in the order they were put in.
+///
+/// The built-ins that take a Map of options read it through here: the
+/// entries are the data of the class, and only the module of the map
+/// touches them. The answer is nothing when the value is not a map.
+pub(crate) fn the_pairs(this: &Value) -> Option<Vec<(Value, Value)>> {
+    let state = state(this)?;
+    Some(entries(&state.borrow()))
+}
+
 /// The text the `ToString` of a `Map` is written with.
 ///
 /// The documentation of KeySharp writes it as `[key: value, ...]`, and says
 /// the keys and the values are formatted the way `Array.ToString()` formats
 /// its elements: a text between quotes, a place without a value as `unset`.
-fn the_extension_tostring(this: &Value, rt: &mut Runtime, line: u32) -> Result<Value, RuntimeFailure> {
+fn the_extension_tostring(
+    this: &Value,
+    rt: &mut Runtime,
+    line: u32,
+) -> Result<Value, RuntimeFailure> {
     let Some(state) = state(this) else {
         return Ok(Value::Text("[]".to_string()));
     };

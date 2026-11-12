@@ -72,25 +72,10 @@ mod tests {
     #[test]
     fn the_lock_keys_of_the_box_have_a_state() {
         for lock in ["CapsLock", "NumLock", "ScrollLock"] {
-            // The state of a lock key is the state of the LED of the key,
-            // and the LED is a device of the machine: the box has the
-            // three of them, and a machine of a CI has none. The answer
-            // is the state where the machine has the LED, and the reason
-            // of the machine where it has not -- never a state that was
-            // made up.
-            match is_on(lock) {
-                Ok(state) => {
-                    // The test does not change the state of the session:
-                    // it only reads it.
-                    let _ = state;
-                }
-                Err(reason) => {
-                    assert!(
-                        reason.contains("no LED of the"),
-                        "the reason of a machine with no LED names the LED: {reason}"
-                    );
-                }
-            }
+            let state = is_on(lock).expect("the box has the LED of the lock key");
+            // The test does not change the state of the session: it only
+            // reads it.
+            let _ = state;
         }
     }
 

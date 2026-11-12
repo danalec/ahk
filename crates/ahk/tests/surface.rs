@@ -26,9 +26,9 @@ use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 const SURFACE: &str = include_str!("../reference/ahk-v2.0.19.surface.tsv");
+const SURFACE_KS: &str = include_str!("../reference/ahk-ks.surface.tsv");
 const PENDING: &str = include_str!("../reference/ahk-v2.0.19.pending.tsv");
 const SURFACE_V1: &str = include_str!("../reference/ahk-v1.1.37.02.surface.tsv");
-const SURFACE_KS: &str = include_str!("../reference/ahk-ks.surface.tsv");
 const PENDING_V1: &str = include_str!("../reference/ahk-v1.1.37.02.pending.tsv");
 
 /// The names the dialect carries that the table of v2.0.19 does not name.
@@ -304,7 +304,11 @@ fn every_class_type_of_the_tree_is_a_class_of_v2() {
     let invented: Vec<String> = classes::the_class_types()
         .into_iter()
         .filter(|name| !surface.contains(name.as_str()))
-        .filter(|name| { !THE_CLASSES_THE_EXTRACTION_MISSED.iter().any(|missed| name.eq_ignore_ascii_case(missed)) })
+        .filter(|name| {
+            !THE_CLASSES_THE_EXTRACTION_MISSED
+                .iter()
+                .any(|missed| name.eq_ignore_ascii_case(missed))
+        })
         .collect();
     assert!(
         invented.is_empty(),
@@ -434,14 +438,6 @@ fn surface_names_of_the_v1() -> BTreeSet<&'static str> {
     rows(SURFACE_V1).into_iter().map(|row| row[2]).collect()
 }
 
-// -- the ks ---------------------------------------------------------------------
-
-/// Every name of the surface of KeySharp is carried by the `ks` dialect.
-///
-/// The table is the contract of the audit: the 138 names of KeySharp that
-/// need neither Windows, nor .NET, nor a GUI, written by the logic of the
-/// audit itself. The dialect that carries them is the `ks`, and the question
-/// is the one the other two ask: does the tree answer the name?
 #[test]
 fn every_name_of_the_surface_of_the_ks_is_carried() {
     // The question is asked of the tree the way the runner asks it: the

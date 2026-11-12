@@ -124,7 +124,10 @@ pub(crate) fn call(
     // The members that the KeySharp extension adds: none of their names is
     // a method of the v2, so they are asked before the methods of the v2
     // and the dialect of the v2.0.19 never reaches them.
-    if rt.dialect().carries_the_member_of_the_extension("array", &method) {
+    if rt
+        .dialect()
+        .carries_the_member_of_the_extension("array", &method)
+    {
         return the_extension_answer(&method, this, arguments, rt, line);
     }
 
@@ -1016,15 +1019,6 @@ fn own_property(object: &Rc<RefCell<Object>>, key: &str) -> bool {
     key != STATE && object.borrow().properties.contains_key(key)
 }
 
-// -- the members that the KeySharp extension adds ---------------------------------
-//
-// The `ks` dialect carries the members of the `Array` that KeySharp adds to
-// the classes of AutoHotkey. Their rules are the ones the documentation of
-// KeySharp writes (`Keysharp/docs/reference.md`, the members of the classes
-// of AutoHotkey): the searches compare the actual underlying values, so
-// "1" is not 1; an empty array answers without looking at the start; and a
-// start of zero, or one whose absolute value is past the end, throws.
-
 /// The places a search visits, in the order it visits them.
 ///
 /// A start of one walks from the first place toward the end, and a start of
@@ -1060,7 +1054,11 @@ fn the_start_of_the_search(start: i64, len: i64) -> Option<(usize, bool)> {
 ///
 /// The start is a number of the whole kind: a text that does not hold one
 /// is an invalid parameter, the way the invalid places of the v2 are.
-fn the_start_of_the_arguments(arguments: &[Value], who: &str, line: u32) -> Result<i64, RuntimeFailure> {
+fn the_start_of_the_arguments(
+    arguments: &[Value],
+    who: &str,
+    line: u32,
+) -> Result<i64, RuntimeFailure> {
     let Some(value) = arguments.get(1) else {
         return Ok(1);
     };
@@ -1179,7 +1177,11 @@ fn the_sign_of(value: &Value) -> f64 {
     match value {
         Value::Int(number) => number.signum() as f64,
         Value::Float(number) => number.signum(),
-        Value::Text(text) => text.trim().parse::<f64>().map(|n| n.signum()).unwrap_or(0.0),
+        Value::Text(text) => text
+            .trim()
+            .parse::<f64>()
+            .map(|n| n.signum())
+            .unwrap_or(0.0),
         _ => 0.0,
     }
 }
@@ -1215,7 +1217,6 @@ pub(crate) fn the_text_of_a_value(value: &Value, rt: &mut Runtime, line: u32) ->
         Value::Object(object) => {
             let class = object.borrow().class.clone();
             match crate::classes::call(&class, "tostring", value, &[], rt, line) {
-
                 Some(Ok(text)) => text.to_text(),
                 Some(Err(_)) => "<ERROR>".to_string(),
                 None => crate::classes::the_spelling_of(&class),
@@ -1254,20 +1255,20 @@ fn the_extension_answer(
     match method {
         "contains" => {
             let wanted = arguments.first().cloned().unwrap_or(Value::Unset);
-            let found = match the_place_of_the_match(&items, &wanted, arguments, "Contains", rt, line)
-            {
-                Ok(found) => found,
-                Err(failure) => return Some(Err(failure)),
-            };
+            let found =
+                match the_place_of_the_match(&items, &wanted, arguments, "Contains", rt, line) {
+                    Ok(found) => found,
+                    Err(failure) => return Some(Err(failure)),
+                };
             Some(Ok(Value::Int((found != 0) as i64)))
         }
         "indexof" => {
             let wanted = arguments.first().cloned().unwrap_or(Value::Unset);
-            let found = match the_place_of_the_match(&items, &wanted, arguments, "IndexOf", rt, line)
-            {
-                Ok(found) => found,
-                Err(failure) => return Some(Err(failure)),
-            };
+            let found =
+                match the_place_of_the_match(&items, &wanted, arguments, "IndexOf", rt, line) {
+                    Ok(found) => found,
+                    Err(failure) => return Some(Err(failure)),
+                };
             Some(Ok(Value::Int(found)))
         }
         "findindex" => {
@@ -1330,8 +1331,14 @@ fn the_extension_answer(
             let mut out = Vec::new();
             for place in the_places_of_the_walk(from, forward, items.len()) {
                 let item = element_value(&items[place]).unwrap_or(Value::Unset);
-                let answer = match the_call_of_the_callback(&callback, &item, place as i64 + 1, who, rt, line)
-                {
+                let answer = match the_call_of_the_callback(
+                    &callback,
+                    &item,
+                    place as i64 + 1,
+                    who,
+                    rt,
+                    line,
+                ) {
                     Ok(answer) => answer,
                     Err(failure) => return Some(Err(failure)),
                 };
@@ -1362,7 +1369,11 @@ fn the_extension_answer(
             // rest of the tree reads a place without a value as.
             let parts: Vec<String> = items
                 .iter()
-                .map(|item| element_value(item).map(|value| value.to_text()).unwrap_or_default())
+                .map(|item| {
+                    element_value(item)
+                        .map(|value| value.to_text())
+                        .unwrap_or_default()
+                })
                 .collect();
             Some(Ok(Value::Text(parts.join(&separator))))
         }
@@ -1413,19 +1424,22 @@ fn the_extension_answer(
                 // value of unset: the callback decides what an absence is.
                 let first = element_value(one).unwrap_or(Value::Unset);
                 let second = element_value(other).unwrap_or(Value::Unset);
-                let answer =
-                    match crate::classes::func::call_the_value(&callback, &[first, second], rt, line)
-                    {
-                        Some(Ok(answer)) => answer,
-                        Some(Err(raise)) => {
-                            *failure.borrow_mut() = Some(raise);
-                            return core::cmp::Ordering::Equal;
-                        }
-                        None => {
-                            *failure.borrow_mut() = Some(invalid_first("Sort", "a function"));
-                            return core::cmp::Ordering::Equal;
-                        }
-                    };
+                let answer = match crate::classes::func::call_the_value(
+                    &callback,
+                    &[first, second],
+                    rt,
+                    line,
+                ) {
+                    Some(Ok(answer)) => answer,
+                    Some(Err(raise)) => {
+                        *failure.borrow_mut() = Some(raise);
+                        return core::cmp::Ordering::Equal;
+                    }
+                    None => {
+                        *failure.borrow_mut() = Some(invalid_first("Sort", "a function"));
+                        return core::cmp::Ordering::Equal;
+                    }
+                };
                 let sign = the_sign_of(&answer);
                 sign.partial_cmp(&0.0).unwrap_or(core::cmp::Ordering::Equal)
             });

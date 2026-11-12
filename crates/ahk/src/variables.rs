@@ -39,8 +39,6 @@
 //! them. A name the script writes without the prefix is not a built-in
 //! variable of the dialect at all: it is a variable of the script, and
 //! the runtime says that it has no value.
-
-use alloc::vec::Vec;
 use alloc::format;
 use alloc::string::ToString;
 
@@ -82,13 +80,7 @@ pub const THE_RUNTIME_OWNS: &[&str] = &[
 ];
 
 /// The version of the dialect this runtime carries.
-const AHK_VERSION: &str = "2.0.19";
-
-/// The reason the names of Windows are not answered.
-///
-/// The two names are about the folders of Windows, and the desktop of the
-/// tree is not the one of Windows.
-const NOT_WINDOWS: &str = "this is a name of Windows, and this desktop is not Windows.";
+pub const AHK_VERSION: &str = "2.0.19";
 
 /// The reason the short names of the files are not answered.
 ///
@@ -121,6 +113,11 @@ const NO_PROGRAMS: &str = "the machine has no programs folder: the start menu of
 /// The start menu is the folder of the applications.
 const NO_PROGRAMS_COMMON: &str = "the machine has no programs folder for everybody: the start menu is the folder of the applications.";
 
+/// The reason the path of the executable is not answered.
+///
+/// This runtime is not AutoHotkey, and it has no executable of its own.
+const NO_AHK_PATH: &str = "this runtime is not AutoHotkey, and it has no path of an executable.";
+
 /// The reason the window of the script is not answered.
 ///
 /// The runtime is a script that runs and ends, and it has no window.
@@ -131,11 +128,6 @@ const NO_SCRIPT_HWND: &str =
 ///
 /// The desktop does not know the scale of the screen it shows.
 const NO_SCREEN_DPI: &str = "this desktop does not know the scale of the output.";
-
-/// The reason the tray icon is not answered.
-///
-/// The runtime has no tray icon.
-const NO_TRAY_ICON: &str = "this runtime has no tray icon.";
 
 /// The reason the directory where the run started is not answered.
 ///
@@ -276,6 +268,12 @@ pub(crate) fn lookup(name: &str, rt: &mut Runtime) -> Option<Result<Value, Runti
             Err(message) => Err(reason(&message)),
         }),
         Kind::Hotkey => crate::hotkeys::variable(&name, rt),
+        // The scale of the output is a question of its own: the session reports a
+        // scale factor, and `A_ScreenDPI` is the 96 that v2 gives with it applied.
+        Kind::Screen if name == "screendpi" => Some(match rt.desktop().screen_scale() {
+            Ok(scale) => Ok(Value::Int(96 * scale)),
+            Err(message) => Err(reason(&message)),
+        }),
         Kind::Screen => Some(match rt.desktop().screen_size() {
             Ok((width, height)) => Ok(Value::Int(if name == "screenwidth" {
                 width
@@ -500,6 +498,13 @@ fn put_on_the_clipboard(rt: &mut Runtime, text: &str, line: u32) -> Result<Value
     rt.desktop()
         .clipboard_write(text)
         .map_err(|message| RuntimeError { message, line })?;
+    // A change the runtime can see: its own write. `OnClipboardChange` of v2
+    // calls the registered function with 1 for it. Measured on the binary of
+    // v2.0.19 on 2026-11-10. Another program's clipboard is not watched: this
+    // runtime has no watcher of the desktop, and the refusal says so.
+    if let Some(name) = rt.the_clipboard_watcher().map(str::to_string) {
+        rt.call_a_function_for_a_built_in(&name, &[Value::Int(1)], line)?;
+    }
     Ok(Value::Text(text.to_string()))
 }
 
@@ -568,7 +573,6 @@ fn kind_of(name: &str) -> Option<Kind> {
         | "coordmodemouse"
         | "coordmodepixel"
         | "coordmodetooltip"
-        | "cursor"
         | "defaultmousespeed"
         | "detecthiddentext"
         | "detecthiddenwindows"
@@ -587,6 +591,7 @@ fn kind_of(name: &str) -> Option<Kind> {
         | "storecapslockmode"
         | "titlematchmode"
         | "titlematchmodespeed"
+        | "cursor"
         | "windelay" => Some(Kind::State),
         // -- the date and the time ------------------------------------------------
         "dd" | "ddd" | "dddd" | "hour" | "mday" | "min" | "mm" | "mmm" | "mmmm" | "mon"
@@ -597,15 +602,15 @@ fn kind_of(name: &str) -> Option<Kind> {
         "ahkpath" | "appdata" | "appdatacommon" | "computername" | "comspec" | "desktop"
         | "desktopcommon" | "eventinfo" | "iconfile" | "iconhidden" | "iconnumber" | "icontip"
         | "initialworkingdir" | "isadmin" | "language" | "lasterror" | "mydocuments"
-        | "osversion" | "programfiles" | "programs" | "programscommon" | "screendpi"
-        | "scriptdir" | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu"
-        | "startmenucommon" | "startup" | "startupcommon" | "temp" | "timeidle"
-        | "timeidlekeyboard" | "timeidlemouse" | "timeidlephysical" | "traymenu" | "username"
-        | "windir" | "workingdir" => Some(Kind::Machine),
+        | "osversion" | "programfiles" | "programs" | "programscommon" | "scriptdir"
+        | "scriptfullpath" | "scripthwnd" | "scriptname" | "startmenu" | "startmenucommon"
+        | "startup" | "startupcommon" | "temp" | "timeidle" | "timeidlekeyboard"
+        | "timeidlemouse" | "timeidlephysical" | "traymenu" | "username" | "windir"
+        | "workingdir" => Some(Kind::Machine),
         // -- the clipboard -----------------------------------------------------------
         "clipboard" => Some(Kind::Clipboard),
         // -- the screen ---------------------------------------------------------------
-        "screenheight" | "screenwidth" => Some(Kind::Screen),
+        "screenheight" | "screenwidth" | "screendpi" => Some(Kind::Screen),
         // -- the hotkeys ------------------------------------------------------------
         "hotkeyinterval"
         | "hotkeymodifiertimeout"
@@ -699,6 +704,18 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         // directory of the script is the directory where the run started,
         // and the name and the path are an asterisk.
         "scriptname" | "scriptfullpath" | "icontip" => Ok(Value::Text("*".to_string())),
+        // The directory of the Windows of the machine, and the directory
+        // of the programs of the user.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-11: `A_WinDir`
+        // answers "C:\WINDOWS" and `A_ProgramFiles` answers "C:\Program
+        // Files" on a machine of Windows.
+        //
+        // The box has no Windows of its own, and the **raven** is one: it
+        // emulates a Windows on the box, and the paths of its file system
+        // are the ones it says.
+        "windir" => text(rt.desktop().windows_directory()),
+        "programfiles" => text(rt.desktop().program_files()),
         "appdata" | "appdatacommon" | "desktop" | "desktopcommon" | "startmenu"
         | "startmenucommon" | "programs" | "programscommon" | "startup" | "startupcommon"
         | "mydocuments" | "temp" => folder(rt, name),
@@ -714,13 +731,31 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
         "lasterror" => Ok(Value::Int(0)),
         // There is no tray icon, so the icon of the script is not hidden.
         "iconhidden" => Ok(Value::Int(1)),
-        // The path of the executable that runs the script is the path of the
-        // process, and the desktop is asked for it.
+        // Measured on the binary of v2.0.19 on 2026-11-10: A_IconFile of a
+        // script that set no icon answers the empty text, A_IconNumber
+        // answers zero, and A_TrayMenu answers a Menu object -- the same one
+        // for the life of the script, whose Default is "&Open" before any
+        // item is added.
+        //
+        // Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon`
+        // puts the icon of the script, and the two variables carry it
+        // afterwards -- the file of it and the number of the icon in it.
+        "iconfile" => Ok(Value::Text(
+            rt.the_icon_of_the_script()
+                .map(|(file, _)| file.clone())
+                .unwrap_or_default(),
+        )),
+        "iconnumber" => Ok(Value::Int(
+            rt.the_icon_of_the_script()
+                .map(|(_, number)| *number)
+                .unwrap_or(0),
+        )),
+        "traymenu" => Ok(rt.the_tray_menu(0)),
         "ahkpath" => rt
             .desktop()
             .executable()
             .map(Value::Text)
-            .map_err(|why| reason(&why)),
+            .map_err(|_| reason(NO_AHK_PATH)),
         _ => Err(reason(NO_SUCH_MACHINE_NAME)),
     }
 }
@@ -732,10 +767,8 @@ fn machine_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
 /// the name.
 fn machine_refusal(name: &str) -> Option<&'static str> {
     Some(match name {
-        "windir" | "programfiles" => NOT_WINDOWS,
         "scripthwnd" => NO_SCRIPT_HWND,
         "screendpi" => NO_SCREEN_DPI,
-        "iconfile" | "iconnumber" | "traymenu" => NO_TRAY_ICON,
         _ => return None,
     })
 }
@@ -903,9 +936,7 @@ fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeErr
         "defaulthotstringdobackspace" => Ok(Value::Int(1)),
         "defaulthotstringdoreset" => Ok(Value::Int(0)),
         "defaulthotstringendcharrequired" => Ok(Value::Int(1)),
-        "defaulthotstringendchars" => Ok(Value::Text(
-            "-()[]{}:;'\"/\\,.?!\r\n \t".to_string(),
-        )),
+        "defaulthotstringendchars" => Ok(Value::Text("-()[]{}:;'\"/\\,.?!\r\n \t".to_string())),
         "defaulthotstringkeydelay" => Ok(Value::Int(0)),
         "defaulthotstringnomouse" => Ok(Value::Int(0)),
         "defaulthotstringomitendchar" => Ok(Value::Int(0)),
@@ -950,7 +981,11 @@ fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeErr
         "ksversion" => Ok(Value::Text(env!("CARGO_PKG_VERSION").to_string())),
         // The core of the dialect is the binary that runs the script, the
         // way the Keysharp.Core.dll is the core of KeySharp.
-        "kscorepath" => rt.desktop().executable().map(Value::Text).map_err(|why| reason(&why)),
+        "kscorepath" => rt
+            .desktop()
+            .executable()
+            .map(Value::Text)
+            .map_err(|why| reason(&why)),
         // The theme of the GUI, which the GUI of this runtime does not
         // draw: the answer is the one KeySharp starts with on this
         // platform.
@@ -980,6 +1015,8 @@ fn arch_name() -> &'static str {
         "UNKNOWN"
     }
 }
+use alloc::vec::Vec;
+
 #[cfg(test)]
 mod tests {
     use super::*;

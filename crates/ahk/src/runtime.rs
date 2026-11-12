@@ -39,16 +39,15 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::time::Duration;
 
-
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
-use crate::hotkeys::Condition;
 use crate::ast::{
     AccessBody, AccessDef, AssignOp, BinaryOp, Declarations, DeclareKind, DynamicPiece, LegacyForm,
     LiteralValue, LoopKind, MemberName, MethodDef, Node, ObjectItem, Parameter, PropertyDef,
     UnaryOp,
 };
+use crate::hotkeys::Condition;
 
 pub use crate::desktop::{Desktop, Files, WindowAnswer};
 
@@ -872,14 +871,13 @@ fn the_number_of_a_text(text: &str) -> Option<f64> {
     if text.is_empty() {
         return None;
     }
-    if let Some(hex) = text
-        .strip_prefix("0x")
-        .or_else(|| text.strip_prefix("0X"))
-    {
+    if let Some(hex) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
         if hex.is_empty() || !hex.chars().all(|digit| digit.is_ascii_hexdigit()) {
             return None;
         }
-        return u128::from_str_radix(hex, 16).ok().map(|number| number as f64);
+        return u128::from_str_radix(hex, 16)
+            .ok()
+            .map(|number| number as f64);
     }
     text.parse::<f64>().ok()
 }
@@ -1284,9 +1282,7 @@ fn the_flow_of_a_loop_body(outcome: Result<(), RuntimeFailure>) -> TheFlowOfALoo
     match outcome {
         Ok(()) => TheFlowOfALoop::Next,
         Err(RuntimeFailure::Flow(Flow::Break(level))) if level <= 1 => TheFlowOfALoop::Break,
-        Err(RuntimeFailure::Flow(Flow::Continue(level))) if level <= 1 => {
-            TheFlowOfALoop::Continue
-        }
+        Err(RuntimeFailure::Flow(Flow::Continue(level))) if level <= 1 => TheFlowOfALoop::Continue,
         Err(RuntimeFailure::Flow(Flow::Break(level))) => {
             TheFlowOfALoop::Out(RuntimeFailure::Flow(Flow::Break(level - 1)))
         }
@@ -1426,20 +1422,80 @@ pub struct Runtime<'a> {
     batch_lines: alloc::string::String,
     timeout: Duration,
     variables: BTreeMap<String, Value>,
-    /// The capacities of the strings of the variables of the script.
+    /// The windows of the script, as the objects a `Gui` made.
     ///
-    /// Measured on the binary of v2.0.19 on 2026-11-09: a variable keeps
-    /// the capacity that `VarSetStrCapacity` gave it, the number is the
-    /// characters the buffer holds besides the terminator, and the key of
-    /// the variable is the scope of it and its name.
-    string_capacities: BTreeMap<(u8, String), i64>,
-    /// The texts whose address a script asked for with `StrPtr`.
+    /// A `Gui` keeps its event handlers in its own property table, and the place
+    /// that answers an event is a built-in -- `Sleep` -- which has the runtime
+    /// and no reference to any object. This is the list that bridges the two:
+    /// the object is put here when it is asked for something, and the drain walks
+    /// it looking for a handler for the event that arrived.
+    guis: Vec<Value>,
+    /// The objects that a script has asked the number of, with that number.
     ///
-    /// The strings of a script live in the machine of Rust and have no
-    /// address of their own: the runtime keeps one for them, the same text
-    /// answering the same address, so that `StrPtr` and `StrGet` agree and
-    /// two reads of the same text answer one pointer.
-    string_memory: RefCell<Vec<String>>,
+    /// `ObjPtr` answers the identity of an object and `ObjFromPtr` gives the object
+    /// back, so the number has to be the SAME for the same object for the life of the
+    /// run. Measured on the binary of v2.0.19 on 2026-11-09: the pair round-trips.
+    pointers: Vec<(Value, i64)>,
+    /// The buffers a script has asked the address of, by that address.
+    ///
+    /// `Buffer.Ptr` answers a real address of the storage the runtime keeps.
+    /// `StrGet` and `StrPut` are given that number back and need the buffer it
+    /// names. Measured on the binary of v2.0.19 on 2026-11-10: `StrPut(text,
+    /// buf)` writes the bytes and `StrGet(buf.Ptr)` reads them again.
+    /// The window groups a script has named, and the window titles in each.
+    ///
+    /// `GroupAdd` of v2 puts a window specification into a set that outlives the
+    /// statement, and `GroupActivate` reads that set later. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: Add, Deactivate and Close answer the
+    /// empty text, and Activate answers a whole number.
+    groups: Vec<(String, Vec<String>)>,
+    /// The identifier of the window a `Win*` call last found.
+    ///
+    /// `WinGetIDLast` of v2 reads a piece of state that a `WinExist`,
+    /// `WinActivate` or `WinGetID` sets as a side effect. Measured on the
+    /// binary of v2.0.19 on 2026-11-10: after `WinExist` finds a window,
+    /// `WinGetIDLast()` answers the same number as `WinGetID()`.
+    last_window: Option<String>,
+    /// The name of the function `OnClipboardChange` registered, if any.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a registered function
+    /// is called with 1 when the script itself writes `A_Clipboard`. This
+    /// runtime has no watcher of another program's clipboard, but its own
+    /// writes are a change it can see, so the callback is called for them.
+    clipboard_watcher: Option<String>,
+    /// The handlers of the messages, by the number of the message.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `OnMessage` answers
+    /// the empty text and registers the handler of a message. The messages
+    /// are the ones of a window procedure, and a script is not one: the
+    /// handler of the reference fires for the windows of other programs. The
+    /// drain of the events answers a `message:<number>` event of the helper
+    /// with the handler that is registered here.
+    message_handlers: BTreeMap<i64, String>,
+    /// The number of the addresses minted for the texts.
+    /// The lists of images of the script, and the images of each one.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
+    /// the number that names the list, `IL_Add` answers the place of the
+    /// image in it -- one for the first -- and `IL_Destroy` answers one when
+    /// the list was there and zero when it was not.
+    image_lists: Vec<(i64, Vec<i64>)>,
+    /// The number of the lists of images that were made.
+    image_list_addresses: i64,
+    /// The icon of the script: the file of it and the number of the icon.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `TraySetIcon` puts
+    /// the icon of the script, and the built-in variables carry it
+    /// afterwards -- `A_IconFile` is the file and `A_IconNumber` the number
+    /// of the icon in it.
+    icon_of_the_script: Option<(String, i64)>,
+    /// The menu of the tray icon, made the first time a script asks for it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
+    /// a Menu object -- the SAME one for the life of the script -- whose
+    /// `Default` is "&Open" before any item is added to it, and whose `Add`
+    /// works like any menu's.
+    tray_menu: Option<Value>,
     /// The directory where the run started.
     ///
     /// The runtime asks the desktop for it when it is made, and it keeps
@@ -1545,9 +1601,6 @@ pub struct Runtime<'a> {
     output: Vec<String>,
     notes: Vec<String>,
     started_ms: u64,
-    /// The seed a call of RandomSeed left, mixed into the entropy of a
-    /// call of Random.
-    random_seed: u64,
     steps_taken: usize,
     /// The calls that are running right now.
     depth: usize,
@@ -1562,6 +1615,49 @@ pub struct Runtime<'a> {
     /// The runtime owns the function that a hotkey runs; the desktop owns
     /// the watching of the keyboard, and says which hotkey was pressed.
     hotkeys: Vec<crate::hotkeys::Hotkey>,
+    /// The code the script asked to stop with.
+    exit_requested: Option<i32>,
+    /// The functions to call when the script ends.
+    ///
+    /// The script asks for them with `OnExit`, and the runtime calls them
+    /// when the script ends, whatever the reason the script ended.
+    exit_callbacks: Vec<Callback>,
+    /// The functions to call when a failure is not caught.
+    ///
+    /// The script asks for them with `OnError`.
+    error_callbacks: Vec<Callback>,
+    /// Whether the body of a `try` is running.
+    ///
+    /// While it runs, the functions of the error are not called: the catch
+    /// of the script takes the failure first, and the functions of the
+    /// error are called only when no catch took it.
+    try_active: usize,
+    /// Whether the functions of the error hid a failure.
+    ///
+    /// A failure that was hidden is not the error of the run: the script
+    /// asked for it to be hidden, and it is.
+    failure_hidden: bool,
+    /// The value that the catch of the running `try` took.
+    ///
+    /// `throw` without a value throws it again, the way v2 does.
+    caught_value: Option<Value>,
+    /// The capacities of the strings of the variables of the script.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-09: a variable keeps
+    /// the capacity that `VarSetStrCapacity` gave it, the number is the
+    /// characters the buffer holds besides the terminator, and the key of
+    /// the variable is the scope of it and its name.
+    string_capacities: BTreeMap<(u8, String), i64>,
+    /// The texts whose address a script asked for with `StrPtr`.
+    ///
+    /// The strings of a script live in the machine of Rust and have no
+    /// address of their own: the runtime keeps one for them, the same text
+    /// answering the same address, so that `StrPtr` and `StrGet` agree and
+    /// two reads of the same text answer one pointer.
+    string_memory: RefCell<Vec<String>>,
+    /// The seed a call of RandomSeed left, mixed into the entropy of a
+    /// call of Random.
+    random_seed: u64,
     /// Whether the desktop said it cannot watch the keyboard: the hotkeys of
     /// the v2 are then a note of the run, and the script goes on.
     hotkeys_are_not_watched: bool,
@@ -1596,40 +1692,13 @@ pub struct Runtime<'a> {
     hotkey_is_exempt: Vec<bool>,
     /// The enabled flag of each hotkey before `Suspend` turned it off.
     hotkey_was_enabled: Vec<bool>,
-    /// The code the script asked to stop with.
-    exit_requested: Option<i32>,
     /// The value that a built-in threw, waiting for the caller to take
     /// it.
     thrown_value: Option<Value>,
     /// The one thread of the run, made the first time a script asks
     /// for it.
     thread: Option<Value>,
-    /// The functions to call when the script ends.
-    ///
-    /// The script asks for them with `OnExit`, and the runtime calls them
-    /// when the script ends, whatever the reason the script ended.
-    exit_callbacks: Vec<Callback>,
-    /// The functions to call when a failure is not caught.
-    ///
-    /// The script asks for them with `OnError`.
-    error_callbacks: Vec<Callback>,
-    /// Whether the body of a `try` is running.
-    ///
-    /// While it runs, the functions of the error are not called: the catch
-    /// of the script takes the failure first, and the functions of the
-    /// error are called only when no catch took it.
-    try_active: usize,
-    /// Whether the functions of the error hid a failure.
-    ///
-    /// A failure that was hidden is not the error of the run: the script
-    /// asked for it to be hidden, and it is.
-    failure_hidden: bool,
-    /// The value that the catch of the running `try` took.
-    ///
-    /// `throw` without a value throws it again, the way v2 does.
-    caught_value: Option<Value>,
 }
-
 
 impl<'a> Runtime<'a> {
     pub(crate) fn the_hotif(&mut self) -> Option<String> {
@@ -1677,6 +1746,19 @@ impl<'a> Runtime<'a> {
     pub fn new(desktop: &'a mut dyn Desktop, timeout: Duration) -> Self {
         let initial_working_dir = desktop.initial_working_directory().ok();
         Self {
+            string_capacities: BTreeMap::new(),
+            string_memory: RefCell::new(Vec::new()),
+            random_seed: 0,
+            hotkeys_are_not_watched: false,
+            hotif_condition: None,
+            finally_labels: Vec::new(),
+            suspended: false,
+            paused: false,
+            suspend_exempt: false,
+            hotkey_is_exempt: Vec::new(),
+            hotkey_was_enabled: Vec::new(),
+            thrown_value: None,
+            thread: None,
             desktop,
             clock: ClockSource::System(SystemClock::new()),
             dialect: crate::dialect::v2(),
@@ -1690,11 +1772,19 @@ impl<'a> Runtime<'a> {
             batch_lines: "10ms".to_string(),
             timeout,
             variables: BTreeMap::new(),
+            guis: Vec::new(),
+            pointers: Vec::new(),
+            groups: Vec::new(),
+            last_window: None,
+            clipboard_watcher: None,
+            message_handlers: BTreeMap::new(),
+            image_lists: Vec::new(),
+            image_list_addresses: 0,
+            icon_of_the_script: None,
+            tray_menu: None,
             statics: BTreeMap::new(),
             statics_run: BTreeMap::new(),
             initial_working_dir,
-            string_capacities: BTreeMap::new(),
-            string_memory: RefCell::new(Vec::new()),
             scopes: Vec::new(),
             label_scopes: Vec::new(),
             in_the_body_of_a_hotkey: false,
@@ -1714,24 +1804,13 @@ impl<'a> Runtime<'a> {
             output: Vec::new(),
             notes: Vec::new(),
             started_ms: 0,
-            random_seed: 0,
             steps_taken: 0,
             depth: 0,
             stack_base: Self::stack_here(),
             stack_budget: Self::MAX_STACK,
             timers: Vec::new(),
             hotkeys: Vec::new(),
-            hotkeys_are_not_watched: false,
-            hotif_condition: None,
-            finally_labels: Vec::new(),
-            suspended: false,
-            paused: false,
-            suspend_exempt: false,
-            hotkey_is_exempt: Vec::new(),
-            hotkey_was_enabled: Vec::new(),
             exit_requested: None,
-            thrown_value: None,
-            thread: None,
             exit_callbacks: Vec::new(),
             error_callbacks: Vec::new(),
             try_active: 0,
@@ -1754,6 +1833,16 @@ impl<'a> Runtime<'a> {
         let started_ms = clock.now_ms();
         let initial_working_dir = desktop.initial_working_directory().ok();
         Self {
+            guis: Vec::new(),
+            pointers: Vec::new(),
+            groups: Vec::new(),
+            last_window: None,
+            clipboard_watcher: None,
+            message_handlers: BTreeMap::new(),
+            image_lists: Vec::new(),
+            image_list_addresses: 0,
+            icon_of_the_script: None,
+            tray_menu: None,
             desktop,
             clock: ClockSource::Borrowed(clock),
             random_seed: 0,
@@ -2078,15 +2167,15 @@ impl<'a> Runtime<'a> {
                     *line,
                     self.hotif_condition.clone(),
                 )
-                    .map_err(|failure| match failure {
-                        RuntimeFailure::Error(error) => error,
-                        RuntimeFailure::Detailed(error, _) => error,
-                        RuntimeFailure::Fatal(error) => error,
-                        _ => RuntimeError {
-                            message: "the hotkey could not be registered.".to_string(),
-                            line: *line,
-                        },
-                    })?;
+                .map_err(|failure| match failure {
+                    RuntimeFailure::Error(error) => error,
+                    RuntimeFailure::Detailed(error, _) => error,
+                    RuntimeFailure::Fatal(error) => error,
+                    _ => RuntimeError {
+                        message: "the hotkey could not be registered.".to_string(),
+                        line: *line,
+                    },
+                })?;
                 // The exemption of `#SuspendExempt` is the one of the
                 // directive that came before the definition in the source,
                 // which is why the directives are walked here as well: the
@@ -2098,7 +2187,10 @@ impl<'a> Runtime<'a> {
                 continue;
             }
             if let Node::Directive {
-                name, argument, line, ..
+                name,
+                argument,
+                line,
+                ..
             } = statement
             {
                 if name.eq_ignore_ascii_case("suspendexempt") {
@@ -2735,10 +2827,7 @@ impl<'a> Runtime<'a> {
         answer
     }
 
-    fn run_the_statements_of_a_block(
-        &mut self,
-        statements: &[Node],
-    ) -> Result<(), RuntimeFailure> {
+    fn run_the_statements_of_a_block(&mut self, statements: &[Node]) -> Result<(), RuntimeFailure> {
         let mut index = 0;
         while index < statements.len() {
             let statement = &statements[index];
@@ -2758,18 +2847,16 @@ impl<'a> Runtime<'a> {
                     name,
                     line,
                     computed,
-                })) => {
-                    match the_place_of_the_label(statements, &name) {
-                        Some(place) => index = place,
-                        None => {
-                            return Err(RuntimeFailure::Flow(Flow::Goto {
-                                name,
-                                line,
-                                computed,
-                            }))
-                        }
+                })) => match the_place_of_the_label(statements, &name) {
+                    Some(place) => index = place,
+                    None => {
+                        return Err(RuntimeFailure::Flow(Flow::Goto {
+                            name,
+                            line,
+                            computed,
+                        }));
                     }
-                }
+                },
                 // A failure that no catch takes goes out at once.
                 Err(failure @ RuntimeFailure::Fatal(_)) => return Err(failure),
                 Err(failure) => match self.ask_the_error_callbacks(&failure) {
@@ -2807,18 +2894,16 @@ impl<'a> Runtime<'a> {
                             name,
                             line,
                             computed,
-                        })) => {
-                            match the_place_of_the_label(statements, &name) {
-                                Some(place) => index = place,
-                                None => {
-                                    return Err(RuntimeFailure::Flow(Flow::Goto {
-                                        name,
-                                        line,
-                                        computed,
-                                    }))
-                                }
+                        })) => match the_place_of_the_label(statements, &name) {
+                            Some(place) => index = place,
+                            None => {
+                                return Err(RuntimeFailure::Flow(Flow::Goto {
+                                    name,
+                                    line,
+                                    computed,
+                                }));
                             }
-                        }
+                        },
                         // Measured on the binary of v2.0.19 on 2026-11-09: a
                         // hotkey is registered when the script loads, and the
                         // script runs -- there is no failure of a run for a
@@ -3207,10 +3292,7 @@ impl<'a> Runtime<'a> {
     /// A value of the script owns the properties that its class declares
     /// and the ones that the script wrote in it; anything else has no
     /// properties of its own, and the answer is nothing.
-    pub(crate) fn the_properties_of_a_value(
-        &self,
-        target: &Value,
-    ) -> Option<Vec<(Value, Value)>> {
+    pub(crate) fn the_properties_of_a_value(&self, target: &Value) -> Option<Vec<(Value, Value)>> {
         let Value::Object(object) = target else {
             return None;
         };
@@ -3350,7 +3432,8 @@ impl<'a> Runtime<'a> {
                 let answer = self.call_the_value_of(value, arguments, *line)?;
                 detail = answer.to_text();
             }
-            Node::LegacyAssign { name, text, line } => {                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
+            Node::LegacyAssign { name, text, line } => {
+                // Measured on the binary of v1.1.37.02 on 2026-11-02: the
                 // legacy assignment of the v1 is a text and not an
                 // expression: `x = 5 + 3` leaves `x` at "5 + 3".
                 let value = self.the_value_of_a_legacy_assignment(text, *line)?;
@@ -3509,7 +3592,8 @@ impl<'a> Runtime<'a> {
                         detail = format!("{key} = {}", stored.to_text());
                     }
                 }
-            }            Node::Call {
+            }
+            Node::Call {
                 name,
                 arguments,
                 line,
@@ -3696,13 +3780,8 @@ impl<'a> Runtime<'a> {
                             Some(value) => Some(value),
                             None => self.the_value_of_a_variable_of_the_runtime(&declared.name),
                         };
-                        let stored = self.apply_assign(
-                            declared.op,
-                            &declared.name,
-                            current,
-                            value,
-                            *line,
-                        )?;
+                        let stored =
+                            self.apply_assign(declared.op, &declared.name, current, value, *line)?;
                         self.assign(&declared.name, stored);
                         if *scope == DeclareKind::Static {
                             self.mark_the_static_as_ran(*line, &declared.name);
@@ -4166,7 +4245,7 @@ impl<'a> Runtime<'a> {
             }
             Node::Break { level, .. } => return Err(RuntimeFailure::Flow(Flow::Break(*level))),
             Node::Continue { level, .. } => {
-                return Err(RuntimeFailure::Flow(Flow::Continue(*level)))
+                return Err(RuntimeFailure::Flow(Flow::Continue(*level)));
             }
             // The spread is not a value: it is an argument of a call, and
             // every call that reads its arguments takes it apart. Reaching
@@ -4177,7 +4256,7 @@ impl<'a> Runtime<'a> {
                 return Err(RuntimeFailure::Error(RuntimeError {
                     message: "Missing operand.".into(),
                     line: *line,
-                }))
+                }));
             }
             Node::Return { value, .. } => {
                 let value = match value {
@@ -5121,7 +5200,6 @@ impl<'a> Runtime<'a> {
             .the_builtin_of_the_extension(name)
             .is_some_and(|builtin| {
                 builtin.kind == crate::builtins::BuiltinKind::Function
-
                     && builtin.name.eq_ignore_ascii_case(name)
             })
     }
@@ -5145,10 +5223,12 @@ impl<'a> Runtime<'a> {
                     && builtin.name.eq_ignore_ascii_case(name)
             })
             .or_else(|| {
-                self.dialect.the_builtin_of_the_extension(name).filter(|builtin| {
-                    builtin.kind == crate::builtins::BuiltinKind::Function
-                        && builtin.name.eq_ignore_ascii_case(name)
-                })
+                self.dialect
+                    .the_builtin_of_the_extension(name)
+                    .filter(|builtin| {
+                        builtin.kind == crate::builtins::BuiltinKind::Function
+                            && builtin.name.eq_ignore_ascii_case(name)
+                    })
             })?;
         let max = self.dialect.the_maximum_of_the_parameters(builtin.max);
         Some(builtin_value(builtin.name, builtin.min, max))
@@ -5667,12 +5747,13 @@ impl<'a> Runtime<'a> {
                 // The class types of the runtime have their own bases: the
                 // errors of v2 are a tree, and every one of them is an
                 // `Error`.
-                None => crate::classes::the_base_of(&class).or_else(|| {
-                    // The primitive types of v2 are a tree of their own,
-                    // and the chain of them is the one of the `is`.
-                    crate::classes::the_base_of_the_primitive_of_the_class(&class)
-                })
-                .map(|base| base.to_string()),
+                None => crate::classes::the_base_of(&class)
+                    .or_else(|| {
+                        // The primitive types of v2 are a tree of their own,
+                        // and the chain of them is the one of the `is`.
+                        crate::classes::the_base_of_the_primitive_of_the_class(&class)
+                    })
+                    .map(|base| base.to_string()),
             };
         }
         chain
@@ -6245,7 +6326,8 @@ impl<'a> Runtime<'a> {
                     .collect();
                 return self.call_method(&defining, &method, &this, &arguments, line);
             }
-        }        Err(RuntimeFailure::Error(RuntimeError {
+        }
+        Err(RuntimeFailure::Error(RuntimeError {
             message: format!(
                 "This value of type \"{}\" has no property named \"__Item\".",
                 self.the_class_of_this()
@@ -6497,8 +6579,7 @@ impl<'a> Runtime<'a> {
                 .dialect
                 .carries_the_member_of_the_extension("string", name)
         {
-            if let Some(result) =
-                crate::classes::call("string", name, target, &values, self, line)
+            if let Some(result) = crate::classes::call("string", name, target, &values, self, line)
             {
                 return result;
             }
@@ -6696,9 +6777,7 @@ impl<'a> Runtime<'a> {
             // call and says that the parameter is missing.
             for (index, parameter) in method.parameters.iter().enumerate() {
                 let is_missing = missing.get(index).copied().unwrap_or(false);
-                if (is_missing || values.get(index).is_none())
-                    && parameter.is_required()
-                {
+                if (is_missing || values.get(index).is_none()) && parameter.is_required() {
                     return Err(RuntimeFailure::Detailed(
                         RuntimeError {
                             message: "Missing a required parameter.".into(),
@@ -6718,9 +6797,7 @@ impl<'a> Runtime<'a> {
             // run, and the answer of the call is the empty text.
             for (index, parameter) in method.parameters.iter().enumerate() {
                 let is_missing = missing.get(index).copied().unwrap_or(false);
-                if (is_missing || values.get(index).is_none())
-                    && parameter.is_required()
-                {
+                if (is_missing || values.get(index).is_none()) && parameter.is_required() {
                     return Ok(Value::Text(String::new()));
                 }
             }
@@ -7245,7 +7322,6 @@ impl<'a> Runtime<'a> {
         if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &lower)
             .or_else(|| self.the_extension_method(&class, &lower))
         {
-
             return self.method_reference_of_a_class_type(&class, spelled, min, max);
         }
         // A method of the base object.
@@ -7766,7 +7842,9 @@ impl<'a> Runtime<'a> {
                     // `obj.HasMethod("Say")` answers 0 when `Say` is a
                     // static method of the class of the object.
                     self.find_the_instance_method_in(&class, &name).is_some()
-                        || crate::classes::the_method_of(&class, &name).or_else(|| self.the_extension_method(&class, &name)).is_some()
+                        || crate::classes::the_method_of(&class, &name)
+                            .or_else(|| self.the_extension_method(&class, &name))
+                            .is_some()
                         || crate::classes::the_base_object_has_the_method(&name)
                 };
                 // Every class has an initialiser, and it is a method of the
@@ -7801,7 +7879,8 @@ impl<'a> Runtime<'a> {
                         return Some(Ok(self.method_reference(&defining, &method)));
                     }
                     // A method of a class type of the runtime.
-                    if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name).or_else(|| self.the_extension_method(&class, &name))
+                    if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name)
+                        .or_else(|| self.the_extension_method(&class, &name))
                     {
                         let reference =
                             self.method_reference_of_a_class_type(&class, spelled, min, max);
@@ -7836,7 +7915,9 @@ impl<'a> Runtime<'a> {
                 //
                 // Measured on the binary of v2.0.19 on 2026-10-31:
                 // `m.GetMethod("Get")` is the method of the `Map`.
-                if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name).or_else(|| self.the_extension_method(&class, &name)) {
+                if let Some((spelled, min, max)) = crate::classes::the_method_of(&class, &name)
+                    .or_else(|| self.the_extension_method(&class, &name))
+                {
                     let reference =
                         self.method_reference_of_a_class_type(&class, spelled, min, max);
                     return Some(Ok(reference));
@@ -8108,7 +8189,6 @@ impl<'a> Runtime<'a> {
                                     }
                                     if let Some(held) = before.borrow().value_of(key) {
                                         put(&mut fresh.borrow_mut().properties, key, held);
-
                                     }
                                 }
                             }
@@ -9058,7 +9138,9 @@ impl<'a> Runtime<'a> {
             // A method of a class type of the runtime is a value too: v2
             // hands it over as a function whose first parameter is
             // `this`.
-            if let Some((spelled, min, max)) = crate::classes::the_method_of(&members, &name).or_else(|| self.the_extension_method(&members, &name)) {
+            if let Some((spelled, min, max)) = crate::classes::the_method_of(&members, &name)
+                .or_else(|| self.the_extension_method(&members, &name))
+            {
                 let reference = self.method_reference_of_a_class_type(&members, spelled, min, max);
                 return Ok((reference, false));
             }
@@ -10296,12 +10378,7 @@ impl<'a> Runtime<'a> {
     }
 
     /// The failure of an item with more parameters than the accessor takes.
-    fn too_many_parameters_of_an_item(
-        &self,
-        class: &str,
-        set: bool,
-        line: u32,
-    ) -> RuntimeFailure {
+    fn too_many_parameters_of_an_item(&self, class: &str, set: bool, line: u32) -> RuntimeFailure {
         let accessor = if set { "__Item.Set" } else { "__Item.Get" };
         RuntimeFailure::Detailed(
             RuntimeError {
@@ -10345,7 +10422,7 @@ impl<'a> Runtime<'a> {
         let Some(key) = keys.first() else {
             return Err(self.no_item(target, line));
         };
-        let position = key.to_number().unwrap_or(0.0) as i64;        // The positions count from one, the way AutoHotkey counts them.
+        let position = key.to_number().unwrap_or(0.0) as i64; // The positions count from one, the way AutoHotkey counts them.
         let position = position.max(1) as usize;
         match target {
             Value::List(items) => items.get(position - 1).cloned().ok_or_else(|| {
@@ -10887,7 +10964,8 @@ impl<'a> Runtime<'a> {
                     AssignOp::Set,
                     stored.clone(),
                     *item_line,
-                )?;                Ok(match op {
+                )?;
+                Ok(match op {
                     UnaryOp::PreIncrement | UnaryOp::PreDecrement => stored,
                     _ => current,
                 })
@@ -10975,7 +11053,6 @@ impl<'a> Runtime<'a> {
         if self.classes.contains_key(&name.to_lowercase())
             || self.dialect.carries_the_class_of_the_runtime(name)
             || self.dialect.carries_the_class_of_the_extension(name)
-
         {
             return self.construct(name, arguments, line);
         }
@@ -11129,9 +11206,7 @@ impl<'a> Runtime<'a> {
         // expression asks whether the expression has a value -- `IsSet(f())`
         // is one when `f()` answers a value and zero when it answers the
         // absent value -- and a name is still asked for its variable.
-        if builtin.name.eq_ignore_ascii_case("IsSet")
-            && self.dialect.the_chain_may_be_skipped()
-        {
+        if builtin.name.eq_ignore_ascii_case("IsSet") && self.dialect.the_chain_may_be_skipped() {
             if let Some(argument) = arguments.first() {
                 if !matches!(argument, Node::Var { .. }) {
                     let answer = self.the_value_of_the_expression_is_set(argument)?;
@@ -11711,7 +11786,6 @@ impl<'a> Runtime<'a> {
             None => Vec::new(),
         }
     }
-
 
     pub(crate) fn the_count_of_the_parameters_of_a_function(&self, value: &Value) -> usize {
         let Value::Object(object) = value else {
@@ -12440,11 +12514,7 @@ impl<'a> Runtime<'a> {
         expression: &Node,
     ) -> Result<bool, RuntimeFailure> {
         match expression {
-            Node::Property {
-                target,
-                name,
-                line,
-            } => {
+            Node::Property { target, name, line } => {
                 let target_value = self.evaluate(target)?;
                 let name = self.the_name_of_the_member(name, *line)?;
                 match self.read_property(&target_value, &name, *line) {
@@ -12491,7 +12561,6 @@ impl<'a> Runtime<'a> {
             },
         )
     }
-
 
     /// The absent value that an operation answers.
     ///
@@ -13501,7 +13570,8 @@ impl<'a> Runtime<'a> {
             } => {
                 let value = self.evaluate(target)?;
                 self.call_the_value_of(value, arguments, *line)
-            }            Node::Assign {
+            }
+            Node::Assign {
                 name,
                 op,
                 value,
@@ -13571,15 +13641,14 @@ impl<'a> Runtime<'a> {
                     );
                 }
                 let target_value = self.evaluate(target)?;
-                if self.dialect.the_chain_may_be_skipped()
-                    && matches!(target_value, Value::Unset)
-                {
+                if self.dialect.the_chain_may_be_skipped() && matches!(target_value, Value::Unset) {
                     return Ok(Value::Unset);
                 }
                 let keys = self.the_keys_of_an_index(index, also)?;
                 let value = self.evaluate(value)?;
                 self.set_item(&target_value, &keys, *op, value, *line)
-            }            Node::Literal { value, line } => Ok(match value {
+            }
+            Node::Literal { value, line } => Ok(match value {
                 // The shape of the literal is the shape of the value: the
                 // whole number of v2 is a whole number, and a number with
                 // a point or with an exponent is a float.
@@ -13721,7 +13790,11 @@ impl<'a> Runtime<'a> {
                     &values, self, *line,
                 ))
             }
-            Node::Maybe { value, from_a_group, .. } => {
+            Node::Maybe {
+                value,
+                from_a_group,
+                ..
+            } => {
                 // Measured on the binary of v2.0.19 on 2026-11-10: the value
                 // of the name that has none is the absent value, and every
                 // other failure is the failure.
@@ -13738,11 +13811,7 @@ impl<'a> Runtime<'a> {
                 // absent value.
                 if !from_a_group && self.dialect.the_chain_may_be_skipped() {
                     match &**value {
-                        Node::Property {
-                            target,
-                            name,
-                            line,
-                        } => {
+                        Node::Property { target, name, line } => {
                             let target_value = self.evaluate(target)?;
                             let name = self.the_name_of_the_member(name, *line)?;
                             return match self.read_property(&target_value, &name, *line) {
@@ -13910,63 +13979,64 @@ impl<'a> Runtime<'a> {
                     return Ok(Value::Unset);
                 }
                 match self.lookup(name) {
-                Some(value) => {
-                    // A class of v2 is initialised when it is first used.
-                    if let Value::Object(object) = &value {
-                        let class = object.borrow().class.clone();
-                        self.initialise_the_class(&class, *line)?;
-                    }
-                    Ok(value)
-                }
-                // The name may be one of the built-in variables: the
-                // table of them knows whether it is one, and the runtime
-                // may not be able to answer it.
-                None => match self.the_built_in_variable(name) {
-                    Some(Ok(value)) => Ok(value),
-                    Some(Err(error)) => Err(RuntimeFailure::Error(RuntimeError {
-                        message: error.message,
-                        line: *line,
-                    })),
-                    None => {
-                        // Measured on the binary of AutoHotkey v1.1.37.02 on
-                        // 2026-11-05: the short names of the files are a thing
-                        // of Windows, and this box has none: the script that
-                        // reads the name is told that, and the tree does not
-                        // make up a name for the file.
-                        if let Some(reason) = self.the_reason_of_the_short_names_of_the_files(name)
-                        {
-                            return Err(RuntimeFailure::Error(RuntimeError {
-                                message: reason.to_string(),
-                                line: *line,
-                            }));
+                    Some(value) => {
+                        // A class of v2 is initialised when it is first used.
+                        if let Value::Object(object) = &value {
+                            let class = object.borrow().class.clone();
+                            self.initialise_the_class(&class, *line)?;
                         }
-                        match self.the_value_of_a_variable_of_the_runtime(name) {
-                            Some(value) => Ok(value),
-                            None => {
-                                // Measured on the binary of AutoHotkey v2.0.19 on
-                                // 2026-11-05: the warning of the variable that
-                                // is read and never written is given before
-                                // the failure of the run.
-                                self.warn_about_the_variable_that_has_no_value(name, *line);
-                                // Measured on the binary of v1.1.37.02 on
-                                // 2026-11-01: a variable of the v1 that has no
-                                // value is blank, and it is not a failure.
-                                if self.dialect.unset_is_blank() {
-                                    return Ok(self.the_value_of_an_unset_variable(name));
+                        Ok(value)
+                    }
+                    // The name may be one of the built-in variables: the
+                    // table of them knows whether it is one, and the runtime
+                    // may not be able to answer it.
+                    None => match self.the_built_in_variable(name) {
+                        Some(Ok(value)) => Ok(value),
+                        Some(Err(error)) => Err(RuntimeFailure::Error(RuntimeError {
+                            message: error.message,
+                            line: *line,
+                        })),
+                        None => {
+                            // Measured on the binary of AutoHotkey v1.1.37.02 on
+                            // 2026-11-05: the short names of the files are a thing
+                            // of Windows, and this box has none: the script that
+                            // reads the name is told that, and the tree does not
+                            // make up a name for the file.
+                            if let Some(reason) =
+                                self.the_reason_of_the_short_names_of_the_files(name)
+                            {
+                                return Err(RuntimeFailure::Error(RuntimeError {
+                                    message: reason.to_string(),
+                                    line: *line,
+                                }));
+                            }
+                            match self.the_value_of_a_variable_of_the_runtime(name) {
+                                Some(value) => Ok(value),
+                                None => {
+                                    // Measured on the binary of AutoHotkey v2.0.19 on
+                                    // 2026-11-05: the warning of the variable that
+                                    // is read and never written is given before
+                                    // the failure of the run.
+                                    self.warn_about_the_variable_that_has_no_value(name, *line);
+                                    // Measured on the binary of v1.1.37.02 on
+                                    // 2026-11-01: a variable of the v1 that has no
+                                    // value is blank, and it is not a failure.
+                                    if self.dialect.unset_is_blank() {
+                                        return Ok(self.the_value_of_an_unset_variable(name));
+                                    }
+                                    Err(match self.alias_of(name) {
+                                        // A parameter that is an alias says that it is
+                                        // the parameter that has no value.
+                                        Some(_) => RuntimeFailure::Error(RuntimeError {
+                                            message: unassigned_parameter(),
+                                            line: *line,
+                                        }),
+                                        None => self.the_unassigned_failure(name, *line),
+                                    })
                                 }
-                                Err(match self.alias_of(name) {
-                                    // A parameter that is an alias says that it is
-                                    // the parameter that has no value.
-                                    Some(_) => RuntimeFailure::Error(RuntimeError {
-                                        message: unassigned_parameter(),
-                                        line: *line,
-                                    }),
-                                    None => self.the_unassigned_failure(name, *line),
-                                })
                             }
                         }
-                    }
-                }
+                    },
                 }
             }
             Node::Unary { op, operand, line } => match op {
@@ -13995,11 +14065,13 @@ impl<'a> Runtime<'a> {
                 // A whole number stays a whole number: `-3` is the
                 // integer -3, the way AutoHotkey v2 has it.
                 UnaryOp::Negate => {
-                    let value = self.evaluate(operand)?;                    // Measured on the test suite of KeySharp (the corpus script
+                    let value = self.evaluate(operand)?; // Measured on the test suite of KeySharp (the corpus script
                     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
                     // operation of the absent value is the absent value, and it
                     // does not fail.
-                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset | Value::Skipped) {
+                    if self.dialect.the_chain_may_be_skipped()
+                        && matches!(value, Value::Unset | Value::Skipped)
+                    {
                         return Ok(self.the_absent_answer_of(&value));
                     }
                     // Measured on the binary of v1.1.37.02 on 2026-11-02:
@@ -14023,11 +14095,13 @@ impl<'a> Runtime<'a> {
                 }
                 // The unary plus turns a numeric string into a number.
                 UnaryOp::Plus => {
-                    let value = self.evaluate(operand)?;                    // Measured on the test suite of KeySharp (the corpus script
+                    let value = self.evaluate(operand)?; // Measured on the test suite of KeySharp (the corpus script
                     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
                     // operation of the absent value is the absent value, and it
                     // does not fail.
-                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset | Value::Skipped) {
+                    if self.dialect.the_chain_may_be_skipped()
+                        && matches!(value, Value::Unset | Value::Skipped)
+                    {
                         return Ok(self.the_absent_answer_of(&value));
                     }
                     // Measured on the binary of v1.1.37.02 on 2026-11-02: the
@@ -14043,11 +14117,13 @@ impl<'a> Runtime<'a> {
                 }
                 // The bitwise not works on the bits of a whole number.
                 UnaryOp::BitwiseNot => {
-                    let value = self.evaluate(operand)?;                    // Measured on the test suite of KeySharp (the corpus script
+                    let value = self.evaluate(operand)?; // Measured on the test suite of KeySharp (the corpus script
                     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
                     // operation of the absent value is the absent value, and it
                     // does not fail.
-                    if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset | Value::Skipped) {
+                    if self.dialect.the_chain_may_be_skipped()
+                        && matches!(value, Value::Unset | Value::Skipped)
+                    {
                         return Ok(self.the_absent_answer_of(&value));
                     }
                     // v2 says that the bitwise not wants a number here, and
@@ -14150,8 +14226,7 @@ impl<'a> Runtime<'a> {
                             | BinaryOp::StrictNotEqual
                     )
                 {
-                    let the_keyword_of_the_absent_value =
-                        |node: &Node| matches!(node, Node::Var { name, .. } if name.eq_ignore_ascii_case("unset"));
+                    let the_keyword_of_the_absent_value = |node: &Node| matches!(node, Node::Var { name, .. } if name.eq_ignore_ascii_case("unset"));
                     let right_is_the_keyword = the_keyword_of_the_absent_value(right);
                     let left_is_the_keyword = the_keyword_of_the_absent_value(left);
                     if right_is_the_keyword || left_is_the_keyword {
@@ -14204,7 +14279,9 @@ impl<'a> Runtime<'a> {
                 // operators that ask about the absent value are the ones that
                 // were answered above: the coalesce, the `is` of it and the
                 // comparison with the keyword.
-                if self.dialect.the_chain_may_be_skipped() && matches!(left_value, Value::Unset | Value::Skipped) {
+                if self.dialect.the_chain_may_be_skipped()
+                    && matches!(left_value, Value::Unset | Value::Skipped)
+                {
                     return Ok(self.the_absent_answer_of(&left_value));
                 }
                 match op {
@@ -14248,7 +14325,9 @@ impl<'a> Runtime<'a> {
                 // `op-null-assign.ahk`) and on the notes of v2.1-alpha: an
                 // operand that has no value makes the operation the absent
                 // value.
-                if self.dialect.the_chain_may_be_skipped() && matches!(right_value, Value::Unset | Value::Skipped) {
+                if self.dialect.the_chain_may_be_skipped()
+                    && matches!(right_value, Value::Unset | Value::Skipped)
+                {
                     return Ok(self.the_absent_answer_of(&right_value));
                 }
                 // The arithmetic of the v1 is not the one of the v2: the text
@@ -14551,24 +14630,24 @@ impl<'a> Runtime<'a> {
                             class == "class" || class == "object" || class == "any"
                         } else {
                             match &left_value {
-                            Value::Object(object) => {
-                                let name = object.borrow().class.clone();
-                                // Every object is an Object: it is the root
-                                // of the chain of the classes.
-                                class == "object" || self.class_chain(&name).contains(&class)
-                            }
-                            // A number and a text are not objects, and v2
-                            // still knows their classes: `3 is Integer` is
-                            // one and `3 is Object` is zero. The class of the
-                            // value is the one of the kinds of v2, and the
-                            // chain of it goes up through the `Number` and
-                            // the `Primitive` to the `Any`.
-                            _ => {
-                                let name = left_value.type_name().name().to_lowercase();
-                                class == "any"
-                                    || class == name
-                                    || self.class_chain(&name).contains(&class)
-                            }
+                                Value::Object(object) => {
+                                    let name = object.borrow().class.clone();
+                                    // Every object is an Object: it is the root
+                                    // of the chain of the classes.
+                                    class == "object" || self.class_chain(&name).contains(&class)
+                                }
+                                // A number and a text are not objects, and v2
+                                // still knows their classes: `3 is Integer` is
+                                // one and `3 is Object` is zero. The class of the
+                                // value is the one of the kinds of v2, and the
+                                // chain of it goes up through the `Number` and
+                                // the `Primitive` to the `Any`.
+                                _ => {
+                                    let name = left_value.type_name().name().to_lowercase();
+                                    class == "any"
+                                        || class == name
+                                        || self.class_chain(&name).contains(&class)
+                                }
                             }
                         };
                         Value::Int(answer as i64)
@@ -14640,7 +14719,7 @@ impl<'a> Runtime<'a> {
                 // `super["value"]`: the item of the base.
                 if let Node::Super { .. } = &**target {
                     return self.read_the_item_of_the_base(&keys, *line);
-                }                // `x.y[z]`: the `__Get` of `x.y` is asked with the
+                } // `x.y[z]`: the `__Get` of `x.y` is asked with the
                 // parameters of the access, and the value it answers is
                 // the one that is indexed.
                 if let Node::Property {
@@ -14651,12 +14730,8 @@ impl<'a> Runtime<'a> {
                 {
                     let object_value = self.evaluate(object)?;
                     let name = self.the_name_of_the_member(name, *property_line)?;
-                    let (value, by_meta) = self.read_property_fully(
-                        &object_value,
-                        &name,
-                        &keys,
-                        *property_line,
-                    )?;
+                    let (value, by_meta) =
+                        self.read_property_fully(&object_value, &name, &keys, *property_line)?;
                     // The meta-function of a class handles the whole
                     // access: the brackets are its parameters and its
                     // answer is the answer.
@@ -14666,7 +14741,8 @@ impl<'a> Runtime<'a> {
                     return self.index_a_value(&value, &keys, *line);
                 }
                 let target = self.evaluate(target)?;
-                self.index_a_value(&target, &keys, *line)            }
+                self.index_a_value(&target, &keys, *line)
+            }
             Node::Ternary {
                 condition,
                 then,
@@ -14678,7 +14754,9 @@ impl<'a> Runtime<'a> {
                 // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the
                 // question that has no value is the absent value, and neither
                 // branch of it is read.
-                if self.dialect.the_chain_may_be_skipped() && matches!(value, Value::Unset | Value::Skipped) {
+                if self.dialect.the_chain_may_be_skipped()
+                    && matches!(value, Value::Unset | Value::Skipped)
+                {
                     return Ok(self.the_absent_answer_of(&value));
                 }
                 if self.the_value_is_true(&value) {
@@ -14854,8 +14932,7 @@ impl<'a> Runtime<'a> {
             .map(|access| !access.parameters.is_empty())
             .unwrap_or(false)
         {
-            let (held, _) =
-                self.read_property_fully(&object_value, &name, &[], *property_line)?;
+            let (held, _) = self.read_property_fully(&object_value, &name, &[], *property_line)?;
             let keys = self.the_keys_of_an_index(index, also)?;
             let value = self.evaluate(value)?;
             return self.set_item(&held, &keys, op, value, line);
@@ -14945,7 +15022,14 @@ impl<'a> Runtime<'a> {
                 let Some(setter) = &access.setter else {
                     return Err(self.no_item(target, line));
                 };
-                self.call_the_body_of_an_accessor(target, &access, setter, line, keys, Some(&value))?;
+                self.call_the_body_of_an_accessor(
+                    target,
+                    &access,
+                    setter,
+                    line,
+                    keys,
+                    Some(&value),
+                )?;
                 return Ok(value);
             }
             if crate::classes::is_type(&class) {
@@ -15278,6 +15362,446 @@ impl<'a> Runtime<'a> {
         let stored = self.apply_assign(op, name, current, value, line)?;
         self.assign(name, stored.clone());
         Ok(stored)
+    }
+
+    /// The name of a `Func` that takes at least ONE parameter, for a callback
+    /// that is called with one value. `OnClipboardChange` is that shape:
+    /// measured on the binary of v2.0.19 on 2026-11-10, the function is called
+    /// with 1. `the_callback` asks for two, which is the shape of OnExit and
+    /// OnError, so this one is asked here instead.
+    pub(crate) fn the_callback_with_one_argument(
+        &self,
+        value: Option<&Value>,
+        name: &str,
+        line: u32,
+    ) -> Result<Callback, RuntimeError> {
+        let Some(value) = value else {
+            return Err(RuntimeError {
+                message: format!(
+                    "Parameter #1 of {name} requires an Object, but received nothing."
+                ),
+                line,
+            });
+        };
+        let Value::Object(object) = value else {
+            return Err(RuntimeError {
+                message: crate::runtime::wants_a_reference(1, name, "an Object", value),
+                line,
+            });
+        };
+        let object = object.borrow();
+        if object.class != "func" {
+            return Err(RuntimeError {
+                message: format!(
+                    "This value of type \"{}\" has no method named \"Call\".",
+                    value.type_name().name()
+                ),
+                line,
+            });
+        }
+        let function_name = match object.value_of("name") {
+            Some(Value::Text(text)) => text.clone(),
+            _ => String::new(),
+        };
+        let takes_one = match self.functions.get(&function_name.to_lowercase()) {
+            Some(function) => {
+                !function.parameters.is_empty()
+                    || function
+                        .parameters
+                        .iter()
+                        .any(|parameter| parameter.variadic)
+            }
+            None => number_of(&object.properties, "maxparams") >= 1,
+        };
+        if !takes_one {
+            return Err(RuntimeError {
+                message: "Invalid callback function.".into(),
+                line,
+            });
+        }
+        Ok(Callback {
+            name: function_name,
+            line,
+        })
+    }
+
+    /// The name of the variables of the script, with their values as text.
+    ///
+    /// For `ListVars`: a window of v2 shows them, and this runtime shows what a
+    /// window would show in the `output` of the report, which is where a
+    /// `MsgBox` goes. The names are the keys the runtime keeps them under, which
+    /// are the names of the script without their case -- the script may write
+    /// `MyVar` and the key is `myvar`, and a listing that showed the key would
+    /// be wrong about the spelling.
+    pub fn variable_names(&self) -> Vec<(String, String)> {
+        self.variables
+            .iter()
+            .map(|(name, value)| (name.clone(), value.to_text()))
+            .collect()
+    }
+
+    /// The function to call when the script writes the clipboard, if any.
+    pub fn the_clipboard_watcher(&self) -> Option<&str> {
+        self.clipboard_watcher.as_deref()
+    }
+
+    /// Register the function `OnClipboardChange` named, or take it away.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: a second argument of
+    /// zero removes the callback, and one adds it; the name answers the empty
+    /// text either way.
+    pub fn set_the_clipboard_watcher(&mut self, name: Option<String>) {
+        self.clipboard_watcher = name;
+    }
+
+    /// The file of the icon of the script, and the number of the icon in it.
+    pub fn the_icon_of_the_script(&self) -> Option<&(String, i64)> {
+        self.icon_of_the_script.as_ref()
+    }
+
+    /// Put the icon of the script, the way `TraySetIcon` does.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: the built-in
+    /// variables carry the icon afterwards.
+    pub fn set_the_icon_of_the_script(&mut self, file: String, number: i64) {
+        self.icon_of_the_script = Some((file, number));
+    }
+
+    /// Take a list of images away, and say whether it was there.
+    pub fn take_an_image_list(&mut self, address: i64) -> bool {
+        let before = self.image_lists.len();
+        self.image_lists.retain(|(held, _)| *held != address);
+        before != self.image_lists.len()
+    }
+
+    /// Put an image in a list of images, and answer its place in it.
+    ///
+    /// `None` is a number that names no list of images.
+    pub fn put_an_image_in_a_list(&mut self, address: i64, image: i64) -> Option<i64> {
+        let list = self
+            .image_lists
+            .iter_mut()
+            .find(|(held, _)| *held == address)?;
+        list.1.push(image);
+        Some(list.1.len() as i64)
+    }
+
+    /// Make a list of images, and answer the number that names it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `IL_Create` answers
+    /// the number that names the list it made.
+    pub fn make_an_image_list(&mut self) -> i64 {
+        self.image_list_addresses += 1;
+        let address = IMAGE_LIST_ADDRESS_BASE + self.image_list_addresses;
+        self.image_lists.push((address, Vec::new()));
+        address
+    }
+
+    /// The identifier of the window a `Win*` call last found, if one was found.
+    pub fn the_last_window(&self) -> Option<&str> {
+        self.last_window.as_deref()
+    }
+
+    /// Remember the window a `Win*` call just found.
+    pub fn remember_the_last_window(&mut self, id: &str) {
+        self.last_window = Some(id.to_string());
+    }
+
+    /// Take a group away. `GroupClose` and `GroupDeactivate` both answer the
+    /// empty text; the difference v2 makes between them is which windows are
+    /// affected, and this runtime keeps no per-window state to tell them apart.
+    pub fn close_a_group(&mut self, group: &str) {
+        self.groups
+            .retain(|(name, _)| !name.eq_ignore_ascii_case(group));
+    }
+
+    /// The titles of a group, in the order they were added.
+    pub fn the_titles_of_a_group(&self, group: &str) -> Vec<String> {
+        self.groups
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(group))
+            .map(|(_, titles)| titles.clone())
+            .unwrap_or_default()
+    }
+
+    /// Put a window title into a group that outlives the statement.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `GroupAdd` answers the
+    /// empty text. The group is a set: the same title twice is one entry.
+    pub fn add_to_group(&mut self, group: &str, title: &str) {
+        let entry = self
+            .groups
+            .iter_mut()
+            .find(|(name, _)| name.eq_ignore_ascii_case(group));
+        match entry {
+            Some((_, titles)) => {
+                if !titles.iter().any(|held| held == title) {
+                    titles.push(title.to_string());
+                }
+            }
+            None => self
+                .groups
+                .push((group.to_string(), vec![title.to_string()])),
+        }
+    }
+
+    /// The handler of a message, if one is registered for it.
+    pub fn the_message_handler(&self, number: i64) -> Option<&String> {
+        self.message_handlers.get(&number)
+    }
+
+    /// Register the handler of a message, the way `OnMessage` does.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-11: `OnMessage` answers
+    /// the empty text and the handler stays registered for the life of the
+    /// script. A message that is already registered is registered again: the
+    /// last handler wins, which is what the reference does when a script
+    /// registers a second handler for a message.
+    pub fn remember_a_message_handler(&mut self, number: i64, function: String) {
+        if function.is_empty() {
+            return;
+        }
+        self.message_handlers.insert(number, function);
+    }
+
+    /// The windows of the script that have been remembered.
+    pub fn the_guis(&self) -> &[Value] {
+        &self.guis
+    }
+
+    /// The object that a number names, if the number is one of them.
+    pub fn the_object_of(&self, number: i64) -> Option<Value> {
+        let index = number - 0x1000;
+        if index < 0 {
+            return None;
+        }
+        self.pointers.get(index as usize).map(|held| held.0.clone())
+    }
+
+    /// The number that names an object, giving it one if it has none.
+    ///
+    /// The same object always gets the same number, which is what makes
+    /// `ObjFromPtr` an inverse of `ObjPtr`.
+    pub fn the_pointer_of(&mut self, value: &Value) -> i64 {
+        let found = self
+            .pointers
+            .iter()
+            .position(|held| match (&held.0, value) {
+                (Value::Object(first), Value::Object(second)) => std::rc::Rc::ptr_eq(first, second),
+                _ => held.0 == *value,
+            });
+        let index = match found {
+            Some(index) => index,
+            None => {
+                self.pointers.push((value.clone(), 0));
+                self.pointers.len() - 1
+            }
+        };
+        // An address-shaped number, so that a script that prints it sees something
+        // that looks like what v2 prints. It is an identity, not an address.
+        0x1000 + index as i64
+    }
+
+    /// Answer the events of the windows of the script that have happened.
+    ///
+    /// The helper speaks first, and what it said is read here -- one name each:
+    /// `close`, `escape`, or a click on a control. The handler is the function
+    /// the `Gui` kept for that name, and it is called by its **name**, which is
+    /// the one the function value carries. An event with no handler is dropped
+    /// and not queued, because an event that happened before the handler existed
+    /// is not a thing a later handler expects to receive.
+    pub fn the_events_are_answered(&mut self, line: u32) -> Result<(), RuntimeError> {
+        let Ok(events) = self.desktop().gui_events() else {
+            return Ok(());
+        };
+        let mut pending: Vec<(Value, Vec<Value>)> = Vec::new();
+        for event in events {
+            let mut pieces = event.splitn(2, ':');
+            let name = pieces.next().unwrap_or("").to_lowercase();
+            let number = pieces.next().map(str::to_string);
+            if name.is_empty() {
+                continue;
+            }
+            // A menu event carries the name of the item that was chosen:
+            // the bar is kept on the window under `on:menu`, and the item's
+            // callback is called with (ItemName, ItemPos, MyMenu), the shape
+            // documented on v2.0.19 on 2026-11-10.
+            if name == "menu" {
+                let Some(item) = &number else { continue };
+                let found = self.the_guis().iter().find_map(|gui| {
+                    let Value::Object(window) = gui else {
+                        return None;
+                    };
+                    let menu = window.borrow().properties.get("on:menu")?.value.clone();
+                    let (function, position) =
+                        crate::classes::menu::the_callback_of(&menu, item, line)?;
+                    Some((
+                        function,
+                        vec![Value::Text(item.clone()), Value::Int(position), menu],
+                    ))
+                });
+                if let Some(found) = found {
+                    pending.push(found);
+                }
+                continue;
+            }
+            // A message event carries the number of the message: the handler
+            // that `OnMessage` registered for it is called with it.
+            if name == "message" {
+                let Some(item) = &number else { continue };
+                let Ok(number) = item.parse::<i64>() else {
+                    continue;
+                };
+                let Some(function) = self.the_message_handler(number).cloned() else {
+                    continue;
+                };
+                pending.push((Value::Text(function), vec![Value::Int(number)]));
+                continue;
+            }
+            // A click on the icon of the tray is the item by default of the
+            // menu of the script: the `A_TrayMenu` is the menu of the tray,
+            // and the item by default of it is the one that runs.
+            if name == "tray" {
+                let menu = self.the_tray_menu(line);
+                let Some(default) = crate::classes::menu::the_default_of(&menu) else {
+                    continue;
+                };
+                let (function, position) =
+                    match crate::classes::menu::the_callback_of(&menu, &default, line) {
+                        Some(found) => found,
+                        None => continue,
+                    };
+                pending.push((
+                    function,
+                    vec![Value::Text(default), Value::Int(position), menu],
+                ));
+                continue;
+            }
+            let key = format!("on:{name}");
+            let found = self.the_guis().iter().find_map(|gui| {
+                let Value::Object(window) = gui else {
+                    return None;
+                };
+                let window = window.borrow();
+                // A click is about one control of the window, and the control is
+                // the side that keeps the handler. Every other event is about the
+                // window itself.
+                let (holder, about) = match &number {
+                    Some(number) => {
+                        let held = window.properties.get(&format!("control:{number}"))?;
+                        (held.value.clone(), Some(held.value.clone()))
+                    }
+                    None => (gui.clone(), None),
+                };
+                let Value::Object(object) = &holder else {
+                    return None;
+                };
+                let handler = object.borrow().properties.get(&key)?.value.clone();
+                let Value::Object(_) = &handler else {
+                    return None;
+                };
+                // The handler is the VALUE of the function and not its name:
+                // a closure has no name in v2, and only the value of it can
+                // be called.
+                Some((handler, about))
+            });
+            if let Some((function, about)) = found {
+                pending.push((function, about.into_iter().collect()));
+            }
+        }
+        for (function, arguments) in pending {
+            // A handler that is a value is called as a value: a closure has
+            // no name in v2, and only the value of it can be called. A
+            // handler that is a name is called by it.
+            match &function {
+                Value::Object(_) => {
+                    if let Some(result) =
+                        crate::classes::func::call_the_value(&function, &arguments, self, line)
+                    {
+                        result.map_err(|failure| crate::runtime::as_error(failure, line))?;
+                    }
+                }
+                _ => self
+                    .call_function_by_name_with(&function.to_text(), &arguments, line)
+                    .map_err(|failure| crate::runtime::as_error(failure, line))?,
+            }
+        }
+        Ok(())
+    }
+
+    /// Call a function of the script by name, with the arguments, and give back
+    /// a `RuntimeError` -- the shape a built-in variable needs.
+    ///
+    /// `OnClipboardChange` uses this: a function registered for the clipboard
+    /// is called with `1` when the script itself writes `A_Clipboard`.
+    /// Measured on the binary of v2.0.19 on 2026-11-10.
+    pub(crate) fn call_a_function_for_a_built_in(
+        &mut self,
+        name: &str,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<(), RuntimeError> {
+        self.call_named(name, arguments, line, Route::Written)
+            .map(|_| ())
+            .map_err(|failure| match failure {
+                RuntimeFailure::Error(error) => error,
+                RuntimeFailure::Detailed(error, _) => error,
+                RuntimeFailure::Fatal(error) => error,
+                _ => RuntimeError {
+                    message: "the function of the clipboard change could not be called."
+                        .to_string(),
+                    line,
+                },
+            })
+    }
+
+    /// Call a function of the script by its name, with the arguments of a call.
+    fn call_function_by_name_with(
+        &mut self,
+        name: &str,
+        arguments: &[Value],
+        line: u32,
+    ) -> Result<(), RuntimeFailure> {
+        self.call_named(name, arguments, line, Route::Written)
+            .map(|_answer| ())
+    }
+
+    /// The menu of the tray icon, made the first time a script asks for it.
+    ///
+    /// Measured on the binary of v2.0.19 on 2026-11-10: `A_TrayMenu` answers
+    /// a Menu object -- the SAME one for the life of the script, so it is
+    /// made once and kept -- whose `Default` is "&Open" before any item is
+    /// added to it, and whose `Add` works like any menu's.
+    pub fn the_tray_menu(&mut self, line: u32) -> Value {
+        if let Some(menu) = &self.tray_menu {
+            return menu.clone();
+        }
+        let menu = crate::classes::menu::construct(&[], self, line)
+            .unwrap_or_else(|_| crate::classes::object_with("Menu", vec![]));
+        // The default of a fresh tray menu is the standard &Open item, which
+        // the binary answers even before the standard items are added.
+        let _ = crate::classes::menu::set_property(
+            "Default",
+            &menu,
+            &Value::Text("&Open".to_string()),
+            self,
+            line,
+        );
+        self.tray_menu = Some(menu.clone());
+        menu
+    }
+
+    /// Remember a window of the script, so that an event can find the handler.
+    ///
+    /// The same object is asked for many things, and it is remembered once.
+    pub fn remember_a_gui(&mut self, object: &Value) {
+        let already = self.guis.iter().any(|held| match (held, object) {
+            (Value::Object(first), Value::Object(second)) => std::rc::Rc::ptr_eq(first, second),
+            _ => false,
+        });
+        if !already {
+            self.guis.push(object.clone());
+        }
     }
 }
 
@@ -16111,7 +16635,6 @@ pub(crate) fn as_error(failure: RuntimeFailure, line: u32) -> RuntimeError {
     }
 }
 
-
 /// The fields of a text that is separated the way a CSV file is.
 ///
 /// Measured on the binary of v2.0.19 on 2026-11-10: the separator is the
@@ -16219,7 +16742,6 @@ fn values_equal(left: &Value, right: &Value, case_sensitive: bool) -> bool {
 /// The numbers are the same number, and the texts are the same text with
 /// the method that the caller asks for.
 fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
-
     // An object is the same object and nothing else.
     //
     // Measured on the binary of v2.0.19 on 2026-10-31: two maps that hold
@@ -16812,3 +17334,17 @@ mod the_requirement {
         Ordering::Equal
     }
 }
+
+/// The variables of the loops, the ones that the runtime writes where it
+/// runs.
+///
+/// Measured on the binary of v2.0.19 on 2026-10-31: they are there
+/// before the first loop runs, and the index is zero and the others are
+/// empty.
+///
+/// The first address of a list of images.
+///
+/// The addresses of the objects are minted from `0x1000`, the ones of the
+/// texts from `0x2000_0000`, and the ones of the lists of images from here,
+/// so that the three never name the same thing.
+const IMAGE_LIST_ADDRESS_BASE: i64 = 0x3000_0000;

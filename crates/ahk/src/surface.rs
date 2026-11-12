@@ -288,7 +288,8 @@ fn state_of(
             // The variables the dialect adds beside the table of the v2.0.19
             // are answered the same way: the `ks` dialect adds the accessors
             // of KeySharp, and the surface of it lists them as values.
-            if !dialect.carries_variable(name) && !dialect.carries_the_variable_of_the_extension(name)
+            if !dialect.carries_variable(name)
+                && !dialect.carries_the_variable_of_the_extension(name)
             {
                 return State::Pending(reason_of_pending(pending, kind, class, name));
             }
@@ -315,7 +316,8 @@ fn state_of(
             // The members the dialect adds beside the classes of the runtime
             // are answered the same way: the `ks` dialect adds the members of
             // KeySharp, and the surface of it lists them as values.
-            if classes::carries(class, name) || dialect.carries_the_member_of_the_extension(class, name)
+            if classes::carries(class, name)
+                || dialect.carries_the_member_of_the_extension(class, name)
             {
                 return State::Value;
             }

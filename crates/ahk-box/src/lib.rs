@@ -5,9 +5,11 @@
 //! commands. It runs **on the lab box**, because that is where the desktop
 //! is.
 
+pub mod atspi;
 pub mod desktop;
 pub mod drives;
 pub mod files;
+pub mod gui;
 pub mod hotkeys;
 pub mod keyboard;
 pub mod locks;
@@ -19,6 +21,7 @@ pub mod pictures;
 pub mod pointer;
 pub mod process;
 pub mod raven;
+pub mod registry;
 pub mod sys;
 pub mod trash;
 pub mod wayland;

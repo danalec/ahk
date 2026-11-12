@@ -12,8 +12,8 @@
 //! elapsed time is read live at every access, the way KeySharp reads it.
 
 use alloc::string::{String, ToString};
-use alloc::vec::Vec;
 use alloc::vec;
+use alloc::vec::Vec;
 
 use crate::runtime::{Runtime, RuntimeFailure, Value};
 

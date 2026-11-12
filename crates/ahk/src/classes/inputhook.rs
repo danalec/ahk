@@ -11,10 +11,6 @@
 /// class is at 0x00125170, with a stride of forty bytes, and it holds
 /// twenty-three names. The property with a setter is in it twice, the
 /// getter and the setter.
-use alloc::string::ToString;
-
-use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value};
-
 pub(crate) const NAMES: [&str; 23] = [
     "__new",
     "backspaceisundo",
@@ -140,3 +136,5 @@ pub(crate) fn set_property_the_extension(
     object.borrow_mut().put(&lowered, written);
     Some(Ok(()))
 }
+use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value};
+use alloc::string::ToString;

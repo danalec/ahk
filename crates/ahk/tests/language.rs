@@ -319,7 +319,10 @@ fn the_invented_name_of_the_tree_is_not_a_name_of_the_tree() {
     let (report, _) = run("#Requires RustAhk v2");
     assert!(!report.ok);
     let error = report.error.as_deref().unwrap_or("");
-    assert!(error.contains("This script requires RustAhk v2."), "{error}");
+    assert!(
+        error.contains("This script requires RustAhk v2."),
+        "{error}"
+    );
 }
 
 #[test]
@@ -383,7 +386,10 @@ fn a_later_version_is_refused() {
         "#Requires AutoHotkey =2.0",
     ] {
         let (report, _) = run(requirement);
-        assert!(!report.ok, "{requirement} is met, and it is not a version of this tree");
+        assert!(
+            !report.ok,
+            "{requirement} is met, and it is not a version of this tree"
+        );
     }
 }
 
@@ -395,7 +401,10 @@ fn a_requirement_of_another_major_version_is_refused() {
     let (report, _) = run("#Requires AutoHotkey v1.1");
     assert!(!report.ok);
     let error = report.error.as_deref().unwrap_or("");
-    assert!(error.contains("This script requires AutoHotkey v1.1."), "{error}");
+    assert!(
+        error.contains("This script requires AutoHotkey v1.1."),
+        "{error}"
+    );
 }
 
 #[test]
@@ -1770,11 +1779,9 @@ fn a_class_is_a_class_and_an_object_and_not_an_instance_of_itself() {
     // Measured on the binary of v2.0.19 on 2026-11-09: `C is Class` is 1,
     // `C is Object` is 1 and `C is C` is 0 -- a class is not an instance of
     // itself -- and a prototype is not an instance of its own class either.
-    let (report, _desktop) = run(
-        "class Alpha {\n}\nm := Map\n\
+    let (report, _desktop) = run("class Alpha {\n}\nm := Map\n\
          a := Alpha is Class\nb := Alpha is Object\nc := Alpha is Alpha\n\
-         d := m is Class\ne := m is Object\nf := Alpha.Prototype is Alpha",
-    );
+         d := m is Class\ne := m is Object\nf := Alpha.Prototype is Alpha");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.variables.get("a"), Some(&Value::Int(1)));
     assert_eq!(report.variables.get("b"), Some(&Value::Int(1)));
@@ -2016,7 +2023,10 @@ fn the_v1_says_what_the_body_was_missing() {
     // The v1 does not name the word it found: it says which head is absent.
     for (source, message) in [
         ("else\n    FileAppend, ran, *\n", "ELSE with no matching IF"),
-        ("catch\n    FileAppend, ran, *\n", "CATCH with no matching TRY"),
+        (
+            "catch\n    FileAppend, ran, *\n",
+            "CATCH with no matching TRY",
+        ),
         (
             "finally\n    FileAppend, ran, *\n",
             "FINALLY with no matching TRY or CATCH",
@@ -2061,8 +2071,9 @@ fn a_pair_that_is_each_others_base_is_refused() {
 
 #[test]
 fn a_trio_that_closes_on_itself_is_refused() {
-    let error = parse("class A extends B\n{\n}\nclass B extends C\n{\n}\nclass C extends A\n{\n}\n")
-        .expect_err("does not parse");
+    let error =
+        parse("class A extends B\n{\n}\nclass B extends C\n{\n}\nclass C extends A\n{\n}\n")
+            .expect_err("does not parse");
     assert_eq!(error.message, "Invalid base class.\n     Specifically: C");
 }
 
@@ -5186,15 +5197,13 @@ fn the_until_of_the_loop_is_a_condition_of_v2() {
     let (report, _desktop) = run("i := 0\nLoop {\n  i += 1\n} until (i >= 2 and i < 10)\nMsgBox i");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2"]);
-    let (report, _desktop) = run(
-        "f() {\n  return true\n}\ni := 0\nLoop {\n  i += 1\n} until (i > 5 or f())\nMsgBox i",
-    );
+    let (report, _desktop) =
+        run("f() {\n  return true\n}\ni := 0\nLoop {\n  i += 1\n} until (i > 5 or f())\nMsgBox i");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["1"]);
     // P7: the condition may write a variable.
-    let (report, _desktop) = run(
-        "x := 0\ny := 0\nLoop {\n  x += 1\n} until (y := x) >= 2\nMsgBox y",
-    );
+    let (report, _desktop) =
+        run("x := 0\ny := 0\nLoop {\n  x += 1\n} until (y := x) >= 2\nMsgBox y");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["2"]);
 }
@@ -5320,7 +5329,8 @@ fn the_until_of_the_while_is_not_a_condition_of_the_loop() {
     // the word with "Unexpected \"Until\"", and the line that it names is
     // the line of the word. The `for` takes it, and the node of the `for`
     // of this tree has no field for it yet.
-    let error = parse("i := 0\nWhile i < 5 {\n  i += 1\n}\nUntil i >= 3").expect_err("does not parse");
+    let error =
+        parse("i := 0\nWhile i < 5 {\n  i += 1\n}\nUntil i >= 3").expect_err("does not parse");
     assert_eq!(error.message, "Unexpected \"Until\"");
     assert_eq!(error.line, 5);
 }
@@ -5357,7 +5367,8 @@ fn only_the_access_the_mark_follows_is_lenient() {
 }
 
 #[test]
-fn a_member_that_is_not_there_is_asked_by_isset_but_its_holder_is_read() {    // Measured on the test suite of KeySharp (the corpus script
+fn a_member_that_is_not_there_is_asked_by_isset_but_its_holder_is_read() {
+    // Measured on the test suite of KeySharp (the corpus script
     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: `IsSet` of a member
     // that is not there answers zero -- `holder.Present.Missing` has no value --
     // and the expression that holds the member is read: the failure of
@@ -5383,7 +5394,8 @@ fn a_member_that_is_not_there_is_asked_by_isset_but_its_holder_is_read() {    //
 }
 
 #[test]
-fn the_absent_value_of_an_operand_is_the_absent_value_of_the_operation() {    // Measured on the test suite of KeySharp (the corpus script
+fn the_absent_value_of_an_operand_is_the_absent_value_of_the_operation() {
+    // Measured on the test suite of KeySharp (the corpus script
     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: an operator that
     // has the absent value for an operand answers the absent value, and the
     // other operand is not read -- `missing?.value + Bump2()` does not call
@@ -5441,7 +5453,8 @@ fn the_absent_value_of_an_expression_is_asked_by_isset() {
 }
 
 #[test]
-fn a_property_may_take_the_parameters_of_its_access() {    // Measured on the test suite of KeySharp (the corpus script
+fn a_property_may_take_the_parameters_of_its_access() {
+    // Measured on the test suite of KeySharp (the corpus script
     // `op-null-assign.ahk`) and on the notes of v2.1-alpha: the property that
     // takes parameters -- `Items[Index] => unset`, `Pair[a, b] => ...` and the
     // accessor that has a setter -- is read and written with them, and the
@@ -5497,7 +5510,8 @@ fn a_property_of_the_v2_1_may_hold_the_absent_value() {
 }
 
 #[test]
-fn the_maybe_of_a_dynamic_name_is_skipped_when_the_name_has_no_value() {    // Measured on the test suite of KeySharp (the corpus script
+fn the_maybe_of_a_dynamic_name_is_skipped_when_the_name_has_no_value() {
+    // Measured on the test suite of KeySharp (the corpus script
     // `assign-unset.ahk`) and on the notes of v2.1-alpha: the `?` before the
     // percent that closes a name the script builds marks the name as one that
     // may be absent. The member is not read and the parameters of the call and
@@ -5548,7 +5562,8 @@ fn the_comparison_with_the_absent_value_asks_whether_the_other_side_has_one() {
 }
 
 #[test]
-fn the_chain_of_the_v2_1_is_skipped_when_the_value_is_absent() {    // Measured on the test suite of KeySharp (the corpus scripts
+fn the_chain_of_the_v2_1_is_skipped_when_the_value_is_absent() {
+    // Measured on the test suite of KeySharp (the corpus scripts
     // `op-null-assign.ahk` and `class-ownprops.ahk`) and on the notes of
     // v2.1-alpha: the `?` that is glued to the `.`, the `[` or the `(` asks
     // whether the left side has a value. The chain is the absent value when it
@@ -5584,7 +5599,8 @@ fn the_chain_of_the_v2_1_is_skipped_when_the_value_is_absent() {    // Measured 
 }
 
 #[test]
-fn the_setter_of_a_descriptor_writes_the_object_it_holds() {    // Measured on the test suite of KeySharp (the corpus script
+fn the_setter_of_a_descriptor_writes_the_object_it_holds() {
+    // Measured on the test suite of KeySharp (the corpus script
     // `class-ownprops.ahk`) on 2026-11-10: the write of a property that is a
     // descriptor calls its setter, and the setter writes the same object. The
     // write kept the `Ref` of the object alive and panicked with "RefCell
@@ -5603,7 +5619,8 @@ fn the_setter_of_a_descriptor_writes_the_object_it_holds() {    // Measured on t
 }
 
 #[test]
-fn the_mechanisms_of_the_v2_1_ask_about_the_absent_value() {    // Measured on the test suite of KeySharp (the corpus scripts
+fn the_mechanisms_of_the_v2_1_ask_about_the_absent_value() {
+    // Measured on the test suite of KeySharp (the corpus scripts
     // `flow-if.ahk`, `func-global-static.ahk`, `op-logical-not.ahk`,
     // `assign-unset.ahk` and `op-null-assign.ahk`) and on the notes of
     // v2.1-alpha: `x is unset` answers whether the left side has a value and
@@ -5657,7 +5674,8 @@ fn a_static_without_a_value_shadows_the_global_of_the_same_name() {
 }
 
 #[test]
-fn the_until_of_a_while_is_the_mechanism_of_the_v2_1() {    // Measured on the test suite of KeySharp (the corpus script
+fn the_until_of_a_while_is_the_mechanism_of_the_v2_1() {
+    // Measured on the test suite of KeySharp (the corpus script
     // `flow-until.ahk`) and on the notes of v2.1-alpha: the `Until` of a
     // `while` comes after the body, the body runs before the condition is read
     // on every turn, and the loop ends when it is true. The x of the script is
@@ -5676,15 +5694,15 @@ fn the_until_is_read_after_a_turn_that_continue_cut_short() {
     // after the turn that `Continue` cut short as well, and the loop ends with
     // the variable at three. The v2.0.19 carries the `Until` of a `Loop`, and
     // the tree did not read it on that turn: the loop ran forever.
-    let (report, _desktop) = run(
-        "z := 0\nLoop\n{\n    z++\n    continue\n}\nUntil z = 3\nMsgBox z",
-    );
+    let (report, _desktop) =
+        run("z := 0\nLoop\n{\n    z++\n    continue\n}\nUntil z = 3\nMsgBox z");
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["3"]);
 }
 
 #[test]
-fn the_word_until_is_reserved_in_v2_and_not_in_a_property() {    // Measured on the binary of v2.0.19 on 2026-11-09: the word is not the
+fn the_word_until_is_reserved_in_v2_and_not_in_a_property() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: the word is not the
     // name of a variable, and it is the name of a property.
     let error = parse("until := 2").expect_err("does not parse");
     assert_eq!(
@@ -6469,15 +6487,9 @@ fn the_hotkey_of_the_v2_refuses_the_shapes_the_binary_refuses() {
     // "Invalid key name.", and the braces that do not end the line are "This
     // line does not contain a recognized action.".
     let error = parse("F1::MsgBox \"a\"\nF1::MsgBox \"b\"\n").expect_err("does not parse");
-    assert_eq!(
-        error.message,
-        "Duplicate hotkey.\n     Specifically: F1"
-    );
+    assert_eq!(error.message, "Duplicate hotkey.\n     Specifically: F1");
     let error = parse("zzz::MsgBox \"a\"\n").expect_err("does not parse");
-    assert_eq!(
-        error.message,
-        "Invalid key name.\n     Specifically: zzz"
-    );
+    assert_eq!(error.message, "Invalid key name.\n     Specifically: zzz");
     let error = parse("F1::{}\n").expect_err("does not parse");
     assert_eq!(
         error.message,
@@ -6582,7 +6594,12 @@ fn the_absent_value_gives_a_parameter_no_value() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(
         report.output,
-        vec!["Error: Missing a required parameter.", "g=1 7", "obj=0", "x=0"]
+        vec![
+            "Error: Missing a required parameter.",
+            "g=1 7",
+            "obj=0",
+            "x=0"
+        ]
     );
 }
 
@@ -6682,10 +6699,7 @@ fn a_function_that_reads_a_local_is_a_closure() {
         "MsgBox Type(h) \" \" (h is Closure) \" \" (h is Func)\n",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        report.output,
-        vec!["Closure 1 1 1", "Func 0 1", "Func 0 1"]
-    );
+    assert_eq!(report.output, vec!["Closure 1 1 1", "Func 0 1", "Func 0 1"]);
 }
 
 #[test]
@@ -6720,10 +6734,7 @@ fn the_equal_sign_compares_texts_as_texts_and_numbers_as_numbers() {
         "MsgBox (x = y) \" \" (x = x) \" \" ([1, \"a\"] = [1, \"A\"])\n",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(
-        report.output,
-        vec!["1 1 0 0 0 0 0", "1 1 0 1", "0 1 0"]
-    );
+    assert_eq!(report.output, vec!["1 1 0 0 0 0 0", "1 1 0 1", "0 1 0"]);
 }
 
 #[test]
@@ -6912,8 +6923,8 @@ fn the_break_names_a_label_of_a_loop() {
         failure.message,
         "Label not found in current scope.\n     Specifically: nosuch"
     );
-    let failure = parse("notloop:\nMsgBox \"x\"\nLoop 3\n{\n    break notloop\n}\n")
-        .expect_err("refused");
+    let failure =
+        parse("notloop:\nMsgBox \"x\"\nLoop 3\n{\n    break notloop\n}\n").expect_err("refused");
     assert_eq!(failure.message, "Parameter #1 invalid.");
     let failure = parse("l:\nLoop 2\n{\n    MsgBox \"x\"\n}\nbreak l\n").expect_err("refused");
     assert_eq!(
@@ -7088,25 +7099,16 @@ fn the_hotstring_of_the_v2_is_a_line_of_raw_text() {
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["after"]);
     let error = parse("::btw\n").expect_err("does not parse");
-    assert_eq!(
-        error.message,
-        "Invalid hotkey.\n     Specifically: ::btw"
-    );
+    assert_eq!(error.message, "Invalid hotkey.\n     Specifically: ::btw");
     // Measured on the binary of v2.0.19 on 2026-11-10: the line without the
     // second pair of colons and the one with an empty trigger are
     // "Invalid hotkey." with the line, and a replacement that is empty and has
     // no continuation section is "Hotkey or hotstring is missing its opening
     // brace.".
     let error = parse(":btw::x\n").expect_err("does not parse");
-    assert_eq!(
-        error.message,
-        "Invalid hotkey.\n     Specifically: :btw::x"
-    );
+    assert_eq!(error.message, "Invalid hotkey.\n     Specifically: :btw::x");
     let error = parse(":*::x\n").expect_err("does not parse");
-    assert_eq!(
-        error.message,
-        "Invalid hotkey.\n     Specifically: :*::x"
-    );
+    assert_eq!(error.message, "Invalid hotkey.\n     Specifically: :*::x");
     let error = parse("::btw::\n").expect_err("does not parse");
     assert_eq!(
         error.message,
@@ -7146,12 +7148,13 @@ fn a_text_that_holds_a_hexadecimal_number_is_a_number() {
         ("i", 2),
         ("j", 3),
     ] {
-        assert_eq!(report.variables.get(name), Some(&Value::Int(number)), "{name}");
+        assert_eq!(
+            report.variables.get(name),
+            Some(&Value::Int(number)),
+            "{name}"
+        );
     }
-    assert_eq!(
-        report.variables.get("k"),
-        Some(&Value::Float(1000.0))
-    );
+    assert_eq!(report.variables.get("k"), Some(&Value::Float(1000.0)));
 }
 
 #[test]
@@ -8570,8 +8573,8 @@ fn a_level_above_the_loops_around_it_is_refused() {
     let error = parse("Loop 2 {\n    break 2\n}").expect_err("does not parse");
     assert_eq!(error.message, "Parameter #1 invalid.");
     assert_eq!(error.line, 2);
-    let error = parse("Loop 2 {\n    Loop 2 {\n        continue 3\n    }\n}")
-        .expect_err("does not parse");
+    let error =
+        parse("Loop 2 {\n    Loop 2 {\n        continue 3\n    }\n}").expect_err("does not parse");
     assert_eq!(error.message, "Parameter #1 invalid.");
     assert_eq!(error.line, 3);
 }
@@ -8732,10 +8735,12 @@ fn a_middle_spread_is_refused() {
     // Measured on the binary of v2.0.19 on 2026-11-09: only the last
     // argument may carry the star, and the refusal names the rest of the
     // line from the star -- also inside the list of another call.
-    let error = parse("F(a, b) {\n    return a\n}\narr := [1, 2]\nF(arr*, 9)")
-        .expect_err("does not parse");
+    let error =
+        parse("F(a, b) {\n    return a\n}\narr := [1, 2]\nF(arr*, 9)").expect_err("does not parse");
     assert!(
-        error.message.starts_with("Missing operand.\n     Specifically: *, 9)"),
+        error
+            .message
+            .starts_with("Missing operand.\n     Specifically: *, 9)"),
         "{:?}",
         error.message
     );
@@ -8785,9 +8790,7 @@ fn a_spread_is_a_value_where_a_reference_is_wanted() {
     assert!(!report.ok);
     assert_eq!(
         report.error.as_deref(),
-        Some(
-            "Parameter #1 of Swap requires a variable reference, but received an Integer."
-        )
+        Some("Parameter #1 of Swap requires a variable reference, but received an Integer.")
     );
 }
 
@@ -8837,7 +8840,10 @@ fn the_mode_of_the_title_may_be_the_word_of_the_patterns() {
         "SetTitleMatchMode 2\n",
     ));
     assert!(report.ok, "{:?}", report.error);
-    assert_eq!(report.variables.get("m"), Some(&Value::Text("RegEx".into())));
+    assert_eq!(
+        report.variables.get("m"),
+        Some(&Value::Text("RegEx".into()))
+    );
 }
 #[test]
 fn a_hotkey_of_a_suspend_exempt_section_is_exempt() {
@@ -8989,10 +8995,7 @@ fn the_property_that_holds_a_function_is_refused_by_the_v2() {
     // Measured on the binary of v2.0.19 on 2026-11-10: a property that holds a
     // function is not the method of the object, and the call of it names the
     // method that is not there.
-    let (report, _desktop) = run(concat!(
-        "o := { get: (this) => 456 }\n",
-        "o.get()\n",
-    ));
+    let (report, _desktop) = run(concat!("o := { get: (this) => 456 }\n", "o.get()\n",));
     assert_eq!(
         report.error.as_deref(),
         Some("This value of type \"Object\" has no method named \"get\".")
@@ -9070,4 +9073,40 @@ fn the_dot_that_ends_the_line_is_the_operator_of_the_concat() {
     ));
     assert!(report.ok, "{:?}", report.error);
     assert_eq!(report.output, vec!["aasdfqwer"]);
+}
+
+#[test]
+fn a_sub_version_is_met_when_it_is_the_least_one_that_runs() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `#Requires AutoHotkey
+    // v2.0` and `#Requires AutoHotkey v2.0.19` both run, because the version
+    // of the requirement is the least one that runs the script. The tree
+    // refused both of them until this was fixed.
+    let (report, _) = run("#Requires AutoHotkey v2.0\nFileAppend \"ok\", \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(report.output, vec!["ok"]);
+    let (report, _) = run("#Requires AutoHotkey v2.0.19\nFileAppend \"ok\", \"*\"");
+    assert!(report.ok, "{:?}", report.error);
+}
+
+#[test]
+fn a_version_later_than_this_runtime_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `#Requires AutoHotkey
+    // v2.0.20` does not run, because that version is later than the one that
+    // is running.
+    let (report, _) = run("#Requires AutoHotkey v2.0.20");
+    assert!(!report.ok);
+    let error = report.error.as_deref().unwrap_or("");
+    assert!(
+        error.contains("This script requires AutoHotkey v2.0.20."),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_sub_version_with_no_interpreter_named_is_refused() {
+    // Measured on the binary of v2.0.19 on 2026-11-09: `#Requires v2.0` does
+    // not run there, because the first word is read as the name of the
+    // interpreter and `v2.0` is not one.
+    let (report, _) = run("#Requires v2.0");
+    assert!(!report.ok);
 }

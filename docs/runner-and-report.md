@@ -317,7 +317,7 @@ BlockInput command refusal: this is a name of Windows, and this desktop is not W
 CallbackCreate command refusal: this is a name of Windows, and this desktop is not Windows.
 ...
 ClipboardAll.Size method value
-the surface of v2 has 833 entries: 685 answer with a value, 148 are refused, 0 are pending.
+the surface of v2 has 833 entries: 817 answer with a value, 16 are refused, 0 are pending.
 ```
 
 A line is `name kind state`, and a name that is not answered with a
@@ -370,7 +370,7 @@ The JSON is for the CI, and it carries the numbers of the summary and
 the state of every name:
 
 ```json
-{"dialect":"v2","total":833,"values":685,"refusals":148,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
+{"dialect":"v2","total":833,"values":817,"refusals":16,"pending":0,"entries":[{"kind":"class","name":"Any","state":"value"},{"kind":"function","name":"Abs","state":"value"},{"class":"Map","kind":"method","name":"Clear","state":"value"},{"kind":"command","name":"ControlSendText","reason":"this is a name of Windows, and this desktop is not Windows.","state":"refusal"}]}
 ```
 
 (The `entries` array above is cut to four of its 833 members, and the

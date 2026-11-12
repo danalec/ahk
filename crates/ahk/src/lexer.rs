@@ -10,7 +10,6 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
-
 /// What a token is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
@@ -1183,7 +1182,8 @@ fn tokenize_the_source(
                     // binary of v2.0.19 on 2026-11-09, the merge is textual,
                     // so an operator may be split across the boundary and
                     // the `Join` string of a section may be part of a name.
-                    let text_of_the_line = the_text_without_the_comment(text_of_the_line).to_string();
+                    let text_of_the_line =
+                        the_text_without_the_comment(text_of_the_line).to_string();
                     let content = the_content_of_the_section(&section);
                     let mut merged = text_of_the_line;
                     // The space that keeps two names apart is a thing of the
@@ -1950,7 +1950,9 @@ fn tokenize_the_source(
                 while at < chars.len() && (chars[at] == ' ' || chars[at] == '\t') {
                     at += 1;
                 }
-                if at < chars.len() && chars[at] == '(' && the_rest_of_the_line_is_blank(&chars, at + 1)
+                if at < chars.len()
+                    && chars[at] == '('
+                    && the_rest_of_the_line_is_blank(&chars, at + 1)
                 {
                     let content_start = at + 1;
                     let mut line_begin = content_start;
@@ -2209,8 +2211,9 @@ fn the_end_of_the_number(
         // is 0.001. Measured on the binary of v2.0.19 on 2026-11-10.
         let the_point_is_in_the_number = match chars.get(index + 1) {
             Some('=') => false,
-            Some(letter) if (*letter == 'e' || *letter == 'E')
-                && the_digits_of_an_exponent_follow(chars, index + 2) =>
+            Some(letter)
+                if (*letter == 'e' || *letter == 'E')
+                    && the_digits_of_an_exponent_follow(chars, index + 2) =>
             {
                 true
             }
@@ -2627,7 +2630,10 @@ mod tests {
         assert_eq!(text("Var := \"a ; b\"\n(\nc\n)\""), "ac");
         // q03: the comment of a line of source text is stripped, and the
         // section is spliced into the code.
-        assert_eq!(values("x := 1 ; comment\n(Join\n+ 2\n)"), ["x", ":=", "1", "+", "2"]);
+        assert_eq!(
+            values("x := 1 ; comment\n(Join\n+ 2\n)"),
+            ["x", ":=", "1", "+", "2"]
+        );
     }
 
     #[test]
@@ -2647,7 +2653,10 @@ mod tests {
     fn a_block_comment_is_not_a_token() {
         // Measured on the binary of v2.0.19 on 2026-11-09: the block comment
         // is of no account, and the code around it is one line.
-        assert_eq!(values("x := 1 /* a comment */ + 2"), ["x", ":=", "1", "+", "2"]);
+        assert_eq!(
+            values("x := 1 /* a comment */ + 2"),
+            ["x", ":=", "1", "+", "2"]
+        );
         // The newlines of a block comment are lines of the script too.
         let tokens = tokenize("x := 1 /* a\ncomment */ + 2").expect("parses");
         assert_eq!(tokens.last().map(|token| token.line), Some(2));
@@ -2656,14 +2665,20 @@ mod tests {
     #[test]
     fn the_options_of_a_section_are_read() {
         // p08: LTrim takes the leading whitespace of every line away.
-        assert_eq!(text("Var := \"\n( LTrim\n    One.\n    Two.\n)\""), "One.\nTwo.");
+        assert_eq!(
+            text("Var := \"\n( LTrim\n    One.\n    Two.\n)\""),
+            "One.\nTwo."
+        );
         // p08: LTrim0 keeps the leading whitespace of every line.
         assert_eq!(
             text("Var := \"\n( LTrim0\n    One.\n  Two.\n)\""),
             "    One.\n  Two."
         );
         // p08: RTrim0 keeps the trailing whitespace of every line.
-        assert_eq!(text("Var := \"\n( RTrim0\none   \ntwo   \n)\""), "one   \ntwo   ");
+        assert_eq!(
+            text("Var := \"\n( RTrim0\none   \ntwo   \n)\""),
+            "one   \ntwo   "
+        );
         // p08: the indentation of the first content line is what is taken
         // away by default.
         assert_eq!(
@@ -2732,14 +2747,17 @@ mod tests {
         // p12: the second section joins the line that the first one made,
         // and the name that ends that line is kept apart from the content of
         // the second one by a space.
-        let tokens = tokenize("arr := Array(\n(Join,\na\nb\n)\n(Join,\nc\nd\n)\n)")
-            .expect("parses");
+        let tokens =
+            tokenize("arr := Array(\n(Join,\na\nb\n)\n(Join,\nc\nd\n)\n)").expect("parses");
         let values: Vec<String> = tokens
             .iter()
             .filter(|token| token.kind != TokenKind::Newline && token.kind != TokenKind::Eof)
             .map(|token| token.value.clone())
             .collect();
-        assert_eq!(values, ["arr", ":=", "Array", "(", "a", ",", "b", "c", ",", "d", ")"]);
+        assert_eq!(
+            values,
+            ["arr", ":=", "Array", "(", "a", ",", "b", "c", ",", "d", ")"]
+        );
         // The space before the content of the second section is there.
         let b = tokens
             .iter()
@@ -2771,7 +2789,8 @@ mod tests {
         );
         // p18: the source section is named with the line and the lines of
         // the section.
-        let error = tokenize("Var :=\n(\nA line of text.\nAnother line.").expect_err("does not parse");
+        let error =
+            tokenize("Var :=\n(\nA line of text.\nAnother line.").expect_err("does not parse");
         assert_eq!(
             error.message,
             "Missing \")\"\n     Specifically: Var :=A line of text.\nAnother line."

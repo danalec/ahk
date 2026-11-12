@@ -50,7 +50,10 @@ fn a_script_answers_with_a_report() {
     let (code, report) = run("MsgBox \"hello from the box\"\n");
     assert_eq!(code, 0);
     assert!(report.boolean("ok"));
-    assert_eq!(report.array("output")[0].as_str(), Some("hello from the box"));
+    assert_eq!(
+        report.array("output")[0].as_str(),
+        Some("hello from the box")
+    );
 }
 
 #[test]
@@ -253,8 +256,8 @@ fn the_surface_flag_answers_with_json() {
     assert_eq!(code, 0);
     assert_eq!(report.text("dialect"), "v2");
     assert_eq!(report.number("total"), 833);
-    assert_eq!(report.number("values"), 685);
-    assert_eq!(report.number("refusals"), 148);
+    assert_eq!(report.number("values"), 817);
+    assert_eq!(report.number("refusals"), 16);
     assert_eq!(report.number("pending"), 0);
 
     let entries = report.array("entries");
@@ -267,12 +270,20 @@ fn the_surface_flag_answers_with_json() {
         .expect("the name is in the report");
     assert_eq!(field_text(abs, "kind"), "function");
     assert_eq!(field_text(abs, "state"), "value");
+    // The name that refuses is one of the styles: `ControlSendText` was
+    // carried on 2026-11-11 and answers a value now, and a GTK widget
+    // carries no Win32 style number, so the style names still refuse.
     let windows = entries
         .iter()
-        .find(|entry| field_text(entry, "name") == "ControlSendText")
+        .find(|entry| field_text(entry, "name") == "ControlGetStyle")
         .expect("the name is in the report");
     assert_eq!(field_text(windows, "state"), "refusal");
-    assert!(windows.get("reason").map(|v| v.is_string()).unwrap_or(false));
+    assert!(
+        windows
+            .get("reason")
+            .map(|v| v.is_string())
+            .unwrap_or(false)
+    );
 }
 
 #[test]
@@ -283,7 +294,13 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(report.number("total"), 408);
     // The names that the v1 has and the v2 does not are carried, and none of
     // them is pending: the surface of the v1 is complete.
-    assert_eq!(report.number("values"), 302);
+    //
+    // The count moved on 2026-11-11, when the names that were the example of
+    // the blanket reason of the names of Windows were carried: the machine
+    // says where its system is, and the raven is a Windows of its own for the
+    // box. `A_WinDir`, `A_ProgramFiles`, `A_IconFile`, `A_IconNumber` and
+    // `A_ScreenDPI` answer a value where they refused.
+    assert_eq!(report.number("values"), 308);
     assert_eq!(report.number("pending"), 0);
     let entries = report.array("entries");
     let is_set = entries
@@ -362,7 +379,9 @@ fn the_surface_flag_answers_with_the_json_of_the_v1() {
     assert_eq!(field_text(set_batch_lines, "state"), "value");
     // No name of the v1 is pending.
     assert!(
-        entries.iter().all(|entry| field_text(entry, "state") != "pending"),
+        entries
+            .iter()
+            .all(|entry| field_text(entry, "state") != "pending"),
         "the surface of the v1 has a name that is pending"
     );
 }
@@ -472,7 +491,11 @@ fn an_include_again_is_put_in_every_time() {
     let (code, report) = run(&script);
     assert_eq!(code, 0);
     let output = report.array("output");
-    assert_eq!(output.len(), 3, "the file is put in every time it is asked for");
+    assert_eq!(
+        output.len(),
+        3,
+        "the file is put in every time it is asked for"
+    );
     assert_eq!(output[0].as_str(), Some("included"));
     assert_eq!(output[1].as_str(), Some("included"));
     assert_eq!(output[2].as_str(), Some("main"));
@@ -500,11 +523,8 @@ fn an_include_again_after_an_include_puts_the_file_in_again() {
 fn an_include_that_includes_itself_is_refused() {
     let directory = a_test_directory("include-itself");
     let file = directory.join("itself.ahk");
-    std::fs::write(
-        &file,
-        format!("#IncludeAgain \"{}\"\n", file.display()),
-    )
-    .expect("the file is written");
+    std::fs::write(&file, format!("#IncludeAgain \"{}\"\n", file.display()))
+        .expect("the file is written");
     let script = format!("#IncludeAgain \"{}\"\n", file.display());
     let (code, report) = run(&script);
     assert_eq!(code, 2);
@@ -522,4 +542,21 @@ fn an_include_again_without_a_path_is_refused() {
     let (code, report) = run("#IncludeAgain\n");
     assert_eq!(code, 2);
     assert!(report.text("error").contains("an include needs a path"));
+}
+
+#[test]
+fn the_report_of_the_capability_says_the_numbers_of_the_tree() {
+    let (_, report) = surface_json("v2");
+    let document = include_str!("../../../docs/v2-capability-report.md");
+    for (number, what) in [
+        (report.number("total"), "entries"),
+        (report.number("values"), "answer with a value"),
+        (report.number("refusals"), "are refused"),
+    ] {
+        let wanted = format!("**{number} {what}**");
+        assert!(
+            document.contains(&wanted),
+            "the report of the capability does not say {wanted}"
+        );
+    }
 }

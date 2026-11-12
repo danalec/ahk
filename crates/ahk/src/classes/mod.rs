@@ -17,36 +17,60 @@
 //! Gui.Control, Gui.ListView, Gui.Menu, Gui.StatusBar, Hotkey and Map.
 //! The methods of the menu are in the table of `Gui.Menu`, and the
 //! script calls the class `Menu`, so the registry answers for both.
-
 use alloc::collections::BTreeMap;
+
 use alloc::format;
+
 use alloc::rc::Rc;
+
 use alloc::string::String;
+
 use alloc::string::ToString;
+
 use alloc::vec::Vec;
+
 use core::cell::RefCell;
 
 use crate::runtime::{Detail, Object, Runtime, RuntimeError, RuntimeFailure, TypeName, Value, put};
 
 pub(crate) mod array;
+
 pub(crate) mod buffer;
+
 pub(crate) mod clipboard;
+
 pub(crate) mod enumerator;
+
 pub(crate) mod error;
+
 pub(crate) mod file;
+
 pub(crate) mod func;
+
 pub(crate) mod gui;
+
 pub(crate) mod hotkey;
+
 pub(crate) mod inputhook;
+
 pub(crate) mod map;
+
 pub(crate) mod regexmatchinfo;
+
 pub(crate) mod thread;
+
 pub(crate) mod keyinfo;
+
 pub(crate) mod realthread;
+
 pub(crate) mod varref;
+
 pub(crate) mod timer;
+
 pub(crate) mod scriptprocess;
+
 pub(crate) mod propref;
+
 pub(crate) mod typed;
 
 /// The methods of the class types, with the name v2 spells them and
@@ -81,8 +105,11 @@ const METHODS: [(&str, &str, &str, i64, i64); 59] = [
     ("func", "isbyref", "IsByRef", 1, 1),
     ("func", "bind", "Bind", 1, 1),
     // The enumerator is a function of its own kind, and the `Call` of it
+
     // is the turn of the enumeration. Measured on the binary of v2.0.19 on
+
     // 2026-10-31: the call takes no arguments at all, and two when it
+
     // hands out a key and a value.
     ("enumerator", "call", "Call", 1, 3),
     ("enumerator", "isoptional", "IsOptional", 1, 1),
@@ -116,7 +143,9 @@ const METHODS: [(&str, &str, &str, i64, i64); 59] = [
     ("file", "seek", "Seek", 2, 3),
     ("file", "close", "Close", 1, 1),
     // The members of a match are read with the object as the first
+
     // argument, and `Len`, `Pos` and `Name` take the place of a group as
+
     // well.
     ("regexmatchinfo", "__enum", "__Enum", 1, 2),
     ("regexmatchinfo", "__get", "__Get", 3, 3),
@@ -169,7 +198,9 @@ const CALLS: [(&str, &str, i64, i64); 65] = [
     ("func", "isbyref", 0, -1),
     ("func", "bind", 0, -1),
     // The call of an enumerator takes no arguments at all, and two when
+
     // it hands out a key and a value. Measured on the binary of v2.0.19
+
     // on 2026-10-31.
     ("enumerator", "call", 0, 2),
     ("error", "__new", 0, 3),
@@ -200,6 +231,7 @@ const CALLS: [(&str, &str, i64, i64); 65] = [
     ("file", "seek", 1, 2),
     ("file", "close", 0, 0),
     // The members of a match: the call the script writes does not pass the
+
     // object, and `Name` needs the place of a group.
     ("regexmatchinfo", "__enum", 0, 1),
     ("regexmatchinfo", "__get", 2, 2),
@@ -352,6 +384,7 @@ const PROPERTIES: [(&str, &str, &str); 28] = [
     ("func", "isbuiltin", "IsBuiltin"),
     ("func", "isvariadic", "IsVariadic"),
     // The enumerator is a function of its own kind, and it carries the
+
     // values of a function.
     ("enumerator", "name", "Name"),
     ("enumerator", "minparams", "MinParams"),
@@ -400,7 +433,9 @@ const READ_ONLY: [(&str, &[&str]); 5] = [
 /// refused with "Property is read-only.".
 pub(crate) fn the_property_is_read_only(class: &str, name: &str) -> bool {
     let class = class.to_lowercase();
+
     let name = name.to_lowercase();
+
     READ_ONLY
         .iter()
         .any(|(owner, names)| *owner == class && names.iter().any(|property| *property == name))
@@ -777,6 +812,7 @@ const NOT_A_PROTOTYPE: [&str; 4] = ["any", "comobject", "comvalue", "varref"];
 /// that the script asks about every day plainly.
 pub(crate) fn the_name_of_a_method_of_the_base_object(method: &str) -> String {
     let lower = method.to_lowercase();
+
     BASE.iter()
         .find(|(name, _)| *name == lower)
         .map(|(_, spelled)| spelled.to_string())
@@ -789,6 +825,7 @@ pub(crate) fn the_name_of_a_method_of_the_base_object(method: &str) -> String {
 /// base object are the methods of every object, and they are inherited.
 pub(crate) fn the_base_object_has_the_method(name: &str) -> bool {
     let name = name.to_lowercase();
+
     CALLS
         .iter()
         .any(|(owner, member, _, _)| *owner == "object" && *member == name)
@@ -799,7 +836,9 @@ pub(crate) fn the_base_object_has_the_method(name: &str) -> bool {
 /// `None` means that the class type has no method of that name.
 pub(crate) fn the_method_of(class: &str, method: &str) -> Option<(&'static str, i64, i64)> {
     let class = class.to_lowercase();
+
     let method = method.to_lowercase();
+
     METHODS
         .iter()
         .find(|(owner, name, _, _, _)| *owner == class && *name == method)
@@ -812,17 +851,22 @@ pub(crate) fn the_method_of(class: &str, method: &str) -> Option<(&'static str, 
 /// arguments of that member.
 pub(crate) fn the_arity_of(class: &str, method: &str) -> Option<(i64, i64)> {
     let class = class.to_lowercase();
+
     let method = method.to_lowercase();
+
     let own = CALLS
         .iter()
         .find(|(owner, name, _, _)| *owner == class && *name == method);
+
     let found = match own {
         Some(found) => Some(found),
+
         // Every object has the methods of the base object.
         None => CALLS
             .iter()
             .find(|(owner, name, _, _)| *owner == "object" && *name == method),
     };
+
     found.map(|(_, _, min, max)| (*min, *max))
 }
 
@@ -864,9 +908,11 @@ pub(crate) fn the_name_of(class: &str, member: &str) -> String {
 /// methods of the class types are in the table of the methods.
 fn the_spelling_of_the_method(class: &str, method: &str) -> String {
     let lower = method.to_lowercase();
+
     if let Some((_, spelled)) = BASE.iter().find(|(name, _)| *name == lower) {
         return spelled.to_string();
     }
+
     the_method_of(class, method)
         .map(|(spelled, _, _)| spelled.to_string())
         .unwrap_or_else(|| method.to_string())
@@ -875,6 +921,7 @@ fn the_spelling_of_the_method(class: &str, method: &str) -> String {
 /// The name of the property of a class, the way v2 spells it.
 fn the_spelling_of_the_property(class: &str, property: &str) -> String {
     let lower = property.to_lowercase();
+
     PROPERTIES
         .iter()
         .find(|(owner, name, _)| *owner == class && *name == lower)
@@ -889,6 +936,7 @@ fn the_spelling_of_the_property(class: &str, property: &str) -> String {
 /// `Closure` and the `Class`.
 pub(crate) fn the_members_of_the_prototype(class: &str) -> &'static [&'static str] {
     let lower = class.to_lowercase();
+
     PROTOTYPE_MEMBERS
         .iter()
         .find(|(owner, _)| *owner == lower)
@@ -899,6 +947,7 @@ pub(crate) fn the_members_of_the_prototype(class: &str) -> &'static [&'static st
 /// The methods that the prototype of a class owns.
 pub(crate) fn the_methods_of_the_prototype(class: &str) -> &'static [&'static str] {
     let lower = class.to_lowercase();
+
     PROTOTYPE_METHODS
         .iter()
         .find(|(owner, _)| *owner == lower)
@@ -912,7 +961,9 @@ pub(crate) fn the_methods_of_the_prototype(class: &str) -> &'static [&'static st
 /// `__Item` of a class is one of them.
 pub(crate) fn the_property_of_the_prototype(class: &str, property: &str) -> Option<&'static str> {
     let lower = property.to_lowercase();
+
     let methods = the_methods_of_the_prototype(class);
+
     the_members_of_the_prototype(class)
         .iter()
         .find(|member| member.to_lowercase() == lower)
@@ -934,9 +985,11 @@ pub(crate) fn the_prototype_is_not_one(class: &str) -> bool {
 /// methods of the class types carry the class in front.
 fn the_full_name_of(class: &str, method: &str) -> String {
     let lower = method.to_lowercase();
+
     if BASE.iter().any(|(name, _)| *name == lower) {
         return the_spelling_of_the_method(class, method);
     }
+
     the_name_of(class, &the_spelling_of_the_method(class, method))
 }
 
@@ -951,15 +1004,19 @@ pub(crate) fn named(failure: RuntimeFailure, what: &str) -> RuntimeFailure {
             error,
             Detail {
                 what: what.to_string(),
+
                 extra: String::new(),
             },
         ),
+
         RuntimeFailure::Detailed(error, mut detail) => {
             if detail.what.is_empty() {
                 detail.what = what.to_string();
             }
+
             RuntimeFailure::Detailed(error, detail)
         }
+
         other => other,
     }
 }
@@ -972,10 +1029,12 @@ pub(crate) fn the_failure_with(message: &str, extra: &str, line: u32) -> Runtime
     RuntimeFailure::Detailed(
         RuntimeError {
             message: message.to_string(),
+
             line,
         },
         Detail {
             what: String::new(),
+
             extra: extra.to_string(),
         },
     )
@@ -989,17 +1048,22 @@ pub(crate) fn the_failure_with(message: &str, extra: &str, line: u32) -> Runtime
 /// and nothing goes in the `What`.
 pub(crate) fn the_arity_failure(
     class: &str,
+
     method: &str,
+
     message: &str,
+
     line: u32,
 ) -> RuntimeFailure {
     RuntimeFailure::Detailed(
         RuntimeError {
             message: message.to_string(),
+
             line,
         },
         Detail {
             what: String::new(),
+
             extra: the_full_name_of(class, method),
         },
     )
@@ -1012,17 +1076,22 @@ pub(crate) fn the_arity_failure(
 /// and the method that was called in the `Extra`.
 pub(crate) fn the_arity_failure_of_a_method(
     class: &str,
+
     method: &str,
+
     message: &str,
+
     line: u32,
 ) -> RuntimeFailure {
     RuntimeFailure::Detailed(
         RuntimeError {
             message: message.to_string(),
+
             line,
         },
         Detail {
             what: the_name_of("func", "Call"),
+
             extra: the_full_name_of(class, method),
         },
     )
@@ -1035,12 +1104,15 @@ pub(crate) fn the_arity_failure_of_a_method(
 /// arguments, or that the runtime does not know the number.
 fn the_constructor_of(class: &str) -> Option<(i64, i64, &'static str, &'static str)> {
     let class = class.to_lowercase();
+
     // The classes of the errors are made the way the root of them is.
+
     let owner = if error::is_a_class(&class) {
         "error"
     } else {
         class.as_str()
     };
+
     CONSTRUCTORS
         .iter()
         .find(|(name, _, _, _, _)| *name == owner)
@@ -1055,10 +1127,12 @@ fn the_failure_of_a_class_that_is_not_made(line: u32) -> RuntimeFailure {
     RuntimeFailure::Detailed(
         RuntimeError {
             message: "Invalid base.".to_string(),
+
             line,
         },
         Detail {
             what: THE_CALL_OF_THE_BASE.to_string(),
+
             extra: String::new(),
         },
     )
@@ -1070,17 +1144,22 @@ fn the_failure_of_a_class_that_is_not_made(line: u32) -> RuntimeFailure {
 /// the `Extra`.
 fn the_arity_failure_of_a_constructor(
     what: &str,
+
     extra: &str,
+
     message: &str,
+
     line: u32,
 ) -> RuntimeFailure {
     RuntimeFailure::Detailed(
         RuntimeError {
             message: message.to_string(),
+
             line,
         },
         Detail {
             what: what.to_string(),
+
             extra: extra.to_string(),
         },
     )
@@ -1098,8 +1177,10 @@ fn the_arity_failure_of_a_constructor(
 /// the class of the object that the function makes.
 pub(crate) const TYPES: [&str; 26] = [
     // The reference of a variable is a class of v2 too: measured on the
+
     // binary of v2.0.19 on 2026-11-10, Type(VarRef) is Class and
-    //  := &x then  is VarRef is one.
+
+    // IsSet(&x) then `x` is VarRef is one.
     "any",
     "array",
     "boundfunc",
@@ -1131,6 +1212,7 @@ pub(crate) const TYPES: [&str; 26] = [
 /// Whether the name is a class type of the runtime.
 pub(crate) fn is_type(name: &str) -> bool {
     let name = name.to_lowercase();
+
     TYPES.contains(&name.as_str()) || error::is_a_class(&name)
 }
 
@@ -1142,6 +1224,7 @@ pub(crate) fn is_type(name: &str) -> bool {
 /// the class.
 pub fn is_a_name_of_a_class(name: &str) -> bool {
     let name = name.to_lowercase();
+
     (TYPES.contains(&name.as_str()) && name != "hotkey") || error::is_a_class(&name)
 }
 
@@ -1152,11 +1235,13 @@ pub fn the_class_types() -> Vec<String> {
         .filter(|name| **name != "hotkey")
         .map(|name| the_spelling_of(name))
         .collect();
+
     for (name, spelled, _) in error::CLASSES.iter() {
         if *name != "error" {
             names.push(spelled.to_string());
         }
     }
+
     names
 }
 
@@ -1208,6 +1293,7 @@ fn the_failure_of_a_class_that_is_not_here(line: u32) -> RuntimeFailure {
     RuntimeFailure::Error(RuntimeError {
         message: "the COM objects are a thing of Windows, and this runtime does not carry them."
             .to_string(),
+
         line,
     })
 }
@@ -1223,19 +1309,25 @@ fn the_failure_of_a_class_that_is_not_here(line: u32) -> RuntimeFailure {
 /// dialect refuses the call before it tries to make the COM object.
 fn the_kind_of_a_com_value_argument(
     index: usize,
+
     value: Option<&Value>,
+
     line: u32,
 ) -> Option<RuntimeFailure> {
     let value = value?;
+
     match value {
         Value::Int(_) | Value::Float(_) => None,
+
         other => Some(RuntimeFailure::Detailed(
             RuntimeError {
                 message: crate::runtime::requires(index, "ComValue.Call", TypeName::Number, other),
+
                 line,
             },
             Detail {
                 what: "ComValue.Call".to_string(),
+
                 extra: other.to_text(),
             },
         )),
@@ -1251,10 +1343,13 @@ fn the_kind_of_a_com_value_argument(
 /// is of the class `MethodError`.
 fn the_failure_of_a_class_that_cannot_be_called(rt: &Runtime, line: u32) -> RuntimeFailure {
     // The class value of the runtime, so that the refusal names the kind
+
     // of it: a class is a "Class".
+
     let value = rt
         .class_value_of("any")
         .unwrap_or_else(|| class_value("any"));
+
     rt.no_method(&value, "Call", line)
 }
 
@@ -1269,24 +1364,35 @@ fn the_failure_of_a_class_that_cannot_be_called(rt: &Runtime, line: u32) -> Runt
 /// function of its own kind: the two have a base of their own.
 pub(crate) fn the_base_class_of_a_class(class: &str) -> Option<&'static str> {
     let class = class.to_lowercase();
+
     if class == "any" {
         return None;
     }
+
     if class == "object" || class == "primitive" {
         return Some("any");
     }
+
     // The primitive types of v2 are a tree of their own: the `Number` and the
+
     // `String` are `Primitive`, and the `Integer` and the `Float` are
+
     // `Number`. Measured on the binary of v2.0.19: `3 is Number` and `3 is
+
     // Primitive` are one, and `1.5 is Integer` is zero.
+
     if let Some(base) = the_base_of_the_primitive(&class) {
         return Some(base);
     }
+
     // The errors of v2 are a tree of their own, and the enumerator is a
+
     // function of its own kind: the two have a base of their own.
+
     if let Some(base) = the_base_of(&class) {
         return Some(base);
     }
+
     Some("object")
 }
 
@@ -1298,8 +1404,11 @@ pub(crate) fn the_base_class_of_a_class(class: &str) -> Option<&'static str> {
 fn the_base_of_the_primitive(class: &str) -> Option<&'static str> {
     match class {
         "number" | "string" => Some("primitive"),
+
         "integer" | "float" => Some("number"),
+
         "primitive" => Some("any"),
+
         _ => None,
     }
 }
@@ -1321,16 +1430,23 @@ pub(crate) fn the_base_of_the_primitive_of_the_class(class: &str) -> Option<&'st
 /// an `Error`. The other classes of the runtime are the root of it.
 pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
     // The enumerator is a function of its own kind: it derives from
+
     // `Func`, and the docs of v2 say so.
+
     if class.eq_ignore_ascii_case("enumerator") {
         return Some("func");
     }
+
     // Measured on the binary of v2.0.19 on 2026-11-10: a `Closure` is a
+
     // `Func` as well -- `f() is Closure` and `f() is Func` are both one when
+
     // the function of `f` reads a local of the function that has it.
+
     if class.eq_ignore_ascii_case("closure") {
         return Some("func");
     }
+
     error::the_base_of(class)
 }
 
@@ -1340,21 +1456,28 @@ pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
 /// the base of an object of this type is the prototype of it.
 pub(crate) fn class_value(name: &str) -> Value {
     let mut table = BTreeMap::new();
+
     // The name of the class is the one v2 spells: the name of the
+
     // runtime carries it in lower case. v2 does not show it, and the
+
     // tree keeps it under a key of its own.
+
     put(
         &mut table,
         crate::runtime::CLASS_NAME,
         Value::Text(the_spelling_of(name)),
     );
+
     put(
         &mut table,
         "prototype",
         crate::runtime::prototype_value(name),
     );
+
     Value::Object(Rc::new(RefCell::new(Object {
         class: name.to_lowercase(),
+
         properties: table,
     })))
 }
@@ -1363,6 +1486,7 @@ pub(crate) fn class_value(name: &str) -> Value {
 pub(crate) fn object(class: &str) -> Value {
     Value::Object(Rc::new(RefCell::new(Object {
         class: class.to_lowercase(),
+
         properties: BTreeMap::new(),
     })))
 }
@@ -1370,11 +1494,14 @@ pub(crate) fn object(class: &str) -> Value {
 /// The object of a class type, with a property in it.
 pub(crate) fn object_with(class: &str, properties: Vec<(&str, Value)>) -> Value {
     let mut table = BTreeMap::new();
+
     for (name, value) in properties {
         put(&mut table, name, value);
     }
+
     Value::Object(Rc::new(RefCell::new(Object {
         class: class.to_lowercase(),
+
         properties: table,
     })))
 }
@@ -1402,22 +1529,27 @@ pub(crate) fn the_spelling_of(name: &str) -> String {
     if let Some(spelled) = error::the_spelling_of(name) {
         return spelled;
     }
+
     let lower = name.to_lowercase();
+
     if let Some((_, spelled)) = THE_SPELLINGS.iter().find(|(key, _)| *key == lower) {
         return spelled.to_string();
     }
+
     // The classes of the `ks` dialect are spelled the way KeySharp spells
+
     // them: `PropRef` and not `Propref`.
-    if let Some((_, spelled)) = THE_KS_SPELLINGS
-        .iter()
-        .find(|(key, _)| *key == lower)
-    {
+
+    if let Some((_, spelled)) = THE_KS_SPELLINGS.iter().find(|(key, _)| *key == lower) {
         return spelled.to_string();
     }
+
     let mut spelled = name.to_string();
+
     if let Some(first) = spelled.get_mut(0..1) {
         first.make_ascii_uppercase();
     }
+
     spelled
 }
 
@@ -1439,10 +1571,10 @@ const THE_KS_SPELLINGS: &[(&str, &str)] = &[
     ("struct", "Struct"),
     ("thread", "Thread"),
     ("propref", "PropRef"),
-("timer", "Timer"),
+    ("timer", "Timer"),
     ("keyinfo", "KeyInfo"),
     ("realthread", "RealThread"),
-("scriptprocess", "ScriptProcess"),
+    ("scriptprocess", "ScriptProcess"),
     ("argumenterror", "ArgumentError"),
     ("unsupportederror", "UnsupportedError"),
 ];
@@ -1452,111 +1584,157 @@ const THE_KS_SPELLINGS: &[(&str, &str)] = &[
 /// `None` means the name is not a class type of the runtime.
 pub(crate) fn construct(
     class: &str,
+
     arguments: &[Value],
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     // A class type that v2 does not make: the call goes through the
+
     // base object, and the base of the class has no such thing.
+
     if NOT_MADE.contains(&class.to_lowercase().as_str()) {
         return Some(Err(the_failure_of_a_class_that_is_not_made(line)));
     }
+
     // The number of the arguments of the constructor is checked before
+
     // the object is made, and before the reason of the machine: the
+
     // dialect checks the number of the arguments first.
+
     if let Some((min, max, what, extra)) = the_constructor_of(class) {
         let count = arguments.len() as i64;
+
         if count < min || (max >= 0 && count > max) {
             let message = if count < min {
                 "Too few parameters passed to function."
             } else {
                 "Too many parameters passed to function."
             };
+
             return Some(Err(the_arity_failure_of_a_constructor(
                 what, extra, message, line,
             )));
         }
     }
+
     // The `Any` is the type of any value, and it is not a class that can
+
     // be made.
+
     if class.eq_ignore_ascii_case("any") {
         return Some(Err(the_failure_of_a_class_that_cannot_be_called(rt, line)));
     }
+
     // The COM objects are a thing of Windows, and this runtime does not
+
     // carry them. The kinds of the arguments are the dialect's, and they
+
     // come first.
+
     if class.eq_ignore_ascii_case("comvalue") {
         if let Some(failure) = the_kind_of_a_com_value_argument(1, arguments.first(), line) {
             return Some(Err(failure));
         }
+
         if let Some(failure) = the_kind_of_a_com_value_argument(3, arguments.get(2), line) {
             return Some(Err(failure));
         }
     }
+
     // The `ks` dialect makes the object of the `InputHook` even though
+
     // this runtime has no hook: the object carries the settings of it,
+
     // and the hook itself is not installed.
+
     if class.eq_ignore_ascii_case("inputhook")
-        && rt.dialect().carries_the_member_of_the_extension("inputhook", "beforehotkeys")
+        && rt
+            .dialect()
+            .carries_the_member_of_the_extension("inputhook", "beforehotkeys")
     {
         return Some(inputhook::construct_the_extension(rt, line));
     }
+
     if THE_CLASSES_THAT_ARE_NOT_HERE.contains(&class.to_lowercase().as_str()) {
         return Some(Err(the_failure_of_a_class_that_is_not_here(line)));
     }
+
     // The errors of the `ks` dialect: the `ArgumentError` and the
+
     // `UnsupportedError` are made the way the errors of v2 are.
+
     if rt.dialect().carries_the_class_of_the_extension(class) {
         if let Some(result) = error::construct_the_extension(class, arguments, rt, line) {
             return Some(result);
         }
+
         if class.eq_ignore_ascii_case("scriptprocess") {
-
             return scriptprocess::construct(class, arguments, rt, line);
-
         }
 
         if class.eq_ignore_ascii_case("propref") {
             return propref::construct(class, arguments, rt, line);
-
         }
     }
+
     // The errors of v2 are a tree of classes, and every one of them is
+
     // made the way the root of it is.
+
     if error::is_a_class(class) {
         return Some(
             error::construct(class, arguments, rt, line)
                 .map_err(|failure| named(failure, &the_name_of(class, "__New"))),
         );
     }
+
     // The classes of the numbers and of the text are the conversions of the
+
     // dialect: the call of one converts its argument, and what the class
+
     // itself is does not change.
+
     if let Some(converted) = the_conversion(class, arguments, rt, line) {
         return Some(converted);
     }
+
     // The typed numbers of the `ks` dialect: a struct of one field, of
+
     // the width the class names. The v2.0.19 has none of them, and the
+
     // dialect is what says so.
+
     if rt.dialect().carries_the_class_of_the_extension(class) {
         if let Some(result) = typed::construct(class, arguments, rt, line) {
             return Some(result);
         }
     }
+
     let made = match class.to_lowercase().as_str() {
         "array" => Some(array::construct(arguments, rt, line)),
+
         "buffer" => Some(buffer::construct(arguments, rt, line)),
+
         "clipboardall" => Some(clipboard::construct(arguments, rt, line)),
+
         "hotkey" => Some(hotkey::construct(arguments, rt, line)),
+
         "map" => Some(map::construct(arguments, rt, line)),
         "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
             Some(thread::construct(arguments, rt, line))
         }
+
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             Some(gui::construct(class, arguments, rt, line))
         }
+
         _ => None,
     };
+
     made.map(|result| result.map_err(|failure| named(failure, &the_name_of(class, "__New"))))
 }
 
@@ -1573,63 +1751,87 @@ pub(crate) fn construct(
 /// `ToString` method.
 fn the_conversion(
     class: &str,
+
     arguments: &[Value],
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let what = match class.to_lowercase().as_str() {
         "integer" => "Integer.Call",
+
         "float" => "Float.Call",
+
         "number" => "Number.Call",
+
         "string" => "String.Call",
+
         _ => return None,
     };
+
     let value = arguments
         .first()
         .cloned()
         .unwrap_or_else(|| Value::Text(String::new()));
+
     // The value that is not a number is refused with the kind it got, and
+
     // the value itself goes in the `Extra` of the failure.
+
     let wants_a_number = || -> Option<RuntimeFailure> {
         if crate::builtins::is_numeric_value(&value) {
             return None;
         }
+
         Some(RuntimeFailure::Detailed(
             RuntimeError {
                 message: crate::runtime::requires(1, what, TypeName::Number, &value),
+
                 line,
             },
             Detail {
                 what: what.to_string(),
+
                 extra: value.to_text(),
             },
         ))
     };
+
     match class.to_lowercase().as_str() {
         "integer" => match wants_a_number() {
             Some(failure) => Some(Err(failure)),
+
             None => Some(Ok(Value::Int(crate::builtins::token_to_int64(&value)))),
         },
+
         "float" => match wants_a_number() {
             Some(failure) => Some(Err(failure)),
-            None => Some(Ok(Value::Float(crate::builtins::token_to_double(
-                &value,
-            )))),
+
+            None => Some(Ok(Value::Float(crate::builtins::token_to_double(&value)))),
         },
+
         "number" => match wants_a_number() {
             Some(failure) => Some(Err(failure)),
+
             None => Some(Ok(match &value {
                 Value::Int(number) => Value::Int(*number),
+
                 Value::Float(number) => Value::Float(*number),
+
                 // The number a text holds keeps the shape it was written
+
                 // with: `"0x10"` is the integer 16 and `"1.5"` the float.
                 Value::Text(text) if crate::builtins::text_holds_an_integer(text) => {
                     Value::Int(crate::builtins::text_to_int64(text))
                 }
+
                 Value::Text(text) => Value::Float(crate::builtins::text_to_double(text)),
+
                 other => other.clone(),
             })),
         },
+
         _ => Some(the_string_conversion(&value, rt, line, what)),
     }
 }
@@ -1641,27 +1843,37 @@ fn the_conversion(
 /// `Map` has no method named `ToString`.".
 fn the_string_conversion(
     value: &Value,
+
     rt: &mut Runtime,
+
     line: u32,
+
     what: &str,
 ) -> Result<Value, RuntimeFailure> {
     match value {
         Value::Int(number) => Ok(Value::Text(number.to_string())),
+
         Value::Float(number) => Ok(Value::Text(crate::float_text::the_text_of(*number))),
+
         Value::Text(text) => Ok(Value::Text(text.clone())),
+
         Value::Object(_) => {
             let arguments = Vec::new();
+
             match rt.call_a_method_of_an_object(value, "ToString", &arguments, line) {
                 Ok(answer) => Ok(Value::Text(answer.to_text())),
+
                 Err(failure) => Err(named(failure, what)),
             }
         }
+
         other => Err(named(
             RuntimeFailure::Error(RuntimeError {
                 message: format!(
                     "This value of type \"{}\" has no method named \"ToString\".",
                     other.the_kind()
                 ),
+
                 line,
             }),
             what,
@@ -1675,36 +1887,52 @@ fn the_string_conversion(
 /// says the value has no such method.
 pub(crate) fn call(
     class: &str,
+
     method: &str,
+
     this: &Value,
+
     arguments: &[Value],
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     // `__Item` is the method behind the index syntax, and a script may
+
     // call it by its name. The classes that have one answer it here.
+
     if method.eq_ignore_ascii_case("__item") {
         let key = arguments
             .first()
             .cloned()
             .unwrap_or(Value::Text(String::new()));
+
         if let Some(result) = item(class, &key, this, rt, line) {
             return Some(result);
         }
     }
+
     let answer = call_once(class, method, this, arguments, rt, line);
+
     // The name of a method is spelled the way the script spells it, and
+
     // the module matches the names of the table of the binary. The
+
     // second try is the name in lower case.
+
     match answer {
         Some(result) => {
             Some(result.map_err(|failure| named(failure, &the_full_name_of(class, method))))
         }
+
         None => {
             let lower = method.to_lowercase();
+
             if lower == method {
                 return None;
             }
+
             call_once(class, &lower, this, arguments, rt, line).map(|result| {
                 result.map_err(|failure| named(failure, &the_full_name_of(class, method)))
             })
@@ -1721,76 +1949,114 @@ pub(crate) fn call(
 /// text begins or ends with the other, and zero when it does not.
 fn the_member_of_a_text(
     method: &str,
+
     this: &Value,
+
     arguments: &[Value],
+
     _rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let Value::Text(text) = this else {
         return None;
     };
+
     let other = match arguments.first() {
         Some(value) => value.to_text(),
+
         None => {
             return Some(Err(RuntimeFailure::Error(RuntimeError {
                 message: "Too few parameters passed to function.".to_string(),
+
                 line,
-            })))
+            })));
         }
     };
+
     let answer = match method.to_lowercase().as_str() {
         "startswith" => text.starts_with(&other),
+
         "endswith" => text.ends_with(&other),
+
         _ => return None,
     };
+
     Some(Ok(Value::Int(if answer { 1 } else { 0 })))
 }
 
 fn call_once(
     class: &str,
+
     method: &str,
+
     this: &Value,
+
     arguments: &[Value],
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match class.to_lowercase().as_str() {
         "array" => array::call(method, this, arguments, rt, line),
+
         "buffer" => buffer::call(method, this, arguments, rt, line),
+
         "enumerator" => enumerator::call(method, this, arguments, rt, line),
+
         "error" => error::call(method, this, arguments, rt, line),
+
         "file" => file::call(method, this, arguments, rt, line),
+
         "func" | "closure" | "boundfunc" => func::call(method, this, arguments, rt, line),
+
         "hotkey" => hotkey::call(method, this, arguments, rt, line),
+
         "map" => map::call(method, this, arguments, rt, line),
+
         "regexmatchinfo" => regexmatchinfo::call(method, this, arguments, rt, line),
+
         "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
             thread::call(method, this, arguments, rt, line)
         }
-        "scriptprocess" if rt.dialect().carries_the_class_of_the_extension("scriptprocess") => {
 
+        "scriptprocess"
+            if rt
+                .dialect()
+                .carries_the_class_of_the_extension("scriptprocess") =>
+        {
             scriptprocess::call(class, method, this, arguments, rt, line)
-
         }
-        "realthread" if rt.dialect().carries_the_class_of_the_extension("realthread") => {
+
+        "realthread"
+            if rt
+                .dialect()
+                .carries_the_class_of_the_extension("realthread") =>
+        {
             realthread::call(class, method, this, arguments, rt, line)
         }
+
         // The static method of a typed class: `Struct.At` and the
+
         // ones beside it. The guard is the dialect's, so the v2
+
         // keeps refusing the name it does not have.
-        _ if rt.dialect().carries_the_class_of_the_extension(class)
-            && typed::is_a_class(class) =>
-        {
+        _ if rt.dialect().carries_the_class_of_the_extension(class) && typed::is_a_class(class) => {
             typed::the_static_call(class, method, arguments, line)
         }
 
         "string" => the_member_of_a_text(method, this, arguments, rt, line),
+
         // The methods of the base object are the methods of every object,
+
         // and they are answered by the runtime.
         "object" => rt.base_method(this, method, arguments, line),
+
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::call(class, method, this, arguments, rt, line)
         }
+
         _ => None,
     }
 }
@@ -1801,45 +2067,63 @@ fn call_once(
 /// apart in the failure of the number of the arguments.
 pub(crate) fn call_the_value(
     class: &str,
+
     this: &Value,
+
     arguments: &[Value],
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match class.to_lowercase().as_str() {
         "func" | "closure" | "boundfunc" => func::call_the_value(this, arguments, rt, line),
+
         // The enumerator is a function of its own kind, and the call of
+
         // its value is the turn of the enumeration.
         "enumerator" => enumerator::call_the_value(this, arguments, rt, line),
+
         _ => call(class, "call", this, arguments, rt, line),
     }
 }
 
-/// A property of a class type.
-///
-/// `None` means the name is not a property of this class: the runtime then
-/// looks in the property table of the object.
 pub(crate) fn property(
     class: &str,
+
     name: &str,
+
     this: &Value,
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match class.to_lowercase().as_str() {
         "array" => array::property(name, this, rt, line),
+
         "buffer" => buffer::property(name, this, rt, line),
+
         "enumerator" => enumerator::property(name, this, rt, line),
+
         "error" => error::property(name, this, rt, line),
+
         "file" => file::property(name, this, rt, line),
+
         "func" | "closure" => func::property(name, this, rt, line),
+
         "hotkey" => hotkey::property(name, this, rt, line),
+
         "map" => map::property(name, this, rt, line),
+
         "regexmatchinfo" => regexmatchinfo::property(name, this, rt, line),
+
         "thread" if rt.dialect().carries_the_class_of_the_extension("thread") => {
             thread::property(name, this, rt, line)
         }
+
         "inputhook" => inputhook::property_the_extension(name, this, rt, line),
+
         _ if rt.dialect().carries_the_class_of_the_extension(class) => {
             propref::property(class, name, this, line)
                 .or_else(|| scriptprocess::property(class, name, this, rt, line))
@@ -1849,9 +2133,11 @@ pub(crate) fn property(
                 .or_else(|| varref::property(class, name, this, rt, line))
                 .or_else(|| typed::property(class, name, this, line))
         }
+
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::property(class, name, this, rt, line)
         }
+
         _ => None,
     }
 }
@@ -1865,14 +2151,20 @@ pub(crate) fn property(
 /// answered the whole access, brackets and all.
 pub(crate) fn property_with_params(
     class: &str,
+
     name: &str,
+
     params: &[Value],
+
     this: &Value,
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match class.to_lowercase().as_str() {
         "regexmatchinfo" => regexmatchinfo::property_with_params(name, params, this, rt, line),
+
         _ => None,
     }
 }
@@ -1883,30 +2175,46 @@ pub(crate) fn property_with_params(
 /// writes it in the property table of the object.
 pub(crate) fn set_property(
     class: &str,
+
     name: &str,
+
     this: &Value,
+
     value: Value,
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
     let written = match class.to_lowercase().as_str() {
         "array" => array::set_property(name, this, value, rt, line),
+
         "buffer" => buffer::set_property(name, this, value, rt, line),
+
         "error" => error::set_property(name, this, value, rt, line),
+
         "file" => file::set_property(name, this, value, rt, line),
+
         "func" | "closure" => func::set_property(name, this, value, rt, line),
+
         "hotkey" => hotkey::set_property(name, this, value, rt, line),
+
         "map" => map::set_property(name, this, value, rt, line),
+
         "inputhook" => inputhook::set_property_the_extension(name, this, value, rt, line),
+
         "gui" | "menu" | "gui.control" | "gui.listview" | "gui.menu" | "gui.statusbar" => {
             gui::set_property(class, name, this, value, rt, line)
         }
+
         _ => None,
     };
+
     let what = the_name_of(
         class,
         &format!("{}.Set", the_spelling_of_the_property(class, name)),
     );
+
     written.map(|result| result.map_err(|failure| named(failure, &what)))
 }
 
@@ -1915,19 +2223,29 @@ pub(crate) fn set_property(
 /// `None` means the class has no `__Item` of its own.
 pub(crate) fn item(
     class: &str,
+
     key: &Value,
+
     this: &Value,
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     let read = match class.to_lowercase().as_str() {
         "array" => array::item(key, this, rt, line),
+
         "file" => file::item(key, this, rt, line),
+
         "map" => map::item(key, this, rt, line),
+
         "regexmatchinfo" => regexmatchinfo::item(key, this, rt, line),
+
         _ => None,
     };
+
     let what = the_name_of(class, "__Item.Get");
+
     read.map(|result| result.map_err(|failure| named(failure, &what)))
 }
 
@@ -1936,18 +2254,27 @@ pub(crate) fn item(
 /// `None` means the class has no way to write an item of its own.
 pub(crate) fn set_item(
     class: &str,
+
     key: &Value,
+
     this: &Value,
+
     value: Value,
+
     rt: &mut Runtime,
+
     line: u32,
 ) -> Option<Result<(), RuntimeFailure>> {
     let written = match class {
         "array" => array::set_item(key, this, value, rt, line),
+
         "map" => map::set_item(key, this, value, rt, line),
+
         _ => None,
     };
+
     let what = the_name_of(class, "__Item.Set");
+
     written.map(|result| result.map_err(|failure| named(failure, &what)))
 }
 
@@ -1960,42 +2287,71 @@ pub fn names(class: &str) -> Vec<&'static str> {
     if error::is_a_class(class) {
         return error::names();
     }
+
     match class.to_lowercase().as_str() {
         "array" => array::names(),
+
         "buffer" => buffer::names(),
+
         "clipboardall" => THE_CLIPBOARD_ALL.to_vec(),
+
         "comvalue" => THE_COM_VALUE.to_vec(),
+
         "enumerator" => enumerator::names(),
+
         "error" => error::names(),
+
         "file" => file::names(),
+
         "func" | "closure" => func::names(),
+
         "hotkey" => hotkey::names(),
+
         "map" => map::names(),
+
         "gui" => gui::names("gui"),
+
         "menu" | "gui.menu" => gui::names("gui.menu"),
+
         "gui.control" => gui::names("gui.control"),
+
         "gui.listview" => gui::names("gui.listview"),
+
         "gui.statusbar" => gui::names("gui.statusbar"),
+
         "gui.treeview" => gui::names("gui.treeview"),
+
         "inputhook" => inputhook::NAMES.to_vec(),
+
         "regexmatchinfo" => regexmatchinfo::names(),
+
         "thread" => thread::names(),
+
         // The classes of the `ks` dialect: they carry the members the
+
         // extensions add, and the table of the names is where the probe
+
         // of the surface looks for them.
         "keyinfo" => keyinfo::names(),
+
         "realthread" => realthread::names(),
+
         "scriptprocess" => scriptprocess::names(),
+
         "timer" => timer::names(),
 
         _ if typed::is_a_class(class) => typed::names(),
+
         "propref" => propref::names(),
+
         "class" => THE_CLASS_VALUE.to_vec(),
+
         "object" => THE_BASE_OBJECT
             .iter()
             .chain(THE_BASE_OBJECT_OUTSIDE.iter())
             .copied()
             .collect(),
+
         _ => Vec::new(),
     }
 }
@@ -2006,6 +2362,7 @@ pub fn names(class: &str) -> Vec<&'static str> {
 /// way it likes.
 pub fn carries(class: &str, name: &str) -> bool {
     let name = name.to_lowercase();
+
     names(class).iter().any(|carried| *carried == name)
 }
 
@@ -2031,8 +2388,27 @@ const THE_CLASSES_THAT_ARE_NOT_CARRIED: [&str; 6] = [
 /// The reason of a name of a class that this runtime does not carry.
 pub(crate) fn the_reason_of_a_class_that_is_not_carried(class: &str) -> Option<&'static str> {
     let class = class.to_lowercase();
+
     if THE_CLASSES_THAT_ARE_NOT_CARRIED.contains(&class.as_str()) {
         return Some("this runtime does not carry that class yet.");
+    }
+
+    None
+}
+
+pub(crate) mod menu;
+
+/// The number that names a control of a window of the script.
+///
+/// It is the `Hwnd` the control object carries, which is the number `gui_add`
+/// answered. A value that is not such an object has none.
+pub(crate) fn the_number_of_a_control(this: &Value) -> Option<u64> {
+    if let Value::Object(object) = this {
+        if let Some(property) = object.borrow().properties.get("hwnd") {
+            if let Value::Int(number) = property.value {
+                return Some(number as u64);
+            }
+        }
     }
     None
 }

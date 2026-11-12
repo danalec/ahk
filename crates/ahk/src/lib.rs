@@ -110,8 +110,8 @@ pub mod date;
 pub mod desktop;
 pub mod dialect;
 pub mod dialogs;
-pub mod extensions;
 pub mod dll;
+pub mod extensions;
 pub mod files;
 pub mod float_text;
 pub mod hotkeys;
@@ -137,3 +137,5 @@ pub use parser::{Parser, parse, parse_with, precedence};
 #[cfg(feature = "std")]
 pub use runtime::SystemClock;
 pub use runtime::{Clock, Report, Runtime, RuntimeError, Step, Timeout, Value};
+
+pub mod version;

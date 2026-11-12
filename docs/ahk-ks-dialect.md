@@ -36,7 +36,7 @@ ahk --surface --dialect=ks
 ahk --surface --dialect=ks --json
 ```
 
-The whole surface of the `ks` is 969 names: 821 answer with a value, 148
+The whole surface of the `ks` is 969 names: 953 answer with a value, 16
 are refused with the reason the machine cannot give one, and none is
 pending.
 
@@ -130,7 +130,7 @@ and does not do.
 ## What is not carried
 
 The names that need a platform are not carried, and the tree says so
-instead of pretending: the surface of the `ks` carries the 148 names of
+instead of pretending: the surface of the `ks` carries the 16 names of
 the v2 that are shaped for Windows, and it refuses each one with the
 reason.
 

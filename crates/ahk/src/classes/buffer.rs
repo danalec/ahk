@@ -16,7 +16,6 @@
 //!
 //! The bytes live in the property table of the object, under one key,
 //! so that the module owns the whole of the state of a buffer.
-
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::{String, ToString};

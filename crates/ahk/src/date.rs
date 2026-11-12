@@ -143,7 +143,6 @@ pub fn system_wall_clock() -> Option<WallClock> {
     })
 }
 
-
 /// The local date and the time of a moment, written the way KeySharp
 /// writes a moment: "yyyyMMddHHmmss".
 ///

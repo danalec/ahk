@@ -169,7 +169,10 @@ mod tests {
     #[test]
     fn the_fields_are_written_in_the_order_they_arrive() {
         let mut object = Object::new(32);
-        object.boolean("ok", true).number("line", 3).nothing("error");
+        object
+            .boolean("ok", true)
+            .number("line", 3)
+            .nothing("error");
         assert_eq!(object.finish(), "{\"ok\":true,\"line\":3,\"error\":null}");
     }
 }
@@ -443,10 +446,9 @@ impl Reader<'_> {
                         b't' => out.push('\t'),
                         b'u' => {
                             let place = self.at;
-                            let digits = self
-                                .bytes
-                                .get(place..place + 4)
-                                .ok_or_else(|| self.the_error("an escape of four digits is short"))?;
+                            let digits = self.bytes.get(place..place + 4).ok_or_else(|| {
+                                self.the_error("an escape of four digits is short")
+                            })?;
                             let hex = std::str::from_utf8(digits)
                                 .map_err(|_| self.the_error("an escape is not four digits"))?;
                             let code = u32::from_str_radix(hex, 16)
@@ -454,7 +456,11 @@ impl Reader<'_> {
                             self.at += 4;
                             out.push(char::from_u32(code).unwrap_or('\u{FFFD}'));
                         }
-                        _ => return Err(self.the_error("a text holds an escape the format does not define")),
+                        _ => {
+                            return Err(
+                                self.the_error("a text holds an escape the format does not define")
+                            );
+                        }
                     }
                 }
                 other => {

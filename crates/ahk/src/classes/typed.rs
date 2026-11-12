@@ -148,12 +148,7 @@ pub(crate) fn property(
 
 /// The value of a typed number: the number of the caller, cut to the
 /// width of the kind and read back with the sign of it.
-fn the_value_of(
-    kind: Kind,
-    value: &Value,
-    name: &str,
-    line: u32,
-) -> Result<Value, RuntimeFailure> {
+fn the_value_of(kind: Kind, value: &Value, name: &str, line: u32) -> Result<Value, RuntimeFailure> {
     let number = value.to_number_strict().map_err(|_| {
         RuntimeFailure::Error(RuntimeError {
             message: crate::runtime::requires(1, name, TypeName::Number, value),

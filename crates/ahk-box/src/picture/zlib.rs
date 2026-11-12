@@ -57,27 +57,29 @@ pub fn decompress(stream: &[u8]) -> Result<Vec<u8>, InflateError> {
     // The window is at most seven, and the two header bytes are a multiple of
     // thirty-one: that is the check the format prescribes.
     if cmf >> 4 > 7 {
-        return Err(the_reason("the window of the stream is larger than zlib allows"));
+        return Err(the_reason(
+            "the window of the stream is larger than zlib allows",
+        ));
     }
     if (u16::from(cmf) * 256 + u16::from(flg)) % 31 != 0 {
         return Err(the_reason("the header of the stream does not check"));
     }
     if flg & 0x20 != 0 {
-        return Err(the_reason("the stream names a dictionary, which a PNG does not carry"));
+        return Err(the_reason(
+            "the stream names a dictionary, which a PNG does not carry",
+        ));
     }
     let body = &stream[2..];
     let (output, used) = inflate(body)?;
     // The trailer is the Adler-32 of what was read, and a stream that carries
     // a different one is a stream that was damaged on its way here.
     if used + 4 <= body.len() {
-        let stored = u32::from_be_bytes([
-            body[used],
-            body[used + 1],
-            body[used + 2],
-            body[used + 3],
-        ]);
+        let stored =
+            u32::from_be_bytes([body[used], body[used + 1], body[used + 2], body[used + 3]]);
         if stored != adler32(&output) {
-            return Err(the_reason("the checksum of the stream is not the one of its bytes"));
+            return Err(the_reason(
+                "the checksum of the stream is not the one of its bytes",
+            ));
         }
     }
     Ok(output)
@@ -109,7 +111,9 @@ fn a_stored_block(reader: &mut Bits<'_>, output: &mut Vec<u8>) -> Result<(), Inf
     let length = reader.take(16)? as usize;
     let complement = reader.take(16)? as usize;
     if length != !complement & 0xFFFF {
-        return Err(the_reason("the length of a stored block does not match its complement"));
+        return Err(the_reason(
+            "the length of a stored block does not match its complement",
+        ));
     }
     let bytes = reader.bytes(length)?;
     output.extend_from_slice(bytes);
@@ -129,7 +133,9 @@ fn the_dynamic_block(reader: &mut Bits<'_>, output: &mut Vec<u8>) -> Result<(), 
     let distances_count = reader.take(5)? as usize + 1;
     let lengths_count = reader.take(4)? as usize + 4;
     if literals_count > 286 || distances_count > 30 {
-        return Err(the_reason("the block describes more codes than the format allows"));
+        return Err(the_reason(
+            "the block describes more codes than the format allows",
+        ));
     }
     // The lengths of the codes of the lengths are given in the order the
     // format fixes, and not in the order of the alphabet.
@@ -179,7 +185,11 @@ fn the_dynamic_block(reader: &mut Bits<'_>, output: &mut Vec<u8>) -> Result<(), 
                 }
                 place += count;
             }
-            _ => return Err(the_reason("the block uses a length the format does not define")),
+            _ => {
+                return Err(the_reason(
+                    "the block uses a length the format does not define",
+                ));
+            }
         }
     }
     let literals = Code::build(&all[..literals_count])?;
@@ -189,8 +199,8 @@ fn the_dynamic_block(reader: &mut Bits<'_>, output: &mut Vec<u8>) -> Result<(), 
 
 /// The lengths a match of a given code takes, and the extra bits it carries.
 const LENGTH_BASE: [u16; 29] = [
-    3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115,
-    131, 163, 195, 227, 258,
+    3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131,
+    163, 195, 227, 258,
 ];
 const LENGTH_EXTRA: [u8; 29] = [
     0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0,
@@ -222,12 +232,16 @@ fn the_codes(
                     LENGTH_BASE[index] as usize + reader.take(LENGTH_EXTRA[index])? as usize;
                 let code = distances.read(reader)? as usize;
                 if code >= 30 {
-                    return Err(the_reason("the block names a distance the format does not define"));
+                    return Err(the_reason(
+                        "the block names a distance the format does not define",
+                    ));
                 }
                 let distance =
                     DISTANCE_BASE[code] as usize + reader.take(DISTANCE_EXTRA[code])? as usize;
                 if distance == 0 || distance > output.len() {
-                    return Err(the_reason("the match reaches further back than the output goes"));
+                    return Err(the_reason(
+                        "the match reaches further back than the output goes",
+                    ));
                 }
                 // The match is copied a byte at a time on purpose: it may
                 // overlap itself, and a `copy_within` of an overlapping range
@@ -238,7 +252,11 @@ fn the_codes(
                     output.push(byte);
                 }
             }
-            _ => return Err(the_reason("the block names a length the format does not define")),
+            _ => {
+                return Err(the_reason(
+                    "the block names a length the format does not define",
+                ));
+            }
         }
     }
 }

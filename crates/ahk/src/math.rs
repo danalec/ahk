@@ -16,7 +16,6 @@
 //! Nothing here is compiled when the crate has `std`: the helpers of
 //! `runtime.rs` call the platform there, which is both faster and exact, and
 //! this module is the fallback of a host that has nothing to call.
-
 /// The square root of `value`.
 ///
 /// The answer is the Newton iteration on the estimate the exponent of the
@@ -314,7 +313,11 @@ pub fn tan(value: f64) -> f64 {
     if cosine == 0.0 {
         // The tangent has no value at a quarter of a turn, and the platform
         // answers with a very large number rather than a failure.
-        return if sine > 0.0 { f64::INFINITY } else { f64::NEG_INFINITY };
+        return if sine > 0.0 {
+            f64::INFINITY
+        } else {
+            f64::NEG_INFINITY
+        };
     }
     sine / cosine
 }
@@ -430,9 +433,13 @@ pub fn tanh(value: f64) -> f64 {
     let raised = exp(2.0 * value);
     (raised - 1.0) / (raised + 1.0)
 }
+
 #[cfg(test)]
 mod tests {
-    use super::{acos, asin, atan, ceil, cos, exp, floor, fract, ln, log10, pow, powi, round, sin, sqrt, tan, trunc};
+    use super::{
+        acos, asin, atan, ceil, cos, exp, floor, fract, ln, log10, pow, powi, round, sin, sqrt,
+        tan, trunc,
+    };
 
     /// A value and the answer of the reference, to the last few bits.
     fn close(answer: f64, expected: f64) {

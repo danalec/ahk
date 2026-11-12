@@ -128,9 +128,7 @@ fn the_value(out: &mut String, value: &Value) {
             let object = object.borrow();
             let mut written = Object::new(256);
             written.text("class", &object.class);
-            written.field("properties", |out| {
-                the_properties(out, &object.properties)
-            });
+            written.field("properties", |out| the_properties(out, &object.properties));
             out.push_str(&written.finish());
         }
         Value::Reference(reference) => {

@@ -103,7 +103,11 @@ pub fn file_copy(
     let into_the_folder = to.ends_with('/') || to.ends_with('\\') || is_a_folder(rt, &to);
     for file in files {
         let destination = if into_the_folder {
-            format!("{}{}", the_folder_and_its_separator(&to), the_name_of_a_file_at_the_end(&file))
+            format!(
+                "{}{}",
+                the_folder_and_its_separator(&to),
+                the_name_of_a_file_at_the_end(&file)
+            )
         } else {
             the_destination_for(&file, &source_leaf, &to)
         };
@@ -134,7 +138,11 @@ pub fn file_move(
     let into_the_folder = to.ends_with('/') || to.ends_with('\\') || is_a_folder(rt, &to);
     for file in files {
         let destination = if into_the_folder {
-            format!("{}{}", the_folder_and_its_separator(&to), the_name_of_a_file_at_the_end(&file))
+            format!(
+                "{}{}",
+                the_folder_and_its_separator(&to),
+                the_name_of_a_file_at_the_end(&file)
+            )
         } else {
             the_destination_for(&file, &source_leaf, &to)
         };
@@ -1563,10 +1571,7 @@ mod tests {
         // pattern copies every file it names, and a destination that ends
         // with a separator is the folder they go into.
         let mut desktop = Fake {
-            folders: vec![
-                "C:\\work\\a.txt".to_string(),
-                "C:\\work\\b.txt".to_string(),
-            ],
+            folders: vec!["C:\\work\\a.txt".to_string(), "C:\\work\\b.txt".to_string()],
             ..Fake::default()
         };
         let mut clock = TheClock;

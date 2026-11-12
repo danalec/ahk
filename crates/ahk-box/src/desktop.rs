@@ -40,11 +40,15 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+#[cfg(target_os = "linux")]
+use std::time::Instant;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ahk::desktop::{
     FileAnswer, FileOptions, Folders, Idle, InputAnswer, InputOptions, Processes, WindowAnswer,
 };
+#[cfg(target_os = "linux")]
+use ahk::dll::{Convention, NativeArg, NativeType, NativeValue};
 use ahk::dll::{NativeCall, NativeFailure, NativeResult};
 use ahk::keys::{MODIFIERS, resolve_name};
 
@@ -96,6 +100,11 @@ impl From<PointerError> for BoxError {
 pub struct LabDesktop {
     keyboard: Option<Keyboard>,
     pointer: Option<Pointer>,
+    /// The window of the script, when the session has one.
+    ///
+    /// It is made by the helper of the window and lives as long as
+    /// the desktop does.
+    gui: Option<crate::gui::TheWindow>,
     screen: Option<(i64, i64)>,
     notes: Vec<String>,
     /// The files that are open. A handle is the place of the file in
@@ -113,14 +122,6 @@ pub struct LabDesktop {
     /// kept: a script that calls the same library twice does not load
     /// it twice.
     libraries: Libraries,
-    /// The children this desktop waited for: the pid, the code of the
-    /// exit the wait saw and the moment of that wait, in milliseconds
-    /// since the epoch of the Unix. The wait is the moment the desktop
-    /// knows of, and the moment of the exit of a child is the moment of
-    /// the wait: the kernel does not keep the moment of the exit of a
-    /// process that is not ours.
-    waited_children: std::collections::HashMap<u32, (i32, i64)>,
-
     /// The raven, when a library of Windows has been asked for. The
     /// raven is a process of its own, and it is started with the first
     /// call and lives until the desktop is dropped.
@@ -133,11 +134,30 @@ pub struct LabDesktop {
     /// Windows, and there is no raven to ask.
     #[cfg(target_os = "linux")]
     raven: Option<crate::raven::Guests>,
+    /// The program of the tray of the session, and the pipes of it.
+    ///
+    /// It is started with the first icon of the script and lives as long as
+    /// the desktop does. The answers of the helper are read on a thread of
+    /// their own, so that the wait for one of them is bounded: a helper that
+    /// stops answering is a failure with a reason, and not a hang.
+    #[cfg(target_os = "linux")]
+    tray: Option<(
+        std::process::Child,
+        std::process::ChildStdin,
+        std::sync::mpsc::Receiver<String>,
+    )>,
     /// The client of the compositor, when the session is Wayland. It is
     /// opened with the first question about the windows and kept: the
     /// connection to the compositor is worth keeping.
     #[cfg(target_os = "linux")]
     wayland: Option<crate::wayland::Client>,
+    /// The program that draws tooltips, which is NOT the window of a `Gui`.
+    ///
+    /// `ToolTip` of v2 works with no window of the script at all, so the helper
+    /// that draws it is a process of its own. Keeping it apart from `gui` is what
+    /// lets a script show a tooltip and then make a `Gui` without being told
+    /// that a window is already there.
+    tooltip: Option<crate::gui::TheWindow>,
 }
 
 impl Default for LabDesktop {
@@ -147,11 +167,171 @@ impl Default for LabDesktop {
 }
 
 impl LabDesktop {
+    // ---- the_x_ids_in
+    /// The ids of a window list of the X server.
+    ///
+    /// Measured on the VM of the matrix on 2026-11-11: `xprop -root
+    /// _NET_CLIENT_LIST` answers `_NET_CLIENT_LIST(WINDOW): window id #
+    /// 0xa0000c, 0x80000c, 0xc0000c`, and `_NET_ACTIVE_WINDOW` answers one
+    /// id -- or `window id # 0x0` when no window of the server has the
+    /// focus, and the zero is not a window. The ids are the ones of the X
+    /// server, and they are the ids the tree answers for the windows of an
+    /// X11 session: they are stable while the window lives, which a place
+    /// in the stacking order is not.
+    fn the_x_ids_in(text: &str) -> Vec<i64> {
+        let Some((_, after)) = text.split_once('#') else {
+            return Vec::new();
+        };
+        after
+            .split(',')
+            .filter_map(|id| {
+                let id = id.trim().trim_start_matches("0x");
+                i64::from_str_radix(id, 16).ok().filter(|id| *id != 0)
+            })
+            .collect()
+    }
+
+    // ---- x11_windows
+    /// The windows of an X11 session: the client list of the X server, the
+    /// title of each window and the one that has the focus.
+    fn x11_windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
+        let Some(display) = x_display() else {
+            return Err(no_window_list_reason());
+        };
+        let listing = self.run(
+            &format!("DISPLAY={display} xprop -root _NET_CLIENT_LIST 2>/dev/null || true"),
+            "",
+        )?;
+        let ids = Self::the_x_ids_in(&listing.1);
+        let active = self.run(
+            &format!("DISPLAY={display} xprop -root _NET_ACTIVE_WINDOW 2>/dev/null || true"),
+            "",
+        )?;
+        let active_id = Self::the_x_ids_in(&active.1).first().copied().unwrap_or(0);
+        let mut windows = Vec::new();
+        for id in ids {
+            let output = self.run(
+                &format!(
+                    "DISPLAY={display} xprop -id {id} _NET_WM_NAME WM_NAME 2>/dev/null || true"
+                ),
+                "",
+            )?;
+            let title = output
+                .1
+                .lines()
+                .filter_map(|line| line.split_once(" = "))
+                .map(|(_, value)| value.trim().trim_matches('"').to_string())
+                .find(|value| !value.is_empty())
+                .unwrap_or_default();
+            windows.push(ahk::desktop::WindowInfo {
+                id,
+                title,
+                class: String::new(),
+                active: id == active_id,
+            });
+        }
+        Ok(windows)
+    }
+
+    // ---- gui_title_is
+
+    /// The long name of the device that the mixer chose for a kind.
+    ///
+    /// The mixer publishes the name of every device and a description that
+    /// is longer; the description is the one that v2 would answer for the
+    /// device of Windows.
+    fn the_description_of(&mut self, kind: &str, which: &str) -> Result<String, String> {
+        let chosen = self.pactl(&[which])?.trim().to_string();
+        if chosen.is_empty() {
+            return Ok(String::new());
+        }
+        let listing = self.pactl(&["list", kind])?;
+        // The mixer lists the name of a device and its description, and the
+        // description comes after the name: the answer is the description of
+        // the device whose name is the one that was chosen.
+        let mut matched = false;
+        for line in listing.lines() {
+            let Some((key, value)) = line.split_once(':') else {
+                continue;
+            };
+            match key.trim() {
+                "Name" => matched = value.trim() == chosen,
+                "Description" if matched => {
+                    return Ok(value.trim().to_string());
+                }
+                _ => {}
+            }
+        }
+        Ok(chosen)
+    }
+    /// Whether the title names the window the script made.
+    fn gui_title_is(&mut self, title: &str) -> bool {
+        if title.is_empty() {
+            return true;
+        }
+        let command = "{\"op\": \"title\"}".to_string();
+        match self.the_gui_says(&command) {
+            Ok(said) => the_text_in(&said, "\"title\": ")
+                .map(|t| t.eq_ignore_ascii_case(title))
+                .unwrap_or(false),
+            Err(_) => false,
+        }
+    }
+
+    // ---- own_control_text
+    /// The text of a control of the script's own window.
+    fn own_control_text(&mut self, control: &str) -> Result<ahk::desktop::ControlAnswer, String> {
+        let number = match self.own_control_number(control) {
+            Ok(number) => number,
+            Err(_) => return Ok(ahk::desktop::ControlAnswer::NoSuchControl),
+        };
+        let said = self.the_gui_says(&format!("{{\"op\": \"value\", \"id\": {}}}", number))?;
+        Ok(ahk::desktop::ControlAnswer::Found(
+            the_text_in(&said, "\"value\": ").unwrap_or_default(),
+        ))
+    }
+
+    // ---- own_control_send_text
+    /// Put text into a control of the script's own window, at its cursor.
+    fn own_control_send_text(
+        &mut self,
+        control: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        let number = match self.own_control_number(control) {
+            Ok(number) => number,
+            Err(_) => return Ok(ahk::desktop::ControlEdit::NoSuchControl),
+        };
+        let command = format!(
+            "{{\"op\": \"paste\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        );
+        match self.the_gui_says(&command) {
+            Ok(_) => Ok(ahk::desktop::ControlEdit::Done),
+            Err(reason) if reason.contains("is not an edit") => {
+                Ok(ahk::desktop::ControlEdit::NoSuchControl)
+            }
+            Err(reason) => Err(reason),
+        }
+    }
+
+    // ---- own_control_number
+    /// The number of a control of the script's own window, from its `ClassNN`.
+    fn own_control_number(&mut self, control: &str) -> Result<i64, String> {
+        let command = format!("{{\"op\": \"resolve\", \"classnn\": {}}}", quoted(control));
+        let said = self.the_gui_says(&command)?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the window of the script has no control named {control}"))
+    }
+
     /// A desktop that has not yet opened anything.
     pub fn new() -> Self {
         Self {
+            tooltip: None,
             keyboard: None,
             pointer: None,
+            gui: None,
             screen: None,
             notes: Vec::new(),
             files: Vec::new(),
@@ -160,10 +340,10 @@ impl LabDesktop {
                 .ok()
                 .map(|path| path.to_string_lossy().to_string()),
             libraries: Libraries::new(),
-            waited_children: std::collections::HashMap::new(),
-
             #[cfg(target_os = "linux")]
             raven: None,
+            #[cfg(target_os = "linux")]
+            tray: None,
             #[cfg(target_os = "linux")]
             wayland: None,
         }
@@ -307,6 +487,177 @@ impl LabDesktop {
         }
         answer
     }
+
+    /// Send one command to the program that draws the windows of the script, and
+    /// refuse when it says it did not do the thing.
+    fn the_gui_says(&mut self, command: &str) -> Result<String, String> {
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("there is no window of the script")?;
+        let answer = window.send(command)?;
+        if !answer.contains("\"ok\": true") {
+            return Err(format!("the window of the script refused: {answer}"));
+        }
+        Ok(answer)
+    }
+
+    /// A path of the Windows of the raven.
+    ///
+    /// The raven has a file system of its own, and the paths of it are
+    /// the ones that its Windows says -- "C:\Windows" for the directory of
+    /// the system, and "C:\Program Files" for the programs of the user.
+    /// The block of the path is given to the callee and comes back with
+    /// what the callee wrote in it.
+    #[cfg(target_os = "linux")]
+    fn a_path_of_the_windows(
+        &mut self,
+        library: &str,
+        function: &str,
+        arguments: Vec<NativeArg>,
+        block: usize,
+    ) -> Result<String, String> {
+        let mut call = NativeCall {
+            library: library.to_string(),
+            function: function.to_string(),
+            convention: Convention::Standard,
+            returns: NativeType::Int,
+            arguments,
+        };
+        self.windows(&mut call).map_err(|failure| failure.reason)?;
+        // The block of the argument is the path that came back.
+        let text = match &call.arguments[block].value {
+            NativeValue::Bytes(bytes) => {
+                let end = bytes
+                    .iter()
+                    .position(|byte| *byte == 0)
+                    .unwrap_or(bytes.len());
+                String::from_utf8_lossy(&bytes[..end]).into_owned()
+            }
+            _ => String::new(),
+        };
+        if text.is_empty() {
+            return Err(format!("the raven said no path for {function}."));
+        }
+        Ok(text)
+    }
+
+    /// The directory of the Windows of the raven.
+    #[cfg(target_os = "linux")]
+    fn windows_directory(&mut self) -> Result<String, String> {
+        self.a_path_of_the_windows(
+            "kernel32",
+            "GetWindowsDirectoryA",
+            vec![
+                NativeArg {
+                    kind: NativeType::AStr,
+                    address: true,
+                    value: NativeValue::Bytes(vec![0u8; 260]),
+                },
+                NativeArg {
+                    kind: NativeType::Int,
+                    address: false,
+                    value: NativeValue::Integer(260),
+                },
+            ],
+            0,
+        )
+    }
+
+    /// The directory of the programs of the user, in the Windows of the raven.    ///
+    /// The shell of the Windows of the raven does not answer with the path
+    /// of the folder of the programs (measured on the box on 2026-11-11:
+    /// `SHGetFolderPathA` leaves the block empty), and the environment of
+    /// the emulated system does: the program of the environment answers
+    /// with the path of the folder of the programs.
+    #[cfg(target_os = "linux")]
+    fn program_files(&mut self) -> Result<String, String> {
+        self.a_path_of_the_windows(
+            "kernel32",
+            "GetEnvironmentVariableA",
+            vec![
+                NativeArg {
+                    kind: NativeType::AStr,
+                    address: false,
+                    value: NativeValue::Bytes(b"ProgramFiles\0".to_vec()),
+                },
+                NativeArg {
+                    kind: NativeType::AStr,
+                    address: true,
+                    value: NativeValue::Bytes(vec![0u8; 260]),
+                },
+                NativeArg {
+                    kind: NativeType::Int,
+                    address: false,
+                    value: NativeValue::Integer(260),
+                },
+            ],
+            1,
+        )
+    }
+
+    /// The icon of the script, in the tray of the session.
+    ///
+    /// The compositor of the box carries a watcher of the
+    /// StatusNotifierItem, and the helper of the tray registers an item in
+    /// it. The item lives as long as the helper does, and the helper lives
+    /// as long as the desktop does.
+    ///
+    /// The answer of the helper is read and understood: the answer of the
+    /// start is the answer of an item that the watcher holds, and a helper
+    /// that did not register is a failure with the reason of the helper.
+    #[cfg(target_os = "linux")]
+    fn tray_set_icon(&mut self, name: &str) -> Result<(), String> {
+        if self.tray.is_none() {
+            let program = the_helper_of_the_tray()?;
+            let mut child = Command::new("python3")
+                .arg(&program)
+                .env("AHK_EVENTS_FILE", the_events_of_the_window())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|error| format!("the tray of the session did not start: {error}"))?;
+            let input = child.stdin.take().ok_or("the tray takes no input")?;
+            let output = child.stdout.take().ok_or("the tray has no output")?;
+            self.tray = Some((child, input, the_answers_of_the_tray(output)));
+            let answer = self.the_answer_of_the_tray()?;
+            the_tray_took(&answer)?;
+        }
+        let command = format!("{{\"op\": \"icon\", \"name\": {}}}\n", quoted(name));
+        {
+            let Some((_, input, _)) = self.tray.as_mut() else {
+                return Err("the tray of the session is not there".to_string());
+            };
+            input.write_all(command.as_bytes()).map_err(|error| {
+                format!("the tray of the session did not take the icon: {error}")
+            })?;
+            input.flush().map_err(|error| {
+                format!("the tray of the session did not take the icon: {error}")
+            })?;
+        }
+        let answer = self.the_answer_of_the_tray()?;
+        the_tray_took(&answer)
+    }
+
+    /// The answer of the helper of the tray, read with a bound.
+    ///
+    /// The wait is bounded: the helper of the tray is a program of the
+    /// machine, and a program that stops answering is a failure with a
+    /// reason and not a hang of the runtime.
+    #[cfg(target_os = "linux")]
+    fn the_answer_of_the_tray(&mut self) -> Result<String, String> {
+        let Some((_, _, answers)) = self.tray.as_mut() else {
+            return Err("the tray of the session is not there".to_string());
+        };
+        let answer = answers
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .map_err(|_| "the tray of the session stopped answering".to_string())?;
+        if answer.is_empty() {
+            return Err("the tray of the session ended before it answered".to_string());
+        }
+        Ok(answer)
+    }
 }
 
 /// The codes the device announces.
@@ -360,6 +711,15 @@ fn shell_quote(value: &str) -> String {
     }
     out.push('"');
     out
+}
+
+/// The pause between two readings of the table of the processes.
+///
+/// The table is read twenty times a second: a change is seen quickly, and the
+/// loop costs the machine almost nothing while it waits.
+#[cfg(target_os = "linux")]
+fn pause_before_the_next_look() {
+    std::thread::sleep(Duration::from_millis(20));
 }
 
 impl ahk::desktop::Desktop for LabDesktop {}
@@ -519,12 +879,6 @@ impl ahk::desktop::Native for LabDesktop {
 }
 
 impl ahk::desktop::Keyboard for LabDesktop {
-    fn keyboard_layout_name(&mut self) -> Result<String, String> {
-        // The layout of the keyboard is the keymap of the X server of
-        // the session, and the machine is asked for it; the declaration
-        // of the environment of the XKB is the second answer.
-        crate::keyboard::the_layout_of_the_keyboard()
-    }
     fn type_text(&mut self, text: &str) -> Result<String, String> {
         if text.is_empty() {
             return Ok(String::new());
@@ -641,18 +995,6 @@ impl ahk::desktop::Keyboard for LabDesktop {
 }
 
 impl ahk::desktop::Pointer for LabDesktop {
-    fn clip_cursor(&mut self, rect: Option<(i64, i64, i64, i64)>) -> Result<(), String> {
-        // The confinement is the clamp of the coordinates the pointer
-        // sends: the rectangle the script asked for, the far edges
-        // exclusive, and nothing of the session is taken. The pointer is
-        // opened for it -- a confinement of a pointer that does not
-        // exist yet is a confinement of the next movement.
-        self.pointer()
-            .map_err(|error| error.to_string())?
-            .clip_to(rect);
-        Ok(())
-    }
-
     fn click(&mut self, x: i64, y: i64, button: &str, count: u32) -> Result<String, String> {
         // The absolute pointer is the path that lands where it is aimed:
         // ydotool's device is relative, so its click lands wherever the
@@ -763,6 +1105,96 @@ impl ahk::desktop::Pointer for LabDesktop {
 }
 
 impl ahk::desktop::Screen for LabDesktop {
+    // ---- screen_scale
+    fn screen_scale(&mut self) -> Result<i64, String> {
+        // The scale is a question for the toolkit, which is the helper's, and it
+        // needs no window: the session's scale is the monitor's.
+        if self.gui.is_none() {
+            let helper = the_helper_of_the_window()?;
+            self.gui = Some(crate::gui::TheWindow::open(&helper)?);
+        }
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("the helper of the window did not start")?;
+        let answer = window.send("{\"op\": \"scale\"}")?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the session gave no scale: {answer}"))
+    }
+
+    // ---- tooltip_show
+    fn tooltip_show(&mut self, text: &str, x: i64, y: i64) -> Result<i64, String> {
+        let command = format!(
+            "{{\"op\": \"tooltip\", \"text\": {}, \"x\": {}, \"y\": {}}}",
+            quoted(text),
+            x,
+            y
+        );
+        // A tooltip needs no window of the script, so it has a helper of its own
+        // and is started the first time one is shown. Measured on the binary of
+        // v2.0.19 on 2026-11-10: showing one answers a number even with no Gui.
+        if self.tooltip.is_none() {
+            let helper = the_helper_of_the_window()?;
+            self.tooltip = Some(crate::gui::TheWindow::open(&helper)?);
+        }
+        let window = self
+            .tooltip
+            .as_mut()
+            .ok_or("the helper of the tooltip did not start")?;
+        let said = window.send(&command)?;
+        if !said.contains("\"ok\": true") {
+            return Err(format!("the tooltip was not shown: {said}"));
+        }
+        the_number_in(&said, "\"value\": ").ok_or_else(|| "the tooltip gave no number".to_string())
+    }
+
+    // ---- window_move
+    fn window_move(&mut self, x: i64, y: i64, width: i64, height: i64) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"window-move\", \"x\": {}, \"y\": {}, \"w\": {}, \"h\": {}}}",
+            x, y, width, height
+        );
+        self.the_gui_says(&command).map(|_| ())
+    }
+
+    // ---- gui_controls
+    fn gui_controls(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"controls\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_all_text
+    fn gui_all_text(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"all-text\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_opacity
+    fn gui_opacity(&mut self, setting: Option<i64>) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!("{{\"op\": \"opacity\", \"on\": {}}}", on),
+            None => "{\"op\": \"opacity\"}".to_string(),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the window of the script gave no opacity: {answer}"))
+    }
+
+    // ---- gui_paste
+    fn gui_paste(&mut self, number: u64, text: &str) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"paste\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the text was not put into the control: {answer}"))
+        }
+    }
+
     fn capture(
         &mut self,
         x: i64,
@@ -811,9 +1243,11 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         #[cfg(not(target_os = "linux"))]
         {
-            Err("the monitors of this desktop are the outputs of a Wayland compositor, and this \
+            Err(
+                "the monitors of this desktop are the outputs of a Wayland compositor, and this \
                  machine has none."
-                .to_string())
+                    .to_string(),
+            )
         }
     }
     fn primary_monitor(&mut self) -> Result<usize, String> {
@@ -826,8 +1260,9 @@ impl ahk::desktop::Screen for LabDesktop {
             self.ensure_session_env();
             let monitors = self.wayland()?.monitors()?;
             match monitors.len() {
-                0 => Err("the compositor published no monitor, so there is no primary one."
-                    .to_string()),
+                0 => Err(
+                    "the compositor published no monitor, so there is no primary one.".to_string(),
+                ),
                 1 => Ok(1),
                 count => Err(format!(
                     "the compositor published {count} monitors, and it does not say which one is \
@@ -837,9 +1272,11 @@ impl ahk::desktop::Screen for LabDesktop {
         }
         #[cfg(not(target_os = "linux"))]
         {
-            Err("the primary monitor of this desktop is one of the outputs of a Wayland \
+            Err(
+                "the primary monitor of this desktop is one of the outputs of a Wayland \
                  compositor, and this machine has none."
-                .to_string())
+                    .to_string(),
+            )
         }
     }
     fn pixel(&mut self, x: i64, y: i64) -> Result<String, String> {
@@ -875,9 +1312,294 @@ impl ahk::desktop::Screen for LabDesktop {
         let _ = std::fs::remove_file(&path);
         Ok(found.map(|(x, y)| (x + left, y + top)))
     }
+
+    // ---- gui_checked
+    fn gui_checked(&mut self, number: u64, setting: Option<bool>) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!(
+                "{{\"op\": \"checked\", \"id\": {}, \"on\": {}}}",
+                number,
+                if on { "true" } else { "false" }
+            ),
+            None => format!("{{\"op\": \"checked\", \"id\": {}}}", number),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the check box of the script gave no tick: {answer}"))
+    }
 }
 
 impl ahk::desktop::Windows for LabDesktop {
+    // ---- matching_windows
+    fn matching_windows(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        // The compositor of a Wayland session is the one that knows the
+        // windows, and the listing of them is the protocol it publishes. The
+        // X server beside it is the rootless Xwayland of gamescope, and it
+        // reports an empty client list, so there is nothing to read there.
+        if wayland_session() {
+            return self.wayland_matching(title, mode);
+        }
+        // The client list of the X server answers the matching too, since
+        // the list is parsed: a group that activates on an X11 session looks
+        // its titles up in the same list the listing family reads. Measured
+        // on the VM of the matrix on 2026-11-11, where `GroupActivate` of a
+        // group with the title of an xterm answers the id of the xterm.
+        let windows = self.x11_windows()?;
+        let mut matched = Vec::new();
+        for window in &windows {
+            if title.is_empty() || title_matches(&window.title, title, mode)? {
+                matched.push(ahk::desktop::WindowRef {
+                    id: window.id.to_string(),
+                    class: window.class.clone(),
+                });
+            }
+        }
+        Ok(matched)
+    }
+
+    // ---- window_geometry
+    fn window_geometry(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        if wayland_session() {
+            return self.wayland_geometry(title, mode);
+        }
+        // The place of a window of an X11 session is what `xwininfo` says of
+        // it. Measured on the VM of the matrix on 2026-11-11: the absolute
+        // upper-left corner and the size are the four numbers v2 answers,
+        // and the window is the one of the client list -- the active one
+        // when the question names nothing.
+        let windows = self.x11_windows()?;
+        let Some(id) = the_x_window_named(&windows, title, mode)? else {
+            return Ok(None);
+        };
+        let Some(display) = x_display() else {
+            return Err(no_window_list_reason());
+        };
+        let output = self.run(
+            &format!("DISPLAY={display} xwininfo -id {id} 2>/dev/null || true"),
+            "",
+        )?;
+        let mut x = None;
+        let mut y = None;
+        let mut width = None;
+        let mut height = None;
+        for line in output.1.lines() {
+            let line = line.trim();
+            let number = |prefix: &str| {
+                line.strip_prefix(prefix)
+                    .and_then(|rest| rest.trim().parse::<i64>().ok())
+            };
+            if let Some(value) = number("Absolute upper-left X:") {
+                x = Some(value);
+            }
+            if let Some(value) = number("Absolute upper-left Y:") {
+                y = Some(value);
+            }
+            if let Some(value) = number("Width:") {
+                width = Some(value);
+            }
+            if let Some(value) = number("Height:") {
+                height = Some(value);
+            }
+        }
+        match (x, y, width, height) {
+            (Some(x), Some(y), Some(width), Some(height)) => {
+                Ok(Some(ahk::desktop::WindowGeometry {
+                    x,
+                    y,
+                    width,
+                    height,
+                }))
+            }
+            // A window `xwininfo` does not know is a window whose place is
+            // not known: the same answer a compositor gives when it does
+            // not say the geometry.
+            _ => Ok(None),
+        }
+    }
+
+    // ---- window_min_max
+    fn window_min_max(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        if wayland_session() {
+            return self.wayland_min_max(title, mode);
+        }
+        // The state of a window of an X11 session is what the properties of
+        // the server say: `WM_STATE` says the iconic state, which is the
+        // minimized one, and `_NET_WM_STATE` carries the two atoms of the
+        // maximized state. Measured on the VM of the matrix on 2026-11-11.
+        let windows = self.x11_windows()?;
+        let Some(id) = the_x_window_named(&windows, title, mode)? else {
+            return Ok(None);
+        };
+        let Some(display) = x_display() else {
+            return Err(no_window_list_reason());
+        };
+        let output = self.run(
+            &format!("DISPLAY={display} xprop -id {id} WM_STATE _NET_WM_STATE 2>/dev/null || true"),
+            "",
+        )?;
+        let mut minimized = false;
+        let mut maximized_vert = false;
+        let mut maximized_horz = false;
+        for line in output.1.lines() {
+            let line = line.trim();
+            if line == "Iconic State" {
+                minimized = true;
+            }
+            if line.starts_with("_NET_WM_STATE(ATOM)") {
+                maximized_vert = line.contains("_NET_WM_STATE_MAXIMIZED_VERT");
+                maximized_horz = line.contains("_NET_WM_STATE_MAXIMIZED_HORZ");
+            }
+        }
+        // A window that is both is answered as maximized, the way the
+        // Wayland path answers it: the maximized window is the one the user
+        // sees.
+        if maximized_vert && maximized_horz {
+            return Ok(Some(1));
+        }
+        if minimized {
+            return Ok(Some(-1));
+        }
+        Ok(Some(0))
+    }
+
+    // ---- window_wait
+    fn window_wait(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+        timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        if wayland_session() {
+            return self.wayland_wait(title, mode, what, timeout_ms);
+        }
+        Err(
+            "this desktop waits for the windows of a Wayland session, and this session is not \
+             Wayland"
+                .to_string(),
+        )
+    }
+
+    // ---- control_text
+    fn control_text(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlAnswer, String> {
+        // The window the script made is known to the helper by the class and
+        // number of each control. A foreign window needs the accessibility bus;
+        // the script's own window does not, and asking the bus about it would
+        // invent a second route to something already in hand (round 216).
+        if self.gui_is_open() && self.gui_title_is(title) {
+            return self.own_control_text(control);
+        }
+        // `busctl` is the tool of the accessibility bus, and the bus is a thing
+        // of a Linux session.
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_text(&address, title, control)
+    }
+
+    // ---- control_visible
+    fn control_visible(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlFlag, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // Measured on the box from the header of the machine: the enum of the
+        // states starts at zero, so `ATSPI_STATE_VISIBLE` is the bit 30.
+        crate::atspi::control_flag(&address, title, control, 30)
+    }
+
+    // ---- control_enabled
+    fn control_enabled(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlFlag, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // `ATSPI_STATE_ENABLED` is the bit 8.
+        crate::atspi::control_flag(&address, title, control, 8)
+    }
+
+    // ---- control_set_text
+    fn control_set_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_set_text(&address, title, control, text)
+    }
+
+    // ---- control_click
+    fn control_click(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_click(&address, title, control)
+    }
+
+    // ---- control_focus
+    fn control_focus(
+        &mut self,
+        control: &str,
+        title: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::control_focus(&address, title, control)
+    }
+
+    // ---- control_send_text
+    fn control_send_text(
+        &mut self,
+        control: &str,
+        title: &str,
+        text: &str,
+    ) -> Result<ahk::desktop::ControlEdit, String> {
+        if self.gui_is_open() && self.gui_title_is(title) {
+            return self.own_control_send_text(control, text);
+        }
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        // The focus first, through the accessibility layer, and then the keys
+        // through the keyboard of our own: the two capabilities together.
+        match crate::atspi::control_focus(&address, title, control)? {
+            ahk::desktop::ControlEdit::Done => {}
+            other => return Ok(other),
+        }
+        ahk::desktop::Keyboard::type_text(self, text)?;
+        Ok(ahk::desktop::ControlEdit::Done)
+    }
+
+    // ---- window_pid
+    fn window_pid(&mut self, title: &str) -> Result<Option<i64>, String> {
+        box_tools_are_near()?;
+        let address = crate::atspi::address()?;
+        crate::atspi::app_pid(&address, title)
+    }
+
     fn window_active(
         &mut self,
         title: &str,
@@ -929,26 +1651,26 @@ impl ahk::desktop::Windows for LabDesktop {
             return Ok(WindowAnswer::Unknown(no_window_list_reason()));
         }
 
-        // The X server of this box is the rootless Xwayland of gamescope,
-        // and it reports an empty client list: there is no way to ask it
-        // which windows exist.
-        let listing = self.run("xprop -root _NET_CLIENT_LIST 2>/dev/null || true", "")?;
-        let windows = listing.1.trim();
-        if windows.is_empty() || windows.ends_with("window id #") {
-            return Ok(WindowAnswer::Unknown(
-                "the X server on this box reports an empty client list (it is the rootless \
-                 Xwayland of gamescope), and the compositor exposes no window list to D-Bus: a \
-                 native Wayland window cannot be found this way. Use PixelSearch to check what \
-                 is on the screen."
-                    .to_string(),
-            ));
-        }
+        // The client list of the X server is the listing of an X11 session.
+        // Measured on the VM of the matrix on 2026-11-11: i3 answers the ids
+        // of the windows of the session in `_NET_CLIENT_LIST`, and
+        // `_NET_ACTIVE_WINDOW` says which one has the focus -- so a window
+        // that is there is an answer, and a window that is not there is
+        // absent, the same two answers the compositor gives.
+        let windows = self.x11_windows()?;
         if title.is_empty() {
-            return Ok(WindowAnswer::NotActive);
+            return Ok(empty_title());
         }
-        Ok(WindowAnswer::Unknown(format!(
-            "the X server lists {windows:?}, which this runtime does not parse yet"
-        )))
+        for window in &windows {
+            if title_matches(&window.title, title, mode)? {
+                return Ok(if window.active {
+                    WindowAnswer::Active
+                } else {
+                    WindowAnswer::NotActive
+                });
+            }
+        }
+        Ok(WindowAnswer::Absent)
     }
     fn windows(&mut self) -> Result<Vec<ahk::desktop::WindowInfo>, String> {
         // The windows of the box are the ones of the compositor: the session
@@ -957,61 +1679,12 @@ impl ahk::desktop::Windows for LabDesktop {
         if wayland_session() {
             return self.wayland_windows();
         }
-        Err("the windows of this session are asked of the Wayland compositor, and this session is \
-             not one: the X11 server beside it is asked for the active window only, and not for \
-             the list of the windows."
-            .to_string())
+        // An X11 session lists its windows through the client list of the X
+        // server, and the list is parsed since 2026-11-11: before that the
+        // tree read the list and answered that it does not parse it, which
+        // the VM of the matrix showed to be a gap and not a design.
+        self.x11_windows()
     }
-    fn always_on_top(
-        &mut self,
-        _window: &ahk::desktop::WindowInfo,
-    ) -> Result<Option<bool>, String> {
-        // The compositor of a Wayland session does not publish the state of
-        // the window manager: the protocol of the foreign toplevels carries
-        // the maximized, the minimized, the activated and the fullscreen
-        // states, and not the always on top. A compositor with an interface
-        // of its own -- Hyprland, KWin, GNOME -- would answer here.
-        Ok(None)
-    }
-
-    fn set_always_on_top(
-        &mut self,
-        _window: &ahk::desktop::WindowInfo,
-        _on: bool,
-    ) -> Result<(), String> {
-        Err("the compositor of this session does not publish the state of the window manager, and this runtime cannot change it.".to_string())
-    }
-
-    fn window_enabled(
-        &mut self,
-        _window: &ahk::desktop::WindowInfo,
-    ) -> Result<Option<bool>, String> {
-        // The enabled state of a window of a Wayland session is that it is
-        // mapped and not minimized, and the compositor is the one that says
-        // it. The client of this tree reads the focus of it, and not the
-        // states.
-        Ok(None)
-    }
-
-    fn control_enabled(
-        &mut self,
-        _window: &ahk::desktop::WindowInfo,
-    ) -> Result<Option<bool>, String> {
-        // The state of a control is the state of a widget, and it needs the
-        // accessibility tree. This desktop does not read it.
-        Ok(None)
-    }
-    fn window_capabilities(&mut self) -> Vec<String> {
-        // What this desktop can really answer: the windows of the
-        // compositor and the focus of it. The state of the window manager
-        // (the always on top, the enabled) is not carried yet, and a
-        // capability that the desktop cannot answer is not listed.
-        vec![
-            "WindowList".to_string(),
-            "WindowActivate".to_string(),
-        ]
-    }
-
     fn active_window_title(&mut self) -> Result<Option<String>, String> {
         // The session of the box is Wayland, and the compositor is the one
         // that knows which window has the focus.
@@ -1054,9 +1727,590 @@ impl ahk::desktop::Windows for LabDesktop {
         }
         Ok(None)
     }
+    // ---- gui_is_open
+    fn gui_is_open(&mut self) -> bool {
+        self.gui.is_some()
+    }
+
+    // ---- gui_open
+    fn gui_open(&mut self, title: &str) -> Result<u64, String> {
+        box_tools_are_near()?;
+        // One window at a time. The helper replaces the window it holds when it
+        // is told to make another, so a second one would silently take the place
+        // of the first -- and a script that made two `Gui`s would find one
+        // window with no word about it. It fails with the reason instead, which
+        // is the rule of this tree; a window that was taken away frees the place
+        // again, so `Destroy` and then a new `Gui` works.
+        if self.gui.is_some() {
+            return Err(
+                "this desktop makes one window at a time, and a window of the script is \
+                 already there."
+                    .to_string(),
+            );
+        }
+        let helper = the_helper_of_the_window()?;
+        self.gui = Some(crate::gui::TheWindow::open(&helper)?);
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("the helper of the window did not start")?;
+        let answer = window.send(&format!(
+            "{{\"op\": \"window\", \"title\": {}}}",
+            quoted(title)
+        ))?;
+        if !answer.contains("\"ok\": true") {
+            return Err(format!("the window of the script was not made: {answer}"));
+        }
+        // The events of that window go where `gui_events` will look for them.
+        let watch = format!(
+            "{{\"op\": \"watch\", \"path\": {}}}",
+            quoted(&the_events_of_the_window().to_string_lossy())
+        );
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("the helper of the window did not start")?;
+        let _ = window.send(&watch);
+        Ok(1)
+    }
+
+    // ---- gui_add
+    fn gui_add(&mut self, _handle: u64, kind: &str, text: &str) -> Result<(u64, String), String> {
+        let window = self
+            .gui
+            .as_mut()
+            .ok_or("there is no window of the script")?;
+        let answer = window.send(&format!(
+            "{{\"op\": \"add\", \"kind\": {}, \"text\": {}}}",
+            quoted(kind),
+            quoted(text)
+        ))?;
+        let id = the_number_in(&answer, "\"id\": ")
+            .ok_or_else(|| format!("the control was not added: {answer}"))?;
+        let classnn = the_text_in(&answer, "\"classnn\": ")
+            .ok_or_else(|| format!("the control was not added: {answer}"))?;
+        Ok((id as u64, classnn))
+    }
+
+    // ---- gui_combo_items
+    fn gui_combo_items(&mut self, number: u64) -> Result<String, String> {
+        let said =
+            self.the_gui_says(&format!("{{\"op\": \"combo-items\", \"id\": {}}}", number))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_combo_add
+    fn gui_combo_add(&mut self, number: u64, text: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-add\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the item was not added: {said}"))
+        }
+    }
+
+    // ---- gui_combo_select
+    fn gui_combo_select(
+        &mut self,
+        number: u64,
+        wanted: &str,
+        by_text: bool,
+    ) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-select\", \"id\": {}, \"wanted\": {}, \"by_text\": {}}}",
+            number,
+            quoted(wanted),
+            by_text
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the item was not chosen: {said}"))
+    }
+
+    // ---- gui_combo_choice
+    fn gui_combo_choice(&mut self, number: u64) -> Result<(i64, String), String> {
+        let said =
+            self.the_gui_says(&format!("{{\"op\": \"combo-choice\", \"id\": {}}}", number))?;
+        let index = the_number_in(&said, "\"index\": ").unwrap_or(0);
+        let text = the_text_in(&said, "\"text\": ").unwrap_or_default();
+        Ok((index, text))
+    }
+
+    // ---- gui_combo_delete
+    fn gui_combo_delete(&mut self, number: u64, index: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-delete\", \"id\": {}, \"wanted\": {}}}",
+            number,
+            quoted(index)
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the item was not removed: {said}"))
+        }
+    }
+
+    // ---- gui_combo_find
+    fn gui_combo_find(&mut self, number: u64, text: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-find\", \"id\": {}, \"text\": {}}}",
+            number,
+            quoted(text)
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not found: {said}"))
+    }
+
+    // ---- gui_combo_dropdown
+    fn gui_combo_dropdown(&mut self, number: u64, show: bool) -> Result<(), String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"combo-dropdown\", \"id\": {}, \"show\": {}}}",
+            number, show
+        ))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the pop-up was not changed: {said}"))
+        }
+    }
+
+    // ---- gui_status_text
+    fn gui_status_text(&mut self) -> Result<String, String> {
+        let said = self.the_gui_says("{\"op\": \"status-text\"}")?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_list_add
+    fn gui_list_add(&mut self, number: u64, cells: &[String]) -> Result<i64, String> {
+        let list = cells
+            .iter()
+            .map(|cell| quoted(cell))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-add\", \"id\": {}, \"cells\": [{}]}}",
+            number, list
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the row was not added: {said}"))
+    }
+
+    // ---- gui_list_count
+    fn gui_list_count(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!("{{\"op\": \"list-count\", \"id\": {}}}", number))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the rows were not counted: {said}"))
+    }
+
+    // ---- gui_list_text
+    fn gui_list_text(&mut self, number: u64, row: i64, col: i64) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-text\", \"id\": {}, \"row\": {}, \"col\": {}}}",
+            number, row, col
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_list_content
+    fn gui_list_content(&mut self, number: u64, selected: bool) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-content\", \"id\": {}, \"selected\": {}}}",
+            number, selected
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_list_modify
+    fn gui_list_modify(&mut self, number: u64, row: i64, cells: &[String]) -> Result<i64, String> {
+        let list = cells
+            .iter()
+            .map(|cell| quoted(cell))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-modify\", \"id\": {}, \"row\": {}, \"cells\": [{}]}}",
+            number, row, list
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the row was not changed: {said}"))
+    }
+
+    // ---- gui_list_next
+    fn gui_list_next(&mut self, number: u64, start: i64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"list-next\", \"id\": {}, \"start\": {}}}",
+            number, start
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the next row was not read: {said}"))
+    }
+
+    // ---- gui_tree_add
+    fn gui_tree_add(
+        &mut self,
+        number: u64,
+        text: &str,
+        parent: i64,
+        options: &str,
+    ) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-add\", \"id\": {}, \"text\": {}, \"parent\": {}, \"options\": {}}}",
+            number,
+            quoted(text),
+            parent,
+            quoted(options)
+        ))?;
+        the_number_in(&said, "\"value\": ").ok_or_else(|| format!("the item was not added: {said}"))
+    }
+
+    // ---- gui_tree_count
+    fn gui_tree_count(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!("{{\"op\": \"tree-count\", \"id\": {}}}", number))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the items were not counted: {said}"))
+    }
+
+    // ---- gui_tree_text
+    fn gui_tree_text(&mut self, number: u64, item: i64) -> Result<String, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-text\", \"id\": {}, \"item\": {}}}",
+            number, item
+        ))?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_tree_relation
+    fn gui_tree_relation(&mut self, number: u64, item: i64, relation: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-relation\", \"id\": {}, \"item\": {}, \"relation\": {}}}",
+            number,
+            item,
+            quoted(relation)
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the tree was not walked: {said}"))
+    }
+
+    // ---- gui_tree_selection
+    fn gui_tree_selection(&mut self, number: u64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-selection\", \"id\": {}}}",
+            number
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the selection was not read: {said}"))
+    }
+
+    // ---- gui_tree_modify
+    fn gui_tree_modify(&mut self, number: u64, item: i64, options: &str) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-modify\", \"id\": {}, \"item\": {}, \"options\": {}}}",
+            number,
+            item,
+            quoted(options)
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the item was not changed: {said}"))
+    }
+
+    // ---- gui_tree_delete
+    fn gui_tree_delete(&mut self, number: u64, item: i64) -> Result<i64, String> {
+        let said = self.the_gui_says(&format!(
+            "{{\"op\": \"tree-delete\", \"id\": {}, \"item\": {}}}",
+            number, item
+        ))?;
+        the_number_in(&said, "\"value\": ")
+            .ok_or_else(|| format!("the item was not deleted: {said}"))
+    }
+
+    // ---- gui_second_value
+    fn gui_second_value(&mut self, number: u64, setting: Option<&str>) -> Result<String, String> {
+        let command = match setting {
+            Some(text) => format!(
+                "{{\"op\": \"second-value\", \"id\": {}, \"text\": {}}}",
+                number,
+                quoted(text)
+            ),
+            None => format!("{{\"op\": \"second-value\", \"id\": {}}}", number),
+        };
+        let said = self.the_gui_says(&command)?;
+        Ok(the_text_in(&said, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_control_pos
+    fn gui_control_pos(&mut self, number: u64) -> Result<(i64, i64, i64, i64), String> {
+        let said =
+            self.the_gui_says(&format!("{{\"op\": \"control-pos\", \"id\": {}}}", number))?;
+        let get = |name: &str| {
+            the_number_in(&said, name)
+                .ok_or_else(|| format!("the place of the control was not read: {said}"))
+        };
+        Ok((
+            get("\"x\": ")?,
+            get("\"y\": ")?,
+            get("\"w\": ")?,
+            get("\"h\": ")?,
+        ))
+    }
+
+    // ---- gui_menu_bar
+    fn gui_menu_bar(&mut self, json: &str) -> Result<(), String> {
+        let said = self.the_gui_says(&format!("{{\"op\": \"menu-bar\", \"items\": {}}}", json))?;
+        if said.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the menu bar was not shown: {said}"))
+        }
+    }
+
+    // ---- gui_caret
+    fn gui_caret(&mut self) -> Result<Option<(i64, i64)>, String> {
+        let said = self.the_gui_says("{\"op\": \"caret\"}")?;
+        // "value": null is no caret; "value": [x, y] is the place of it.
+        if said.contains("\"value\": null") {
+            return Ok(None);
+        }
+        let get = |name: &str| {
+            the_number_in(&said, name)
+                .ok_or_else(|| format!("the place of the caret was not read: {said}"))
+        };
+        Ok(Some((get("\"x\": ")?, get("\"y\": ")?)))
+    }
+
+    // ---- gui_show
+    fn gui_show(&mut self, _handle: u64) -> Result<(), String> {
+        self.the_gui_says("{\"op\": \"show\"}").map(|_| ())
+    }
+
+    // ---- gui_destroy
+    fn gui_destroy(&mut self, _handle: u64) -> Result<(), String> {
+        self.the_gui_says("{\"op\": \"destroy\"}").map(|_| ())?;
+        // The helper goes with the window: it has nothing left to hold, and
+        // letting it go frees the one place a window of the script can have.
+        self.gui = None;
+        Ok(())
+    }
+
+    // ---- gui_value
+    fn gui_value(&mut self, number: u64, setting: Option<&str>) -> Result<String, String> {
+        let command = match setting {
+            Some(text) => format!(
+                "{{\"op\": \"value\", \"id\": {}, \"text\": {}}}",
+                number,
+                quoted(text)
+            ),
+            None => format!("{{\"op\": \"value\", \"id\": {}}}", number),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_text_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no value: {answer}"))
+    }
+
+    // ---- gui_flag
+    fn gui_flag(&mut self, number: u64, name: &str, setting: Option<bool>) -> Result<i64, String> {
+        let command = match setting {
+            Some(on) => format!(
+                "{{\"op\": \"flag\", \"id\": {}, \"name\": {}, \"on\": {}}}",
+                number,
+                quoted(name),
+                if on { "true" } else { "false" }
+            ),
+            None => format!(
+                "{{\"op\": \"flag\", \"id\": {}, \"name\": {}}}",
+                number,
+                quoted(name)
+            ),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no flag: {answer}"))
+    }
+
+    // ---- gui_control_state
+    fn gui_control_state(&mut self, classnn: &str, what: &str, on: bool) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"state\", \"classnn\": {}, \"what\": {}, \"on\": {}}}",
+            quoted(classnn),
+            quoted(what),
+            if on { "true" } else { "false" }
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the state of the control was not set: {answer}"))
+        }
+    }
+
+    // ---- gui_visibility
+    fn gui_visibility(&mut self, classnn: &str, on: bool) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"visibility\", \"classnn\": {}, \"on\": {}}}",
+            quoted(classnn),
+            if on { "true" } else { "false" }
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the control was not shown or hidden: {answer}"))
+        }
+    }
+
+    // ---- gui_number_named
+    fn gui_number_named(&mut self, classnn: &str) -> Result<i64, String> {
+        let command = format!("{{\"op\": \"resolve\", \"classnn\": {}}}", quoted(classnn));
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the window of the script has no control named {classnn}"))
+    }
+
+    // ---- gui_focused
+    fn gui_focused(&mut self) -> Result<String, String> {
+        let answer = self.the_gui_says("{\"op\": \"focused\"}")?;
+        Ok(the_text_in(&answer, "\"value\": ").unwrap_or_default())
+    }
+
+    // ---- gui_selection
+    fn gui_selection(&mut self, number: u64) -> Result<String, String> {
+        let command = format!("{{\"op\": \"selection\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        the_text_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no selection: {answer}"))
+    }
+
+    // ---- gui_cursor
+    fn gui_cursor(&mut self, number: u64) -> Result<i64, String> {
+        let command = format!("{{\"op\": \"cursor\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no cursor: {answer}"))
+    }
+
+    // ---- gui_line_count
+    fn gui_line_count(&mut self, number: u64) -> Result<i64, String> {
+        let command = format!("{{\"op\": \"lines\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        the_number_in(&answer, "\"value\": ")
+            .ok_or_else(|| format!("the control of the script gave no line count: {answer}"))
+    }
+
+    // ---- gui_option
+    fn gui_option(&mut self, name: &str, on: bool) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"option\", \"name\": {}, \"on\": {}}}",
+            quoted(name),
+            if on { "true" } else { "false" }
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!(
+                "the option {name} of the window was not set: {answer}"
+            ))
+        }
+    }
+
+    // ---- gui_hide
+    fn gui_hide(&mut self) -> Result<(), String> {
+        let answer = self.the_gui_says("{\"op\": \"hide\"}")?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the window of the script was not hidden: {answer}"))
+        }
+    }
+
+    // ---- gui_focus
+    fn gui_focus(&mut self, number: u64) -> Result<(), String> {
+        let command = format!("{{\"op\": \"focus\", \"id\": {}}}", number);
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the focus did not move to the control: {answer}"))
+        }
+    }
+
+    // ---- gui_size
+    fn gui_size(&mut self, number: u64, width: i64, height: i64) -> Result<(), String> {
+        let command = format!(
+            "{{\"op\": \"size\", \"id\": {}, \"w\": {}, \"h\": {}}}",
+            number, width, height
+        );
+        let answer = self.the_gui_says(&command)?;
+        if answer.contains("\"ok\": true") {
+            Ok(())
+        } else {
+            Err(format!("the control of the script was not sized: {answer}"))
+        }
+    }
+
+    // ---- gui_events
+    fn gui_events(&mut self) -> Result<Vec<String>, String> {
+        // The file the helper was told to write to. Its name is derived from the
+        // process, so that two runners on one machine do not read each other's
+        // events, and nothing has to be kept: both ends compute it.
+        let path = the_events_of_the_window();
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            // No file is no events, and that is the common case.
+            Err(_) => return Ok(Vec::new()),
+        };
+        // Taken and cleared: what was read is not read again.
+        let _ = std::fs::write(&path, "");
+        Ok(text
+            .lines()
+            .map(str::to_string)
+            .filter(|line| !line.is_empty())
+            .collect())
+    }
+
+    // ---- gui_title
+    fn gui_title(&mut self, _handle: u64, setting: Option<&str>) -> Result<String, String> {
+        let command = match setting {
+            Some(title) => format!("{{\"op\": \"title\", \"set\": {}}}", quoted(title)),
+            None => "{\"op\": \"title\"}".to_string(),
+        };
+        let answer = self.the_gui_says(&command)?;
+        the_text_in(&answer, "\"title\": ")
+            .ok_or_else(|| format!("the window of the script gave no title: {answer}"))
+    }
 }
 
 impl ahk::desktop::Sound for LabDesktop {
+    fn sound_device_named(&mut self, device: &str) -> Result<Option<String>, String> {
+        for kind in ["sinks", "sources"] {
+            let listing = self.pactl(&["list", kind])?;
+            // The description of a device comes after its name.
+            let mut matched = false;
+            for line in listing.lines() {
+                let Some((key, value)) = line.split_once(':') else {
+                    continue;
+                };
+                match key.trim() {
+                    "Name" => matched = value.trim() == device,
+                    "Description" if matched => {
+                        return Ok(Some(value.trim().to_string()));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    fn sound_device_names(&mut self) -> Result<(String, String), String> {
+        // The mixer of the session knows the device that plays and the one
+        // that records, and the name it publishes for them is the long one
+        // -- "Radeon High Definition Audio Controller Digital Stereo (HDMI)"
+        // -- the way v2 names the device of Windows.
+        let plays = self.the_description_of("sinks", "get-default-sink")?;
+        let records = self.the_description_of("sources", "get-default-source")?;
+        Ok((plays, records))
+    }
     fn sound_volume(&mut self, device: &str) -> Result<f64, String> {
         let sink = self.sink(device)?;
         let output = self.pactl(&["get-sink-volume", &sink])?;
@@ -1118,127 +2372,6 @@ impl ahk::desktop::Sound for LabDesktop {
 }
 
 impl ahk::desktop::Processes for LabDesktop {
-    fn the_state_of_a_process(
-        &mut self,
-        pid: u32,
-    ) -> Result<Option<ahk::desktop::ProcessState>, String> {
-        // A child this desktop waited for has exited: the wait saw the
-        // code, and the moment of the wait is the moment of the exit.
-        if let Some((code, millis)) = self.waited_children.get(&pid) {
-            return Ok(Some(ahk::desktop::ProcessState {
-                has_exited: true,
-                exit_code: Some(*code),
-                exit_time: Some(ahk::date::the_local_text_of(*millis)),
-            }));
-        }
-        // A process that is not ours is the machine's to tell of, and
-        // the machine is asked: the procfs on Linux, and the kernel of
-        // the Windows on Windows.
-        #[cfg(target_os = "linux")]
-        {
-            Ok(Some(match crate::process::the_state_of(pid) {
-                Some(state) => ahk::desktop::ProcessState {
-                    has_exited: state.has_exited,
-                    exit_code: state.exit_code,
-                    // The kernel does not keep the moment of the exit of
-                    // a process that is not ours, and the tree does not
-                    // invent one.
-                    exit_time: None,
-                },
-                // The process is not there: it is over, and the code of
-                // the exit is the knowledge of its parent -- ours is not
-                // it.
-                None => ahk::desktop::ProcessState {
-                    has_exited: true,
-                    exit_code: None,
-                    exit_time: None,
-                },
-            }))
-        }
-        #[cfg(windows)]
-        {
-            Ok(crate::process::the_state_of_a_process_on_windows(pid))
-        }
-        #[cfg(not(any(target_os = "linux", windows)))]
-        Err("the state of a process is the machine's, and this desktop cannot ask it.".to_string())
-    }
-
-    fn launch_with_stdin(
-        &mut self,
-        program: &str,
-        arguments: &[String],
-        standard_input: &str,
-        working_dir: &str,
-    ) -> Result<u32, String> {
-        // The runner of the tree reads its script on the standard input,
-        // so the program is started with a pipe there, the script is
-        // written into it and the pipe is closed: the child reads to the
-        // end and runs. The child is left to the machine, the way the
-        // launch above leaves it.
-        use std::io::Write as _;
-        let mut command = std::process::Command::new(program);
-        command.args(arguments);
-        command.stdin(std::process::Stdio::piped());
-        command.stdout(std::process::Stdio::null());
-        command.stderr(std::process::Stdio::null());
-        if !working_dir.is_empty() {
-            command.current_dir(working_dir);
-        }
-        let mut child = command
-            .spawn()
-            .map_err(|error| format!("the program could not be started: {error}"))?;
-        let pid = child.id();
-        if let Some(mut input) = child.stdin.take() {
-            let _ = input.write_all(standard_input.as_bytes());
-        }
-        Ok(pid)
-    }
-
-    fn run_with_stdin(
-        &mut self,
-        program: &str,
-        arguments: &[String],
-        standard_input: &str,
-        working_dir: &str,
-    ) -> Result<(u32, i32, String, String), String> {
-        // The same start as the launch, and then the wait: what the child
-        // wrote is captured, because the report of the runner is on its
-        // standard output and nobody else is going to read it.
-        use std::io::Write as _;
-        let mut command = std::process::Command::new(program);
-        command.args(arguments);
-        command.stdin(std::process::Stdio::piped());
-        command.stdout(std::process::Stdio::piped());
-        command.stderr(std::process::Stdio::piped());
-        if !working_dir.is_empty() {
-            command.current_dir(working_dir);
-        }
-        let mut child = command
-            .spawn()
-            .map_err(|error| format!("the program could not be started: {error}"))?;
-        let pid = child.id();
-        if let Some(mut input) = child.stdin.take() {
-            let _ = input.write_all(standard_input.as_bytes());
-        }
-        let output = child
-            .wait_with_output()
-            .map_err(|error| format!("the program could not be waited for: {error}"))?;
-        let code = output.status.code().unwrap_or(-1);
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        // The wait saw the exit: the state of this child is known from
-        // here on, and the ScriptProcess of its pid answers from it. The
-        // moment of the wait is the moment of the exit -- the kernel does
-        // not keep the moment of the exit of a process that is not ours,
-        // and the tree does not invent one.
-        let millis = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|since| since.as_millis() as i64)
-            .unwrap_or(0);
-        self.waited_children.insert(pid, (code, millis));
-        Ok((pid, code, stdout, stderr))
-
-    }
     fn env_get(&mut self, name: &str) -> Result<Option<String>, String> {
         // Measured on the binary of AutoHotkey v1.1.37.02 on 2026-11-05: the
         // warning of the environment is given when the variable is there, and
@@ -1374,39 +2507,390 @@ fn the_program(command: &str, working_dir: &str) -> Command {
     program
 }
 
+/// The filesystem of the longest mount point that a path is under.
+///
+/// The table of the mounts of the machine is `/proc/self/mounts`, and the drive
+/// of a path is the longest mount point it is under: a path under `/home` is in
+/// the filesystem of `/home` and not in the one of `/`.
+fn the_filesystem_of(path: &str) -> Option<String> {
+    let table = std::fs::read_to_string("/proc/self/mounts").ok()?;
+    let mut best: Option<(usize, String)> = None;
+    for line in table.lines() {
+        let mut fields = line.split_whitespace();
+        let (_device, mount, filesystem) = (fields.next()?, fields.next()?, fields.next()?);
+        let under = path == mount
+            || (mount == "/" && path.starts_with('/'))
+            || (path.starts_with(mount) && path.as_bytes().get(mount.len()) == Some(&b'/'));
+        if !under {
+            continue;
+        }
+        let beaten = match &best {
+            None => true,
+            Some((length, _)) => mount.len() >= *length,
+        };
+        if beaten {
+            best = Some((mount.len(), filesystem.to_string()));
+        }
+    }
+    best.map(|(_, filesystem)| filesystem)
+}
+
+/// The device node that a path is on, from the first column of `df`.
+///
+/// A filesystem without a device behind it -- `overlay`, a `tmpfs` -- is not
+/// a drive a script can hold, and the answer is none.
+fn the_device_of(path: &str) -> Option<String> {
+    let output = Command::new("df").arg("-P").arg(path).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let source = text.lines().nth(1)?.split_whitespace().next()?.to_string();
+    if source == "overlay" || source.starts_with("tmpfs") {
+        return None;
+    }
+    Some(source)
+}
+
+/// The kind of a drive, in the word of v2, from the filesystem of it.
+///
+/// The words are the ones of v2. The mapping is the honest one for a Linux
+/// box: a network filesystem is a `Network` drive, an image of a disc is a
+/// `CDROM`, a memory filesystem is a `RAMDisk`, and everything else on the
+/// machine is `Fixed`.
+fn the_kind_of(filesystem: &str) -> String {
+    match filesystem {
+        "nfs" | "nfs4" | "cifs" | "smb3" | "sshfs" | "9p" | "afs" => "Network",
+        "iso9660" | "udf" => "CDROM",
+        "tmpfs" | "ramfs" | "devtmpfs" => "RAMDisk",
+        _ => "Fixed",
+    }
+    .to_string()
+}
+
 impl ahk::desktop::Machine for LabDesktop {
-    fn the_current_thread_id(&mut self) -> Result<i64, String> {
-        // The kernel names the thread that asks in the link of the
-        // procfs: the target of /proc/thread-self is the number of the
-        // thread. A machine that is not Linux has no such link, and the
-        // answer is a failure with the reason.
+    fn tray_set_icon(&mut self, _name: &str) -> Result<(), String> {
         #[cfg(target_os = "linux")]
         {
-            let id = std::fs::read_link("/proc/thread-self")
-                .ok()
-                .and_then(|path| {
-                    path.file_name()
-                        .and_then(|name| name.to_str())
-                        .map(|text| text.to_string())
-                })
-                .and_then(|text| text.parse::<i64>().ok());
-            if let Some(id) = id {
-                return Ok(id);
-            }
+            self.tray_set_icon(_name)
         }
-        #[cfg(windows)]
+        #[cfg(not(target_os = "linux"))]
         {
-            // The thread of the Windows names itself through the library
-            // of the machine, the way every Windows answer of this tree
-            // asks it.
-            unsafe extern "system" {
-                fn GetCurrentThreadId() -> u32;
-            }
-            return Ok(unsafe { GetCurrentThreadId() } as i64);
+            Err("the tray of the session is a thing of the session of the box.".to_string())
         }
-        #[cfg_attr(windows, allow(unreachable_code))]
-        Err("this desktop cannot say the thread it runs on".to_string())
+    }
 
+    fn windows_directory(&mut self) -> Result<String, String> {
+        #[cfg(target_os = "linux")]
+        {
+            self.windows_directory()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            // The machine is a Windows of its own, and it says where its
+            // system is.
+            std::env::var("SystemRoot").map_err(|error| error.to_string())
+        }
+    }
+    fn program_files(&mut self) -> Result<String, String> {
+        #[cfg(target_os = "linux")]
+        {
+            self.program_files()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            // The machine is a Windows of its own, and it says where the
+            // programs of the user are.
+            std::env::var("ProgramFiles").map_err(|error| error.to_string())
+        }
+    }
+
+    fn registry_create_key(&mut self, key: &str) -> Result<(), String> {
+        crate::registry::create_key(key)
+    }
+
+    fn registry_delete_key(&mut self, key: &str) -> Result<(), String> {
+        crate::registry::delete_key(key)
+    }
+
+    fn registry_delete(&mut self, key: &str, name: &str) -> Result<(), String> {
+        crate::registry::delete(key, name)
+    }
+
+    fn registry_write(
+        &mut self,
+        key: &str,
+        name: &str,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        crate::registry::write(key, name, kind, value)
+    }
+
+    fn registry_value(
+        &mut self,
+        key: &str,
+        name: &str,
+    ) -> Result<Option<(String, String)>, String> {
+        crate::registry::value_of(key, name)
+    }
+    fn drive_set_label(&mut self, path: &str, label: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let device = match the_device_of(path) {
+            Some(device) => device,
+            None => return Err(format!("the drive of {path} is not there")),
+        };
+        // The tool that writes a label is the filesystem's: ext* carries
+        // e2label, the FAT family carries mlabel, and ntfs carries ntfslabel.
+        let filesystem = the_filesystem_of(path).unwrap_or_default();
+        let mut command = match filesystem.as_str() {
+            fs if fs.starts_with("ext") => {
+                let mut command = Command::new("e2label");
+                command.arg(&device).arg(label);
+                command
+            }
+            "vfat" | "msdos" | "fat" => {
+                let mut command = Command::new("mlabel");
+                command.arg("-i").arg(&device).arg(format!("::{label}"));
+                command
+            }
+            "ntfs" => {
+                let mut command = Command::new("ntfslabel");
+                command.arg(&device).arg(label);
+                command
+            }
+            other => {
+                return Err(format!(
+                    "the filesystem {other} of {path} has no label tool on this box"
+                ));
+            }
+        };
+        let output = command.output().map_err(|error| error.to_string())?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "the label of {path} was not written: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ))
+        }
+    }
+    fn drive_retract(&mut self, path: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let device = the_device_of(path).unwrap_or_else(|| path.to_string());
+        let output = Command::new("udisksctl")
+            .args(["power-off", "-b", &device])
+            .output();
+        match output {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => Err(format!(
+                "the drive of {path} was not spun down: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    fn drive_unlock(&mut self, path: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let device = the_device_of(path).unwrap_or_else(|| path.to_string());
+        let output = Command::new("udisksctl")
+            .args(["unlock", "-b", &device])
+            .output();
+        match output {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => Err(format!(
+                "the drive of {path} was not unlocked: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    fn drive_lock(&mut self, path: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let device = the_device_of(path).unwrap_or_else(|| path.to_string());
+        let output = Command::new("udisksctl")
+            .args(["lock", "-b", &device])
+            .output();
+        match output {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => Err(format!(
+                "the drive of {path} was not locked: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    fn drive_eject(&mut self, path: &str) -> Result<(), String> {
+        box_tools_are_near()?;
+        let output = Command::new("eject").arg(path).output();
+        match output {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => Err(format!(
+                "the drive of {path} was not ejected: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    fn drive_status_cd(&mut self, path: &str) -> Result<Option<String>, String> {
+        let device = match the_device_of(path) {
+            Some(device) => device,
+            None => return Ok(None),
+        };
+        let output = Command::new("lsblk")
+            .args(["-no", "TYPE", &device])
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Ok(None);
+        }
+        let kind = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if kind != "rom" {
+            return Ok(None);
+        }
+        // A reader with no medium in it is open; one that cannot be asked is
+        // not ready. Neither state is measured on the binary: this box has no
+        // reader, so the answer for one that IS a reader is the honest one.
+        Ok(Some("not ready".to_string()))
+    }
+    fn drive_list(&mut self) -> Result<Vec<String>, String> {
+        box_tools_are_near()?;
+        // `-d` asks about the drives alone and not their partitions, and `-e 7`
+        // leaves the loop and ram devices out: the drives of the machine are
+        // the ones a script can hold and unmount.
+        let output = Command::new("lsblk")
+            .args(["-dno", "NAME", "-e", "7"])
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Err("the machine did not list its drives".to_string());
+        }
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::to_string)
+            .filter(|name| !name.is_empty())
+            .collect())
+    }
+    fn drive_serial(&mut self, path: &str) -> Result<Option<String>, String> {
+        let device = match the_device_of(path) {
+            Some(device) => device,
+            // A present drive without a device behind it carries no serial
+            // the box can read: the drive is there, the serial is empty.
+            None => {
+                return Ok(if std::path::Path::new(path).exists() {
+                    Some(String::new())
+                } else {
+                    None
+                });
+            }
+        };
+        // The serial lives on the DISK, and a path usually names a partition
+        // of it: walk up to the parent device when the partition says none.
+        let mut device = device;
+        for _ in 0..2 {
+            let output = Command::new("lsblk")
+                .args(["-no", "SERIAL", &device])
+                .output()
+                .map_err(|error| error.to_string())?;
+            if output.status.success() {
+                let serial = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !serial.is_empty() {
+                    return Ok(Some(serial));
+                }
+            } else if std::path::Path::new(path).exists() {
+                // A source that lsblk cannot read -- a zfs dataset -- is a
+                // drive that is THERE, and one that carries no serial.
+                return Ok(Some(String::new()));
+            }
+            let parent = Command::new("lsblk")
+                .args(["-no", "PKNAME", &device])
+                .output()
+                .map_err(|error| error.to_string())?;
+            if !parent.status.success() {
+                break;
+            }
+            let name = String::from_utf8_lossy(&parent.stdout).trim().to_string();
+            if name.is_empty() {
+                break;
+            }
+            device = format!("/dev/{name}");
+        }
+        Ok(None)
+    }
+    fn drive_label(&mut self, path: &str) -> Result<Option<String>, String> {
+        match the_device_of(path) {
+            Some(device) => {
+                let output = Command::new("lsblk")
+                    .args(["-no", "LABEL", &device])
+                    .output()
+                    .map_err(|error| error.to_string())?;
+                if !output.status.success() {
+                    // A source that lsblk cannot read -- a zfs dataset is the
+                    // root of this box -- is a drive that is THERE and that
+                    // carries no label the box can ask for.
+                    return Ok(if std::path::Path::new(path).exists() {
+                        Some(String::new())
+                    } else {
+                        None
+                    });
+                }
+                Ok(Some(
+                    String::from_utf8_lossy(&output.stdout).trim().to_string(),
+                ))
+            }
+            // A filesystem without a device behind it -- a zfs dataset is the
+            // root of this box -- is a drive that is THERE, and one that
+            // carries no label. Measured on the binary of v2.0.19 on
+            // 2026-11-10: a present drive answers its label, empty when it
+            // has none; only a drive that is not there throws.
+            None => Ok(if std::path::Path::new(path).exists() {
+                Some(String::new())
+            } else {
+                None
+            }),
+        }
+    }
+    fn drive_space(&mut self, path: &str) -> Result<Option<ahk::desktop::DriveSpace>, String> {
+        box_tools_are_near()?;
+        // The drive of a path is the filesystem that the path is on, and `df`
+        // is the tool that says it. `-P` is the POSIX form, which is one line
+        // per drive and a fixed order of the columns, and `-k` counts the
+        // blocks in a thousand bytes, which is the unit the answer is in.
+        let output = Command::new("df")
+            .arg("-Pk")
+            .arg(path)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            // A path whose drive cannot be read is a drive that is not there:
+            // the command that asked decides what that means, because v2 does
+            // not answer the same thing for every one of them.
+            return Ok(None);
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let fields: Vec<&str> = text
+            .lines()
+            .nth(1)
+            .unwrap_or_default()
+            .split_whitespace()
+            .collect();
+        if fields.len() < 4 {
+            return Err(format!("the machine did not describe the drive of {path}"));
+        }
+        let blocks: i64 = fields[1].parse().unwrap_or(0);
+        let available: i64 = fields[3].parse().unwrap_or(0);
+        let filesystem = the_filesystem_of(path).unwrap_or_default();
+        let kind = if filesystem.is_empty() {
+            String::new()
+        } else {
+            the_kind_of(&filesystem)
+        };
+        Ok(Some(ahk::desktop::DriveSpace {
+            free: available / 1024,
+            capacity: blocks / 1024,
+            filesystem,
+            kind,
+        }))
     }
     fn executable(&mut self) -> Result<String, String> {
         crate::machine::executable()
@@ -1435,9 +2919,6 @@ impl ahk::desktop::Machine for LabDesktop {
     fn idle_times(&mut self) -> Result<Idle, String> {
         crate::machine::idle_times()
     }
-    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
-        crate::network::ip_addresses()
-    }
     fn output_debug(&mut self, text: &str) -> Result<(), String> {
         // The debugger of the machine is the standard error of the process:
         // the report of the runner is the standard output, and it is not
@@ -1447,12 +2928,6 @@ impl ahk::desktop::Machine for LabDesktop {
     }
     fn drive(&mut self, path: &str) -> Result<Option<ahk::desktop::Drive>, String> {
         crate::drives::drive(path)
-    }
-    fn drive_type(&mut self, path: &str) -> Result<Option<String>, String> {
-        crate::drives::drive_type(path)
-    }
-    fn drive_status(&mut self, path: &str) -> Result<Option<String>, String> {
-        crate::drives::drive_status(path)
     }
 }
 
@@ -1471,16 +2946,51 @@ impl ahk::desktop::Network for LabDesktop {
         crate::network::download(url, file)
     }
 
-    fn send_mail(&mut self, message: &ahk::desktop::MailMessage) -> Result<(), String> {
-        // The mail goes through the curl of the machine, the way the
-        // download does: the message is the dialect's, and the sending
-        // is the box's.
-        crate::network::send_mail(message)
+    fn ip_addresses(&mut self) -> Result<Vec<String>, String> {
+        crate::network::ip_addresses()
     }
-
 }
 
 impl ahk::desktop::Dialogs for LabDesktop {
+    fn notify(&mut self, title: &str, text: &str) -> Result<(), String> {
+        // The tool is `notify-send`, which is a tool of a Linux desktop. A
+        // host that has none of them says so, and does not let the shell
+        // answer "not found": the failure of the desktop is the failure the
+        // script sees.
+        box_tools_are_near()?;
+        // A notification of the session is what a `TrayTip` is on a Linux
+        // desktop: the same words, to the same person, in the corner of the
+        // same screen. The timeout is left to the session, which knows how
+        // long its own notifications stay.
+        let mut args: Vec<String> = Vec::new();
+        if !title.is_empty() {
+            args.push(format!("--app-name={title}"));
+        }
+        if !text.is_empty() {
+            args.push(text.to_string());
+        }
+        let command = format!(
+            "notify-send {}",
+            args.iter()
+                .map(|argument| shell_quote(argument))
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            let reason = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(if reason.is_empty() {
+                "the notification could not be shown: notify-send failed".to_string()
+            } else {
+                format!("the notification could not be shown: {reason}")
+            });
+        }
+        Ok(())
+    }
     fn input_box(
         &mut self,
         prompt: &str,
@@ -1864,6 +3374,168 @@ fn no_window_list_reason() -> String {
 /// question, and the answers arrive on the same connection.
 #[cfg(target_os = "linux")]
 impl LabDesktop {
+    // ---- wayland_matching
+    /// The windows whose title matches, by Wayland.
+    ///
+    /// The listing carries the identifier of a window and its application id,
+    /// and those are the id and the class that the `WinGet*` commands read.
+    #[cfg(target_os = "linux")]
+    fn wayland_matching(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        let windows = self.wayland()?.windows()?;
+        let mut matched = Vec::new();
+        for window in &windows {
+            // The empty title is every window: measured on the binary of
+            // v2.0.19 on 2026-11-09, `WinGetList()` answered the whole list.
+            if !title.is_empty() && !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            matched.push(ahk::desktop::WindowRef {
+                id: window.identifier.clone().unwrap_or_default(),
+                class: window.app_id.clone(),
+            });
+        }
+        Ok(matched)
+    }
+
+    // ---- wayland_geometry
+    /// Where the window is and how big it is, by Wayland.
+    ///
+    /// The geometry is the event of the version 2 of the COSMIC protocol, and
+    /// the client asks for that version or a later one. A window whose
+    /// geometry the compositor did not send is a failure with the reason: a
+    /// place that is not known is not a window at the origin.
+    #[cfg(target_os = "linux")]
+    fn wayland_geometry(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        if title.is_empty() {
+            return Ok(None);
+        }
+        let windows = self.wayland()?.windows()?;
+        for window in &windows {
+            if !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            let Some(geometry) = window.geometry else {
+                return Err(
+                    "the compositor did not say where this window is, so its place is \
+                            not known"
+                        .to_string(),
+                );
+            };
+            return Ok(Some(ahk::desktop::WindowGeometry {
+                x: i64::from(geometry.x),
+                y: i64::from(geometry.y),
+                width: i64::from(geometry.width),
+                height: i64::from(geometry.height),
+            }));
+        }
+        Ok(None)
+    }
+
+    // ---- wayland_min_max
+    #[cfg(target_os = "linux")]
+    fn wayland_min_max(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        if title.is_empty() {
+            return Ok(None);
+        }
+        let windows = self.wayland()?.windows()?;
+        for window in &windows {
+            if !title_matches(&window.title, title, mode)? {
+                continue;
+            }
+            // A window that is both is answered as maximized: the maximized
+            // window is the one the user sees, and the minimized state of it
+            // is not what the screen shows.
+            if window.maximized {
+                return Ok(Some(1));
+            }
+            if window.minimized {
+                return Ok(Some(-1));
+            }
+            return Ok(Some(0));
+        }
+        Ok(None)
+    }
+
+    // ---- wayland_wait
+    /// Wait for a condition about a window, by Wayland.
+    #[cfg(target_os = "linux")]
+    fn wayland_wait(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+        timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        loop {
+            if let Some(answer) = self.the_window_condition(title, mode, what)? {
+                return Ok(Some(answer));
+            }
+            if Instant::now() >= deadline {
+                return Ok(None);
+            }
+            pause_before_the_next_look();
+        }
+    }
+
+    // ---- the_window_condition
+    /// Whether the condition that a wait is about holds now.
+    ///
+    /// `Some` is the condition met, and the answer of the conditions about the
+    /// absence of a window is the empty text, because there is no window to
+    /// identify.
+    #[cfg(target_os = "linux")]
+    fn the_window_condition(
+        &mut self,
+        title: &str,
+        mode: ahk::desktop::TitleMatch,
+        what: ahk::desktop::WaitFor,
+    ) -> Result<Option<String>, String> {
+        use ahk::desktop::WaitFor;
+        // The empty title is no window at all: v2 falls back to the last found
+        // window, and this runtime keeps none.
+        if title.is_empty() {
+            return Ok(match what {
+                WaitFor::NotActive | WaitFor::Close => Some(String::new()),
+                WaitFor::Present | WaitFor::Active => None,
+            });
+        }
+        let windows = self.wayland()?.windows()?;
+        let mut found = None;
+        for window in &windows {
+            if title_matches(&window.title, title, mode)? {
+                found = Some(window.clone());
+                break;
+            }
+        }
+        Ok(match what {
+            WaitFor::Present => found.map(|window| window.identifier.unwrap_or_default()),
+            WaitFor::Active => found
+                .filter(|window| window.active)
+                .map(|window| window.identifier.unwrap_or_default()),
+            WaitFor::NotActive => match found {
+                Some(window) if window.active => None,
+                _ => Some(String::new()),
+            },
+            WaitFor::Close => match found {
+                Some(_) => None,
+                None => Some(String::new()),
+            },
+        })
+    }
+
     /// The client of the compositor.
     fn wayland(&mut self) -> Result<&mut crate::wayland::Client, String> {
         if self.wayland.is_none() {
@@ -1886,10 +3558,16 @@ impl LabDesktop {
         title: &str,
         mode: ahk::desktop::TitleMatch,
     ) -> Result<WindowAnswer, String> {
+        // The focus is asked before the title is looked at: a compositor
+        // that does not say which window has the focus says that, and not
+        // that the title of the question is empty. Measured on the VM of
+        // the matrix on 2026-11-11: `WinActive()` with no title on sway
+        // answered the reason of the empty title, which is true but is
+        // not the reason the question has no answer.
+        let active = self.wayland()?.active()?;
         if title.is_empty() {
             return Ok(empty_title());
         }
-        let active = self.wayland()?.active()?;
         let Some(window) = active else {
             return Ok(WindowAnswer::Absent);
         };
@@ -1946,6 +3624,55 @@ impl LabDesktop {
 /// reason, and the box says that it is not Linux.
 #[cfg(not(target_os = "linux"))]
 impl LabDesktop {
+    // ---- wayland_matching
+    /// The windows whose title matches, on a platform that has no Wayland.
+    fn wayland_matching(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Vec<ahk::desktop::WindowRef>, String> {
+        Err(not_linux())
+    }
+
+    // ---- wayland_geometry
+    /// Where the window is, on a platform that has no Wayland.
+    fn wayland_geometry(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<ahk::desktop::WindowGeometry>, String> {
+        Err(not_linux())
+    }
+
+    // ---- wayland_min_max
+    /// Whether the window is maximized, on a platform that has no Wayland.
+    fn wayland_min_max(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+    ) -> Result<Option<i64>, String> {
+        Err(not_linux())
+    }
+
+    // ---- wayland_wait
+    /// Wait for a window, on a platform that has no Wayland.
+    fn wayland_wait(
+        &mut self,
+        _title: &str,
+        _mode: ahk::desktop::TitleMatch,
+        _what: ahk::desktop::WaitFor,
+        _timeout_ms: u64,
+    ) -> Result<Option<String>, String> {
+        Err(not_linux())
+    }
+
+    // ---- wayland_monitors
+    /// The monitors, on a platform that has no Wayland.
+    #[cfg(target_os = "linux")]
+    fn wayland_monitors(&mut self) -> Result<Vec<ahk::desktop::Monitor>, String> {
+        Err(not_linux())
+    }
+
     /// The title of the window that has the focus, by Wayland.
     fn wayland_active_title(&mut self) -> Result<Option<String>, String> {
         Err(not_linux())
@@ -1986,14 +3713,37 @@ fn not_linux() -> String {
 /// The answer to a question about a window with no title.
 ///
 /// v2 uses the last found window when the title is empty, and this
-/// runtime does not keep one.
-#[cfg(target_os = "linux")]
+/// runtime does not keep one. The gate of Linux is not on it: the X11
+/// path that reads the client list is compiled on every machine, and it
+/// answers the same reason there.
 fn empty_title() -> WindowAnswer {
     WindowAnswer::Unknown(
         "the title is empty, and v2 would use the last found window: this runtime does not keep \
          one."
             .to_string(),
     )
+}
+
+/// The window of an X11 session that a question names: the active one when
+/// the question names nothing, and the first one whose title matches when
+/// it names a title. The id it answers is the id of the X server, which the
+/// client list carries.
+fn the_x_window_named(
+    windows: &[ahk::desktop::WindowInfo],
+    title: &str,
+    mode: ahk::desktop::TitleMatch,
+) -> Result<Option<i64>, String> {
+    for window in windows {
+        let matches = if title.is_empty() {
+            window.active
+        } else {
+            title_matches(&window.title, title, mode)?
+        };
+        if matches {
+            return Ok(Some(window.id));
+        }
+    }
+    Ok(None)
 }
 
 /// Whether a title matches the one asked for.
@@ -2131,6 +3881,182 @@ pub(crate) fn name_matches(pattern: &str, name: &str) -> bool {
         }
     }
     table[pattern.len()][name.len()]
+}
+
+// ---- the_helper_of_the_window
+/// Where the program that draws the windows of the script is.
+///
+/// Two places, in the order that works for a binary that has been moved and for
+/// one that has not:
+///
+/// 1. **beside the binary**, under `helper/` -- which is where a copy of the
+///    runner carries it, and the convention the raven's helper follows;
+/// 2. **under the crate** as it was compiled, which is right when the runner is
+///    built where the sources are (the box builds its own), and is a build path
+///    baked into the binary when it is not.
+///
+/// The first that exists wins. The answer when neither is there names both, so a
+/// failure says where it looked rather than that something is missing.
+fn the_helper_of_the_window() -> Result<std::path::PathBuf, String> {
+    let mut tried: Vec<String> = Vec::new();
+    if let Ok(program) = std::env::current_exe() {
+        if let Some(folder) = program.parent() {
+            let beside = folder.join("helper/ahk-gui.py");
+            if beside.is_file() {
+                return Ok(beside);
+            }
+            tried.push(beside.to_string_lossy().into_owned());
+        }
+    }
+    let under = Path::new(env!("CARGO_MANIFEST_DIR")).join("helper/ahk-gui.py");
+    if under.is_file() {
+        return Ok(under);
+    }
+    tried.push(under.to_string_lossy().into_owned());
+    Err(format!(
+        "the program that draws the windows of the script is not where it was looked for: {}",
+        tried.join(", ")
+    ))
+}
+
+// ---- the_events_of_the_window
+/// of letting the shell answer "not found": a failure that names a missing
+/// program of another platform tells the script nothing it can act on.
+/// Where the events of the windows of the script are written.
+///
+/// Derived from the process, so two runners on one machine do not read each
+/// other's events, and nothing has to be kept: the helper and the reader both
+/// compute the same name.
+fn the_events_of_the_window() -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("ahk-gui-events-{}", std::process::id()))
+}
+
+// ---- quoted
+/// A text as the JSON string of it, with the characters that JSON needs.
+fn quoted(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for letter in text.chars() {
+        match letter {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(letter),
+        }
+    }
+    out.push('"');
+    out
+}
+
+// ---- the_number_in
+/// The number after a name in an answer of the helper.
+fn the_number_in(answer: &str, name: &str) -> Option<i64> {
+    let rest = answer.split_once(name)?.1;
+    let digits: String = rest
+        .chars()
+        .take_while(|letter| letter.is_ascii_digit() || *letter == '-')
+        .collect();
+    digits.parse().ok()
+}
+
+// ---- the_text_in
+/// The text after a name in an answer of the helper.
+fn the_text_in(answer: &str, name: &str) -> Option<String> {
+    let rest = answer.split_once(name)?.1.trim_start();
+    let rest = rest.strip_prefix('"')?;
+    let mut out = String::new();
+    let mut letters = rest.chars();
+    while let Some(letter) = letters.next() {
+        match letter {
+            '"' => return Some(out),
+            '\\' => {
+                if let Some(next) = letters.next() {
+                    out.push(match next {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        other => other,
+                    });
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    None
+}
+
+// ---- box_tools_are_near
+fn box_tools_are_near() -> Result<(), String> {
+    Ok(())
+}
+
+/// The answers of the helper of the tray, read on a thread of their own.
+///
+/// The thread owns the reader, so the wait for an answer is a receive with
+/// a timeout instead of a read that cannot be given up on.
+#[cfg(target_os = "linux")]
+fn the_answers_of_the_tray(output: std::process::ChildStdout) -> std::sync::mpsc::Receiver<String> {
+    use std::io::BufRead;
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut reader = std::io::BufReader::new(output);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    if sender.send(line.trim_end().to_string()).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    receiver
+}
+
+/// Whether the helper of the tray took what it was asked.
+///
+/// The answer of the helper is JSON: `{"ok": true}` when it took it, and
+/// `{"ok": false, "error": "..."}` when it did not. The reason of the
+/// helper is carried as it is: a tray of a session that has no watcher of
+/// the StatusNotifierItem says so.
+#[cfg(target_os = "linux")]
+fn the_tray_took(answer: &str) -> Result<(), String> {
+    if answer.contains("\"ok\": true") {
+        return Ok(());
+    }
+    Err(format!("the tray of the session refused: {answer}"))
+}
+
+/// Where the program that puts the icon of the script in the tray is.
+///
+/// The two places of the helper of the window, in the same order: beside
+/// the binary, and under the crate as it was compiled.
+#[cfg(target_os = "linux")]
+fn the_helper_of_the_tray() -> Result<std::path::PathBuf, String> {
+    let mut tried: Vec<String> = Vec::new();
+    if let Ok(program) = std::env::current_exe() {
+        if let Some(folder) = program.parent() {
+            let beside = folder.join("helper/ahk-tray.py");
+            if beside.is_file() {
+                return Ok(beside);
+            }
+            tried.push(beside.to_string_lossy().into_owned());
+        }
+    }
+    let under = Path::new(env!("CARGO_MANIFEST_DIR")).join("helper/ahk-tray.py");
+    if under.is_file() {
+        return Ok(under);
+    }
+    tried.push(under.to_string_lossy().into_owned());
+    Err(format!(
+        "the program that puts the icon of the script in the tray is not where it was looked for: {}",
+        tried.join(", ")
+    ))
 }
 
 #[cfg(test)]

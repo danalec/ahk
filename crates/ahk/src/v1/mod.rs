@@ -9,7 +9,6 @@
 //!
 //! A name that the v1 has and the v2 does not is here; a name that the two
 //! share is a row of the v2, and the table of the v1 points at it.
-
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;

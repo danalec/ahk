@@ -27,8 +27,7 @@ use std::path::{Path, PathBuf};
 /// v2 names a drive by a letter, and a Linux machine has none: the text that
 /// names one is refused with the reason, and not with an answer about a path
 /// that happens to start with the same letter.
-const NO_LETTERS: &str =
-    "there are no drive letters on this machine: its volumes are named by the path they are \
+const NO_LETTERS: &str = "there are no drive letters on this machine: its volumes are named by the path they are \
      mounted at, and not by a letter.";
 
 /// Whether a text names a drive the way Windows does: a letter and a colon.
@@ -93,9 +92,11 @@ fn the_reading_of(absolute: &Path) -> Result<ahk::desktop::Drive, String> {
         // A path that is there is on a volume of the machine: a mount that
         // does not name it is a table that could not be read, and not a
         // drive that is not there.
-        return Err("the table of the mounted volumes of this machine does not name the volume of \
+        return Err(
+            "the table of the mounted volumes of this machine does not name the volume of \
                     the path."
-            .to_string());
+                .to_string(),
+        );
     };
     let Some(statistics) = the_statistics_of(&mount.mount_point) else {
         return Err(format!(
@@ -273,7 +274,10 @@ fn the_block_device_of(name: &str) -> Option<String> {
     if without_digits.is_empty() {
         return None;
     }
-    if without_digits.chars().any(|character| character.is_ascii_digit()) {
+    if without_digits
+        .chars()
+        .any(|character| character.is_ascii_digit())
+    {
         // A disk whose name has a number of its own, and without the "p" of a
         // partition: the name is the disk.
         return Some(name.to_string());
@@ -409,7 +413,10 @@ mod tests {
     fn the_block_device_of_a_partition_is_its_disk() {
         assert_eq!(the_block_device_of("sda2"), Some("sda".to_string()));
         assert_eq!(the_block_device_of("sda"), Some("sda".to_string()));
-        assert_eq!(the_block_device_of("nvme0n1p2"), Some("nvme0n1".to_string()));
+        assert_eq!(
+            the_block_device_of("nvme0n1p2"),
+            Some("nvme0n1".to_string())
+        );
         assert_eq!(the_block_device_of("nvme0n1"), Some("nvme0n1".to_string()));
         assert_eq!(the_block_device_of("vda1"), Some("vda".to_string()));
     }
@@ -435,7 +442,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn the_root_of_the_box_is_a_drive() {
-        let drive = drive("/").expect("the root is read").expect("the root is there");
+        let drive = drive("/")
+            .expect("the root is read")
+            .expect("the root is there");
         assert!(!drive.filesystem.is_empty(), "{drive:?}");
         assert_eq!(drive.status, "Ready");
         assert!(
