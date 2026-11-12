@@ -4803,7 +4803,7 @@ impl Parser {
         }) || self
             .dialect
             .the_builtin_of_the_extension(&name)
-            .map_or(false, |builtin| {
+            .is_some_and(|builtin| {
                 !self.dialect.the_command_has_to_be_a_command()
                     || builtin.kind == crate::builtins::BuiltinKind::Command
             });        if !carried {
@@ -5072,7 +5072,7 @@ impl Parser {
         }) || self
             .dialect
             .the_builtin_of_the_extension(&name)
-            .map_or(false, |builtin| {
+            .is_some_and(|builtin| {
                 !self.dialect.the_command_has_to_be_a_command()
                     || builtin.kind == crate::builtins::BuiltinKind::Command
             })
@@ -13033,7 +13033,6 @@ impl Parser {
     /// the `command` says that the parser is there: a member that is
     /// followed by a space and a parenthesis is a command of v2, and the
     /// parenthesis is one parameter of it.
-
     fn parse_suffixes(
         &mut self,
         target: Node,
@@ -13764,7 +13763,7 @@ impl Parser {
         }) || self
             .dialect
             .the_builtin_of_the_extension(&wanted)
-            .map_or(false, |builtin| {
+            .is_some_and(|builtin| {
                 builtin.kind == crate::builtins::BuiltinKind::Function
             })
     }

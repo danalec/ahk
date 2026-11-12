@@ -4218,13 +4218,15 @@ impl<'a> Runtime<'a> {
             Node::Index { .. } => {
                 // An item that is a statement is read, and the value it
                 // leaves behind is not used: v2 reads it.
-                let value = self.evaluate(statement)?;
+                self.evaluate(statement)?;
+
                 detail = "the item was read".into();
             }
             Node::DynamicName { .. } => {
                 // A name that the script builds is a statement that reads
                 // it, and the value it leaves behind is not used.
-                let value = self.evaluate(statement)?;
+                self.evaluate(statement)?;
+
                 detail = "the variable was read".into();
             }
             Node::Literal { .. }
@@ -5117,8 +5119,9 @@ impl<'a> Runtime<'a> {
         }) || self
             .dialect
             .the_builtin_of_the_extension(name)
-            .map_or(false, |builtin| {
+            .is_some_and(|builtin| {
                 builtin.kind == crate::builtins::BuiltinKind::Function
+
                     && builtin.name.eq_ignore_ascii_case(name)
             })
     }
@@ -8104,11 +8107,8 @@ impl<'a> Runtime<'a> {
                                         continue;
                                     }
                                     if let Some(held) = before.borrow().value_of(key) {
-                                        put(
-                                            &mut fresh.borrow_mut().properties,
-                                            &key.to_string(),
-                                            held,
-                                        );
+                                        put(&mut fresh.borrow_mut().properties, key, held);
+
                                     }
                                 }
                             }
@@ -10974,7 +10974,8 @@ impl<'a> Runtime<'a> {
         // 2026-11-02.
         if self.classes.contains_key(&name.to_lowercase())
             || self.dialect.carries_the_class_of_the_runtime(name)
-            || self.dialect.carries_the_class_of_the_extension(&name)
+            || self.dialect.carries_the_class_of_the_extension(name)
+
         {
             return self.construct(name, arguments, line);
         }
@@ -15036,11 +15037,13 @@ impl<'a> Runtime<'a> {
         }
         // The class types of the runtime take the item with one parameter,
         // and the one that has more is the measured failure.
-        if keys.len() > 1 && !self.dialect.the_item_of_an_object_is_its_property() {
-            if crate::classes::is_type(&class) {
-                return Err(self.too_many_parameters_of_an_item(&class, false, line));
-            }
+        if keys.len() > 1
+            && !self.dialect.the_item_of_an_object_is_its_property()
+            && crate::classes::is_type(&class)
+        {
+            return Err(self.too_many_parameters_of_an_item(&class, false, line));
         }
+
         let key = keys.first().expect("an item has a parameter");
         if let Some(result) = crate::classes::item(&class, key, target, self, line) {
             return result;
@@ -16263,8 +16266,6 @@ fn values_equal_with(left: &Value, right: &Value, method: CaseMethod) -> bool {
     the_same_text(&left.to_text(), &right.to_text(), method)
 }
 
-/// The message of a failure, the way the report carries it.
-
 /// Whether the failure is the one of a member that is not there at all.
 ///
 /// The read of a property that has no value is a failure of a different kind,
@@ -16315,6 +16316,7 @@ pub(crate) fn the_failure_is_an_unset_variable(failure: &RuntimeFailure) -> bool
     )
 }
 
+/// The message of a failure, the way the report carries it.
 pub(crate) fn the_message_of(failure: &RuntimeFailure) -> String {
     match failure {
         RuntimeFailure::Error(error) => error.message.clone(),

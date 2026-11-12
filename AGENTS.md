@@ -12139,3 +12139,47 @@ the inner script is the inner report's to tell.
 `/proc/thread-self` on the box. And the X11 desktop gained the network
 of the box -- `download` and `send_mail` go through the same curl, which
 does not care which session is up.
+
+## 330. The gate of the GitHub, and what it found
+
+The repository publishes on GitHub (`danalec/ahk`) with a CI of its own,
+and the CI is stricter than the gate of this workstation: it runs
+`cargo clippy --workspace --all-targets -- -D warnings` on Ubuntu, on
+Windows and on macOS, and the suite and the `no_std` build beside it.
+The tree had never been through it, and it found twenty-seven lints --
+every one of them a place where the code says less than it means.
+
+**The lints that were a broken comment.** Three of the four
+"empty line after doc comment" were the damage of the rounds past: a
+blank line inside a block of documentation splits it in two, and the
+second half stops being the documentation of the item. The `ProcessState`
+was the worst of them: the doc of the trait `Processes` had been pushed
+above the struct by the round that added the struct, and the fields of
+the struct had a blank line between the comment and the field. The text
+of the comments went back where it belongs, and the `///` that the
+script had left in the middle of a paragraph went away. Two lines of
+comments were in the wrong item altogether -- the doc of
+`the_message_of` was sitting on `the_member_is_missing`, eight hundred
+lines away -- and they went home.
+
+**The lints that were a real gap.** The `names()` of the four classes of
+the `ks` dialect -- `KeyInfo`, `RealThread`, `ScriptProcess` and
+`Timer` -- were never called, because the table of the names of the
+classes did not carry them: the probe of the surface could not ask the
+`ks` classes what they answer. They are in the table now, and the probe
+asks them. The base of the errors of the `ks` dialect was in the table
+and never read: the `ArgumentError` is an `Error` and the
+`UnsupportedError` is an `OSError`, and now the tree says so.
+
+**The gate learned a target.** The check with
+`--target x86_64-unknown-linux-gnu` is part of the gate of this session
+(section 329), and it is what the CI of the GitHub runs on Ubuntu
+anyway. The macOS of the CI is the one this workstation cannot prove:
+the tree is portable, and the changes of these rounds are `cfg`'d to the
+platform they belong to.
+
+The lesson is in the tree: **the gate of a repository is the gate of
+its CI**, and a repository that publishes somewhere else has a second
+gate that nobody runs. The `-D warnings` is the part that matters: a
+warning is a thing the tree knows and does not say, and the CI of the
+GitHub reads it as an error.

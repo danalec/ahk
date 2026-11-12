@@ -416,33 +416,21 @@ pub struct WindowInfo {
     pub active: bool,
 }
 
-/// The processes of the desktop.
 /// The state of a process.
-
 ///
-
 /// The code and the moment are there when the process has exited; while it
-
 /// runs, they are not.
-
 #[derive(Debug, Clone)]
-
 pub struct ProcessState {
-
     /// Whether the process has exited.
-
     pub has_exited: bool,
-
     /// The code it exited with, when it has exited.
-
     pub exit_code: Option<i32>,
-
     /// The moment it exited, as the text of the date and the time.
-
     pub exit_time: Option<String>,
-
 }
 
+/// The processes of the desktop.
 pub trait Processes {
     /// Start a program with a text on its standard input, and do not
     /// wait for it; return the pid of it.

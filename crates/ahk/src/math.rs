@@ -385,6 +385,51 @@ pub fn atan(value: f64) -> f64 {
     sign * sum * (1u32 << double) as f64
 }
 
+/// The arc whose tangent is `y / x`, in the quadrant the signs name.
+///
+/// The two axes and the two diagonals of the quadrant map are the cases the
+/// library carries; the rest is the arctangent of the quotient, turned
+/// round when the cosine of the quadrant is negative.
+pub fn atan2(y: f64, x: f64) -> f64 {
+    if y.is_nan() || x.is_nan() {
+        return f64::NAN;
+    }
+    if x == 0.0 && y == 0.0 {
+        return 0.0;
+    }
+    if x == 0.0 {
+        return if y > 0.0 { PI / 2.0 } else { -PI / 2.0 };
+    }
+    if y == 0.0 {
+        return if x > 0.0 { 0.0 } else { PI };
+    }
+    let quotient = atan(y / x);
+    if x > 0.0 {
+        quotient
+    } else if y > 0.0 {
+        PI + quotient
+    } else {
+        quotient - PI
+    }
+}
+
+/// The hyperbolic sine of `value`.
+pub fn sinh(value: f64) -> f64 {
+    let raised = exp(value);
+    (raised - 1.0 / raised) / 2.0
+}
+
+/// The hyperbolic cosine of `value`.
+pub fn cosh(value: f64) -> f64 {
+    let raised = exp(value);
+    (raised + 1.0 / raised) / 2.0
+}
+
+/// The hyperbolic tangent of `value`.
+pub fn tanh(value: f64) -> f64 {
+    let raised = exp(2.0 * value);
+    (raised - 1.0) / (raised + 1.0)
+}
 #[cfg(test)]
 mod tests {
     use super::{acos, asin, atan, ceil, cos, exp, floor, fract, ln, log10, pow, powi, round, sin, sqrt, tan, trunc};
@@ -476,50 +521,4 @@ mod tests {
         close(powi(2.0, 10), 1024.0);
         close(powi(2.0, -2), 0.25);
     }
-}
-
-/// The arc whose tangent is `y / x`, in the quadrant the signs name.
-///
-/// The two axes and the two diagonals of the quadrant map are the cases the
-/// library carries; the rest is the arctangent of the quotient, turned
-/// round when the cosine of the quadrant is negative.
-pub fn atan2(y: f64, x: f64) -> f64 {
-    if y.is_nan() || x.is_nan() {
-        return f64::NAN;
-    }
-    if x == 0.0 && y == 0.0 {
-        return 0.0;
-    }
-    if x == 0.0 {
-        return if y > 0.0 { PI / 2.0 } else { -PI / 2.0 };
-    }
-    if y == 0.0 {
-        return if x > 0.0 { 0.0 } else { PI };
-    }
-    let quotient = atan(y / x);
-    if x > 0.0 {
-        quotient
-    } else if y > 0.0 {
-        PI + quotient
-    } else {
-        quotient - PI
-    }
-}
-
-/// The hyperbolic sine of `value`.
-pub fn sinh(value: f64) -> f64 {
-    let raised = exp(value);
-    (raised - 1.0 / raised) / 2.0
-}
-
-/// The hyperbolic cosine of `value`.
-pub fn cosh(value: f64) -> f64 {
-    let raised = exp(value);
-    (raised + 1.0 / raised) / 2.0
-}
-
-/// The hyperbolic tangent of `value`.
-pub fn tanh(value: f64) -> f64 {
-    let raised = exp(2.0 * value);
-    (raised - 1.0) / (raised + 1.0)
 }

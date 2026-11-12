@@ -715,7 +715,6 @@ pub(crate) fn the_number_of_the_items(array: &Value) -> usize {
 ///
 /// The places that are not there are places: the array of two with the
 /// fifth one written has five places.
-
 pub(crate) fn the_number_of_the_places(array: &Value) -> usize {
     let Some(state) = state(array) else { return 0 };
     let state = state.borrow();
@@ -1215,7 +1214,8 @@ pub(crate) fn the_text_of_a_value(value: &Value, rt: &mut Runtime, line: u32) ->
         }
         Value::Object(object) => {
             let class = object.borrow().class.clone();
-            match crate::classes::call(&class, "tostring", &value, &[], rt, line) {
+            match crate::classes::call(&class, "tostring", value, &[], rt, line) {
+
                 Some(Ok(text)) => text.to_text(),
                 Some(Err(_)) => "<ERROR>".to_string(),
                 None => crate::classes::the_spelling_of(&class),

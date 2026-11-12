@@ -11,7 +11,7 @@ use ahk::desktop::{
     Clipboard, Desktop, Dialogs, Files, Hotkeys, Keyboard, Machine, Native, Network, Pictures,
     Pointer, Processes, Screen, Sound, Timers, Windows,
 };
-use ahk::dialect::{self, Dialect};
+use ahk::dialect;
 use ahk::runtime::{Report, Runtime};
 use std::time::Duration;
 

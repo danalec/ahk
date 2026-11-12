@@ -12232,7 +12232,7 @@ pub(crate) fn ks_mail(
                         // bracketed IPv6 literal.
                         let mut named = text.clone();
                         if let Some(colon) = text.rfind(':') {
-                            if text.rfind(']').map_or(true, |bracket| bracket < colon) {
+                            if text.rfind(']').is_none_or(|bracket| bracket < colon) {
                                 let (left, right) = text.split_at(colon + 1);
                                 let number = right.trim().parse::<i64>();
                                 match number {

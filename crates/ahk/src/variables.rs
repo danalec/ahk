@@ -121,11 +121,6 @@ const NO_PROGRAMS: &str = "the machine has no programs folder: the start menu of
 /// The start menu is the folder of the applications.
 const NO_PROGRAMS_COMMON: &str = "the machine has no programs folder for everybody: the start menu is the folder of the applications.";
 
-/// The reason the path of the executable is not answered.
-///
-/// This runtime is not AutoHotkey, and it has no executable of its own.
-const NO_AHK_PATH: &str = "this runtime is not AutoHotkey, and it has no path of an executable.";
-
 /// The reason the window of the script is not answered.
 ///
 /// The runtime is a script that runs and ends, and it has no window.
@@ -818,6 +813,173 @@ fn reason(message: &str) -> RuntimeError {
     }
 }
 
+/// The value of a variable the `ks` dialect adds.
+///
+/// The four of them are the ones the tree answers honestly on every
+/// machine: the two clocks read the clock of the machine, and the two
+/// spellings are the ones the platform writes.
+fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
+    // The name arrives the way the script wrote it or the way the lookup
+    // normalized it: the two spellings are the same variable, so the match
+    // is on the name without the prefix either way.
+    let lowered = name.to_lowercase();
+    let bare = lowered
+        .strip_prefix("a_")
+        .unwrap_or(lowered.strip_prefix('a').unwrap_or(lowered.as_str()));
+    match bare {
+        // The one real thread of the run: the thread the script runs on,
+        // which is the main one.
+        "realthread" => Ok(crate::classes::realthread::the_main_thread()),
+        // The condition that the script set with `HotIf`: the text of it,
+        // and the empty text when the script set none.
+        "hotif" => Ok(Value::Text(rt.the_hotif().unwrap_or_default())),
+        // The timers the script set: an array of the objects of them.
+        "timers" => {
+            let timers = rt.the_timers();
+            let mut items = Vec::new();
+            for (function, period, last) in timers {
+                items.push(crate::classes::timer::the_timer(&function, period, last));
+            }
+            match crate::classes::array::construct(&items, rt, 0) {
+                Ok(array) => Ok(array),
+                Err(failure) => Err(RuntimeError {
+                    message: crate::runtime::the_message_of(&failure),
+                    line: 0,
+                }),
+            }
+        }
+        // The documentation of KeySharp writes the two clocks as the number
+        // of v2 with the two digits of the fraction after it:
+        // "YYYYMMDDHH24MISS.ff".
+        "nowms" | "nowutcms" => match rt.wall_clock() {
+            Some(clock) => {
+                let date = if bare == "nowms" {
+                    &clock.local
+                } else {
+                    &clock.utc
+                };
+                Ok(Value::Text(alloc::format!(
+                    "{}.{:02}",
+                    crate::date::the_number_text(date),
+                    date.millisecond / 10
+                )))
+            }
+            None => Err(reason(crate::date::NO_DATE)),
+        },
+        // The documentation says the separator is `\` on Windows and `/`
+        // elsewhere, and that is what the platform says here too.
+        "dirseparator" => Ok(Value::Text(if cfg!(windows) {
+            "\\".to_string()
+        } else {
+            "/".to_string()
+        })),
+        // The newline of the documentation is the one of the platform, and
+        // `ReplaceLineEndings` defaults to the same one on every platform.
+        "newline" => Ok(Value::Text("\n".to_string())),
+        // The two booleans of the dialect, spelled the way KeySharp
+        // spells them. The parser of the tree reads `true` and `false`
+        // as the literals they are, and the answer of the variable is
+        // the same number.
+        "true" => Ok(Value::Int(1)),
+        "false" => Ok(Value::Int(0)),
+        // The pseudo-thread the script runs in, as an object of the
+        // class `Thread`. There is exactly one, so the answer is the
+        // same object every time.
+        "thread" => Ok(rt.the_current_thread()),
+        // The hooks of the keyboard and of the mouse: this runtime has
+        // none, and the answer of "is the hook installed" is the truth
+        // of it, which is that it is not.
+        "keybdhookinstalled" | "mousehookinstalled" => Ok(Value::Int(0)),
+        // The value of the last `Loop Reg`: the dialect of v2 has no
+        // `Loop Reg`, so the loop never ran and the value is unset.
+        "loopregvalue" => Ok(Value::Unset),
+        // The defaults of the hotstrings, read out of the defaults
+        // KeySharp's manager starts with (HotstringManager.cs, read on
+        // 2026-11-11): the flags of the case and the ending, the ending
+        // characters themselves, and the mode of the sending.
+        "defaulthotstringcasesensitive" => Ok(Value::Int(0)),
+        "defaulthotstringconformtocase" => Ok(Value::Int(1)),
+        "defaulthotstringdetectwheninsideword" => Ok(Value::Int(0)),
+        "defaulthotstringdobackspace" => Ok(Value::Int(1)),
+        "defaulthotstringdoreset" => Ok(Value::Int(0)),
+        "defaulthotstringendcharrequired" => Ok(Value::Int(1)),
+        "defaulthotstringendchars" => Ok(Value::Text(
+            "-()[]{}:;'\"/\\,.?!\r\n \t".to_string(),
+        )),
+        "defaulthotstringkeydelay" => Ok(Value::Int(0)),
+        "defaulthotstringnomouse" => Ok(Value::Int(0)),
+        "defaulthotstringomitendchar" => Ok(Value::Int(0)),
+        "defaulthotstringpriority" => Ok(Value::Int(0)),
+        "defaulthotstringsendmode" => Ok(Value::Text("Input".to_string())),
+        "defaulthotstringsendraw" => Ok(Value::Int(0)),
+        // The settings of the hotkeys and the threads, read out of the
+        // defaults KeySharp's AccessorData starts with (Accessors.cs,
+        // read on 2026-11-11).
+        "clipboardtimeout" => Ok(Value::Int(1000)),
+        "hotiftimeout" => Ok(Value::Int(250)),
+        "maxthreads" => Ok(Value::Int(10)),
+        "maxthreadsbuffer" => Ok(Value::Int(0)),
+        "maxthreadsperhotkey" => Ok(Value::Int(1)),
+        // The reading of it is zero outside a critical thread, the way
+        // KeySharp reads it.
+        "peekfrequency" => Ok(Value::Int(0)),
+        // The Persistent() setting of the script, which the script has not
+        // turned on: zero until it does.
+        "persistent" => Ok(Value::Int(0)),
+        // The forceful method of activating a window is in effect when the
+        // directive names it, and the dialect does not carry the directive:
+        // the honest answer is that it is not in effect.
+        "winactivateforce" => Ok(Value::Int(0)),
+        // There is no tray on this machine, so the icon is not shown: the
+        // answer of "is the icon hidden" is one.
+        "notrayicon" => Ok(Value::Int(1)),
+        // The architecture and the system, in the upper-case spelling
+        // KeySharp names, so that a script can compare them with the
+        // preprocessor symbols.
+        "osarch" | "processarch" => Ok(Value::Text(arch_name().to_string())),
+        "ostype" => Ok(Value::Text(if cfg!(windows) {
+            "WINDOWS".to_string()
+        } else if cfg!(target_os = "macos") {
+            "OSX".to_string()
+        } else if cfg!(target_os = "linux") {
+            "LINUX".to_string()
+        } else {
+            "UNKNOWN".to_string()
+        })),
+        // The build that runs the script: the version of this crate.
+        "ksversion" => Ok(Value::Text(env!("CARGO_PKG_VERSION").to_string())),
+        // The core of the dialect is the binary that runs the script, the
+        // way the Keysharp.Core.dll is the core of KeySharp.
+        "kscorepath" => rt.desktop().executable().map(Value::Text).map_err(|why| reason(&why)),
+        // The theme of the GUI, which the GUI of this runtime does not
+        // draw: the answer is the one KeySharp starts with on this
+        // platform.
+        "guitheme" => Ok(Value::Text(if cfg!(windows) {
+            "System".to_string()
+        } else {
+            "Classic".to_string()
+        })),
+        // The table and the dialect disagree about a name: the honest
+        // answer is that the tree does not carry it.
+        _ => Err(reason(crate::dialect::NOT_CARRIED_YET)),
+    }
+}
+
+/// The name of the architecture, in the upper-case spelling KeySharp
+/// names, so that a script can compare it with the preprocessor symbol.
+fn arch_name() -> &'static str {
+    if cfg!(target_arch = "x86_64") {
+        "X64"
+    } else if cfg!(target_arch = "aarch64") {
+        "ARM64"
+    } else if cfg!(target_arch = "x86") {
+        "X86"
+    } else if cfg!(target_arch = "arm") {
+        "ARM"
+    } else {
+        "UNKNOWN"
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1120,173 +1282,5 @@ mod tests {
             lost.is_empty(),
             "these variables of v2 are not answered: {lost:?}"
         );
-    }
-}
-
-/// The value of a variable the `ks` dialect adds.
-///
-/// The four of them are the ones the tree answers honestly on every
-/// machine: the two clocks read the clock of the machine, and the two
-/// spellings are the ones the platform writes.
-fn the_extension_value(name: &str, rt: &mut Runtime) -> Result<Value, RuntimeError> {
-    // The name arrives the way the script wrote it or the way the lookup
-    // normalized it: the two spellings are the same variable, so the match
-    // is on the name without the prefix either way.
-    let lowered = name.to_lowercase();
-    let bare = lowered
-        .strip_prefix("a_")
-        .unwrap_or(lowered.strip_prefix('a').unwrap_or(lowered.as_str()));
-    match bare {
-        // The one real thread of the run: the thread the script runs on,
-        // which is the main one.
-        "realthread" => Ok(crate::classes::realthread::the_main_thread()),
-        // The condition that the script set with `HotIf`: the text of it,
-        // and the empty text when the script set none.
-        "hotif" => Ok(Value::Text(rt.the_hotif().unwrap_or_default())),
-        // The timers the script set: an array of the objects of them.
-        "timers" => {
-            let timers = rt.the_timers();
-            let mut items = Vec::new();
-            for (function, period, last) in timers {
-                items.push(crate::classes::timer::the_timer(&function, period, last));
-            }
-            match crate::classes::array::construct(&items, rt, 0) {
-                Ok(array) => Ok(array),
-                Err(failure) => Err(RuntimeError {
-                    message: crate::runtime::the_message_of(&failure),
-                    line: 0,
-                }),
-            }
-        }
-        // The documentation of KeySharp writes the two clocks as the number
-        // of v2 with the two digits of the fraction after it:
-        // "YYYYMMDDHH24MISS.ff".
-        "nowms" | "nowutcms" => match rt.wall_clock() {
-            Some(clock) => {
-                let date = if bare == "nowms" {
-                    &clock.local
-                } else {
-                    &clock.utc
-                };
-                Ok(Value::Text(alloc::format!(
-                    "{}.{:02}",
-                    crate::date::the_number_text(date),
-                    date.millisecond / 10
-                )))
-            }
-            None => Err(reason(crate::date::NO_DATE)),
-        },
-        // The documentation says the separator is `\` on Windows and `/`
-        // elsewhere, and that is what the platform says here too.
-        "dirseparator" => Ok(Value::Text(if cfg!(windows) {
-            "\\".to_string()
-        } else {
-            "/".to_string()
-        })),
-        // The newline of the documentation is the one of the platform, and
-        // `ReplaceLineEndings` defaults to the same one on every platform.
-        "newline" => Ok(Value::Text("\n".to_string())),
-        // The two booleans of the dialect, spelled the way KeySharp
-        // spells them. The parser of the tree reads `true` and `false`
-        // as the literals they are, and the answer of the variable is
-        // the same number.
-        "true" => Ok(Value::Int(1)),
-        "false" => Ok(Value::Int(0)),
-        // The pseudo-thread the script runs in, as an object of the
-        // class `Thread`. There is exactly one, so the answer is the
-        // same object every time.
-        "thread" => Ok(rt.the_current_thread()),
-        // The hooks of the keyboard and of the mouse: this runtime has
-        // none, and the answer of "is the hook installed" is the truth
-        // of it, which is that it is not.
-        "keybdhookinstalled" | "mousehookinstalled" => Ok(Value::Int(0)),
-        // The value of the last `Loop Reg`: the dialect of v2 has no
-        // `Loop Reg`, so the loop never ran and the value is unset.
-        "loopregvalue" => Ok(Value::Unset),
-        // The defaults of the hotstrings, read out of the defaults
-        // KeySharp's manager starts with (HotstringManager.cs, read on
-        // 2026-11-11): the flags of the case and the ending, the ending
-        // characters themselves, and the mode of the sending.
-        "defaulthotstringcasesensitive" => Ok(Value::Int(0)),
-        "defaulthotstringconformtocase" => Ok(Value::Int(1)),
-        "defaulthotstringdetectwheninsideword" => Ok(Value::Int(0)),
-        "defaulthotstringdobackspace" => Ok(Value::Int(1)),
-        "defaulthotstringdoreset" => Ok(Value::Int(0)),
-        "defaulthotstringendcharrequired" => Ok(Value::Int(1)),
-        "defaulthotstringendchars" => Ok(Value::Text(
-            "-()[]{}:;'\"/\\,.?!\r\n \t".to_string(),
-        )),
-        "defaulthotstringkeydelay" => Ok(Value::Int(0)),
-        "defaulthotstringnomouse" => Ok(Value::Int(0)),
-        "defaulthotstringomitendchar" => Ok(Value::Int(0)),
-        "defaulthotstringpriority" => Ok(Value::Int(0)),
-        "defaulthotstringsendmode" => Ok(Value::Text("Input".to_string())),
-        "defaulthotstringsendraw" => Ok(Value::Int(0)),
-        // The settings of the hotkeys and the threads, read out of the
-        // defaults KeySharp's AccessorData starts with (Accessors.cs,
-        // read on 2026-11-11).
-        "clipboardtimeout" => Ok(Value::Int(1000)),
-        "hotiftimeout" => Ok(Value::Int(250)),
-        "maxthreads" => Ok(Value::Int(10)),
-        "maxthreadsbuffer" => Ok(Value::Int(0)),
-        "maxthreadsperhotkey" => Ok(Value::Int(1)),
-        // The reading of it is zero outside a critical thread, the way
-        // KeySharp reads it.
-        "peekfrequency" => Ok(Value::Int(0)),
-        // The Persistent() setting of the script, which the script has not
-        // turned on: zero until it does.
-        "persistent" => Ok(Value::Int(0)),
-        // The forceful method of activating a window is in effect when the
-        // directive names it, and the dialect does not carry the directive:
-        // the honest answer is that it is not in effect.
-        "winactivateforce" => Ok(Value::Int(0)),
-        // There is no tray on this machine, so the icon is not shown: the
-        // answer of "is the icon hidden" is one.
-        "notrayicon" => Ok(Value::Int(1)),
-        // The architecture and the system, in the upper-case spelling
-        // KeySharp names, so that a script can compare them with the
-        // preprocessor symbols.
-        "osarch" | "processarch" => Ok(Value::Text(arch_name().to_string())),
-        "ostype" => Ok(Value::Text(if cfg!(windows) {
-            "WINDOWS".to_string()
-        } else if cfg!(target_os = "macos") {
-            "OSX".to_string()
-        } else if cfg!(target_os = "linux") {
-            "LINUX".to_string()
-        } else {
-            "UNKNOWN".to_string()
-        })),
-        // The build that runs the script: the version of this crate.
-        "ksversion" => Ok(Value::Text(env!("CARGO_PKG_VERSION").to_string())),
-        // The core of the dialect is the binary that runs the script, the
-        // way the Keysharp.Core.dll is the core of KeySharp.
-        "kscorepath" => rt.desktop().executable().map(Value::Text).map_err(|why| reason(&why)),
-        // The theme of the GUI, which the GUI of this runtime does not
-        // draw: the answer is the one KeySharp starts with on this
-        // platform.
-        "guitheme" => Ok(Value::Text(if cfg!(windows) {
-            "System".to_string()
-        } else {
-            "Classic".to_string()
-        })),
-        // The table and the dialect disagree about a name: the honest
-        // answer is that the tree does not carry it.
-        _ => Err(reason(crate::dialect::NOT_CARRIED_YET)),
-    }
-}
-
-/// The name of the architecture, in the upper-case spelling KeySharp
-/// names, so that a script can compare it with the preprocessor symbol.
-fn arch_name() -> &'static str {
-    if cfg!(target_arch = "x86_64") {
-        "X64"
-    } else if cfg!(target_arch = "aarch64") {
-        "ARM64"
-    } else if cfg!(target_arch = "x86") {
-        "X86"
-    } else if cfg!(target_arch = "arm") {
-        "ARM"
-    } else {
-        "UNKNOWN"
     }
 }

@@ -12,7 +12,6 @@
 /// twenty-three names. The property with a setter is in it twice, the
 /// getter and the setter.
 use alloc::string::ToString;
-use alloc::vec::Vec;
 
 use crate::runtime::{Runtime, RuntimeError, RuntimeFailure, Value};
 

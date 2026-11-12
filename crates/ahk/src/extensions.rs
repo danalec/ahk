@@ -18,7 +18,6 @@
 //! (`Keysharp/docs/reference.md`), which says what each one answers and
 //! what it does with the index it starts at.
 
-use alloc::vec::Vec;
 
 /// The members of the classes of AutoHotkey that the `ks` dialect adds.
 ///

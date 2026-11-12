@@ -1980,6 +1980,14 @@ pub fn names(class: &str) -> Vec<&'static str> {
         "inputhook" => inputhook::NAMES.to_vec(),
         "regexmatchinfo" => regexmatchinfo::names(),
         "thread" => thread::names(),
+        // The classes of the `ks` dialect: they carry the members the
+        // extensions add, and the table of the names is where the probe
+        // of the surface looks for them.
+        "keyinfo" => keyinfo::names(),
+        "realthread" => realthread::names(),
+        "scriptprocess" => scriptprocess::names(),
+        "timer" => timer::names(),
+
         _ if typed::is_a_class(class) => typed::names(),
         "propref" => propref::names(),
         "class" => THE_CLASS_VALUE.to_vec(),

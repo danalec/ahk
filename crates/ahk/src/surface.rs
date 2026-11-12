@@ -200,7 +200,6 @@ pub fn entries_of(dialect: &'static dyn Dialect) -> Vec<Entry> {
     rows(surface)
         .into_iter()
         .chain(rows(extension))
-        .into_iter()
         .map(|row| {
             let kind = Kind::of(row[0]);
             let (class, name) = (row[1], row[2]);

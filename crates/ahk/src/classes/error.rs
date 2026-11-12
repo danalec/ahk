@@ -144,7 +144,12 @@ pub(crate) fn the_base_of(class: &str) -> Option<&'static str> {
         .find(|(name, _, _)| *name == class)
         .map(|(_, _, base)| *base)
         .filter(|base| !base.is_empty())
+        // The classes of the errors of the `ks` dialect derive from their
+        // own base as well: the `ArgumentError` is an `Error` and the
+        // `UnsupportedError` is an `OSError`.
+        .or_else(|| the_base_of_the_extension(&class))
 }
+
 
 /// The class of a failure, the way v2 names it.
 ///
