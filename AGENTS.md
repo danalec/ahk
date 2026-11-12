@@ -12233,6 +12233,56 @@ dialects, and the runner pins 306 where it pinned 302.
 **The surface moves with the family: 808 answers with a value and 25 are
 refused become 811 and 22.**
 
+## 335. An error of the X server is a reason, not the end of the run
+
+**Measured on the VM `AhkDesktopTest` on 2026-11-11: the X11 backend
+could DIE on a capture the server refused.** The report of the run was
+empty -- the process was gone, killed by Xlib itself:
+
+```
+X Error of failed request:  BadMatch (invalid parameter attributes)
+  Major opcode of failed request:  73 (X_GetImage)
+```
+
+**The reason is Xlib's own error handler**: it PRINTS the error and
+calls `exit()`. A run that dies leaves no report at all, so the tree
+answered nothing where it must answer the reason -- and the rule of this
+tree is that a question which cannot be answered fails with the reason,
+and never takes the run with it.
+
+**The fix installs the tree's own handler**, right after the display is
+opened: it records the error (the code, the request and the minor code)
+in a slot and returns zero, which is what Xlib reads as "the error is
+not fatal". The call that failed then reads the slot and answers with
+the reason -- "the X server refused it: BadMatch (code 8, request 73)" --
+and **the run continues**, so the script gets an answer it can catch.
+
+**The name of the error comes from the server** (`XGetErrorText`), and
+from the table of the protocol when the server does not name it: the
+codes of the core errors are fixed by the X11 headers, and a table of
+seventeen names is what makes "BadMatch" possible without a display.
+The table has a case of its own (`the_core_errors_of_the_x_protocol_are_named`).
+
+**Reproduced and measured, side by side, on the VM** (a capture of a
+pixel that is outside the root window is the deterministic way to make
+the server refuse):
+
+| the binary | the answer |
+|---|---|
+| the branch (`audit-ahk-x11-parity`), before the fix | the process DIES, the report is empty |
+| this tree, after the fix | `ok: true`, "the X server refused it: BadMatch (code 8, request 73)", and the script continues |
+
+**Two symbols came with the fix**: `XSetErrorHandler` and
+`XGetErrorText`, in the table of the resolved symbols (the count went
+from 22 to 24). The `XErrorEvent` is read through a mirror of the
+struct, the way the `XImage` already is, with the offsets pinned by
+`offset_of!`.
+
+**The suite is green on the VM with the fix**, and the capture of the
+screen on X11 answers: `PixelGetColor(100, 100)` answers `#ffffff` on
+the root of i3, where before the fix the same call could take the whole
+run down.
+
 ## 334. The two desktops of the VM, measured against the branch
 
 **The port was checked on the VM `AhkDesktopTest` (192.168.0.110) on

@@ -53,7 +53,7 @@ mod ffi {
     /// The first index in `SYMBOLS` that belongs to libXtst rather than libX11.
     pub(super) const LIBXTST_FROM: usize = 19;
     /// The number of resolved symbols.
-    pub(super) const SYMBOL_COUNT: usize = 22;
+    pub(super) const SYMBOL_COUNT: usize = 24;
 
     /// The symbols, in a FIXED order: entry `i` belongs to wrapper `i`.
     ///
@@ -84,6 +84,8 @@ mod ffi {
         b"XTestFakeKeyEvent\0",     // 19 Xtst
         b"XTestFakeButtonEvent\0",  // 20
         b"XTestFakeMotionEvent\0",  // 21
+        b"XSetErrorHandler\0",      // 22
+        b"XGetErrorText\0",         // 23
     ];
 
     const _: () = assert!(SYMBOLS.len() == SYMBOL_COUNT);
@@ -226,6 +228,18 @@ mod ffi {
     xfn!(20, XTestFakeButtonEvent(d: *mut c_void, button: c_uint, is_press: c_int, delay: c_ulong) -> c_int);
     #[rustfmt::skip]
     xfn!(21, XTestFakeMotionEvent(d: *mut c_void, screen: c_int, x: c_int, y: c_int, delay: c_ulong) -> c_int);
+    /// `XSetErrorHandler`: the handler of the errors of the server.
+    ///
+    /// WHY the handler is a symbol of the table: Xlib's OWN handler prints
+    /// the error and EXITS the process. A capture the server refuses would
+    /// then take the runner with it, and the report of the run would be
+    /// empty -- the tree would answer nothing where it must answer the
+    /// reason.
+    #[rustfmt::skip]
+    xfn!(22, XSetErrorHandler(handler: Option<unsafe extern "C" fn(*mut c_void, *mut c_void) -> c_int>) -> Option<unsafe extern "C" fn(*mut c_void, *mut c_void) -> c_int>);
+    /// `XGetErrorText`: the name of an error of the server.
+    #[rustfmt::skip]
+    xfn!(23, XGetErrorText(d: *mut c_void, code: c_int, buffer: *mut c_char, length: c_int) -> c_int);
 
     // The libc dynamic loader, declared by hand (no `#[link]`, no crate).
     unsafe extern "C" {
@@ -720,6 +734,156 @@ const CURRENT_TIME: c_ulong = 0;
 const REVERT_TO_PARENT: c_int = 2;
 /// `KeyPress`, the event type whose keysym `pending_keys` reports.
 const KEY_PRESS: c_int = 2;
+
+// ---------------------------------------------------------------------------
+// The errors of the X server.
+// ---------------------------------------------------------------------------
+
+/// The mirror of Xlib's `XErrorEvent`, used only for its offsets.
+///
+/// WHY a mirror and not a cast: Xlib writes the struct itself and this
+/// one is never handed to it. The layout is the one of the X11 headers --
+/// `int type; Display *display; XID resourceid; unsigned long serial;`
+/// and then the three bytes -- and the assertions below pin the offsets
+/// of the bytes this tree reads.
+#[repr(C)]
+struct XErrorEvent {
+    kind: c_int,
+    display: *mut c_void,
+    resourceid: c_ulong,
+    serial: c_ulong,
+    error_code: u8,
+    request_code: u8,
+    minor_code: u8,
+}
+
+const _: () = {
+    assert!(std::mem::offset_of!(XErrorEvent, error_code) == 32);
+    assert!(std::mem::offset_of!(XErrorEvent, request_code) == 33);
+    assert!(std::mem::offset_of!(XErrorEvent, minor_code) == 34);
+};
+
+/// The error the X server reported last, as the handler caught it.
+#[derive(Clone, Copy)]
+struct XErrorRecord {
+    code: u8,
+    request: u8,
+    minor: u8,
+}
+
+/// The last error the X server reported, if any.
+///
+/// WHY a slot: the handler must not print and must not exit, so it has
+/// to leave the error somewhere the call that failed can read it.
+static LAST_X_ERROR: std::sync::Mutex<Option<XErrorRecord>> = std::sync::Mutex::new(None);
+
+/// The handler of the errors of the X server: record the error, and let
+/// the program live.
+///
+/// WHY return zero: Xlib reads the value as "the error is not fatal". Any
+/// other value makes Xlib call `exit()`, which would take the runner
+/// with it and leave the report of the run empty.
+unsafe extern "C" fn the_error_handler(_display: *mut c_void, event: *mut c_void) -> c_int {
+    if !event.is_null() {
+        // SAFETY: Xlib hands a pointer to an `XErrorEvent` that lives as
+        // long as the call; the mirror has the layout of that struct.
+        let record = unsafe {
+            let event = event.cast::<XErrorEvent>();
+            XErrorRecord {
+                code: std::ptr::addr_of!((*event).error_code).read(),
+                request: std::ptr::addr_of!((*event).request_code).read(),
+                minor: std::ptr::addr_of!((*event).minor_code).read(),
+            }
+        };
+        if let Ok(mut slot) = LAST_X_ERROR.lock() {
+            *slot = Some(record);
+        }
+    }
+    0
+}
+
+/// Install the handler of the errors of the X server, once per process.
+///
+/// WHY once: the handler is global to the process, not to a display, and
+/// it must be there before the first call that can fail.
+fn install_the_error_handler() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        ffi::XSetErrorHandler(Some(the_error_handler));
+    });
+}
+
+/// Forget the error the server reported last.
+///
+/// WHY: an error of an earlier call must not be reported as the reason
+/// of a later one.
+fn clear_the_x_error() {
+    if let Ok(mut slot) = LAST_X_ERROR.lock() {
+        *slot = None;
+    }
+}
+
+/// The reason of the error the server reported, if it reported one.
+///
+/// The name of the error comes from the server itself (`XGetErrorText`),
+/// and from the table of the protocol when the server does not name it:
+/// the codes of the core errors are fixed by the X11 headers, so the tree
+/// always says what happened and not only a number.
+fn take_the_reason_of_the_x_error(display: *mut c_void) -> Option<String> {
+    let record = LAST_X_ERROR.lock().ok().and_then(|mut slot| slot.take())?;
+    let mut buffer = [0u8; 256];
+    let length = ffi::XGetErrorText(
+        display,
+        record.code as c_int,
+        buffer.as_mut_ptr().cast::<c_char>(),
+        buffer.len() as c_int,
+    );
+    let text = if length > 0 {
+        let bytes = &buffer[..buffer.len().min(length as usize)];
+        let end = bytes.iter().position(|byte| *byte == 0).unwrap_or(bytes.len());
+        let named = String::from_utf8_lossy(&bytes[..end]).into_owned();
+        if named.is_empty() {
+            the_name_of_the_x_error(record.code).map(str::to_string)
+        } else {
+            Some(named)
+        }
+    } else {
+        the_name_of_the_x_error(record.code).map(str::to_string)
+    };
+    let text = text.unwrap_or_else(|| format!("error code {}", record.code));
+    Some(format!(
+        "the X server refused it: {text} (code {}, request {})",
+        record.code, record.request
+    ))
+}
+
+/// The name of a core error of the X protocol.
+///
+/// WHY a table: the codes of the core errors are fixed by the X11
+/// headers, and `XGetErrorText` answers nothing for a code it does not
+/// know -- and this tree must always name what happened.
+fn the_name_of_the_x_error(code: u8) -> Option<&'static str> {
+    Some(match code {
+        1 => "BadRequest",
+        2 => "BadValue",
+        3 => "BadWindow",
+        4 => "BadPixmap",
+        5 => "BadAtom",
+        6 => "BadCursor",
+        7 => "BadFont",
+        8 => "BadMatch",
+        9 => "BadDrawable",
+        10 => "BadAccess",
+        11 => "BadAlloc",
+        12 => "BadColor",
+        13 => "BadGC",
+        14 => "BadIDChoice",
+        15 => "BadName",
+        16 => "BadLength",
+        17 => "BadImplementation",
+        _ => return None,
+    })
+}
 /// Xlib's `XEvent` is a union of 24 `long`s on LP64.
 const EVENT_WORDS: usize = 24;
 /// Xlib's `XWindowAttributes` is 136 bytes on LP64; a larger buffer is safe.
@@ -806,6 +970,10 @@ impl X11Desktop {
             return Err(reason);
         }
         self.display = display;
+        // The handler goes in BEFORE the first call that can fail: Xlib's
+        // own handler exits the process, and a run that dies leaves no
+        // report at all.
+        install_the_error_handler();
         Ok(display)
     }
 
@@ -842,11 +1010,17 @@ impl X11Desktop {
         let (x, y, w, h) = rectangle(x, y, width, height)?;
         let display = self.connection()?;
         let root = ffi::XDefaultRootWindow(display);
+        // The slot is emptied before the call: an error of an earlier call
+        // must not be the reason of this one.
+        clear_the_x_error();
         let image = ffi::XGetImage(display, root, x, y, w, h, ALL_PLANES, ZPIXMAP);
         if image.is_null() {
-            return Err(format!(
-                "XGetImage({x}, {y}, {w}x{h}) failed on the root window"
-            ));
+            // The server refused the capture and said why in its own
+            // words; the reason is the answer of the question, not a
+            // crash of the run.
+            return Err(take_the_reason_of_the_x_error(display).unwrap_or_else(|| {
+                format!("XGetImage({x}, {y}, {w}x{h}) failed on the root window")
+            }));
         }
         let mut rgb = Vec::with_capacity((w as usize) * (h as usize) * 3);
         let mut problem = None;
@@ -1517,6 +1691,20 @@ impl Desktop for X11Desktop {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The codes of the core errors of the X protocol are fixed by the
+    /// X11 headers, and the tree must name every one of them: the name
+    /// is what a script reads, and "code 8" says nothing.
+    #[test]
+    fn the_core_errors_of_the_x_protocol_are_named() {
+        assert_eq!(the_name_of_the_x_error(8), Some("BadMatch"));
+        assert_eq!(the_name_of_the_x_error(3), Some("BadWindow"));
+        assert_eq!(the_name_of_the_x_error(1), Some("BadRequest"));
+        assert_eq!(the_name_of_the_x_error(17), Some("BadImplementation"));
+        // A code the protocol does not carry has no name, and the reason
+        // says the number instead of inventing one.
+        assert_eq!(the_name_of_the_x_error(200), None);
+    }
 
     /// At least twelve AHK names map to the X11 spelling XStringToKeysym
     /// accepts, and the single-character names keep their case.

@@ -226,11 +226,14 @@ whose Default is "&Open".
 **Two things the VM showed, that the two trees share** (so they are not
 the port's):
 
-- **The capture of the screen on X11 aborts the process.**
-  `PixelGetColor` ends the run with "X Error of failed request:
-  BadMatch (invalid parameter attributes) -- Major opcode of failed
-  request: 73 (X_GetImage)" and the report of the run is empty. The
-  branch does the same, byte for byte.
+- **The capture of the screen on X11 could ABORT the process.** The
+  report of the run was empty: Xlib's own error handler prints the error
+  and calls `exit()`, so a capture the server refuses took the runner
+  with it -- and the tree answered nothing where it must answer the
+  reason. **This tree now installs its own handler** (AGENTS.md §335): the
+  error is recorded, the run continues, and the answer is "the X server
+  refused it: BadMatch (code 8, request 73)". Reproduced side by side
+  on the VM: the branch DIES, this tree answers.
 - **The tray needs a watcher of StatusNotifierItem.** sway has none:
   the answer of the helper is "the watcher said no:
   GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name is
