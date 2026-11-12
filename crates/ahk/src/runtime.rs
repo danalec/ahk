@@ -1442,6 +1442,7 @@ pub struct Runtime<'a> {
     /// `StrGet` and `StrPut` are given that number back and need the buffer it
     /// names. Measured on the binary of v2.0.19 on 2026-11-10: `StrPut(text,
     /// buf)` writes the bytes and `StrGet(buf.Ptr)` reads them again.
+    buffer_addresses: Vec<(i64, Value)>,
     /// The window groups a script has named, and the window titles in each.
     ///
     /// `GroupAdd` of v2 puts a window specification into a set that outlives the
@@ -1774,6 +1775,7 @@ impl<'a> Runtime<'a> {
             variables: BTreeMap::new(),
             guis: Vec::new(),
             pointers: Vec::new(),
+            buffer_addresses: Vec::new(),
             groups: Vec::new(),
             last_window: None,
             clipboard_watcher: None,
@@ -1835,6 +1837,7 @@ impl<'a> Runtime<'a> {
         Self {
             guis: Vec::new(),
             pointers: Vec::new(),
+            buffer_addresses: Vec::new(),
             groups: Vec::new(),
             last_window: None,
             clipboard_watcher: None,
@@ -5564,6 +5567,27 @@ impl<'a> Runtime<'a> {
     ///
     /// `None` means the address is not one of the texts of a script: it is
     /// the address of the machine, and the tree cannot read it.
+    /// Remember that a buffer answers to this address.
+    ///
+    /// `Buffer.Ptr` answers the address of the storage of the buffer, and
+    /// `StrGet` is given that address back: the buffer has to be found by it.
+    pub(crate) fn remember_a_buffer_at(&mut self, address: i64, buffer: Value) {
+        if !self
+            .buffer_addresses
+            .iter()
+            .any(|(held, _)| *held == address)
+        {
+            self.buffer_addresses.push((address, buffer));
+        }
+    }
+
+    /// The buffer an address names, if `Buffer.Ptr` gave that address.
+    pub(crate) fn the_buffer_at(&self, address: i64) -> Option<Value> {
+        self.buffer_addresses
+            .iter()
+            .find(|(held, _)| *held == address)
+            .map(|(_, buffer)| buffer.clone())
+    }
     pub(crate) fn the_text_at_an_address(&self, address: i64) -> Option<String> {
         let place = address.checked_sub(STRING_MEMORY_BASE)?;
         if place < 0 || place % STRING_MEMORY_STRIDE != 0 {

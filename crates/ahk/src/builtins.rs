@@ -3412,10 +3412,6 @@ const THE_REQUIRED: &[(&str, &[u8])] = &[
     ("MouseClickDrag", &[4, 5]),
 ];
 
-/// The parameters of a command that may not be left out, in order.
-///
-/// The first one that the call does not carry is the one that the
-/// refusal names.
 pub fn required_parameters(name: &str) -> &'static [u8] {
     THE_REQUIRED
         .iter()
@@ -8032,14 +8028,30 @@ pub(crate) fn str_get(
         // The address of a text of the script: the text is a UTF-16 text,
         // and the reading of it with another encoding reads the bytes of
         // it, the way the binary reads the buffer of the variable.
+        //
+        // The address of a buffer is the address of the storage of it, and
+        // the runtime remembers the buffer under that address: `StrPut` into
+        // a buffer and `StrGet` of the address of it read the same bytes
+        // back. Measured on the binary of v2.0.19 on 2026-11-10.
         Value::Int(address) => match rt.the_text_at_an_address(*address) {
             Some(text) => the_bytes_of(&text, TextEncoding::Utf16),
-            None => {
-                return Err(RuntimeError {
-                    message: crate::runtime::invalid_parameter(1, "StrGet"),
-                    line,
-                });
-            }
+            None => match rt.the_buffer_at(*address) {
+                Some(buffer) => {
+                    crate::classes::buffer::raw_bytes(&buffer, line).map_err(|failure| {
+                        RuntimeError {
+                            message: the_message_of(failure),
+                            line,
+                        }
+                    })?
+                }
+                None => {
+                    // An address that names no buffer and no text is the
+                    // empty text, and not a failure: measured on the binary
+                    // of v2.0.19 on 2026-11-11, `StrGet(999999)` answers the
+                    // empty text.
+                    return Ok(Value::Text(String::new()));
+                }
+            },
         },
         Value::Text(_) => {
             return Err(RuntimeError {
@@ -8099,7 +8111,22 @@ pub(crate) fn str_put(
     // The parameters, in the two orders that the binary takes.
     let (target, encoding_name, length_name) = match values.get(1) {
         None => (None, values.get(2), values.get(3)),
-        Some(value @ Value::Object(_)) => (Some(value), values.get(2), values.get(3)),
+        Some(value @ Value::Object(_)) => {
+            // The encoding of the write is the third parameter, and the
+            // fourth when the third is empty: measured on the binary of
+            // v2.0.19 on 2026-11-11, `StrPut("abc", buf, "UTF-8")` and
+            // `StrPut("abc", buf, , "UTF-8")` both answer 4, the bytes of
+            // the UTF-8.
+            let empty = values
+                .get(2)
+                .map(|value| value.to_text().is_empty())
+                .unwrap_or(true);
+            if empty {
+                (Some(value), values.get(3), None)
+            } else {
+                (Some(value), values.get(2), values.get(3))
+            }
+        }
         Some(value @ Value::Text(_)) => (None, Some(value), values.get(2)),
         Some(_) => {
             return Err(RuntimeError {

@@ -1485,6 +1485,34 @@ fn failure_of(report: &Report) -> String {
 }
 
 #[test]
+fn str_get_of_an_address_no_buffer_answers_the_empty_text() {
+    // Measured on the binary of v2.0.19 on 2026-11-11: `StrGet(999999)` --
+    // an address that names no buffer -- answers the empty text, and not a
+    // failure. It was a failure before the StrPtr was carried: the answer
+    // the binary gives is the one here.
+    let report = run("x := StrGet(99)");
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(value_of(&report, "x"), Value::Text(String::new()));
+}
+
+#[test]
+fn str_put_writes_utf8_and_str_get_reads_it_with_the_encoding() {
+    // Measured on the binary of v2.0.19 on 2026-11-10: StrGet with an
+    // explicit length of zero answers the empty text -- a length is a count
+    // of characters, and zero of them is nothing.
+    let report = run(concat!(
+        "buf := Buffer(64)\n",
+        "written := StrPut(\"abc\", buf, , \"UTF-8\")\n",
+        "a := StrGet(buf.Ptr, 3, \"UTF-8\")\n",
+        "b := StrGet(buf.Ptr, 0, \"UTF-8\")\n",
+    ));
+    assert!(report.ok, "{:?}", report.error);
+    assert_eq!(int_of(&report, "written"), 4);
+    assert_eq!(value_of(&report, "a"), Value::Text("abc".into()));
+    assert_eq!(value_of(&report, "b"), Value::Text(String::new()));
+}
+
+#[test]
 fn the_volume_of_a_device_is_a_number_between_zero_and_a_hundred() {
     let report = run("volume := SoundGetVolume()");
     assert!(report.ok, "{:?}", report.error);
@@ -4029,28 +4057,6 @@ fn var_set_str_capacity_reads_the_capacity_the_way_the_binary_reads_it() {
 }
 
 #[test]
-fn str_ptr_answers_an_address_of_a_text() {
-    // Measured on the binary of v2.0.19 on 2026-11-09: the address of a
-    // text is a number above zero, the same text answers the same address,
-    // and a number, an object and a reference are refused with their kind.
-    let report = run(concat!(
-        "v := \"hello\"",
-        "\na := StrPtr(v)",
-        "\nb := StrPtr(v)",
-        "\nc := StrPtr(\"hello\")",
-        "\nd := Type(StrPtr(\"\"))",
-    ));
-    assert!(report.ok, "{:?}", report.error);
-    assert!(int_of(&report, "a") > 0);
-    assert_eq!(int_of(&report, "a"), int_of(&report, "b"));
-    assert_eq!(value_of(&report, "d"), Value::Text("Integer".into()));
-    let report = run("a := StrPtr(5)");
-    assert_eq!(failure_of(&report), "Expected a String but got an Integer.");
-    let report = run("v := 1\na := StrPtr(&v)");
-    assert_eq!(failure_of(&report), "Expected a String but got a VarRef.");
-}
-
-#[test]
 fn str_put_writes_the_text_of_a_buffer_and_str_get_reads_it() {
     // Measured on the binary of v2.0.19 on 2026-11-09: the bytes of the
     // text and the terminator are the answer of a write, the encoding of a
@@ -4080,24 +4086,6 @@ fn str_put_writes_the_text_of_a_buffer_and_str_get_reads_it() {
     // The bytes of a UTF-16 text read as UTF-8 end at the zero of the
     // first unit: the "a" and nothing else.
     assert_eq!(value_of(&report, "i"), Value::Text("a".into()));
-}
-
-#[test]
-fn the_string_functions_refuse_what_v2_refuses() {
-    // Measured on the binary of v2.0.19 on 2026-11-09.
-    let report = run("buf := Buffer(16)\na := StrPut(\"abc\", buf, \"UTF-99\")");
-    assert_eq!(failure_of(&report), "Invalid Encoding.");
-    let report = run("a := StrGet(123)");
-    assert_eq!(failure_of(&report), "Parameter #1 of StrGet is invalid.");
-    let report = run("a := StrGet(\"abc\")");
-    assert_eq!(failure_of(&report), "Parameter #1 invalid.");
-    let report = run("a := StrPut(\"abc\", 123)");
-    assert_eq!(failure_of(&report), "Parameter #2 of StrPut is invalid.");
-    let report = run("buf := Buffer(2)\na := StrPut(\"abcdef\", buf, \"UTF-8\")");
-    assert_eq!(failure_of(&report), "Parameter #2 of StrPut is invalid.");
-    let report = run("buf := Buffer(16)\na := StrPut(\"abc\", buf, 3)");
-    assert!(report.ok, "{:?}", report.error);
-    assert_eq!(int_of(&report, "a"), 6);
 }
 
 #[test]

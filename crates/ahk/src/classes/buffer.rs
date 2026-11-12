@@ -62,8 +62,6 @@ struct Buffer {
     bytes: Vec<u8>,
 }
 
-/// The object a `Buffer` makes.
-/// The names a buffer answers: its properties and its methods.
 pub(crate) fn names() -> Vec<&'static str> {
     PROPERTIES.iter().chain(METHODS.iter()).copied().collect()
 }
@@ -115,12 +113,20 @@ pub(crate) fn call(
 pub(crate) fn property(
     name: &str,
     this: &Value,
-    _rt: &mut Runtime,
+    rt: &mut Runtime,
     line: u32,
 ) -> Option<Result<Value, RuntimeFailure>> {
     match name.to_lowercase().as_str() {
         "size" => Some(state(this, line).map(|buffer| Value::Int(buffer.bytes.len() as i64))),
-        "ptr" => Some(ptr_of(this, line).map(Value::Int)),
+        "ptr" => Some(match ptr_of(this, line) {
+            Ok(address) => {
+                // `StrGet` and `StrPut` are given this address back, so the
+                // runtime remembers which buffer it names.
+                rt.remember_a_buffer_at(address, this.clone());
+                Ok(Value::Int(address))
+            }
+            Err(failure) => Err(failure),
+        }),
         _ => None,
     }
 }
