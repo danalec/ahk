@@ -143,6 +143,25 @@ pub fn system_wall_clock() -> Option<WallClock> {
     })
 }
 
+
+/// The local date and the time of a moment, written the way KeySharp
+/// writes a moment: "yyyyMMddHHmmss".
+///
+/// The moment is the milliseconds since the epoch of the Unix, and the
+/// local time is the moment plus the offset of the machine at that
+/// moment -- the offset is read of the `TZ` of the environment or of
+/// the file of the zone, the way the clock of the tree reads it. A
+/// machine that does not know its own timezone has the UTC for its
+/// local time, and says nothing about it: the moment is the moment.
+#[cfg(feature = "std")]
+pub fn the_local_text_of(millis: i64) -> String {
+    let offset = the_offset_of_the_machine(millis.div_euclid(1000)).unwrap_or(0);
+    let local = from_unix_millis(millis + offset * 60_000);
+    format!(
+        "{:04}{:02}{:02}{:02}{:02}{:02}",
+        local.year, local.month, local.day, local.hour, local.minute, local.second
+    )
+}
 /// Whether the year has a day of February that is not in every year.
 pub fn is_leap_year(year: i64) -> bool {
     (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
@@ -939,7 +958,10 @@ impl Zone {
         let counts = the_counts(bytes, 20)?;
         if version == b'2' || version == b'3' {
             let at = 44 + the_size_of_the_block(counts, 4);
-            let counts = the_counts(bytes, at)?;
+            // The counts of a header are twenty bytes after the magic
+            // of it: the magic is four bytes, the version is one, and
+            // the fifteen bytes that are reserved come next.
+            let counts = the_counts(bytes, at + 20)?;
             return the_block(bytes, at + 44, counts, 8);
         }
         the_block(bytes, 44, counts, 4)

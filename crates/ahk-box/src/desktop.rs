@@ -113,11 +113,13 @@ pub struct LabDesktop {
     /// kept: a script that calls the same library twice does not load
     /// it twice.
     libraries: Libraries,
-    /// The children this desktop waited for: the pid and the code of the
-    /// exit the wait saw. The wait is the moment the desktop knows of,
-    /// and a process it did not wait for is the machine's to tell of --
-    /// which this desktop cannot do yet, and says so.
-    waited_children: std::collections::HashMap<u32, i32>,
+    /// The children this desktop waited for: the pid, the code of the
+    /// exit the wait saw and the moment of that wait, in milliseconds
+    /// since the epoch of the Unix. The wait is the moment the desktop
+    /// knows of, and the moment of the exit of a child is the moment of
+    /// the wait: the kernel does not keep the moment of the exit of a
+    /// process that is not ours.
+    waited_children: std::collections::HashMap<u32, (i32, i64)>,
 
     /// The raven, when a library of Windows has been asked for. The
     /// raven is a process of its own, and it is started with the first
@@ -1119,17 +1121,44 @@ impl ahk::desktop::Processes for LabDesktop {
         pid: u32,
     ) -> Result<Option<ahk::desktop::ProcessState>, String> {
         // A child this desktop waited for has exited: the wait saw the
-        // code. The moment of the exit is not recorded -- a time this
-        // desktop did not read is a time it does not say -- and a
-        // process it did not wait for is refused with the reason.
-        if let Some(code) = self.waited_children.get(&pid) {
+        // code, and the moment of the wait is the moment of the exit.
+        if let Some((code, millis)) = self.waited_children.get(&pid) {
             return Ok(Some(ahk::desktop::ProcessState {
                 has_exited: true,
                 exit_code: Some(*code),
-                exit_time: None,
+                exit_time: Some(ahk::date::the_local_text_of(*millis)),
             }));
         }
-        Err("this desktop cannot say the state of a process".to_string())
+        // A process that is not ours is the machine's to tell of, and
+        // the machine is asked: the procfs on Linux, and the kernel of
+        // the Windows on Windows.
+        #[cfg(target_os = "linux")]
+        {
+            Ok(Some(match crate::process::the_state_of(pid) {
+                Some(state) => ahk::desktop::ProcessState {
+                    has_exited: state.has_exited,
+                    exit_code: state.exit_code,
+                    // The kernel does not keep the moment of the exit of
+                    // a process that is not ours, and the tree does not
+                    // invent one.
+                    exit_time: None,
+                },
+                // The process is not there: it is over, and the code of
+                // the exit is the knowledge of its parent -- ours is not
+                // it.
+                None => ahk::desktop::ProcessState {
+                    has_exited: true,
+                    exit_code: None,
+                    exit_time: None,
+                },
+            }))
+        }
+        #[cfg(windows)]
+        {
+            Ok(crate::process::the_state_of_a_process_on_windows(pid))
+        }
+        #[cfg(not(any(target_os = "linux", windows)))]
+        Err("the state of a process is the machine's, and this desktop cannot ask it.".to_string())
     }
 
     fn launch_with_stdin(
@@ -1196,8 +1225,15 @@ impl ahk::desktop::Processes for LabDesktop {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         // The wait saw the exit: the state of this child is known from
-        // here on, and the ScriptProcess of its pid answers from it.
-        self.waited_children.insert(pid, code);
+        // here on, and the ScriptProcess of its pid answers from it. The
+        // moment of the wait is the moment of the exit -- the kernel does
+        // not keep the moment of the exit of a process that is not ours,
+        // and the tree does not invent one.
+        let millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|since| since.as_millis() as i64)
+            .unwrap_or(0);
+        self.waited_children.insert(pid, (code, millis));
         Ok((pid, code, stdout, stderr))
 
     }

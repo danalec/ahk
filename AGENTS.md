@@ -12224,3 +12224,50 @@ demanded the LED of every lock key, which a machine of a CI does not
 have (the case now takes the reason the machine cannot give one, and
 the box still proves the reading), and the comments that the rounds past
 had split in two.
+
+
+## 332. The state of a process, the moment of the exit, and the zone of the machine
+
+The gaps that the close of the surface left behind -- the state of a
+process that is still running, the moment of the exit, the layout of the
+keyboard beyond the variables of the environment -- are the machine's,
+and this section is what the machine answers.
+
+**The state of a process is the machine's.** On Linux the answer is
+`/proc/<pid>/stat`: a process that is there is running (or waiting for
+something), a process whose state is the `Z` of a zombie is over -- the
+parent did not take it yet -- and a process that is not there at all is
+over as well. The code of the exit is the knowledge of the parent, and
+ours is not the parent of every process: the code of a process that is
+not ours is not read, and it stays unset. On Windows the kernel knows
+the state of every process it can open: `OpenProcess` with the right of
+the query, `GetExitCodeProcess` for the code -- the 259 of a process
+that is still active is a process that runs -- and `GetProcessTimes` for
+the moment of the exit.
+
+**The moment of the exit is the moment of the wait.** The kernel does
+not keep the moment of the exit of a process that is not ours, and the
+tree does not invent one: the moment of a child is the moment of the
+wait, and the text of it is the way KeySharp writes a moment --
+`yyyyMMddHHmmss` of the local time of the machine. Measured on the box
+on 2026-11-11: the `ExitTime` of a child was `20261111223310`, and the
+clock of the machine said `20261111223310`.
+
+**The zone of the machine was read at the wrong place, and every date
+of the tree was the UTC.** The reader of the file of the zone asks the
+counts of the header twenty bytes after the magic of it -- the magic is
+four bytes, the version is one, and the fifteen bytes that are reserved
+come next -- and it asked for them at the magic: the four bytes of
+"TZif" were read as the counts of the header, the zone of every machine
+was read as nothing, and the date of the tree was the UTC everywhere.
+Measured on the box after the fix: the tree answers `2026-11-11
+22:32:36` and the machine says `2026-11-11 22:32:36 -03`. This is not
+only the `ExitTime`: the `A_YYYY`, the `A_MM` and the rest of the
+family of the date are the local time of the machine in v2, and they
+were the UTC.
+
+**The Windows of the tree does not know its own zone.** The zone of a
+machine of Windows is in its registry, and the tree does not read the
+registry yet: the date of a machine de Windows is the UTC, and the
+tree says that it does not know its own timezone. The box knows its
+zone, and the tree asks it.

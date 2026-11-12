@@ -341,6 +341,138 @@ fn the_parent_of(pid: u32) -> Option<u32> {
     fields.next()?.parse::<u32>().ok()
 }
 
+
+/// The state of a process, as the kernel of the machine sees it.
+pub struct TheState {
+    /// Whether the process has exited.
+    pub has_exited: bool,
+    /// The code it exited with, when the kernel knows it.
+    ///
+    /// The kernel keeps the code of the exit for the parent of the
+    /// process, and a process that is not ours has no code we can read:
+    /// it stays unset.
+    pub exit_code: Option<i32>,
+}
+
+/// The state of the process of the pid, and whether it is there at all.
+///
+/// `None` is the answer for a process that is not there: the directory
+/// of it is not in `/proc`, and a process that is gone is over. The
+/// state of a process that is there is the letter of `/proc/<pid>/stat`
+/// -- the `R` of a process that runs, the `S` of one that sleeps, and
+/// the `Z` of a zombie: a process that is over and whose parent did not
+/// take it yet.
+pub fn the_state_of(pid: u32) -> Option<TheState> {
+    if !std::path::Path::new(&format!("/proc/{pid}")).exists() {
+        return None;
+    }
+    let Some(state) = std::fs::read_to_string(format!("/proc/{pid}/stat"))
+        .ok()
+        .and_then(|stat| {
+            // The name of the process is in parentheses and it may hold
+            // a space and a parenthesis of its own, so the fields are
+            // counted from the last `)`.
+            let close = stat.rfind(')')?;
+            stat[close + 1..].split_whitespace().next().map(|state| state.to_string())
+        })
+    else {
+        // The process is there and the kernel does not say its state:
+        // the process is over only when it is not there at all.
+        return Some(TheState {
+            has_exited: false,
+            exit_code: None,
+        });
+    };
+    Some(TheState {
+        // The `Z` of a zombie is the only state that means the process
+        // is over: it waits for its parent to take it.
+        has_exited: state == "Z",
+        exit_code: None,
+    })
+}
+
+/// The state of a process on Windows, and the moment of its exit.
+///
+/// The kernel of the machine knows the state of every process it can
+/// open: `OpenProcess` with the right of the query opens it,
+/// `GetExitCodeProcess` answers the code of the exit -- and the 259 of
+/// a process that is still active is the answer of a process that runs
+/// -- and `GetProcessTimes` answers the moment of the exit, in the
+/// hundred-nanoseconds since the epoch of Windows.
+///
+/// The epoch of Windows is 1601, and the epoch of the Unix is 1970: the
+/// difference is the 11644473600 of the seconds between them.
+#[cfg(windows)]
+pub fn the_state_of_a_process_on_windows(pid: u32) -> Option<ahk::desktop::ProcessState> {
+    use std::ffi::c_void;
+
+    unsafe extern "system" {
+        fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
+        fn GetExitCodeProcess(handle: *mut c_void, code: *mut u32) -> i32;
+        fn GetProcessTimes(
+            handle: *mut c_void,
+            creation: *mut u64,
+            exit: *mut u64,
+            kernel: *mut u64,
+            user: *mut u64,
+        ) -> i32;
+        fn CloseHandle(handle: *mut c_void) -> i32;
+    }
+
+    /// The right of the query of a process: enough to read its state.
+    const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+    /// The code of a process that is still active.
+    const STILL_ACTIVE: u32 = 259;
+    /// The seconds between the epoch of Windows and the epoch of the Unix.
+    const THE_EPOCH_OF_WINDOWS: u64 = 11_644_473_600;
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if handle.is_null() {
+            // The kernel does not open it: the process is not there, or
+            // the rights of the session do not reach it. The first is
+            // the common one, and a process that is not there is over.
+            return Some(ahk::desktop::ProcessState {
+                has_exited: true,
+                exit_code: None,
+                exit_time: None,
+            });
+        }
+        let mut code: u32 = 0;
+        let asked = GetExitCodeProcess(handle, &mut code);
+        let mut creation: u64 = 0;
+        let mut exit: u64 = 0;
+        let mut kernel: u64 = 0;
+        let mut user: u64 = 0;
+        let times = GetProcessTimes(handle, &mut creation, &mut exit, &mut kernel, &mut user);
+        CloseHandle(handle);
+        if asked == 0 {
+            // The kernel does not answer the code: the state is unknown,
+            // and the tree does not guess it.
+            return None;
+        }
+        if code == STILL_ACTIVE {
+            return Some(ahk::desktop::ProcessState {
+                has_exited: false,
+                exit_code: None,
+                exit_time: None,
+            });
+        }
+        // The moment of the exit is the hundred-nanoseconds of Windows,
+        // and the text of it is the way KeySharp writes a moment.
+        let exit_time = if times != 0 && exit != 0 {
+            let millis = (exit / 10_000) as i64 - (THE_EPOCH_OF_WINDOWS * 1000) as i64;
+            Some(ahk::date::the_local_text_of(millis))
+        } else {
+            None
+        };
+        Some(ahk::desktop::ProcessState {
+            has_exited: true,
+            exit_code: Some(code as i32),
+            exit_time,
+        })
+    }
+}
 /// The nice value a priority word means.
 ///
 /// The binary reads the first letter of the word -- measured on the binary of
