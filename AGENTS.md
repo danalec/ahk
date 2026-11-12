@@ -12205,6 +12205,18 @@ surface and the runtime that answers it -- eighty commits of "the round
 that carries the sixth name" tell that reader nothing about the dialect.
 The local `master` keeps the detail, and the two are the same tree.
 
+**The repository of the GitHub can be gone.** On 2026-11-11 the
+`danalec/ahk` of the GitHub was not in the account any more -- the token
+was good, the name was free, and nothing of the work of that day had
+deleted it: the merges of that day had only deleted the branches they
+had merged. The tree was in the forgejo the whole time, and it is the
+forgejo that carries the history: the repository of the GitHub was
+recreated on the same day, flat, over the same snapshot of 2026-11-09.
+The lesson is the one of the two shapes: **the work is committed
+locally and pushed to the forgejo first**, and the GitHub is the copy
+that is published -- a copy that can be made again at any time, from
+the flat branch, with one commit over the snapshot.
+
 So the two are published differently, and the rule is this:
 
 - **the forgejo**: `git push forgejo master` -- a fast-forward, the
