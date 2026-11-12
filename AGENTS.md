@@ -12183,3 +12183,44 @@ its CI**, and a repository that publishes somewhere else has a second
 gate that nobody runs. The `-D warnings` is the part that matters: a
 warning is a thing the tree knows and does not say, and the CI of the
 GitHub reads it as an error.
+
+## 331. The two remotes, and the shape of each one
+
+The tree is published in two places, and they are not the same shape on
+purpose.
+
+**The forgejo carries the history.** `master` there is the linear
+history of this tree -- every block, every round -- and it is pushed
+straight from the local `master`, which is the same history. The branch
+`ks-surface-complete` is the same tree with the merge of the published
+snapshot of the GitHub, and it is what the two remotes agree on.
+
+**The GitHub carries the tree flat.** Its `master` was a snapshot of the
+tree of 2026-11-09 with a history of its own, and the work reached it
+as **one commit** over that snapshot (the `c458d1e` of the merge, the
+first of November): the diff is the whole tree, and the history of the
+rounds is not in it. The reason is the shape of the reader: a reader of
+the GitHub wants the tree, and the tree of a dialect is the table of the
+surface and the runtime that answers it -- eighty commits of "the round
+that carries the sixth name" tell that reader nothing about the dialect.
+The local `master` keeps the detail, and the two are the same tree.
+
+So the two are published differently, and the rule is this:
+
+- **the forgejo**: `git push forgejo master` -- a fast-forward, the
+  history and all.
+- **the GitHub**: a branch, a pull request, and a squash
+  (`gh pr merge --squash`). The master of the GitHub takes one commit
+  per pull request, and the local `master` is never pushed there
+  directly: the shapes differ, and a push of it would not be a
+  fast-forward.
+
+The CI of the GitHub is the gate that matters for the publication: it
+runs `clippy --workspace --all-targets -- -D warnings`, the suite and
+the `no_std` build on Ubuntu, on Windows and on macOS, and a pull
+request that is not green is not merged. Two things it found that no
+gate of this workstation could: the case of the state of the lock keys
+demanded the LED of every lock key, which a machine of a CI does not
+have (the case now takes the reason the machine cannot give one, and
+the box still proves the reading), and the comments that the rounds past
+had split in two.
