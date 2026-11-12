@@ -6,7 +6,7 @@ Lingua: Italiano
 
 I nomi della famiglia **Automazione COM (ComObject)** nei tre dialetti, con ciò che questo albero risponde per ciascuno di essi. La famiglia è l'ambito in cui uno script pensa; i nomi ne sono la totalità.
 
-| Nome | Dialetto | Genere | Classe | Parametri | Stato | Probe |
+| Nome | Dialetto | Genere | Classe | Parametri | Stato | Sonda |
 |---|---|---|---|---|---|---|
 | `ComCall` | AutoHotkey v2.0.19 | function | -- | up to 2 | valore | -- |
 | `ComObjActive` | AutoHotkey v2.0.19 | function | -- | 1 | valore | -- |

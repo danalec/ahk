@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Rdzeń języka: tekst, matematyka i wzorce** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `Class.__Init` | AutoHotkey v2.0.19 | method | Class | -- | wartość | -- |
 | `A_FormatFloat` | AutoHotkey v1.1.37.02 | variable | -- | -- | wartość | -- |

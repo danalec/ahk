@@ -6,7 +6,7 @@ Lingua: Italiano
 
 I nomi della famiglia **Tasti rapidi, stringhe di attivazione e input** nei tre dialetti, con ciò che questo albero risponde per ciascuno di essi. La famiglia è l'ambito in cui uno script pensa; i nomi ne sono la totalità.
 
-| Nome | Dialetto | Genere | Classe | Parametri | Stato | Probe |
+| Nome | Dialetto | Genere | Classe | Parametri | Stato | Sonda |
 |---|---|---|---|---|---|---|
 | `Hotkey.__New` | AutoHotkey v2.0.19 | method | Hotkey | -- | valore | -- |
 | `InputHook.__New` | AutoHotkey v2.0.19 | method | InputHook | -- | valore | -- |

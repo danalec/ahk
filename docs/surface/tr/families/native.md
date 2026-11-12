@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **Yerel işlev çağrıları (DllCall)** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `Buffer.__New` | AutoHotkey v2.0.19 | method | Buffer | -- | değer | -- |
 | `Buffer` | AutoHotkey v2.0.19 | class | -- | -- | değer | -- |

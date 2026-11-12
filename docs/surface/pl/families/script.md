@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Parser i wykonanie skryptu** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `#CommentFlag` | AutoHotkey v1.1.37.02 | directive | -- | -- | wartość | -- |
 | `#ErrorStdOut` | AutoHotkey v1.1.37.02 | directive | -- | -- | wartość | -- |

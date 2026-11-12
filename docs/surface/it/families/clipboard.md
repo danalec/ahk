@@ -6,7 +6,7 @@ Lingua: Italiano
 
 I nomi della famiglia **Gli appunti** nei tre dialetti, con ciò che questo albero risponde per ciascuno di essi. La famiglia è l'ambito in cui uno script pensa; i nomi ne sono la totalità.
 
-| Nome | Dialetto | Genere | Classe | Parametri | Stato | Probe |
+| Nome | Dialetto | Genere | Classe | Parametri | Stato | Sonda |
 |---|---|---|---|---|---|---|
 | `#ClipboardTimeout` | AutoHotkey v1.1.37.02 | directive | -- | -- | valore | -- |
 | `A_Clipboard` | AutoHotkey v1.1.37.02 | variable | -- | -- | valore | -- |

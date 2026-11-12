@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **GUI pencereleri ve pencere otomasyonu** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `Gui.__Enum` | AutoHotkey v2.0.19 | method | Gui | -- | değer | -- |
 | `Gui.__Item` | AutoHotkey v2.0.19 | method | Gui | -- | değer | -- |

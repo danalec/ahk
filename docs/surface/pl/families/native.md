@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Wywołania funkcji natywnych (DllCall)** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `Buffer.__New` | AutoHotkey v2.0.19 | method | Buffer | -- | wartość | -- |
 | `Buffer` | AutoHotkey v2.0.19 | class | -- | -- | wartość | -- |

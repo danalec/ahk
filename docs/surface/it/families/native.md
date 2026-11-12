@@ -6,7 +6,7 @@ Lingua: Italiano
 
 I nomi della famiglia **Chiamate a funzioni native (DllCall)** nei tre dialetti, con ciò che questo albero risponde per ciascuno di essi. La famiglia è l'ambito in cui uno script pensa; i nomi ne sono la totalità.
 
-| Nome | Dialetto | Genere | Classe | Parametri | Stato | Probe |
+| Nome | Dialetto | Genere | Classe | Parametri | Stato | Sonda |
 |---|---|---|---|---|---|---|
 | `Buffer.__New` | AutoHotkey v2.0.19 | method | Buffer | -- | valore | -- |
 | `Buffer` | AutoHotkey v2.0.19 | class | -- | -- | valore | -- |

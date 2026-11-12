@@ -6,7 +6,7 @@ Lingua: Italiano
 
 I nomi della famiglia **Il suono** nei tre dialetti, con ciò che questo albero risponde per ciascuno di essi. La famiglia è l'ambito in cui uno script pensa; i nomi ne sono la totalità.
 
-| Nome | Dialetto | Genere | Classe | Parametri | Stato | Probe |
+| Nome | Dialetto | Genere | Classe | Parametri | Stato | Sonda |
 |---|---|---|---|---|---|---|
 | `SoundBeep` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valore | -- |
 | `SoundBeep` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | valore | -- |

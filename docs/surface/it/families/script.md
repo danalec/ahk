@@ -6,7 +6,7 @@ Lingua: Italiano
 
 I nomi della famiglia **L'analizzatore e l'esecuzione dello script** nei tre dialetti, con ciò che questo albero risponde per ciascuno di essi. La famiglia è l'ambito in cui uno script pensa; i nomi ne sono la totalità.
 
-| Nome | Dialetto | Genere | Classe | Parametri | Stato | Probe |
+| Nome | Dialetto | Genere | Classe | Parametri | Stato | Sonda |
 |---|---|---|---|---|---|---|
 | `#CommentFlag` | AutoHotkey v1.1.37.02 | directive | -- | -- | valore | -- |
 | `#ErrorStdOut` | AutoHotkey v1.1.37.02 | directive | -- | -- | valore | -- |

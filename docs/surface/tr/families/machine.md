@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **Makine, süreçler ve ortam** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `A_AppData` | AutoHotkey v1.1.37.02 | variable | -- | -- | değer | -- |
 | `A_AppDataCommon` | AutoHotkey v1.1.37.02 | variable | -- | -- | değer | -- |

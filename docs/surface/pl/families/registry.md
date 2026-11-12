@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Interfejsy API rejestru** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `A_LoopRegName` | AutoHotkey v1.1.37.02 | variable | -- | -- | wartość | -- |
 | `A_RegView` | AutoHotkey v1.1.37.02 | variable | -- | -- | wartość | -- |

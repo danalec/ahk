@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Operacje na plikach i katalogach** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `A_DD` | AutoHotkey v1.1.37.02 | variable | -- | -- | wartość | -- |
 | `A_DDD` | AutoHotkey v1.1.37.02 | variable | -- | -- | wartość | -- |

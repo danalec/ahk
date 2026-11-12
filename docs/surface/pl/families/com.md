@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Automatyzacja COM (ComObject)** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `ComCall` | AutoHotkey v2.0.19 | function | -- | up to 2 | wartość | -- |
 | `ComObjActive` | AutoHotkey v2.0.19 | function | -- | 1 | wartość | -- |

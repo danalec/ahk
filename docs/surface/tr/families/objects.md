@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **Dilin nesneleri: Array, Map ve Func** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `Array.__Enum` | AutoHotkey v2.0.19 | method | Array | -- | değer | -- |
 | `Map.__Enum` | AutoHotkey v2.0.19 | method | Map | -- | değer | -- |

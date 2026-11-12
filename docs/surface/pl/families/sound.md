@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Dźwięk** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `SoundBeep` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | wartość | -- |
 | `SoundBeep` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | wartość | -- |

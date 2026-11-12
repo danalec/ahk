@@ -56,6 +56,25 @@ Four things are proved about it:
    `scripts/gen-surface-docs.py` is there and takes a `--check`, it is run
    and its verdict is reported; the generator is never re-implemented here.
 
+And two things about the layers under the surface:
+
+5. The behavior of the names. The names that carry one are the chunks of
+   `scripts/surface_behavior.py` (CHUNKS), and the text of them is in
+   `scripts/behaviour/chunk<n>.py`, one file per chunk, each one with a
+   dictionary `BEHAVIOR`. Every name of a chunk has an entry in the file of
+   the chunk, and every entry has an English text with a summary and an
+   example. A name without an entry, and an entry without an English
+   summary, are failures, and the message names the name and the file of
+   the chunk it belongs in.
+
+6. The languages of the subtree. The languages are the ones of
+   `scripts/surface_i18n.py` (LANGS), and the text of them is a dictionary
+   of each (TEXT). Every language carries the pages of the English subtree
+   under a directory of its own -- `index.md`, `crosswalk.md`, `v2.md`,
+   `v1.md`, `keysharp.md` and the page of every family -- and every key of
+   the English text. A page that is not there, and a key that is not there,
+   are failures, and the message names the language and the key.
+
 The counts are read out of the generated files in this order: the marker of
 the generator
 
@@ -110,6 +129,17 @@ GENERATED_FILES = ("index.md", "crosswalk.md")
 # The generator of the subtree, and the flag that makes it compare its own
 # output with the files that are there.
 GENERATOR = "scripts/gen-surface-docs.py"
+
+# The module that names the names that carry a behavior, and the directory
+# of the chunks of the behavior.
+BEHAVIOUR_MODULE = "scripts/surface_behavior.py"
+BEHAVIOUR_DIR = "scripts/behaviour"
+
+# The module that names the languages of the subtree and the text of them.
+I18N_MODULE = "scripts/surface_i18n.py"
+
+# The pages of the subtree that every language carries.
+LANGUAGE_PAGES = ("index.md", "crosswalk.md", "v2.md", "v1.md", "keysharp.md")
 
 # The marker the generator writes its counts with.
 MARKER = re.compile(r"surface-counts:\s*(?P<body>[^>]*?)\s*-->")
@@ -928,6 +958,184 @@ def check_the_links(subtree, where, failures):
     return failures
 
 
+def the_module(path):
+    """The module of a path, run so that its tables can be read."""
+    import importlib.util
+
+    name = "ahk_check_" + Path(path).stem
+    spec = importlib.util.spec_from_file_location(name, str(path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_the_behaviour(failures):
+    """Every name that carries a behavior has one, in English.
+
+    The names are the chunks of `scripts/surface_behavior.py`, and the text
+    of them is in `scripts/behaviour/chunk<n>.py`, one file per chunk. A
+    name that has no entry, and an entry that has no English summary or no
+    English example, is a failure.
+    """
+    path = ROOT / BEHAVIOUR_MODULE
+    if not path.exists():
+        print("MISSING %s: the names that carry a behavior are not listed"
+              % BEHAVIOUR_MODULE)
+        return failures + 1
+    module = the_module(path)
+    chunks = getattr(module, "CHUNKS", None)
+    if not chunks:
+        print("MISSING CHUNKS in %s: the module names no name that carries a "
+              "behavior" % BEHAVIOUR_MODULE)
+        return failures + 1
+    directory = ROOT / BEHAVIOUR_DIR
+    if not directory.is_dir():
+        print("MISSING %s: the directory of the chunks is not there"
+              % BEHAVIOUR_DIR)
+        return failures + 1
+    names = 0
+    before = failures
+    for number in sorted(chunks):
+        wanted = str(chunks[number]).split()
+        names += len(wanted)
+        chunk_file = directory / ("chunk%s.py" % number)
+        where = chunk_file.relative_to(ROOT).as_posix()
+        if not chunk_file.exists():
+            failures += 1
+            print("MISSING %s: the file of the chunk %s is not there" % (where, number))
+            for name in wanted:
+                print("  the %s has no behavior; it belongs to %s" % (name, where))
+            continue
+        namespace = {}
+        try:
+            source = chunk_file.read_text(encoding="utf-8")
+            exec(compile(source, str(chunk_file), "exec"), namespace)
+        except Exception as error:  # the file is Python of the tree
+            failures += 1
+            print("DRIFT %s: the file does not run: %s" % (where, error))
+            continue
+        behavior = namespace.get("BEHAVIOR")
+        if not isinstance(behavior, dict):
+            failures += 1
+            print("MISSING BEHAVIOR in %s: the file carries no dictionary of the "
+                  "behavior" % where)
+            continue
+        for name in wanted:
+            if name not in behavior:
+                failures += 1
+                print("MISSING BEHAVIOR: the %s has no entry in %s" % (name, where))
+        for name, entry in behavior.items():
+            english = entry.get("en") if isinstance(entry, dict) else None
+            if not isinstance(english, dict):
+                failures += 1
+                print("MISSING BEHAVIOR: the %s of %s has no English text"
+                      % (name, where))
+                continue
+            missing = [field for field in ("summary", "example")
+                       if not str(english.get(field) or "").strip()]
+            if missing:
+                failures += 1
+                print("MISSING BEHAVIOR: the %s of %s has no %s in English"
+                      % (name, where, " and no ".join(missing)))
+            if name not in wanted:
+                print("NOTE %s: the entry of the %s is not named by the chunk %s"
+                      % (where, name, number))
+    if failures == before:
+        print("the behavior: the %d names of the %d chunks of %s carry an "
+              "entry with an English summary and an example"
+              % (names, len(chunks), BEHAVIOUR_DIR))
+    else:
+        print("the behavior: %d of the %d names of the %d chunks of %s do not "
+              "carry an entry with an English summary and an example"
+              % (failures - before, names, len(chunks), BEHAVIOUR_DIR))
+    return failures
+
+
+def check_the_languages(where, failures):
+    """Every language of the subtree carries every page and every key.
+
+    The languages are the ones of `scripts/surface_i18n.py`, and the pages
+    of a language are the pages of the English subtree under a directory of
+    its own. The text of a language is a dictionary, and the keys of it are
+    the keys of the English one.
+    """
+    path = ROOT / I18N_MODULE
+    if not path.exists():
+        print("MISSING %s: the languages of the subtree are not listed"
+              % I18N_MODULE)
+        return failures + 1
+    module = the_module(path)
+    langs = getattr(module, "LANGS", ())
+    text = getattr(module, "TEXT", {})
+    if not langs:
+        print("MISSING LANGS in %s: the module names no language" % I18N_MODULE)
+        return failures + 1
+    english = text.get("en")
+    if not english:
+        print("MISSING the English text in %s: the text of the languages is "
+              "there, and the English one is not" % I18N_MODULE)
+        return failures + 1
+    before = failures
+    root = ROOT / where
+    families = []
+    family_directory = root / "families"
+    if family_directory.is_dir():
+        families = sorted(path.name for path in family_directory.glob("*.md"))
+    for lang in langs:
+        if lang == "en":
+            # The English pages are the root of the subtree.
+            directory = root
+            place = where
+        else:
+            directory = root / lang
+            place = where + "/" + lang
+            if not directory.is_dir():
+                failures += 1
+                print("MISSING %s: the language has no directory of its own"
+                      % place)
+                continue
+        for page in LANGUAGE_PAGES:
+            if not (directory / page).exists():
+                failures += 1
+                print("MISSING %s/%s: the page of the language is not there"
+                      % (place, page))
+        for family in families:
+            if not (directory / "families" / family).exists():
+                failures += 1
+                print("MISSING %s/families/%s: the page of the family is not "
+                      "there" % (place, family))
+        if lang != "en":
+            extra = sorted(path.name for path in directory.glob("*.md")
+                           if path.name not in LANGUAGE_PAGES)
+            if extra:
+                print("NOTE %s/%s: the language carries pages that the English "
+                      "one does not: %s" % (where, lang, ", ".join(extra)))
+        dictionary = text.get(lang)
+        if dictionary is None:
+            failures += 1
+            print("MISSING the text of %s in %s: the language is listed and "
+                  "carries no dictionary" % (lang, I18N_MODULE))
+            continue
+        for key in english:
+            if key not in dictionary:
+                failures += 1
+                print("MISSING the key %s of %s: the English text carries it "
+                      "and %s does not" % (key, lang, lang))
+    for lang in text:
+        if lang not in langs:
+            print("NOTE %s: the text of %s is there and the language is not "
+                  "listed in LANGS" % (I18N_MODULE, lang))
+    if failures == before:
+        print("the languages: the %d languages of %s carry the pages of the "
+              "English subtree and every key of the English text"
+              % (len(langs), I18N_MODULE))
+    else:
+        print("the languages: %d problems in the %d languages of %s: a page "
+              "that is not there, or a key that is not there"
+              % (failures - before, len(langs), I18N_MODULE))
+    return failures
+
+
 def check_the_generator(failures):
     """The generated files are the ones the generator writes."""
     path = ROOT / GENERATOR
@@ -978,6 +1186,10 @@ def main():
                         help="the generated subtree (default: docs/surface)")
     parser.add_argument("--skip-families", action="store_true",
                         help="do not compare the pages of the families")
+    parser.add_argument("--skip-behaviour", action="store_true",
+                        help="do not check the behavior of the names")
+    parser.add_argument("--skip-languages", action="store_true",
+                        help="do not check the languages of the subtree")
     arguments = parser.parse_args()
 
     binary = the_binary(arguments.binary)
@@ -1097,6 +1309,10 @@ def main():
             failures = check_the_families(subtree, arguments.docs_dir, failures)
     failures = check_the_links(subtree, arguments.docs_dir, failures)
     failures = check_the_generator(failures)
+    if not arguments.skip_behaviour:
+        failures = check_the_behaviour(failures)
+    if not arguments.skip_languages:
+        failures = check_the_languages(arguments.docs_dir, failures)
 
     if failures:
         print()

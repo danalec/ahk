@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **Ses** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `SoundBeep` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | değer | -- |
 | `SoundBeep` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | değer | -- |

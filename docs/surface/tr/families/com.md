@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **COM otomasyonu (ComObject)** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `ComCall` | AutoHotkey v2.0.19 | function | -- | up to 2 | değer | -- |
 | `ComObjActive` | AutoHotkey v2.0.19 | function | -- | 1 | değer | -- |

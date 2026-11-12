@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Skróty, ciągi wyzwalające i wprowadzanie** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `Hotkey.__New` | AutoHotkey v2.0.19 | method | Hotkey | -- | wartość | -- |
 | `InputHook.__New` | AutoHotkey v2.0.19 | method | InputHook | -- | wartość | -- |

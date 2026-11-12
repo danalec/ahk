@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **Ekran yakalama ve piksel işlevleri** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `A_ScreenDPI` | AutoHotkey v1.1.37.02 | variable | -- | -- | değer | -- |
 | `A_ScreenHeight` | AutoHotkey v1.1.37.02 | variable | -- | -- | değer | -- |

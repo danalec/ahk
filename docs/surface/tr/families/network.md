@@ -6,6 +6,6 @@ Dil: Türkçe
 
 Üç lehçedeki **Ağ ve posta** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `Mail` | KeySharp | function | -- | -- | değer | -- |

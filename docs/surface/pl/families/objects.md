@@ -6,7 +6,7 @@ Język: Polski
 
 Nazwy rodziny **Obiekty języka: Array, Map i Func** w trzech dialektach wraz z tym, co to drzewo odpowiada na każdą z nich. Rodzina jest dziedziną, w której myśli skrypt; nazwy stanowią jej całość.
 
-| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Probe |
+| Nazwa | Dialekt | Rodzaj | Klasa | Parametry | Stan | Sonda |
 |---|---|---|---|---|---|---|
 | `Array.__Enum` | AutoHotkey v2.0.19 | method | Array | -- | wartość | -- |
 | `Map.__Enum` | AutoHotkey v2.0.19 | method | Map | -- | wartość | -- |

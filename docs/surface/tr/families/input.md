@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **Kısayollar, tetikleme dizeleri ve giriş** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `Hotkey.__New` | AutoHotkey v2.0.19 | method | Hotkey | -- | değer | -- |
 | `InputHook.__New` | AutoHotkey v2.0.19 | method | InputHook | -- | değer | -- |

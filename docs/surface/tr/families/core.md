@@ -6,7 +6,7 @@ Dil: Türkçe
 
 Üç lehçedeki **Dilin çekirdeği: metin, matematik ve kalıplar** ailesinin adları ve bu ağacın her biri için verdiği yanıt. Aile, bir betiğin düşündüğü alandır; adlar onun tamamıdır.
 
-| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Probe |
+| Ad | Lehçe | Tür | Sınıf | Parametreler | Durum | Sonda |
 |---|---|---|---|---|---|---|
 | `Class.__Init` | AutoHotkey v2.0.19 | method | Class | -- | değer | -- |
 | `A_FormatFloat` | AutoHotkey v1.1.37.02 | variable | -- | -- | değer | -- |

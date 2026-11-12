@@ -6,7 +6,7 @@ Lingua: Italiano
 
 I nomi della famiglia **Date e ore** nei tre dialetti, con ciò che questo albero risponde per ciascuno di essi. La famiglia è l'ambito in cui uno script pensa; i nomi ne sono la totalità.
 
-| Nome | Dialetto | Genere | Classe | Parametri | Stato | Probe |
+| Nome | Dialetto | Genere | Classe | Parametri | Stato | Sonda |
 |---|---|---|---|---|---|---|
 | `A_Hour` | AutoHotkey v1.1.37.02 | variable | -- | -- | valore | -- |
 | `A_Min` | AutoHotkey v1.1.37.02 | variable | -- | -- | valore | -- |
