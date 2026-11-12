@@ -1,0 +1,38 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+target/
+
+# the review artefacts of the EGM protocol are not part of the tree
+egm-review/
+
+# a run that finds no cache directory of its own used to leave this behind
+.cache/
+
+# the helper of the raven is built on the box, and the build is not in the tree
+crates/ahk-box/helper/helper.exe
+crates/ahk-box/helper/helper32.exe
+crates/ahk-box/helper/libkernel32.a
+crates/ahk-box/helper/libkernel32_32.a
+
+# the review artefacts of the second pass are not part of the tree
+egm-review-doc-language/
+
+# a release that was built here is not in the tree
+dist/
+
+# the answers of the engines that differential.py writes are not part of the tree
+scripts/differential/raw/
+scripts/differential/_subset/
+
+# the notebooks of the sessions are not part of the project: the AGENTS.md
+# is the working notebook of the agent sessions and the EGM.md files are
+# the notebooks of the protocol of the review. They name the machines of
+# the lab, they carry the history of the sessions, and they are read by
+# the harness and not by the user of the dialect. The pattern of the
+# second one has no folder in it, so it refuses the one of every crate.
+AGENTS.md
+EGM.md

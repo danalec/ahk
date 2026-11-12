@@ -1,0 +1,871 @@
+# The AutoHotkey v2.0.19 surface, read out of AutoHotkey64.exe.
+#
+# kind      command, function, variable, method or class
+# class     the class a method belongs to, empty otherwise
+#           A row of the kind `class` is a class of the dialect that a
+#           script can read as a class: the name of it is a value, and
+#           its `__Class` is "Class". The class of a hotkey is not one of
+#           them: the name `Hotkey` is a function of the dialect.
+#           The `BoundFunc`, the `Closure` and the `RegExMatchInfo` are
+#           classes of the binary that the documentation does not name: a
+#           script reads them as a class, and the call of them is refused
+#           with "Invalid base.", the way the call of the `File` is.
+# handler   the address of the handler, in the binary
+# min       the fewest parameters, where the binary states it
+# max       the most parameters, 255 for any number
+# variant   the byte that picks the flavour of a shared handler
+# flag      the byte beside it
+#
+# The rows of the members of a class are the table of the class in the
+# binary: a property with a setter is two rows, the getter and the
+# setter. The table of the `InputHook` is at 0x00125170 and the table of
+# the `Gui.TreeView` is at 0x00126780, both with a stride of forty bytes.
+#
+# The binary keeps some of the members outside its tables of the methods:
+# the properties of the error object, the call of the enumerator, the
+# pointer of the `ComValue` and the pointer and the size of the
+# `ClipboardAll` are not in one. The rows of them carry no handler, and
+# they were measured on the binary on 2026-10-31.
+#
+# The arity of the function entries is in the binary. The arity of the
+# command entries was not: it is kept in a packing that was not decoded,
+# and it was measured on the binary on 2026-10-31 instead -- the call
+# that asks for too few is refused at the load, and the call that asks
+# for too many is refused as well, so the two refusals say where the
+# bounds are. The fewest that the binary declares is not always the
+# fewest that the command needs: nine commands need a parameter that
+# the table does not count, and they say so in other words.
+kind	class	name	handler	min	max	variant	flag
+class		Any					
+class		Array					
+class		BoundFunc					
+class		Buffer					
+class		Class					
+class		ClipboardAll					
+class		Closure					
+class		ComObject					
+class		ComValue					
+class		Enumerator					
+class		Error					
+class		File					
+class		Float					
+class		Func					
+class		Gui					
+class		IndexError					
+class		InputHook					
+class		Integer					
+class		Map					
+class		MemberError					
+class		MemoryError					
+class		Menu					
+class		MethodError					
+class		Number					
+class		Object					
+class		OSError					
+class		Primitive					
+class		PropertyError					
+class		RegExMatchInfo					
+class		String					
+class		TargetError					
+class		TimeoutError					
+class		TypeError					
+class		UnsetError					
+class		UnsetItemError					
+class		ValueError					
+class		ZeroDivisionError					
+command		BlockInput	0x140024340	1	1		
+command		CallbackCreate	0x140024890	1	3		
+command		CallbackFree	0x140024a30	1	1		
+command		ClipWait	0x14003f038	0	2		
+command		ControlAddItem	0x14006e160	2	6		
+command		ControlChooseIndex	0x14006e490	2	6		
+command		ControlChooseString	0x14006e6a0	2	6		
+command		ControlClick	0x1400407f0	0	8		
+command		ControlDeleteItem	0x14006e270	2	6		
+command		ControlFindItem	0x14006e940	2	6		
+command		ControlFocus	0x140041840	1	5		
+command		ControlGetChecked	0x14006dd60	1	5		
+command		ControlGetChoice	0x14006eb20	1	5		
+command		ControlGetClassNN	0x1400415d0	1	5		
+command		ControlGetEnabled	0x140041c20	1	5		
+command		ControlGetExStyle	0x14006dec0	1	5		
+command		ControlGetFocus	0x140041530	0	4		
+command		ControlGetHwnd	0x14006f6a0	1	5		
+command		ControlGetIndex	0x14006ea40	1	5		
+command		ControlGetItems	0x14006ecf0	1	5		
+command		ControlGetPos	0x1400413f0	0	9		
+command		ControlGetStyle	0x14006de60	1	5		
+command		ControlGetText	0x1400419c0	1	5		
+command		ControlGetVisible	0x1400411c0	1	5		
+command		ControlHide	0x140041150	1	5		
+command		ControlHideDropDown	0x14006dff0	1	5		
+command		ControlMove	0x140041220	0	9		
+command		ControlSend	0x140040710	1	6		
+command		ControlSendText	0x140040780	1	6		
+command		ControlSetChecked	0x14006dae0	2	6		
+command		ControlSetEnabled	0x140041c10	2	6		
+command		ControlSetExStyle	0x14006de30	2	6		
+command		ControlSetStyle	0x14006de00	2	6		
+command		ControlSetText	0x140041920	2	6		
+command		ControlShow	0x1400410e0	1	5		
+command		ControlShowDropDown	0x14006dfd0	1	5		
+command		CoordMode	0x14003a890	1	2		
+command		Critical	0x14006a190	0	1		
+command		DateAdd	0x14002fd40	3	3		
+command		DateDiff	0x14002fed0	3	3		
+command		DetectHiddenText	0x14003b990	1	1		
+command		DetectHiddenWindows	0x14003b8c0	1	1		
+command		DirCopy	0x140029880	2	3		
+command		DirCreate	0x140029980	1	1		
+command		DirDelete	0x1400299d0	1	2		
+command		DirExist	0x140029870	1	1		
+command		DirMove	0x1400298d0	2	3		
+command		DirSelect	0x14006fb70	0	3		
+command		Download	0x14006f700	2	2		
+command		DriveEject	0x140026bb4	0	1		
+command		DriveGetCapacity	0x140026a6c	1	1		
+command		DriveGetFilesystem	0x140026e54	1	1		
+command		DriveGetLabel	0x140026ed0	1	1		
+command		DriveGetList	0x140026cf8	0	1		
+command		DriveGetSerial	0x140026f50	1	1		
+command		DriveGetSpaceFree	0x140026a74	1	1		
+command		DriveGetStatus	0x1400270ac	1	1		
+command		DriveGetStatusCD	0x140027158	0	1		
+command		DriveGetType	0x140026fc8	1	1		
+command		DriveLock	0x140026ce8	1	1		
+command		DriveRetract	0x140026bbc	0	1		
+command		DriveSetLabel	0x140026bc4	1	2		
+command		DriveUnlock	0x140026cf0	1	1		
+command		Edit	0x1400470c0	0	0		
+command		EditGetCurrentCol	0x14006f130	1	5		
+command		EditGetCurrentLine	0x14006f090	1	5		
+command		EditGetLine	0x14006f270	2	6		
+command		EditGetLineCount	0x14006f000	1	5		
+command		EditGetSelectedText	0x14006f420	1	5		
+command		EditPaste	0x14006e880	2	6		
+command		EnvGet	0x14002728c	1	1		
+command		EnvSet	0x140027368	1	2		
+command		Exit	0x1400473f0	0	1		
+command		ExitApp	0x140047420	0	1		
+command		FileAppend	0x140027fe0	1	3		
+command		FileCopy	0x1400288c0	2	3		
+command		FileCreateShortcut	0x1400701d0	2	9		
+command		FileDelete	0x140028560	1	1		
+command		FileEncoding	0x14003c6b0	1	1		
+command		FileExist	0x140029860	1	1		
+command		FileGetAttrib	0x1400289c0	0	1		
+command		FileGetShortcut	0x14006ff30	1	8		
+command		FileGetSize	0x140029520	0	2		
+command		FileGetTime	0x140029170	0	2		
+command		FileGetVersion	0x1400704b0	0	1		
+command		FileInstall	0x140028870	2	3		
+command		FileMove	0x140028940	2	3		
+command		FileRead	0x140027880	1	2		
+command		FileRecycle	0x1400703a0	1	1		
+command		FileRecycleEmpty	0x140070480	0	1		
+command		FileSelect	0x140067a00	0	4		
+command		FileSetAttrib	0x140028a40	1	3		
+command		FileSetTime	0x140029300	0	4		
+command		GetKeyName	0x140069440	1	1		
+command		GetKeySC	0x140069370	1	1		
+command		GetKeyState	0x140069140	1	2		
+command		GetKeyVK	0x140069230	1	1		
+command		GroupActivate	0x140040280	1	2		
+command		GroupAdd	0x140040200	1	5		
+command		GroupClose	0x1400403d0	1	2		
+command		GroupDeactivate	0x140040310	1	2		
+command		GuiCtrlFromHwnd	0x14007c840	1	1		
+command		GuiFromHwnd	0x14007c760	1	2		
+command		HotIf	0x140069ca0	0	1		
+command		HotIfWinActive	0x140069eb0	0	2		
+command		HotIfWinExist	0x140069f10	0	2		
+command		HotIfWinNotActive	0x140069ee0	0	2		
+command		HotIfWinNotExist	0x140069f40	0	2		
+command		Hotkey	0x140069ad0	1	3		
+command		Hotstring	0x14001bc00	1	3		
+command		IL_Add	0x14006aa00	2	4		
+command		IL_Create	0x14006a940	0	3		
+command		IL_Destroy	0x14006a9e0	1	1		
+command		ImageSearch	0x140030a50	7	7		
+command		IniDelete	0x14009c8e0	2	3		
+command		IniRead	0x14009c440	1	4		
+command		IniWrite	0x14009c780	3	4		
+command		InputBox	0x14002cdc0	0	4		
+command		InstallKeybdHook	0x140068900	0	2		
+command		InstallMouseHook	0x140068910	0	2		
+command		IsLabel	0x140068b50	1	1		
+command		KeyHistory	0x140066780	0	1		
+command		KeyWait	0x14003f0ec	1	2		
+command		ListHotkeys	0x140066770	0	0		
+command		ListLines	0x1400666f0	0	1		
+command		ListVars	0x140066760	0	0		
+command		ListViewGetContent	0x140041c80	0	6		
+command		LoadPicture	0x14006ab30	1	3		
+command		MenuFromHandle	0x14006a900	1	1		
+command		MenuSelect	0x14006d640	0	11		
+command		MonitorGet	0x14002756c	0	5		
+command		MonitorGetCount	0x1400273e0	0	0		
+command		MonitorGetName	0x1400275bc	0	1		
+command		MonitorGetPrimary	0x14002742c	0	0		
+command		MonitorGetWorkArea	0x140027594	0	5		
+command		MouseClick	0x140023ff0	0	7		
+command		MouseClickDrag	0x140024180	0	7		
+command		MouseGetPos	0x140067530	0	5		
+command		MouseMove	0x140024290	2	4		
+command		MsgBox	0x140066df0	0	3		
+command		OnClipboardChange	0x14006a850	1	2		
+command		OnError	0x14006a8c0	1	2		
+command		OnExit	0x14006a8e0	1	2		
+command		OnMessage	0x14006a3a0	2	3		
+command		OutputDebug	0x14006a350	1	1		
+command		Pause	0x140063370	0	1		
+command		Persistent	0x140068810	0	1		
+command		PixelGetColor	0x14006d460	2	3		
+command		PixelSearch	0x1400309f0	7	8		
+command		PostMessage	0x140042860	1	8		
+command		ProcessClose	0x1400317a8	1	1		
+command		ProcessExist	0x140031758	0	1		
+command		ProcessGetName	0x1400318c0	0	1		
+command		ProcessGetParent	0x140031770	0	1		
+command		ProcessGetPath	0x1400318c8	0	1		
+command		ProcessSetPriority	0x14003199c	1	2		
+command		ProcessWait	0x14003198c	1	2		
+command		ProcessWaitClose	0x140031994	1	2		
+command		Reload	0x1400472f0	0	0		
+command		Run	0x140031ac8	1	4		
+command		RunAs	0x14006cfd0	0	3		
+command		Send	0x140023f00	1	1		
+command		SendEvent	0x140023f80	1	1		
+command		SendInput	0x140023f40	1	1		
+command		SendLevel	0x14003a980	1	1		
+command		SendMessage	0x140042850	1	9		
+command		SendMode	0x14003a8a0	1	1		
+command		SendPlay	0x140023f70	1	1		
+command		SendText	0x140023f20	1	1		
+command		SetCapsLockState	0x140023fb0	0	1		
+command		SetControlDelay	0x14003abb0	1	1		
+command		SetDefaultMouseSpeed	0x14003a9b0	1	1		
+command		SetKeyDelay	0x14003a9e0	0	3		
+command		SetMouseDelay	0x14003aad0	1	2		
+command		SetNumLockState	0x140023f90	0	1		
+command		SetRegView	0x14003c960	1	1		
+command		SetScrollLockState	0x140023fd0	0	1		
+command		SetStoreCapsLockMode	0x14003c1c0	1	1		
+command		SetTimer	0x140069f70	0	3		
+command		SetTitleMatchMode	0x14003b4a0	1	1		
+command		SetWinDelay	0x14003ab80	1	1		
+command		SetWorkingDir	0x140067900	1	1		
+command		Shutdown	0x1400710f0	1	1		
+command		Sleep	0x14006a180	1	1		
+command		SoundBeep	0x140035170	0	2		
+command		SoundPlay	0x140034fe8	1	2		
+command		StatusBarGetText	0x140042410	0	5		
+command		StatusBarWait	0x140042480	0	8		
+command		StrSplit	0x140036810	1	4		
+command		Suspend	0x140063320	0	1		
+command		SysGet	0x140027388	1	1		
+command		SysGetIPAddresses	0x14006d050	0	0		
+command		Thread	0x14006a240	1	3		
+command		ToolTip	0x140067080	0	4		
+command		TraySetIcon	0x1400469f0	0	3		
+command		TrayTip	0x140065140	0	3		
+command		WinActivate	0x140040140	0	4		
+command		WinActivateBottom	0x1400401a0	0	4		
+command		WinClose	0x140040040	0	5		
+command		WinGetClass	0x140042ef0	0	4		
+command		WinGetClientPos	0x140044490	0	8		
+command		WinGetControls	0x140043fb0	0	4		
+command		WinGetControlsHwnd	0x140043fd0	0	4		
+command		WinGetCount	0x1400431d0	0	4		
+command		WinGetExStyle	0x140043670	0	4		
+command		WinGetID	0x1400433e0	0	4		
+command		WinGetIDLast	0x140043420	0	4		
+command		WinGetList	0x140043280	0	4		
+command		WinGetMinMax	0x1400435b0	0	4		
+command		WinGetPID	0x140043460	0	4		
+command		WinGetPos	0x1400443d0	0	8		
+command		WinGetProcessName	0x140043570	0	4		
+command		WinGetProcessPath	0x140043590	0	4		
+command		WinGetStyle	0x140043620	0	4		
+command		WinGetText	0x1400441b0	0	4		
+command		WinGetTitle	0x140042e20	0	4		
+command		WinGetTransColor	0x140043910	0	4		
+command		WinGetTransparent	0x1400438a0	0	4		
+command		WinHide	0x1400400c0	0	4		
+command		WinKill	0x140040070	0	5		
+command		WinMaximize	0x1400400e0	0	4		
+command		WinMinimize	0x140040100	0	4		
+command		WinMinimizeAll	0x140044f30	0	0		
+command		WinMinimizeAllUndo	0x140044f80	0	0		
+command		WinMove	0x140040600	0	8		
+command		WinMoveBottom	0x140042d60	0	4		
+command		WinMoveTop	0x140042cf0	0	4		
+command		WinRedraw	0x140042cb0	0	4		
+command		WinRestore	0x140040120	0	4		
+command		WinSetAlwaysOnTop	0x140042bf0	0	5		
+command		WinSetEnabled	0x140041be0	1	5		
+command		WinSetExStyle	0x140043870	1	5		
+command		WinSetRegion	0x1400428b0	0	5		
+command		WinSetStyle	0x140043840	1	5		
+command		WinSetTitle	0x140042dd0	1	5		
+command		WinSetTransColor	0x140043b30	1	5		
+command		WinSetTransparent	0x140043ac0	1	5		
+command		WinShow	0x1400400a0	0	4		
+command		WinWait	0x14003f600	0	5		
+command		WinWaitActive	0x14003f658	0	5		
+command		WinWaitClose	0x14003f62c	0	5		
+command		WinWaitNotActive	0x14003f684	0	5		
+variable		AhkPath	0x14003d2d0				
+variable		AhkVersion	0x14003d2b0				
+variable		AllowMainWindow	0x14003cc60				
+variable		AppData	0x14003d870				
+variable		AppDataCommon	0x14003d870				
+variable		Clipboard	0x14003abe0				
+variable		ComputerName	0x14003d400				
+variable		ComSpec	0x14003d7d0				
+variable		ControlDelay	0x14003ba60				
+variable		CoordModeCaret	0x14003bbc0				
+variable		CoordModeMenu	0x14003bbc0				
+variable		CoordModeMouse	0x14003bbc0				
+variable		CoordModePixel	0x14003bbc0				
+variable		CoordModeToolTip	0x14003bbc0				
+variable		Cursor	0x14003dd60				
+variable		DD	0x14003b390				
+variable		DDD	0x14003af30				
+variable		DDDD	0x14003af30				
+variable		DefaultMouseSpeed	0x14003bb10				
+variable		Desktop	0x14003d870				
+variable		DesktopCommon	0x14003d870				
+variable		DetectHiddenText	0x14003b8e0				
+variable		DetectHiddenWindows	0x14003b810				
+variable		EndChar	0x14003edb0				
+variable		EventInfo	0x14003ede0				
+variable		FileEncoding	0x14003c620				
+variable		HotkeyInterval	0x14003c1e0				
+variable		HotkeyModifierTimeout	0x14003c1e0				
+variable		Hour	0x14003b390				
+variable		IconFile	0x14003d190				
+variable		IconHidden	0x14003cdb0				
+variable		IconNumber	0x14003d1b0				
+variable		IconTip	0x14003d020				
+variable		Index	0x14003ebf0				
+variable		InitialWorkingDir	0x14003d650				
+variable		Is64bitOS	0x14003d3b0				
+variable		IsAdmin	0x14006d3c0				
+variable		IsCompiled	0x14003c610				
+variable		IsCritical	0x14003c5d0				
+variable		IsPaused	0x14003c5a0				
+variable		IsSuspended	0x14003c600				
+variable		KeyDelay	0x14003ba60				
+variable		KeyDelayPlay	0x14003ba60				
+variable		KeyDuration	0x14003ba60				
+variable		KeyDurationPlay	0x14003ba60				
+variable		Language	0x14003d3c0				
+variable		LastError	0x14003cbb0				
+variable		LineFile	0x14003e0f0				
+variable		LineNumber	0x14003e0d0				
+variable		ListLines	0x14003b3c0				
+variable		LoopField	0x14003ebc0				
+variable		LoopFileAttrib	0x14003e700				
+variable		LoopFileDir	0x14003e210				
+variable		LoopFileExt	0x14003e1a0				
+variable		LoopFileFullPath	0x14003e500				
+variable		LoopFileName	0x14003e130				
+variable		LoopFilePath	0x14003e480				
+variable		LoopFileShortName	0x14003e130				
+variable		LoopFileShortPath	0x14003e580				
+variable		LoopFileSize	0x14003e750				
+variable		LoopFileSizeKB	0x14003e750				
+variable		LoopFileSizeMB	0x14003e750				
+variable		LoopFileTimeAccessed	0x14003e610				
+variable		LoopFileTimeCreated	0x14003e610				
+variable		LoopFileTimeModified	0x14003e610				
+variable		LoopReadLine	0x14003eb90				
+variable		LoopRegKey	0x14003e950				
+variable		LoopRegName	0x14003eaa0				
+variable		LoopRegTimeModified	0x14003ead0				
+variable		LoopRegType	0x14003e7e0				
+variable		MaxHotkeysPerInterval	0x14003c1e0				
+variable		MDay	0x14003b390				
+variable		MenuMaskKey	0x14003c370				
+variable		Min	0x14003b390				
+variable		MM	0x14003b390				
+variable		MMM	0x14003af30				
+variable		MMMM	0x14003af30				
+variable		Mon	0x14003b390				
+variable		MouseDelay	0x14003ba60				
+variable		MouseDelayPlay	0x14003ba60				
+variable		MSec	0x14003b390				
+variable		MyDocuments	0x14003da10				
+variable		Now	0x14003d310				
+variable		NowUTC	0x14003d310				
+variable		OSVersion	0x14003d390				
+variable		PriorHotkey	0x14003ecf0				
+variable		PriorKey	0x14003d1c0				
+variable		ProgramFiles	0x14003d870				
+variable		Programs	0x14003d870				
+variable		ProgramsCommon	0x14003d870				
+variable		PtrSize	0x14003cc20				
+variable		RegView	0x14003c910				
+variable		ScreenDPI	0x14003cc30				
+variable		ScreenHeight	0x14003df20				
+variable		ScreenWidth	0x14003df20				
+variable		ScriptDir	0x14003e070				
+variable		ScriptFullPath	0x14003e090				
+variable		ScriptHwnd	0x14003e0b0				
+variable		ScriptName	0x14003df50				
+variable		Sec	0x14003b390				
+variable		SendLevel	0x14003bed0				
+variable		SendMode	0x14003bd10				
+variable		Space	0x14003d280				
+variable		StartMenu	0x14003d870				
+variable		StartMenuCommon	0x14003d870				
+variable		Startup	0x14003d870				
+variable		StartupCommon	0x14003d870				
+variable		StoreCapsLockMode	0x14003c110				
+variable		Tab	0x14003d280				
+variable		Temp	0x14003d710				
+variable		ThisFunc	0x14003ec90				
+variable		ThisHotkey	0x14003ecd0				
+variable		TickCount	0x14003d2f0				
+variable		TimeIdle	0x14003ee80				
+variable		TimeIdleKeyboard	0x14003ee80				
+variable		TimeIdleMouse	0x14003ee80				
+variable		TimeIdlePhysical	0x14003ee80				
+variable		TimeSincePriorHotkey	0x14003ed60				
+variable		TimeSinceThisHotkey	0x14003ed10				
+variable		TitleMatchMode	0x14003b470				
+variable		TitleMatchModeSpeed	0x14003b7e0				
+variable		TrayMenu	0x14003cc40				
+variable		UserName	0x14003d400				
+variable		WDay	0x14003b390				
+variable		WinDelay	0x14003ba60				
+variable		WinDir	0x14003d670				
+variable		WorkingDir	0x14003d4d0				
+variable		YDay	0x14003b390				
+variable		Year	0x14003b390				
+variable		YWeek	0x14003b390				
+variable		YYYY	0x14003b390				
+function		Abs	0x14002f040	1	1	0	0
+function		ACos	0x14002f3c0	1	1	1	0
+function		ASin	0x14002f3c0	1	1	0	0
+function		ATan	0x14002f520	1	1	0	0
+function		CaretGetPos	0x14003db20	0	2	0	1
+function		Ceil	0x14002eba0	1	1	1	0
+function		Chr	0x140039400	1	1	0	0
+function		Click	0x14001ff40	0	6	0	0
+function		ComCall	0x1400253a0	2	255	1	0
+function		ComObjActive	0x140071d40	1	1	0	0
+function		ComObjConnect	0x140072140	1	2	0	0
+function		ComObjFlags	0x140072990	1	3	0	0
+function		ComObjFromPtr	0x140071a50	1	1	0	0
+function		ComObjGet	0x140071930	1	1	0	0
+function		ComObjQuery	0x140072ea0	2	3	0	0
+function		ComObjType	0x140072670	1	2	0	0
+function		ComObjValue	0x1400725d0	1	1	0	0
+function		Cos	0x14002f1c0	1	1	0	0
+function		DllCall	0x1400253a0	1	255	0	0
+function		Exp	0x14002f620	1	1	0	0
+function		FileOpen	0x1400a01e0	2	3	0	0
+function		Floor	0x14002eba0	1	1	0	0
+function		Format	0x140039540	1	255	0	0
+function		FormatTime	0x140035270	0	2	0	0
+function		GetMethod	0x14009c100	1	3	0	0
+function		HasBase	0x14009bdd0	2	2	0	0
+function		HasMethod	0x14009c100	1	3	1	0
+function		HasProp	0x14009bf60	2	2	0	0
+function		InStr	0x140038c60	2	5	0	0
+function		IsAlnum	0x140068bd0	1	2	7	0
+function		IsAlpha	0x140068bd0	1	2	8	0
+function		IsDigit	0x140068bd0	1	1	5	0
+function		IsFloat	0x140068bd0	1	1	3	0
+function		IsInteger	0x140068bd0	1	1	2	0
+function		IsLower	0x140068bd0	1	2	10	0
+function		IsNumber	0x140068bd0	1	1	1	0
+function		IsObject	0x14009b530	1	1	0	0
+function		IsSetRef	0x140069050	1	1	0	1
+function		IsSpace	0x140068bd0	1	1	11	0
+function		IsTime	0x140068bd0	1	1	4	0
+function		IsUpper	0x140068bd0	1	2	9	0
+function		IsXDigit	0x140068bd0	1	1	6	0
+function		Ln	0x14002f720	1	1	2	0
+function		Log	0x14002f720	1	1	1	0
+function		LTrim	0x140039f80	1	2	1	0
+function		Max	0x14002eea0	1	255	1	0
+function		Min	0x14002eea0	1	255	0	0
+function		Mod	0x14002ecd0	2	2	0	0
+function		NumGet	0x14002da50	2	3	0	0
+function		NumPut	0x14002dbd0	3	255	0	0
+function		ObjAddRef	0x14009b680	1	1	0	0
+function		ObjBindMethod	0x14009b730	1	255	0	0
+function		ObjFromPtr	0x14009b9a0	1	1	2	0
+function		ObjFromPtrAddRef	0x14009b9a0	1	1	3	0
+function		ObjGetBase	0x14009bad0	1	1	0	0
+function		ObjGetCapacity	0x14009b590	1	1	2	0
+function		ObjHasOwnProp	0x14009b590	2	2	0	0
+function		ObjOwnPropCount	0x14009b590	1	1	1	0
+function		ObjOwnProps	0x14009b590	1	1	4	0
+function		ObjPtr	0x14009b9a0	1	1	0	0
+function		ObjPtrAddRef	0x14009b9a0	1	1	1	0
+function		ObjRelease	0x14009b680	1	1	1	0
+function		ObjSetBase	0x14009bad0	2	2	1	0
+function		ObjSetCapacity	0x14009b590	2	2	3	0
+function		Ord	0x1400392c0	1	1	0	0
+function		Random	0x14002f8b0	0	2	0	0
+function		RegCreateKey	0x14009d3f0	0	1	2	0
+function		RegDelete	0x14009d3f0	0	2	3	0
+function		RegDeleteKey	0x14009d3f0	0	1	4	0
+function		RegExMatch	0x140033c20	2	4	0	3
+function		RegExReplace	0x140033c20	2	6	1	4
+function		RegRead	0x14009d3f0	0	3	0	0
+function		RegWrite	0x14009d3f0	0	4	1	0
+function		Round	0x14002e940	1	2	0	0
+function		RTrim	0x140039f80	1	2	2	0
+function		RunWait	0x14003f6b0	1	4	0	4
+function		Sin	0x14002f0c0	1	1	0	0
+function		Sort	0x140037840	1	3	0	0
+function		SoundGetInterface	0x140034790	1	3	3	0
+function		SoundGetMute	0x140034790	0	2	1	0
+function		SoundGetName	0x140034790	0	2	2	0
+function		SoundGetVolume	0x140034790	0	2	0	0
+function		SoundSetMute	0x140034790	1	3	5	0
+function		SoundSetVolume	0x140034790	1	3	4	0
+function		SplitPath	0x140037070	1	6	0	2
+function		Sqrt	0x14002f720	1	1	0	0
+function		StrCompare	0x140038470	2	3	0	0
+function		StrGet	0x14002def0	1	3	0	0
+function		StrLen	0x1400387a0	1	1	0	0
+function		StrLower	0x140035f20	1	1	0	0
+function		StrPtr	0x14002e840	1	1	0	0
+function		StrPut	0x14002def0	1	4	1	0
+function		StrReplace	0x1400361b0	2	6	0	5
+function		StrTitle	0x140035f20	1	1	2	0
+function		StrUpper	0x140035f20	1	1	1	0
+function		SubStr	0x140038910	2	3	0	0
+function		Tan	0x14002f2c0	1	1	0	0
+function		Trim	0x140039f80	1	2	0	0
+function		Type	0x14006acd0	1	1	0	0
+function		VarSetStrCapacity	0x140069540	1	2	0	1
+function		VerCompare	0x14003a3e0	2	2	0	0
+function		WinActive	0x140044ca0	0	4	1	0
+function		WinExist	0x140044ca0	0	4	0	0
+method	Gui	__Enum	0x14007b6c0				
+method	Gui	__New	0x14007baa0				
+method	Gui	Add	0x14007b780				
+method	Gui	AddActiveX	0x14007b080				
+method	Gui	AddButton	0x14007b0a0				
+method	Gui	AddCheckBox	0x14007b0c0				
+method	Gui	AddComboBox	0x14007b0e0				
+method	Gui	AddCustom	0x14007b100				
+method	Gui	AddDateTime	0x14007b120				
+method	Gui	AddDDL	0x14007b140				
+method	Gui	AddDropDownList	0x14007b140				
+method	Gui	AddEdit	0x14007b160				
+method	Gui	AddGroupBox	0x14007b180				
+method	Gui	AddHotkey	0x14007b1a0				
+method	Gui	AddLink	0x14007b1c0				
+method	Gui	AddListBox	0x14007b1e0				
+method	Gui	AddListView	0x14007b200				
+method	Gui	AddMonthCal	0x14007b220				
+method	Gui	AddPic	0x14007b240				
+method	Gui	AddPicture	0x14007b240				
+method	Gui	AddProgress	0x14007b260				
+method	Gui	AddRadio	0x14007b280				
+method	Gui	AddSlider	0x14007b2a0				
+method	Gui	AddStatusBar	0x14007b2c0				
+method	Gui	AddTab	0x14007b2e0				
+method	Gui	AddTab2	0x14007b300				
+method	Gui	AddTab3	0x14007b320				
+method	Gui	AddText	0x14007b340				
+method	Gui	AddTreeView	0x14007b360				
+method	Gui	AddUpDown	0x14007b380				
+method	Gui	Destroy	0x14007fdb0				
+method	Gui	Flash	0x140088b20				
+method	Gui	GetClientPos	0x14007c500				
+method	Gui	GetPos	0x14007c400				
+method	Gui	Hide	0x140088b70				
+method	Gui	Maximize	0x140088ac0				
+method	Gui	Minimize	0x140088a90				
+method	Gui	Move	0x14007c600				
+method	Gui	OnEvent	0x140080160				
+method	Gui	Opt	0x1400846d0				
+method	Gui	Restore	0x140088af0				
+method	Gui	SetFont	0x140089700				
+method	Gui	Show	0x140087e10				
+method	Gui	Submit	0x140088cd0				
+method	Gui	__Item	0x14007bf00				
+method	Gui	Hwnd	0x14007be10				
+method	Gui	Title	0x14007be30				
+method	Gui	Title	0x14007bed0				
+method	Gui	Name	0x14007c390				
+method	Gui	Name	0x14007c3a0				
+method	Gui	FocusedCtrl	0x14007c1d0				
+method	Gui	BackColor	0x14007c280				
+method	Gui	BackColor	0x14007c300				
+method	Gui	MarginX	0x14007b3a0				
+method	Gui	MarginX	0x14007b460				
+method	Gui	MarginY	0x14007b400				
+method	Gui	MarginY	0x14007b4b0				
+method	Gui	MenuBar	0x14007dca0				
+method	Gui	MenuBar	0x14007dd00				
+method	Hotkey	__New	0x14001cc20				
+method	Hotkey	KeyOpt	0x14001d1e0				
+method	Hotkey	Start	0x14001cc60				
+method	Hotkey	Stop	0x14001cde0				
+method	Hotkey	Wait	0x14001cd50				
+method	Hotkey	BackspaceIsUndo	0x14001ca20				
+method	Hotkey	BackspaceIsUndo	0x14001ca30				
+method	Hotkey	CaseSensitive	0x14001ca40				
+method	Hotkey	CaseSensitive	0x14001ca50				
+method	Hotkey	FindAnywhere	0x14001ca60				
+method	Hotkey	FindAnywhere	0x14001ca70				
+method	Hotkey	NotifyNonText	0x14001ca90				
+method	Hotkey	NotifyNonText	0x14001caa0				
+method	Hotkey	VisibleNonText	0x14001cac0				
+method	Hotkey	VisibleNonText	0x14001cad0				
+method	Hotkey	VisibleText	0x14001caf0				
+method	Hotkey	VisibleText	0x14001cb00				
+method	Hotkey	EndKey	0x14001ceb0				
+method	Hotkey	EndMods	0x14001cef0				
+method	Hotkey	EndReason	0x14001ce20				
+method	Hotkey	InProgress	0x14001c8c0				
+method	Hotkey	Input	0x14001cfc0				
+method	Hotkey	Match	0x14001cfe0				
+method	Hotkey	MinSendLevel	0x14001cb20				
+method	Hotkey	MinSendLevel	0x14001d140				
+method	Hotkey	OnChar	0x14001c930				
+method	Hotkey	OnChar	0x14001c960				
+method	Hotkey	OnEnd	0x14001c8e0				
+method	Hotkey	OnEnd	0x14001c910				
+method	Hotkey	OnKeyDown	0x14001c980				
+method	Hotkey	OnKeyDown	0x14001c9b0				
+method	Hotkey	OnKeyUp	0x14001c9d0				
+method	Hotkey	OnKeyUp	0x14001ca00				
+method	Hotkey	Timeout	0x14001cb30				
+method	Hotkey	Timeout	0x14001d160				
+method	File	AtEOF	0x14009fea0				
+method	File	Close	0x1400a00a0				
+method	File	Encoding	0x14009ffa0				
+method	File	Encoding	0x1400a0040				
+method	File	Handle	0x14009ff20				
+method	File	Length	0x14009fd70				
+method	File	Length	0x14009fde0				
+method	File	Pos	0x14009fc60				
+method	File	Pos	0x14009fcd0				
+method	File	RawRead	0x14009fb60				
+method	File	RawWrite	0x14009fb80				
+method	File	Read	0x14009f190				
+method	File	ReadChar	0x14009f0d0				
+method	File	ReadDouble	0x14009efb0				
+method	File	ReadFloat	0x14009f010				
+method	File	ReadInt	0x14009f010				
+method	File	ReadInt64	0x14009efb0				
+method	File	ReadLine	0x14009f290				
+method	File	ReadShort	0x14009f070				
+method	File	ReadUChar	0x14009f0d0				
+method	File	ReadUInt	0x14009f010				
+method	File	ReadUShort	0x14009f070				
+method	File	Seek	0x14009fba0				
+method	File	Write	0x14009f8c0				
+method	File	WriteChar	0x14009f100				
+method	File	WriteDouble	0x14009f160				
+method	File	WriteFloat	0x14009f130				
+method	File	WriteInt	0x14009f040				
+method	File	WriteInt64	0x14009efe0				
+method	File	WriteLine	0x14009f8d0				
+method	File	WriteShort	0x14009f0a0				
+method	File	WriteUChar	0x14009f100				
+method	File	WriteUInt	0x14009f040				
+method	File	WriteUShort	0x14009f0a0				
+method	Gui.Control	Focus	0x14007cc60				
+method	Gui.Control	GetPos	0x14007cca0				
+method	Gui.Control	Move	0x14007cde0				
+method	Gui.Control	OnCommand	0x14007ce50				
+method	Gui.Control	OnEvent	0x14007ce90				
+method	Gui.Control	OnNotify	0x14007cf50				
+method	Gui.Control	Opt	0x14007cf90				
+method	Gui.Control	Redraw	0x14007d070				
+method	Gui.Control	SetFont	0x14007d0e0				
+method	Gui.Control	ClassNN	0x14007d140				
+method	Gui.Control	Enabled	0x14007d1d0				
+method	Gui.Control	Enabled	0x14007d210				
+method	Gui.Control	Focused	0x14007d380				
+method	Gui.Control	Gui	0x14007d3f0				
+method	Gui.Control	Hwnd	0x14007d440				
+method	Gui.Control	Name	0x14007d460				
+method	Gui.Control	Name	0x14007d470				
+method	Gui.Control	Text	0x14007d490				
+method	Gui.Control	Text	0x14007d5f0				
+method	Gui.Control	Type	0x14007d610				
+method	Gui.Control	Value	0x14007d6a0				
+method	Gui.Control	Value	0x14007d6f0				
+method	Gui.Control	Visible	0x14007d710				
+method	Gui.Control	Visible	0x14007d730				
+method	Gui.Control	Add	0x14007db10				
+method	Gui.Control	Choose	0x14007e8d0				
+method	Gui.Control	Delete	0x14007dc00				
+method	Gui.Control	UseTab	0x14007d840				
+method	Gui.Control	SetFormat	0x14007faf0				
+method	Gui.Menu	Add	0x14008de70				
+method	Gui.Menu	AddStandard	0x14008e640				
+method	Gui.Menu	Check	0x14008ebd0				
+method	Gui.Menu	ClickCount	0x14008ec30				
+method	Gui.Menu	ClickCount	0x14008ec40				
+method	Gui.Menu	Default	0x14008ec60				
+method	Gui.Menu	Default	0x14008ec90				
+method	Gui.Menu	Delete	0x14008e660				
+method	Gui.Menu	Disable	0x14008ec00				
+method	Gui.Menu	Enable	0x14008ec10				
+method	Gui.Menu	Handle	0x14008ed10				
+method	Gui.Menu	Insert	0x14008de90				
+method	Gui.Menu	Rename	0x14008e7e0				
+method	Gui.Menu	SetColor	0x14008e8e0				
+method	Gui.Menu	SetIcon	0x14008e950				
+method	Gui.Menu	Show	0x14008eb90				
+method	Gui.Menu	ToggleCheck	0x14008ebe0				
+method	Gui.Menu	ToggleEnable	0x14008ec20				
+method	Gui.Menu	Uncheck	0x14008ebf0				
+method	Buffer	Ptr	
+method	Buffer	Size	
+method	Buffer	__New	
+method	Map	__Item	0x140093180				
+method	Map	Capacity	0x1400947c0				
+method	Map	CaseSense	0x1400946b0				
+method	Map	Count	0x1400946a0				
+method	Map	__Enum	0x140094a50				
+method	Map	__New	0x140093290				
+method	Map	Clear	0x140094690				
+method	Map	Clone	0x140094da0				
+method	Map	Delete	0x140094540				
+method	Map	Get	0x140093180				
+method	Map	Has	0x140094c40				
+method	Map	Set	0x140093290				
+method	Map	Clone	0x140094cb0				
+method	Map	DefineProp	0x140095360				
+method	Map	DeleteProp	0x1400943b0				
+method	Map	GetOwnPropDesc	0x140095750				
+method	Map	HasOwnProp	0x140094b50				
+method	Map	OwnProps	0x140094950				
+method	Gui.ListView	Add	0x14007afb0				
+method	Gui.ListView	Delete	0x14002b710				
+method	Gui.ListView	Get	0x14002bb60				
+method	Gui.ListView	GetChild	0x14002b770				
+method	Gui.ListView	GetCount	0x14002b7b0				
+method	Gui.ListView	GetNext	0x14002b8b0				
+method	Gui.ListView	GetParent	0x14002b7f0				
+method	Gui.ListView	GetPrev	0x14002b830				
+method	Gui.ListView	GetSelection	0x14002b870				
+method	Gui.ListView	GetText	0x14002bc90				
+method	Gui.ListView	Modify	0x14007aff0				
+method	Gui.ListView	SetImageList	0x14002bd50				
+method	Gui.ListView	SetIcon	0x14002adf0				
+method	Gui.ListView	SetParts	0x14002afb0				
+method	Gui.ListView	SetText	0x14002b1b0				
+method	Func	Bind	0x140097d90				
+method	Func	Call	0x140097d90				
+method	Func	IsByRef	0x140097d90				
+method	Func	IsOptional	0x140097d90				
+method	Func	IsBuiltIn	0x140097d90				
+method	Func	IsVariadic	0x140097d90				
+method	Func	MaxParams	0x140097d90				
+method	Func	MinParams	0x140097d90				
+method	Func	Name	0x140097d90				
+method	Array	__Item	0x1400967a0				
+method	Array	Capacity	0x1400967a0				
+method	Array	Length	0x1400967a0				
+method	Array	__New	0x1400967a0				
+method	Array	__Enum	0x1400967a0				
+method	Array	Clone	0x1400967a0				
+method	Array	Delete	0x1400967a0				
+method	Array	Get	0x1400967a0				
+method	Array	Has	0x1400967a0				
+method	Array	InsertAt	0x1400967a0				
+method	Array	Pop	0x1400967a0				
+method	Array	Push	0x1400967a0				
+method	Array	RemoveAt	0x1400967a0				
+method	Gui.StatusBar	GetNext	0x140029b60				
+method	Gui.StatusBar	GetCount	0x140029a90				
+method	Gui.StatusBar	GetText	0x140029cb0				
+method	Gui.StatusBar	Add	0x14007aef0				
+method	Gui.StatusBar	Insert	0x14007af10				
+method	Gui.StatusBar	Modify	0x14007af40				
+method	Gui.StatusBar	Delete	0x14002a4d0				
+method	Gui.StatusBar	InsertCol	0x14007af70				
+method	Gui.StatusBar	ModifyCol	0x14007af90				
+method	Gui.StatusBar	DeleteCol	0x14002a540				
+method	Gui.StatusBar	SetImageList	0x14002ad50				
+method	InputHook	__New	0x14001cc20				
+method	InputHook	KeyOpt	0x14001d1e0				
+method	InputHook	Start	0x14001cc60				
+method	InputHook	Stop	0x14001cde0				
+method	InputHook	Wait	0x14001cd50				
+method	InputHook	BackspaceIsUndo	0x14001ca20				
+method	InputHook	BackspaceIsUndo	0x14001ca30				
+method	InputHook	CaseSensitive	0x14001ca40				
+method	InputHook	CaseSensitive	0x14001ca50				
+method	InputHook	FindAnywhere	0x14001ca60				
+method	InputHook	FindAnywhere	0x14001ca70				
+method	InputHook	NotifyNonText	0x14001ca90				
+method	InputHook	NotifyNonText	0x14001caa0				
+method	InputHook	VisibleNonText	0x14001cac0				
+method	InputHook	VisibleNonText	0x14001cad0				
+method	InputHook	VisibleText	0x14001caf0				
+method	InputHook	VisibleText	0x14001cb00				
+method	InputHook	EndKey	0x14001ceb0				
+method	InputHook	EndMods	0x14001cef0				
+method	InputHook	EndReason	0x14001ce20				
+method	InputHook	InProgress	0x14001c8c0				
+method	InputHook	Input	0x14001cfc0				
+method	InputHook	Match	0x14001cfe0				
+method	InputHook	MinSendLevel	0x14001cb20				
+method	InputHook	MinSendLevel	0x14001d140				
+method	InputHook	OnChar	0x14001c930				
+method	InputHook	OnChar	0x14001c960				
+method	InputHook	OnEnd	0x14001c8e0				
+method	InputHook	OnEnd	0x14001c910				
+method	InputHook	OnKeyDown	0x14001c980				
+method	InputHook	OnKeyDown	0x14001c9b0				
+method	InputHook	OnKeyUp	0x14001c9d0				
+method	InputHook	OnKeyUp	0x14001ca00				
+method	InputHook	Timeout	0x14001cb30				
+method	InputHook	Timeout	0x14001d160				
+method	Gui.TreeView	Add	0x14007afb0				
+method	Gui.TreeView	Delete	0x14002b710				
+method	Gui.TreeView	Get	0x14002bb60				
+method	Gui.TreeView	GetChild	0x14002b770				
+method	Gui.TreeView	GetCount	0x14002b7b0				
+method	Gui.TreeView	GetNext	0x14002b8b0				
+method	Gui.TreeView	GetParent	0x14002b7f0				
+method	Gui.TreeView	GetPrev	0x14002b830				
+method	Gui.TreeView	GetSelection	0x14002b870				
+method	Gui.TreeView	GetText	0x14002bc90				
+method	Gui.TreeView	Modify	0x14007aff0				
+method	Gui.TreeView	SetImageList	0x14002bd50				
+method	Gui.TreeView	SetIcon	0x14002adf0				
+method	Gui.TreeView	SetParts	0x14002afb0				
+method	Gui.TreeView	SetText	0x14002b1b0				
+method	Object	Base					
+method	Object	Clone	0x140094cb0				
+method	Object	DefineProp	0x140095360				
+method	Object	DeleteProp	0x1400943b0				
+method	Object	GetOwnPropDesc	0x140095750				
+method	Object	HasOwnProp	0x140094b50				
+method	Object	OwnProps	0x140094950				
+method	Class	Base					
+method	Class	Call					
+method	Class	Prototype					
+method	Class	__Init					
+method	Object	GetMethod					
+method	Object	HasBase					
+method	Object	HasMethod					
+method	Object	HasProp					
+method	Error	Message					
+method	Error	What					
+method	Error	Extra					
+method	Error	File					
+method	Error	Line					
+method	Error	Stack					
+method	Enumerator	Call					
+method	ComValue	Ptr					
+method	ClipboardAll	Ptr					
+method	ClipboardAll	Size					

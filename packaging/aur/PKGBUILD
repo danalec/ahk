@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The package of the AUR for ahk.
+#
+# It installs the prebuilt x86_64 Linux archive of the release, pinned to
+# the SHA256 of the file it names. The sources of the project are at
+# https://github.com/danalec/ahk, and the archive is the one the CI builds
+# and smokes.
+pkgname=ahk
+pkgver=0.3.2
+pkgrel=1
+pkgdesc="An AutoHotkey interpreter written in Rust, with a desktop backend for driving a Linux machine"
+arch=('x86_64')
+url="https://github.com/danalec/ahk"
+license=('Apache-2.0')
+depends=('glibc')
+optdepends=('python: the helper of the desktop, for the keyboard, the pointer and the screen')
+provides=('ahk')
+conflicts=('ahk-git')
+options=('!strip')
+source=("$pkgname-v$pkgver-x86_64-linux-gnu.tar.gz::https://github.com/danalec/ahk/releases/download/v$pkgver/$pkgname-v$pkgver-x86_64-linux-gnu.tar.gz")
+sha256sums=('ed40f96be2ef103697fec3fc3a92235b11ab8698297d03fef9fa734a4cd65efa')
+
+package() {
+  cd "$pkgname-v$pkgver-x86_64-linux-gnu"
+  install -Dm755 ahk "$pkgdir/usr/bin/ahk"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
