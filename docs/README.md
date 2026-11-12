@@ -18,7 +18,7 @@ with what it holds and who it is for.
 
 | The kind | What it is | The documents |
 |---|---|---|
-| a **user guide** | written for someone who runs scripts or writes them: plain sentences, examples, the behaviour of the language | `language-guide.md`, `ahk-v2-reference.md`, `ahk-v1-reference.md`, `runner-and-report.md`, `desktop-backend.md`, `errors.md`, `dialects.md` |
+| a **user guide** | written for someone who runs scripts or writes them: plain sentences, examples, the behaviour of the language | `language-guide.md`, `ahk-v2-reference.md`, `ahk-v1-reference.md`, `ahk-ks-dialect.md`, `runner-and-report.md`, `desktop-backend.md`, `errors.md`, `dialects.md` |
 | a **record** | the design or the measurement of one piece of work, kept because it says *why* the tree is the way it is. The numbers and the decisions are the ones of the day it was written | `ahk-v1-dialect.md`, `v2-capability-report.md`, `wayland-toplevel-enumeration.md`, `ahk-x11-comparison.md`, `ahk-gaps-report.md`, `two-lines.md` |
 | an **index** | this page | `README.md` |
 
@@ -35,6 +35,7 @@ measurement is an opinion.
 | [language-guide.md](language-guide.md) | the language itself, from the lexical structure to the classes and the statements, with the behaviour of each construct | a new user: someone learning to write a script |
 | [errors.md](errors.md) | the error model: a load error and a run error, the fourteen classes of v2, the object a catch holds, `try` / `catch` / `throw` and `OnError`, the guard rails, and the leniency of v1 | anyone whose script failed, or who writes a `catch` |
 | [dialects.md](dialects.md) | the gate between the two dialects, a full v2-against-v1 reference, and how to port a script either way | someone who has a v1 script, or who moves between the dialects |
+| [ahk-ks-dialect.md](ahk-ks-dialect.md) | the extensions of KeySharp -- the mode `ks` of the v2: the families of the names, the table of their surface, the machine behind them, and the audit that named them | someone writing a script against the extensions, or a contributor keeping the table of them honest |
 | [ahk-v2-reference.md](ahk-v2-reference.md) | every name of AutoHotkey v2.0.19 -- the commands, the functions, the built-in variables, the class types and their methods -- with the state the tree answers for each | someone looking up a name: is this here, and does it do the thing? |
 | [ahk-v1-reference.md](ahk-v1-reference.md) | the same catalogue for v1.1.37.02: the commands, the functions, the built-in variables and the directives | someone porting a v1 script, or checking what the v1 carries |
 | [runner-and-report.md](runner-and-report.md) | the command `ahk`, its flags, the standard input and output, and the whole shape of the JSON report: the steps, the `error` and `error_line`, the notes, the `exit_code`, the `variables`, the includes, the pid file and the guard rails | anyone who reads a report -- a client of the runner, a test -- and anyone changing what it prints |

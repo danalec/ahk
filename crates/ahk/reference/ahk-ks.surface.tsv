@@ -1,0 +1,159 @@
+# The platform-neutral surface of KeySharp that the `ks` dialect carries.
+#
+# kind      command, function, variable, method or class
+# class     the class a method belongs to, empty otherwise
+#
+# The names are the ones the audit of the KeySharp surface named, with the
+# logic of the audit itself: the exports of the frozen files of
+# `egm-review/keysharp-audit/surface/`, minus the ones that need Windows,
+# or .NET, or a GUI, and minus the ones that are names of the v2 (those
+# are parity, and the table of the v2 has them).
+#
+# The table is a contract like the other two: the parity test asks the
+# tree about every name of it, and a name the tree stops carrying fails
+# the build of a test and not a run of a script.
+#
+# The question is asked of the tree and not of one dialect: three of the
+# names are names of the v1 (`A_Args`, `EnvUpdate` and `IsSet`), and the
+# tree carries them in the v1, which is the dialect that has them. The
+# rule is the one of the audit: a name is carried when the tree answers
+# it.
+kind	class	name
+variable		A_Args
+variable		A_ClipboardTimeout
+variable		A_DefaultHotstringCaseSensitive
+variable		A_DefaultHotstringConformToCase
+variable		A_DefaultHotstringDetectWhenInsideWord
+variable		A_DefaultHotstringDoBackspace
+variable		A_DefaultHotstringDoReset
+variable		A_DefaultHotstringEndCharRequired
+variable		A_DefaultHotstringEndChars
+variable		A_DefaultHotstringKeyDelay
+variable		A_DefaultHotstringNoMouse
+variable		A_DefaultHotstringOmitEndChar
+variable		A_DefaultHotstringPriority
+variable		A_DefaultHotstringSendMode
+variable		A_DefaultHotstringSendRaw
+variable		A_DirSeparator
+variable		A_GuiTheme
+variable		A_HotIf
+variable		A_HotIfTimeout
+variable		A_KeybdHookInstalled
+variable		A_KsCorePath
+variable		A_KsVersion
+variable		A_LoopRegValue
+variable		A_MaxThreads
+variable		A_MaxThreadsBuffer
+variable		A_MaxThreadsPerHotkey
+variable		A_MouseHookInstalled
+variable		A_NewLine
+variable		A_NoTrayIcon
+variable		A_NowMs
+variable		A_NowUTCMs
+variable		A_OSArch
+variable		A_OSType
+variable		A_PeekFrequency
+variable		A_Persistent
+variable		A_ProcessArch
+variable		A_RealThread
+variable		A_Thread
+variable		A_Timers
+variable		A_WinActivateForce
+class		ArgumentError
+function		ATan2
+function		ATan2
+function		ClipCursor
+function		Collect
+function		CompileScript
+function		Cosh
+function		EnvUpdate
+variable		False
+function		FileCreateTemp
+function		FileFullPath
+class		Float32
+class		Float64
+function		GetKeyboardLayout
+function		GetKeyInfo
+class		Int16
+class		Int32
+class		Int64
+class		Int8
+class		IntPtr
+function		IsComponentAvailable
+function		IsSet
+function		Mail
+function		ObjCreateWithDataPtr
+function		ObjGetDataPtr
+function		ObjGetDataSize
+function		ObjSetDataPtr
+function		OutputDebugLine
+class		PropRef
+function		Props
+function		RandomSeed
+function		ReplaceLineEndings
+function		RequestCapabilities
+function		RunScript
+class		ScriptProcess
+function		ShowDebug
+function		Sinh
+class		Struct
+function		Tanh
+function		Throw
+variable		True
+class		UInt16
+class		UInt32
+class		UInt8
+class		UnsupportedError
+function		ValidateScript
+class		VarRef
+function		WinFromPoint
+function		WinGetAlwaysOnTop
+function		WinGetEnabled
+method	Array	Contains
+method	Array	Filter
+method	Array	FindIndex
+method	Array	IndexOf
+method	Array	Join
+method	Array	Map
+method	Array	Remove
+method	Array	Sort
+method	Array	ToString
+method	File	Flush
+method	Func	IsClosure
+method	Func	IsMethod
+method	Func	Params
+method	InputHook	BeforeHotkeys
+method	InputHook	BufferLengthMax
+method	InputHook	EndCharMode
+method	InputHook	OnMouseDown
+method	InputHook	OnMouseMove
+method	InputHook	OnMouseUp
+method	InputHook	TranscribeModifiedKeys
+method	InputHook	VisibleMouseMove
+method	Map	ToString
+method	PropRef	Args
+method	PropRef	Target
+method	ScriptProcess	ExitCode
+method	ScriptProcess	ExitTime
+method	ScriptProcess	HasExited
+method	ScriptProcess	Kill
+method	ScriptProcess	StdErr
+method	ScriptProcess	StdIn
+method	ScriptProcess	StdOut
+method	String	EndsWith
+method	String	StartsWith
+method	Struct	At
+method	Thread	AllowTimers
+method	Thread	Critical
+method	Thread	Elapsed
+method	Thread	Exit
+method	Thread	ExitCode
+method	Thread	Id
+method	Thread	Index
+method	Thread	IsActive
+method	Thread	IsInterruptible
+method	Thread	Kind
+method	Thread	Paused
+method	Thread	Priority
+method	Thread	Underlying
+method	VarRef	Empty

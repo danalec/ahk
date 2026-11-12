@@ -28,6 +28,7 @@ use std::sync::OnceLock;
 const SURFACE: &str = include_str!("../reference/ahk-v2.0.19.surface.tsv");
 const PENDING: &str = include_str!("../reference/ahk-v2.0.19.pending.tsv");
 const SURFACE_V1: &str = include_str!("../reference/ahk-v1.1.37.02.surface.tsv");
+const SURFACE_KS: &str = include_str!("../reference/ahk-ks.surface.tsv");
 const PENDING_V1: &str = include_str!("../reference/ahk-v1.1.37.02.pending.tsv");
 
 /// The names the dialect carries that the table of v2.0.19 does not name.
@@ -431,4 +432,52 @@ fn every_name_of_the_table_of_the_v1_is_a_name_of_the_surface() {
 /// The names of the surface of the v1.
 fn surface_names_of_the_v1() -> BTreeSet<&'static str> {
     rows(SURFACE_V1).into_iter().map(|row| row[2]).collect()
+}
+
+// -- the ks ---------------------------------------------------------------------
+
+/// Every name of the surface of KeySharp is carried by the `ks` dialect.
+///
+/// The table is the contract of the audit: the 138 names of KeySharp that
+/// need neither Windows, nor .NET, nor a GUI, written by the logic of the
+/// audit itself. The dialect that carries them is the `ks`, and the question
+/// is the one the other two ask: does the tree answer the name?
+#[test]
+fn every_name_of_the_surface_of_the_ks_is_carried() {
+    // The question is asked of the tree the way the runner asks it: the
+    // surface of a dialect is the table of the v2 with the table of the
+    // extension beside it, and every name of it is asked about.
+    //
+    // The tree answers a name in the dialect that carries it, and three
+    // of the names of the table are names of the v1 -- `A_Args`,
+    // `EnvUpdate` and `IsSet` -- so the question is asked of the `ks`
+    // and of the v1, the two dialects the tree speaks.
+    let mut carried: BTreeSet<String> = BTreeSet::new();
+    for dialect in [dialect::ks(), dialect::v1()] {
+        for entry in ahk::surface::entries_of(dialect) {
+            if entry.state == ahk::surface::State::Value {
+                carried.insert(entry.full_name().to_lowercase());
+            }
+        }
+    }
+    let lost: Vec<String> = rows(SURFACE_KS)
+        .into_iter()
+        .filter(|row| {
+            // A method is the class and the name: the same name is a
+            // method of more than one class.
+            let name = if row[1].is_empty() {
+                row[2].to_lowercase()
+            } else {
+                format!("{}.{}", row[1].to_lowercase(), row[2].to_lowercase())
+            };
+            !carried.contains(&name)
+        })
+        .map(|row| format!("{} {} {}", row[0], row[1], row[2]))
+        .collect();
+    assert!(
+        lost.is_empty(),
+        "these names of the surface of KeySharp are not carried: {lost:?}; the table has {} \
+         names",
+        rows(SURFACE_KS).len()
+    );
 }
