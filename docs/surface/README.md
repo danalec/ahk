@@ -15,15 +15,20 @@ answer of the runner (`ahk --surface --json --dialect=v2|v1|ks`). The
 generator writes them, and the check that CI is meant to run compares them
 with the tree.
 
-## The five languages
+## The ten languages
 
 | Language | Where it lives |
 |---|---|
 | English | the root of this subtree -- `index.md`, `crosswalk.md`, `v2.md`, `v1.md`, `keysharp.md`, `families/` |
 | Español | `es/` |
 | Português (Brasil) | `pt-BR/` |
+| Français | `fr/` |
+| Deutsch | `de/` |
+| Русский | `ru/` |
 | 日本語 | `ja/` |
-| 中文 | `zh/` |
+| 中文（简体） | `zh/` |
+| 繁體中文 | `zh-Hant/` |
+| 한국어 | `ko/` |
 
 Every page carries the switcher of the languages at the top, so a reader
 of one language can walk to the same page in another one.

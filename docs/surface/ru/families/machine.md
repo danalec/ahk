@@ -1,6 +1,6 @@
 # Машина, процессы и окружение
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -18,7 +18,7 @@
 | `A_DesktopCommon` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_EventInfo` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_FileEncoding` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
-| `A_IPAddress1` | AutoHotkey v1.1.37.02 | variable | -- | -- | отказано: этот рабочий стол не знает сетевого адреса машины. |
+| `A_IPAddress1` | AutoHotkey v1.1.37.02 | variable | -- | -- | отказано: this desktop does not know the address of the network of the machine. |
 | `A_Language` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_MDay` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_MM` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
@@ -53,9 +53,9 @@
 | `ComSpec` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `Desktop` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `DesktopCommon` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
-| `Drive` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `DriveGet` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `DriveSpaceFree` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Drive` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `DriveGet` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `DriveSpaceFree` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Thread.Elapsed` | KeySharp | method | Thread | -- | значение |
 | `VarRef.Empty` | KeySharp | method | VarRef | -- | значение |
 | `EnvAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | значение |
@@ -77,10 +77,10 @@
 | `MyDocuments` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `OSVersion` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `OutputDebug` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
-| `OutputDebug` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `OutputDebug` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Thread.Paused` | KeySharp | method | Thread | -- | значение |
 | `Thread.Priority` | KeySharp | method | Thread | -- | значение |
-| `Process` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Process` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ProcessClose` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
 | `ProcessExist` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
 | `ProcessGetName` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
@@ -96,13 +96,13 @@
 | `Run` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | значение |
 | `Run` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `RunAs` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | значение |
-| `RunAs` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `RunAs` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `RunWait` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | значение |
 | `RunWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `ScriptProcess` | KeySharp | class | -- | -- | значение |
 | `SetEnv` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `Shutdown` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
-| `Shutdown` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Shutdown` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `StartMenu` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `StartMenuCommon` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `Startup` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
@@ -111,7 +111,7 @@
 | `ScriptProcess.StdIn` | KeySharp | method | ScriptProcess | -- | значение |
 | `ScriptProcess.StdOut` | KeySharp | method | ScriptProcess | -- | значение |
 | `SysGet` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
-| `SysGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `SysGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `SysGetIPAddresses` | AutoHotkey v2.0.19 | command | -- | 0 | значение |
 | `PropRef.Target` | KeySharp | method | PropRef | -- | значение |
 | `Temp` | AutoHotkey v2.0.19 | variable | -- | -- | значение |

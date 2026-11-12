@@ -1,6 +1,6 @@
 # COM-автоматизация (ComObject)
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -10,24 +10,24 @@
 |---|---|---|---|---|---|
 | `ComCall` | AutoHotkey v2.0.19 | function | -- | up to 2 | значение |
 | `ComObjActive` | AutoHotkey v2.0.19 | function | -- | 1 | значение |
-| `ComObjActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `ComObjArray` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ComObjActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `ComObjArray` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjConnect` | AutoHotkey v2.0.19 | function | -- | 1 to 2 | значение |
-| `ComObjConnect` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `ComObjCreate` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ComObjConnect` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `ComObjCreate` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ComObject` | AutoHotkey v2.0.19 | class | -- | -- | значение |
-| `ComObjError` | AutoHotkey v1.1.37.02 | function | -- | 0 to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ComObjError` | AutoHotkey v1.1.37.02 | function | -- | 0 to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjFlags` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | значение |
-| `ComObjFlags` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ComObjFlags` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjFromPtr` | AutoHotkey v2.0.19 | function | -- | 1 | значение |
 | `ComObjGet` | AutoHotkey v2.0.19 | function | -- | 1 | значение |
-| `ComObjGet` | AutoHotkey v1.1.37.02 | function | -- | 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ComObjGet` | AutoHotkey v1.1.37.02 | function | -- | 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjQuery` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | значение |
-| `ComObjQuery` | AutoHotkey v1.1.37.02 | function | -- | 2 to 3 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ComObjQuery` | AutoHotkey v1.1.37.02 | function | -- | 2 to 3 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjType` | AutoHotkey v2.0.19 | function | -- | 1 to 2 | значение |
-| `ComObjType` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ComObjType` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ComObjValue` | AutoHotkey v2.0.19 | function | -- | 1 | значение |
-| `ComObjValue` | AutoHotkey v1.1.37.02 | function | -- | 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ComObjValue` | AutoHotkey v1.1.37.02 | function | -- | 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ComValue` | AutoHotkey v2.0.19 | class | -- | -- | значение |
 | `ObjBindMethod` | AutoHotkey v2.0.19 | function | -- | up to 1 | значение |
 | `ObjBindMethod` | AutoHotkey v1.1.37.02 | function | -- | up to 2 | значение |

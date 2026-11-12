@@ -1,8 +1,8 @@
 # 全部名称索引
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
-语言: 中文
+语言: 中文（简体）
 
 按字母顺序列出三个方言的每一个名称，并标注它所属的分类，以及这棵树对它给出的回答。名称的**技术卡**（种类、类、参数）位于其分类页面；本页是入口。
 

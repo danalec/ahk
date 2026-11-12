@@ -1,6 +1,6 @@
 # Разбор и выполнение скрипта
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -73,7 +73,7 @@
 | `A_RealThread` | KeySharp | variable | -- | -- | значение |
 | `A_ScriptDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_ScriptFullPath` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
-| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | отказано: у этой среды выполнения нет собственного окна: это скрипт, который выполняется и заканчивается. |
+| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | отказано: this runtime has no window of its own: it is a script that runs and ends. |
 | `A_ScriptName` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_Space` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_Tab` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
@@ -89,8 +89,8 @@
 | `CompileScript` | KeySharp | function | -- | -- | значение |
 | `CoordMode` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | значение |
 | `CoordMode` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
-| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | отказано: эта среда выполняет один скрипт в одном потоке и не может сделать его критическим. |
-| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: эта среда выполняет один скрипт в одном потоке и не может сделать его критическим. |
+| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | отказано: this runtime runs one script in one thread, and it cannot make it critical. |
+| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this runtime runs one script in one thread, and it cannot make it critical. |
 | `Thread.Critical` | KeySharp | method | Thread | -- | значение |
 | `Else` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | значение |
 | `EndChar` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
@@ -125,13 +125,13 @@
 | `OnError` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | значение |
 | `OnExit` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | значение |
 | `OnMessage` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | значение |
-| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `OutputDebugLine` | KeySharp | function | -- | -- | значение |
 | `Pause` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
-| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Persistent` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
-| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | отказано: эта среда выполняет скрипт один раз и не может запустить себя снова. |
-| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | отказано: this runtime runs one script once, and it cannot run itself again. |
+| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `RequestCapabilities` | KeySharp | function | -- | -- | значение |
 | `RunScript` | KeySharp | function | -- | -- | значение |
 | `ScriptDir` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
@@ -147,10 +147,10 @@
 | `Sleep` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `Space` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `Suspend` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
-| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Tab` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `ThisFunc` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
-| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | отказано: эта среда выполняет один скрипт в одном потоке и не может запустить другой. |
-| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: эта среда выполняет один скрипт в одном потоке и не может запустить другой. |
+| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | отказано: this runtime runs one script in one thread, and it cannot start another. |
+| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this runtime runs one script in one thread, and it cannot start another. |
 | `ValidateScript` | KeySharp | function | -- | -- | значение |
 | `WorkingDir` | AutoHotkey v2.0.19 | variable | -- | -- | значение |

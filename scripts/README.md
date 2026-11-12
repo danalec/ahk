@@ -9,9 +9,9 @@ only: no packages to install.
 | `differential.py` | Runs the deterministic case set in up to three engines — real AutoHotkey v2.0.19, Keysharp and this tree's Rust `ahk` — normalizes only engine plumbing, and classifies every case MATCH / RUST-DIFFERS / KEYS-DIFFERS / BOTH-DIFFER / ERROR. This is the port of the audit's PowerShell harness (`egm-review/keysharp-audit/differential/harness.ps1`), kept in the tree so the comparison is reproducible and can gate CI. |
 | `differential/cases/` | The 93 case scripts, one per behaviour family (`ex`, `nu`, `st`, `va`, `fu`, `cl`, `ob`, `co`, `fi`, `mi`, `er`). |
 | `check-surface-docs.py` | The drift check between `ahk --surface` and the numbers the documents print (owned by the documentation work package; run it after a release build). |
-| `gen-surface-docs.py` | Writes `docs/surface/` — every name of the v1, of the v2 and of KeySharp, with the state this tree answers for it, in eight languages (English, Spanish, Portuguese of Brazil, French, German, Russian, Japanese, Chinese). `--check` fails when the subtree is out of date. |
+| `gen-surface-docs.py` | Writes `docs/surface/` — every name of the v1, of the v2 and of KeySharp, with the state this tree answers for it, in ten languages (English, Spanish, Portuguese of Brazil, French, German, Russian, Japanese, Chinese, Traditional Chinese, Korean). `--check` fails when the subtree is out of date. |
 | `surface_areas.py` | The families of the surface: which area a name belongs to. The areas of the v2 come from `crates/ahk/reference/ahk-v2.0.19.areas.py`; the names of the v1 and of KeySharp that no v2 area names are placed by hand, and the rules place the rest. |
-| `surface_i18n.py` | The eight languages of the surface documents: the prose, the titles of the families and the reason of a refusal. |
+| `surface_i18n.py` | The ten languages of the surface documents: the prose, the titles of the families and the reason of a refusal. |
 
 The Keysharp corpus importer and triage table are not here: they live in
 `egm-review/keysharp-audit/corpus/` because the corpus is BSD-3-Clause and must

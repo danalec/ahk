@@ -960,6 +960,64 @@ REASONS_MORE = {
         "fr": "ce nom concerne Windows, et cette machine n'en est pas une.",
         "de": "dieser Name betrifft Windows, und diese Maschine ist keine.",
         "ru": "это имя относится к Windows, а эта машина — не Windows.",
+        "zh-Hant": "此名稱與 Windows 有關，而本機不是 Windows。",
+        "ko": "이 이름은 Windows에 관한 것이고, 이 컴퓨터는 Windows가 아니다.",
+    },
+    "this runtime has no window of its own: it is a script that runs and ends.": {
+        "zh-Hant": "此執行環境沒有自己的視窗：它是一個執行即結束的腳本。",
+        "ko": "이 런타임에는 자체 창이 없다: 실행되고 끝나는 스크립트다.",
+    },
+    "this desktop does not know the scale of the output.": {
+        "zh-Hant": "本桌面不知道輸出的縮放比例。",
+        "ko": "이 데스크톱은 출력의 배율을 알지 못한다.",
+    },
+    "the shape of the cursor of the machine is not read by this runtime.": {
+        "zh-Hant": "此執行環境不讀取機器游標的形狀。",
+        "ko": "이 런타임은 컴퓨터 커서의 모양을 읽지 않는다.",
+    },
+    "this runtime reads no text of a window.": {
+        "zh-Hant": "此執行環境不讀取視窗文字。",
+        "ko": "이 런타임은 창의 글자를 읽지 않는다.",
+    },
+    "this runtime runs one script in one thread, and it cannot start another.": {
+        "zh-Hant": "此執行環境在一個執行緒中執行一個腳本，無法再啟動一個。",
+        "ko": "이 런타임은 하나의 스크립트를 하나의 스레드로 실행하며, 다른 것을 시작할 수 없다.",
+    },
+    "this runtime runs one script once, and it cannot run itself again.": {
+        "zh-Hant": "此執行環境只執行一次腳本，無法再次執行自身。",
+        "ko": "이 런타임은 스크립트를 한 번만 실행하며, 자신을 다시 실행할 수 없다.",
+    },
+    "this runtime is a script that ends when it ends, and it cannot be kept alive.": {
+        "zh-Hant": "此執行環境是執行結束即結束的腳本，無法保持存活。",
+        "ko": "이 런타임은 끝나면 끝나는 스크립트라 살아 있게 둘 수 없다.",
+    },
+    "the variables are listed in a window of v2, and this runtime has no window to show them in.": {
+        "zh-Hant": "變數列表顯示在 v2 的視窗中，而此執行環境沒有視窗可顯示。",
+        "ko": "변수 목록은 v2의 창에 표시되며, 이 런타임에는 그것을 보여 줄 창이 없다.",
+    },
+    "the lines are listed in a window of v2, and this runtime has no window to show them in.": {
+        "zh-Hant": "行列表顯示在 v2 的視窗中，而此執行環境沒有視窗可顯示。",
+        "ko": "줄 목록은 v2의 창에 표시되며, 이 런타임에는 그것을 보여 줄 창이 없다.",
+    },
+    "this runtime runs one script in one thread, and it cannot make it critical.": {
+        "zh-Hant": "此執行環境在一個執行緒中執行一個腳本，無法將其設為關鍵。",
+        "ko": "이 런타임은 하나의 스크립트를 하나의 스레드로 실행하며, 그것을 임계로 만들 수 없다.",
+    },
+    "this runtime has no tray icon.": {
+        "zh-Hant": "此執行環境沒有系統匣圖示。",
+        "ko": "이 런타임에는 트레이 아이콘이 없다.",
+    },
+    "the registry is a thing of Windows, and this runtime does not carry it.": {
+        "zh-Hant": "登錄檔屬於 Windows，此執行環境並不攜帶它。",
+        "ko": "레지스트리는 Windows의 것이고, 이 런타임은 그것을 싣지 않는다.",
+    },
+    "this is a name of Windows, and this desktop is not Windows.": {
+        "zh-Hant": "這是 Windows 的名稱，而本桌面不是 Windows。",
+        "ko": "이것은 Windows의 이름이고, 이 데스크톱은 Windows가 아니다.",
+    },
+    "this desktop does not know the address of the network of the machine.": {
+        "zh-Hant": "本桌面不知道機器的網路位址。",
+        "ko": "이 데스크톱은 컴퓨터의 네트워크 주소를 알지 못한다.",
     },
 }
 

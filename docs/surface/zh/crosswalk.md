@@ -1,8 +1,8 @@
 # 三个方言的对照表
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
-语言: 中文
+语言: 中文（简体）
 
 同一个名称在三个方言中的写法，以及只有其中一个方言才有的名称。v1 中的名称在 v2 中写法不同时，会列入「仅 v1」表，并给出替代它的 v2 名称。
 

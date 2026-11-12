@@ -1,6 +1,6 @@
 # Der Kern der Sprache: Text, Mathematik und Muster
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Sprache: Deutsch
 
@@ -131,7 +131,7 @@ Die Namen der Familie **Der Kern der Sprache: Text, Mathematik und Muster** in d
 | `String.StartsWith` | KeySharp | method | String | -- | Wert |
 | `StrCompare` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | Wert |
 | `StrGet` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | Wert |
-| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `String` | AutoHotkey v2.0.19 | class | -- | -- | Wert |
 | `StringCaseSense` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |
 | `StringLeft` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | Wert |
@@ -146,7 +146,7 @@ Die Namen der Familie **Der Kern der Sprache: Text, Mathematik und Muster** in d
 | `StrLower` | AutoHotkey v2.0.19 | function | -- | 1 | Wert |
 | `StrPtr` | AutoHotkey v2.0.19 | function | -- | 1 | Wert |
 | `StrPut` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | Wert |
-| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `StrReplace` | AutoHotkey v2.0.19 | function | -- | 2 to 6 | Wert |
 | `StrReplace` | AutoHotkey v1.1.37.02 | function | -- | 2 to 5 | Wert |
 | `StrSplit` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | Wert |

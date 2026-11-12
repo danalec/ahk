@@ -1,6 +1,6 @@
 # Операции с файлами и каталогами
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -48,7 +48,7 @@
 | `FileCopyDir` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | значение |
 | `FileCreateDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `FileCreateShortcut` | AutoHotkey v2.0.19 | command | -- | 2 to 9 | значение |
-| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `FileCreateTemp` | KeySharp | function | -- | -- | значение |
 | `FileDelete` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
 | `FileDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
@@ -60,13 +60,13 @@
 | `FileGetAttrib` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
 | `FileGetAttrib` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `FileGetShortcut` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | значение |
-| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `FileGetSize` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | значение |
 | `FileGetSize` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `FileGetTime` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | значение |
 | `FileGetTime` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `FileGetVersion` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
-| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `FileInstall` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | значение |
 | `FileInstall` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | значение |
 | `FileMove` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | значение |
@@ -78,9 +78,9 @@
 | `FileRead` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | значение |
 | `FileReadLine` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | значение |
 | `FileRecycle` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
-| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `FileRecycleEmpty` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
-| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `FileRemoveDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `FileSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `FileSelectFile` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |

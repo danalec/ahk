@@ -1,6 +1,6 @@
 # Le cœur du langage : texte, mathématiques et motifs
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Langue: Français
 
@@ -131,7 +131,7 @@ Les noms de la famille **Le cœur du langage : texte, mathématiques et motifs**
 | `String.StartsWith` | KeySharp | method | String | -- | valeur |
 | `StrCompare` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | valeur |
 | `StrGet` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | valeur |
-| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `String` | AutoHotkey v2.0.19 | class | -- | -- | valeur |
 | `StringCaseSense` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
 | `StringLeft` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | valeur |
@@ -146,7 +146,7 @@ Les noms de la famille **Le cœur du langage : texte, mathématiques et motifs**
 | `StrLower` | AutoHotkey v2.0.19 | function | -- | 1 | valeur |
 | `StrPtr` | AutoHotkey v2.0.19 | function | -- | 1 | valeur |
 | `StrPut` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | valeur |
-| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `StrReplace` | AutoHotkey v2.0.19 | function | -- | 2 to 6 | valeur |
 | `StrReplace` | AutoHotkey v1.1.37.02 | function | -- | 2 to 5 | valeur |
 | `StrSplit` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | valeur |

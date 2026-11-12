@@ -1,6 +1,6 @@
 # Звук
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -10,15 +10,15 @@
 |---|---|---|---|---|---|
 | `SoundBeep` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | значение |
 | `SoundBeep` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | значение |
-| `SoundGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `SoundGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `SoundGetInterface` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | значение |
 | `SoundGetMute` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | значение |
 | `SoundGetName` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | значение |
 | `SoundGetVolume` | AutoHotkey v2.0.19 | function | -- | 0 to 2 | значение |
-| `SoundGetWaveVolume` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `SoundGetWaveVolume` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `SoundPlay` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | значение |
 | `SoundPlay` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
-| `SoundSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `SoundSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `SoundSetMute` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | значение |
 | `SoundSetVolume` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | значение |
-| `SoundSetWaveVolume` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `SoundSetWaveVolume` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |

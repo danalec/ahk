@@ -1,6 +1,6 @@
 # Указатель всех имён
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -166,8 +166,8 @@
 | [`CoordModeToolTip`](families/gui.md) | variable | -- | Окна интерфейса и автоматизация окон | значение |
 | [`Cos`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`Map.Count`](families/objects.md) | method | Map | Объекты языка: Array, Map и Func | значение |
-| [`Critical`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: эта среда выполняет один скрипт в одном потоке и не может сделать его критическим. |
-| [`Cursor`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | отказано: эта среда не читает форму курсора машины. |
+| [`Critical`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: this runtime runs one script in one thread, and it cannot make it critical. |
+| [`Cursor`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | отказано: the shape of the cursor of the machine is not read by this runtime. |
 | [`DateAdd`](families/time.md) | command | -- | Даты и время | значение |
 | [`DateDiff`](families/time.md) | command | -- | Даты и время | значение |
 | [`DD`](families/time.md) | variable | -- | Даты и время | значение |
@@ -215,7 +215,7 @@
 | [`DriveRetract`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`DriveSetLabel`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`DriveUnlock`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
-| [`Edit`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`Edit`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`EditGetCurrentCol`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`EditGetCurrentLine`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`EditGetLine`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
@@ -584,7 +584,7 @@
 | [`RegRead`](families/registry.md) | function | -- | API реестра | значение |
 | [`RegView`](families/registry.md) | variable | -- | API реестра | значение |
 | [`RegWrite`](families/registry.md) | function | -- | API реестра | значение |
-| [`Reload`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: эта среда выполняет скрипт один раз и не может запустить себя снова. |
+| [`Reload`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: this runtime runs one script once, and it cannot run itself again. |
 | [`Array.RemoveAt`](families/objects.md) | method | Array | Объекты языка: Array, Map и Func | значение |
 | [`Gui.Menu.Rename`](families/gui.md) | method | Gui.Menu | Окна интерфейса и автоматизация окон | значение |
 | [`Gui.Restore`](families/gui.md) | method | Gui | Окна интерфейса и автоматизация окон | значение |
@@ -598,7 +598,7 @@
 | [`ScreenWidth`](families/screen.md) | variable | -- | Захват экрана и пиксельные функции | значение |
 | [`ScriptDir`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
 | [`ScriptFullPath`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
-| [`ScriptHwnd`](families/gui.md) | variable | -- | Окна интерфейса и автоматизация окон | отказано: у этой среды выполнения нет собственного окна: это скрипт, который выполняется и заканчивается. |
+| [`ScriptHwnd`](families/gui.md) | variable | -- | Окна интерфейса и автоматизация окон | отказано: this runtime has no window of its own: it is a script that runs and ends. |
 | [`ScriptName`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
 | [`Sec`](families/time.md) | variable | -- | Даты и время | значение |
 | [`File.Seek`](families/files.md) | method | File | Операции с файлами и каталогами | значение |
@@ -692,7 +692,7 @@
 | [`Gui.Control.Text`](families/gui.md) | method | Gui.Control | Окна интерфейса и автоматизация окон | значение |
 | [`ThisFunc`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
 | [`ThisHotkey`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | значение |
-| [`Thread`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: эта среда выполняет один скрипт в одном потоке и не может запустить другой. |
+| [`Thread`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: this runtime runs one script in one thread, and it cannot start another. |
 | [`TickCount`](families/time.md) | variable | -- | Даты и время | значение |
 | [`TimeIdle`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`TimeIdleKeyboard`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | значение |
@@ -746,7 +746,7 @@
 | [`WinGetControls`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinGetControlsHwnd`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinGetCount`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinGetExStyle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinGetExStyle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetID`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinGetIDLast`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinGetList`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
@@ -755,10 +755,10 @@
 | [`WinGetPos`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinGetProcessName`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinGetProcessPath`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinGetStyle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinGetStyle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinGetTitle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinGetTransColor`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinGetTransColor`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetTransparent`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinHide`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinKill`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
@@ -773,11 +773,11 @@
 | [`WinRestore`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinSetAlwaysOnTop`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinSetEnabled`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinSetExStyle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinSetExStyle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetRegion`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinSetStyle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinSetStyle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetTitle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinSetTransColor`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinSetTransColor`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinSetTransparent`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinShow`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`WinWait`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
@@ -853,7 +853,7 @@
 | [`A_CoordModeMouse`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`A_CoordModePixel`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`A_CoordModeToolTip`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | значение |
-| [`A_Cursor`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | отказано: эта среда не читает форму курсора машины. |
+| [`A_Cursor`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | отказано: the shape of the cursor of the machine is not read by this runtime. |
 | [`A_DD`](families/files.md) | variable | -- | Операции с файлами и каталогами | значение |
 | [`A_DDD`](families/files.md) | variable | -- | Операции с файлами и каталогами | значение |
 | [`A_DDDD`](families/files.md) | variable | -- | Операции с файлами и каталогами | значение |
@@ -886,7 +886,7 @@
 | [`A_IconTip`](families/gui.md) | variable | -- | Окна интерфейса и автоматизация окон | значение |
 | [`A_Index`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
 | [`A_InitialWorkingDir`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
-| [`A_IPAddress1`](families/machine.md) | variable | -- | Машина, процессы и окружение | отказано: этот рабочий стол не знает сетевого адреса машины. |
+| [`A_IPAddress1`](families/machine.md) | variable | -- | Машина, процессы и окружение | отказано: this desktop does not know the address of the network of the machine. |
 | [`A_Is64bitOS`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
 | [`A_IsAdmin`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
 | [`A_IsCompiled`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
@@ -934,7 +934,7 @@
 | [`A_ScreenWidth`](families/screen.md) | variable | -- | Захват экрана и пиксельные функции | значение |
 | [`A_ScriptDir`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
 | [`A_ScriptFullPath`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
-| [`A_ScriptHwnd`](families/script.md) | variable | -- | Разбор и выполнение скрипта | отказано: у этой среды выполнения нет собственного окна: это скрипт, который выполняется и заканчивается. |
+| [`A_ScriptHwnd`](families/script.md) | variable | -- | Разбор и выполнение скрипта | отказано: this runtime has no window of its own: it is a script that runs and ends. |
 | [`A_ScriptName`](families/script.md) | variable | -- | Разбор и выполнение скрипта | значение |
 | [`A_Sec`](families/time.md) | variable | -- | Даты и время | значение |
 | [`A_SendLevel`](families/input.md) | variable | -- | Горячие клавиши, горячие строки и ввод | значение |
@@ -978,43 +978,43 @@
 | [`ASin`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`ATan`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`AutoTrim`](families/core.md) | command | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`BlockInput`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`BlockInput`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Ceil`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`Chr`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`Click`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`Clipboard`](families/clipboard.md) | variable | -- | Буфер обмена | значение |
 | [`ClipWait`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
-| [`ComObjActive`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjArray`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjConnect`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjCreate`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjError`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjFlags`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjGet`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjQuery`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjType`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ComObjValue`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`ComObjActive`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjArray`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjConnect`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjCreate`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjError`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjFlags`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjGet`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjQuery`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjType`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ComObjValue`](families/com.md) | function | -- | COM-автоматизация (ComObject) | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`ComSpec`](families/machine.md) | variable | -- | Машина, процессы и окружение | значение |
-| [`Control`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlClick`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlFocus`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlGet`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlGetFocus`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlGetPos`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlGetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlMove`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlSend`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ControlSetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`Control`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlClick`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlFocus`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGet`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetFocus`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetPos`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlGetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlMove`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlSend`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ControlSetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`CoordMode`](families/script.md) | command | -- | Разбор и выполнение скрипта | значение |
 | [`Cos`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`Critical`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: эта среда выполняет один скрипт в одном потоке и не может сделать его критическим. |
+| [`Critical`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: this runtime runs one script in one thread, and it cannot make it critical. |
 | [`DetectHiddenText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`DetectHiddenWindows`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`DllCall`](families/native.md) | function | -- | Вызовы нативных функций (DllCall) | значение |
-| [`Drive`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`DriveGet`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`DriveSpaceFree`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`Edit`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`Drive`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`DriveGet`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`DriveSpaceFree`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`Edit`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Else`](families/script.md) | command | -- | Разбор и выполнение скрипта | значение |
 | [`EnvAdd`](families/machine.md) | command | -- | Машина, процессы и окружение | значение |
 | [`EnvDiv`](families/machine.md) | command | -- | Машина, процессы и окружение | значение |
@@ -1031,23 +1031,23 @@
 | [`FileCopy`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileCopyDir`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileCreateDir`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
-| [`FileCreateShortcut`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`FileCreateShortcut`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`FileDelete`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileEncoding`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileExist`](families/files.md) | function | -- | Операции с файлами и каталогами | значение |
 | [`FileGetAttrib`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
-| [`FileGetShortcut`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`FileGetShortcut`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`FileGetSize`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileGetTime`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
-| [`FileGetVersion`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`FileGetVersion`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`FileInstall`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileMove`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileMoveDir`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileOpen`](families/files.md) | function | -- | Операции с файлами и каталогами | значение |
 | [`FileRead`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileReadLine`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
-| [`FileRecycle`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`FileRecycleEmpty`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`FileRecycle`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`FileRecycleEmpty`](families/files.md) | command | -- | Операции с файлами и каталогами | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`FileRemoveDir`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileSelectFile`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`FileSelectFolder`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
@@ -1058,13 +1058,13 @@
 | [`FormatTime`](families/time.md) | command | -- | Даты и время | значение |
 | [`Func`](families/objects.md) | function | -- | Объекты языка: Array, Map и Func | значение |
 | [`GetKeyState`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
-| [`GroupActivate`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`GroupAdd`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`GroupClose`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`GroupDeactivate`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`Gui`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`GuiControl`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`GuiControlGet`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`GroupActivate`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`GroupAdd`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`GroupClose`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`GroupDeactivate`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`Gui`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`GuiControl`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`GuiControlGet`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Hotkey`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`Hotstring`](families/input.md) | function | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`IfInString`](families/script.md) | command | -- | Разбор и выполнение скрипта | значение |
@@ -1076,25 +1076,25 @@
 | [`IniWrite`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`Input`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`InputBox`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
-| [`InputHook`](families/input.md) | function | -- | Горячие клавиши, горячие строки и ввод | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`InputHook`](families/input.md) | function | -- | Горячие клавиши, горячие строки и ввод | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`InStr`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`IsByRef`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`IsFunc`](families/script.md) | function | -- | Разбор и выполнение скрипта | значение |
 | [`IsLabel`](families/input.md) | function | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`IsObject`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`IsSet`](families/script.md) | function | -- | Разбор и выполнение скрипта | значение |
-| [`KeyHistory`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`KeyHistory`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`KeyWait`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
-| [`ListHotkeys`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ListLines`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`ListVars`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`ListHotkeys`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ListLines`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`ListVars`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Ln`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`LoadPicture`](families/screen.md) | function | -- | Захват экрана и пиксельные функции | значение |
 | [`Log`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`Max`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`Menu`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`MenuGetHandle`](families/gui.md) | function | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`MenuGetName`](families/gui.md) | function | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`Menu`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`MenuGetHandle`](families/gui.md) | function | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`MenuGetName`](families/gui.md) | function | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Min`](families/time.md) | function | -- | Даты и время | значение |
 | [`Mod`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`MouseClick`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
@@ -1108,27 +1108,27 @@
 | [`ObjBindMethod`](families/com.md) | function | -- | COM-автоматизация (ComObject) | значение |
 | [`Object`](families/objects.md) | function | -- | Объекты языка: Array, Map и Func | значение |
 | [`OnError`](families/script.md) | function | -- | Разбор и выполнение скрипта | значение |
-| [`OnMessage`](families/script.md) | function | -- | Разбор и выполнение скрипта | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`OnMessage`](families/script.md) | function | -- | Разбор и выполнение скрипта | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Ord`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`OutputDebug`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`Pause`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`OutputDebug`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`Pause`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`PixelGetColor`](families/screen.md) | command | -- | Захват экрана и пиксельные функции | значение |
 | [`PixelSearch`](families/screen.md) | command | -- | Захват экрана и пиксельные функции | значение |
-| [`PostMessage`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`Process`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`PostMessage`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`Process`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`ProgramFiles`](families/machine.md) | variable | -- | Машина, процессы и окружение | значение |
-| [`Progress`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`Progress`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Random`](families/core.md) | command | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`RegDelete`](families/registry.md) | command | -- | API реестра | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`RegDelete`](families/registry.md) | command | -- | API реестра | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`RegExMatch`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`RegExReplace`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`RegisterCallback`](families/gui.md) | function | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`RegRead`](families/registry.md) | command | -- | API реестра | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`RegWrite`](families/registry.md) | command | -- | API реестра | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`Reload`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`RegisterCallback`](families/gui.md) | function | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`RegRead`](families/registry.md) | command | -- | API реестра | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`RegWrite`](families/registry.md) | command | -- | API реестра | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`Reload`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Round`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`Run`](families/machine.md) | command | -- | Машина, процессы и окружение | значение |
-| [`RunAs`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`RunAs`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`RunWait`](families/machine.md) | command | -- | Машина, процессы и окружение | значение |
 | [`Send`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
 | [`SendLevel`](families/input.md) | command | -- | Горячие клавиши, горячие строки и ввод | значение |
@@ -1146,22 +1146,22 @@
 | [`SetTitleMatchMode`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`SetWinDelay`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
 | [`SetWorkingDir`](families/script.md) | command | -- | Разбор и выполнение скрипта | значение |
-| [`Shutdown`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`Shutdown`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Sin`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`Sleep`](families/script.md) | command | -- | Разбор и выполнение скрипта | значение |
 | [`Sort`](families/core.md) | command | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`SoundBeep`](families/sound.md) | command | -- | Звук | значение |
-| [`SoundGet`](families/sound.md) | command | -- | Звук | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`SoundGetWaveVolume`](families/sound.md) | command | -- | Звук | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`SoundGet`](families/sound.md) | command | -- | Звук | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`SoundGetWaveVolume`](families/sound.md) | command | -- | Звук | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`SoundPlay`](families/sound.md) | command | -- | Звук | значение |
-| [`SoundSet`](families/sound.md) | command | -- | Звук | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`SoundSetWaveVolume`](families/sound.md) | command | -- | Звук | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`SplashTextOn`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`SoundSet`](families/sound.md) | command | -- | Звук | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`SoundSetWaveVolume`](families/sound.md) | command | -- | Звук | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`SplashTextOn`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`SplitPath`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`Sqrt`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`StatusBarGetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`StatusBarWait`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`StrGet`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`StatusBarGetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`StatusBarWait`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`StrGet`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`StringCaseSense`](families/core.md) | command | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`StringGetPos`](families/files.md) | command | -- | Операции с файлами и каталогами | значение |
 | [`StringLeft`](families/core.md) | command | -- | Ядро языка: текст, математика и шаблоны | значение |
@@ -1172,47 +1172,47 @@
 | [`StringSplit`](families/core.md) | command | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`StringTrimLeft`](families/core.md) | command | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`StrLen`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`StrPut`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`StrPut`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`StrReplace`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`StrSplit`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`SubStr`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`Suspend`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`SysGet`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`Suspend`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`SysGet`](families/machine.md) | command | -- | Машина, процессы и окружение | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Tan`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`Thread`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: эта среда выполняет один скрипт в одном потоке и не может запустить другой. |
-| [`ToolTip`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`Thread`](families/script.md) | command | -- | Разбор и выполнение скрипта | отказано: this runtime runs one script in one thread, and it cannot start another. |
+| [`ToolTip`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Transform`](families/core.md) | command | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`TrayTip`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`TrayTip`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`Trim`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`URLDownloadToFile`](families/machine.md) | command | -- | Машина, процессы и окружение | значение |
 | [`VarSetCapacity`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
 | [`VerCompare`](families/core.md) | function | -- | Ядро языка: текст, математика и шаблоны | значение |
-| [`WinActivate`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinActivateBottom`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinActivate`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinActivateBottom`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinActive`](families/gui.md) | function | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinClose`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinClose`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinExist`](families/gui.md) | function | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinGet`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinGetActiveStats`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinGetActiveTitle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinGetClass`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinGetPos`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinGetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinGet`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetActiveStats`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetActiveTitle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetClass`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetPos`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinGetText`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 | [`WinGetTitle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | значение |
-| [`WinHide`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinKill`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinMaximize`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinMenuSelectItem`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinMinimize`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinMinimizeAll`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinMove`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinRestore`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinSet`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinSetTitle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinShow`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinWait`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinWaitActive`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| [`WinWaitClose`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| [`WinHide`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinKill`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMaximize`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMenuSelectItem`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMinimize`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMinimizeAll`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinMove`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinRestore`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinSet`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinSetTitle`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinShow`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinWait`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinWaitActive`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
+| [`WinWaitClose`](families/gui.md) | command | -- | Окна интерфейса и автоматизация окон | отказано: this is a name of Windows, and this desktop is not Windows. |
 
 ## KeySharp
 

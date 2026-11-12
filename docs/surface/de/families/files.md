@@ -1,6 +1,6 @@
 # Datei- und Verzeichnisoperationen
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Sprache: Deutsch
 
@@ -48,7 +48,7 @@ Die Namen der Familie **Datei- und Verzeichnisoperationen** in den drei Dialekte
 | `FileCopyDir` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | Wert |
 | `FileCreateDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |
 | `FileCreateShortcut` | AutoHotkey v2.0.19 | command | -- | 2 to 9 | Wert |
-| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `FileCreateTemp` | KeySharp | function | -- | -- | Wert |
 | `FileDelete` | AutoHotkey v2.0.19 | command | -- | 1 | Wert |
 | `FileDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |
@@ -60,13 +60,13 @@ Die Namen der Familie **Datei- und Verzeichnisoperationen** in den drei Dialekte
 | `FileGetAttrib` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | Wert |
 | `FileGetAttrib` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |
 | `FileGetShortcut` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | Wert |
-| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `FileGetSize` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | Wert |
 | `FileGetSize` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |
 | `FileGetTime` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | Wert |
 | `FileGetTime` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |
 | `FileGetVersion` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | Wert |
-| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `FileInstall` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | Wert |
 | `FileInstall` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | Wert |
 | `FileMove` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | Wert |
@@ -78,9 +78,9 @@ Die Namen der Familie **Datei- und Verzeichnisoperationen** in den drei Dialekte
 | `FileRead` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | Wert |
 | `FileReadLine` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | Wert |
 | `FileRecycle` | AutoHotkey v2.0.19 | command | -- | 1 | Wert |
-| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `FileRecycleEmpty` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | Wert |
-| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `FileRemoveDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |
 | `FileSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | Wert |
 | `FileSelectFile` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |

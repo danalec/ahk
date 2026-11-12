@@ -1,6 +1,6 @@
 # Ядро языка: текст, математика и шаблоны
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -131,7 +131,7 @@
 | `String.StartsWith` | KeySharp | method | String | -- | значение |
 | `StrCompare` | AutoHotkey v2.0.19 | function | -- | 2 to 3 | значение |
 | `StrGet` | AutoHotkey v2.0.19 | function | -- | 1 to 3 | значение |
-| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `StrGet` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `String` | AutoHotkey v2.0.19 | class | -- | -- | значение |
 | `StringCaseSense` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `StringLeft` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | значение |
@@ -146,7 +146,7 @@
 | `StrLower` | AutoHotkey v2.0.19 | function | -- | 1 | значение |
 | `StrPtr` | AutoHotkey v2.0.19 | function | -- | 1 | значение |
 | `StrPut` | AutoHotkey v2.0.19 | function | -- | 1 to 4 | значение |
-| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `StrPut` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `StrReplace` | AutoHotkey v2.0.19 | function | -- | 2 to 6 | значение |
 | `StrReplace` | AutoHotkey v1.1.37.02 | function | -- | 2 to 5 | значение |
 | `StrSplit` | AutoHotkey v2.0.19 | command | -- | 1 to 4 | значение |

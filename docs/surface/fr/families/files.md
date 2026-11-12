@@ -1,6 +1,6 @@
 # Les opérations sur les fichiers et les répertoires
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Langue: Français
 
@@ -48,7 +48,7 @@ Les noms de la famille **Les opérations sur les fichiers et les répertoires** 
 | `FileCopyDir` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | valeur |
 | `FileCreateDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
 | `FileCreateShortcut` | AutoHotkey v2.0.19 | command | -- | 2 to 9 | valeur |
-| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `FileCreateShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `FileCreateTemp` | KeySharp | function | -- | -- | valeur |
 | `FileDelete` | AutoHotkey v2.0.19 | command | -- | 1 | valeur |
 | `FileDelete` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
@@ -60,13 +60,13 @@ Les noms de la famille **Les opérations sur les fichiers et les répertoires** 
 | `FileGetAttrib` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valeur |
 | `FileGetAttrib` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
 | `FileGetShortcut` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | valeur |
-| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `FileGetShortcut` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `FileGetSize` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valeur |
 | `FileGetSize` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
 | `FileGetTime` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | valeur |
 | `FileGetTime` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
 | `FileGetVersion` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valeur |
-| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `FileGetVersion` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `FileInstall` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | valeur |
 | `FileInstall` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | valeur |
 | `FileMove` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | valeur |
@@ -78,9 +78,9 @@ Les noms de la famille **Les opérations sur les fichiers et les répertoires** 
 | `FileRead` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | valeur |
 | `FileReadLine` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | valeur |
 | `FileRecycle` | AutoHotkey v2.0.19 | command | -- | 1 | valeur |
-| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `FileRecycle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `FileRecycleEmpty` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valeur |
-| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `FileRecycleEmpty` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `FileRemoveDir` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
 | `FileSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | valeur |
 | `FileSelectFile` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |

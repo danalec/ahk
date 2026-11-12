@@ -1,6 +1,6 @@
 # Горячие клавиши, горячие строки и ввод
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -18,7 +18,7 @@
 | `A_CoordModeMouse` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_CoordModePixel` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
 | `A_CoordModeToolTip` | AutoHotkey v1.1.37.02 | variable | -- | -- | значение |
-| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | отказано: эта среда не читает форму курсора машины. |
+| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | отказано: the shape of the cursor of the machine is not read by this runtime. |
 | `A_DefaultHotstringCaseSensitive` | KeySharp | variable | -- | -- | значение |
 | `A_DefaultHotstringConformToCase` | KeySharp | variable | -- | -- | значение |
 | `A_DefaultHotstringDetectWhenInsideWord` | KeySharp | variable | -- | -- | значение |
@@ -56,7 +56,7 @@
 | `Hotkey.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | Hotkey | -- | значение |
 | `InputHook.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | InputHook | -- | значение |
 | `BlockInput` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
-| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `InputHook.BufferLengthMax` | KeySharp | method | InputHook | -- | значение |
 | `CallbackCreate` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | значение |
 | `CallbackFree` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
@@ -67,10 +67,10 @@
 | `ClipCursor` | KeySharp | function | -- | -- | значение |
 | `ClipWait` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | значение |
 | `ClipWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | значение |
-| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `CoordModeMouse` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `CoordModePixel` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
-| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | отказано: эта среда не читает форму курсора машины. |
+| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | отказано: the shape of the cursor of the machine is not read by this runtime. |
 | `DefaultMouseSpeed` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `InputHook.EndCharMode` | KeySharp | method | InputHook | -- | значение |
 | `Hotkey.EndKey` | AutoHotkey v2.0.19 | method | Hotkey | -- | значение |
@@ -106,7 +106,7 @@
 | `Hotkey.Input` | AutoHotkey v2.0.19 | method | Hotkey | -- | значение |
 | `InputHook.Input` | AutoHotkey v2.0.19 | method | InputHook | -- | значение |
 | `InputHook` | AutoHotkey v2.0.19 | class | -- | -- | значение |
-| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `InstallKeybdHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | значение |
 | `InstallMouseHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | значение |
 | `IsLabel` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
@@ -116,13 +116,13 @@
 | `KeyDuration` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `KeyDurationPlay` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `KeyHistory` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
-| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.KeyOpt` | AutoHotkey v2.0.19 | method | Hotkey | -- | значение |
 | `InputHook.KeyOpt` | AutoHotkey v2.0.19 | method | InputHook | -- | значение |
 | `KeyWait` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | значение |
 | `KeyWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `ListHotkeys` | AutoHotkey v2.0.19 | command | -- | 0 | значение |
-| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.Match` | AutoHotkey v2.0.19 | method | Hotkey | -- | значение |
 | `InputHook.Match` | AutoHotkey v2.0.19 | method | InputHook | -- | значение |
 | `MaxHotkeysPerInterval` | AutoHotkey v2.0.19 | variable | -- | -- | значение |

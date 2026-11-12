@@ -1,6 +1,6 @@
 # Окна интерфейса и автоматизация окон
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](../de/index.md) | [Русский](index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Язык: Русский
 
@@ -71,46 +71,46 @@
 | `Gui.Control.Choose` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
 | `Gui.Control.ClassNN` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
 | `Gui.Menu.ClickCount` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
-| `Control` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Control` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlAddItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
 | `ControlChooseIndex` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
 | `ControlChooseString` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
 | `ControlClick` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | значение |
-| `ControlClick` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlClick` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlDelay` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `ControlDeleteItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
 | `ControlFindItem` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
 | `ControlFocus` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
-| `ControlFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetChecked` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlGetChoice` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlGetClassNN` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlGetEnabled` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlGetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | отказано: this runtime does not carry that name yet. |
 | `ControlGetFocus` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `ControlGetFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlGetFocus` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetHwnd` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlGetIndex` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlGetItems` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlGetPos` | AutoHotkey v2.0.19 | command | -- | 0 to 9 | значение |
-| `ControlGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | отказано: this runtime does not carry that name yet. |
 | `ControlGetText` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
-| `ControlGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlGetVisible` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlHide` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlHideDropDown` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlMove` | AutoHotkey v2.0.19 | command | -- | 0 to 9 | значение |
-| `ControlMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlSend` | AutoHotkey v2.0.19 | command | -- | 1 to 6 | значение |
-| `ControlSend` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlSend` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlSendText` | AutoHotkey v2.0.19 | command | -- | 1 to 6 | значение |
 | `ControlSetChecked` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
 | `ControlSetEnabled` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
 | `ControlSetExStyle` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | отказано: this runtime does not carry that name yet. |
 | `ControlSetStyle` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | отказано: this runtime does not carry that name yet. |
 | `ControlSetText` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
-| `ControlSetText` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ControlSetText` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ControlShow` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `ControlShowDropDown` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `CoordModeCaret` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
@@ -129,8 +129,8 @@
 | `DetectHiddenWindows` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
 | `DetectHiddenWindows` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `Gui.Menu.Disable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
-| `Edit` | AutoHotkey v2.0.19 | command | -- | 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `Edit` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Edit` | AutoHotkey v2.0.19 | command | -- | 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `Edit` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `EditGetCurrentCol` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `EditGetCurrentLine` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `EditGetLine` | AutoHotkey v2.0.19 | command | -- | 2 to 6 | значение |
@@ -166,18 +166,18 @@
 | `Gui.StatusBar.GetText` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | значение |
 | `Gui.TreeView.GetText` | AutoHotkey v2.0.19 | method | Gui.TreeView | -- | значение |
 | `GroupActivate` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | значение |
-| `GroupActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `GroupActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `GroupAdd` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
-| `GroupAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `GroupAdd` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `GroupClose` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | значение |
-| `GroupClose` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `GroupClose` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `GroupDeactivate` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | значение |
-| `GroupDeactivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `GroupDeactivate` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Gui` | AutoHotkey v2.0.19 | class | -- | -- | значение |
-| `Gui` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Gui` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Control.Gui` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
-| `GuiControl` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `GuiControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `GuiControl` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `GuiControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `GuiCtrlFromHwnd` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
 | `GuiFromHwnd` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | значение |
 | `Gui.Menu.Handle` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
@@ -197,19 +197,19 @@
 | `Gui.StatusBar.Insert` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | значение |
 | `Gui.StatusBar.InsertCol` | AutoHotkey v2.0.19 | method | Gui.StatusBar | -- | значение |
 | `ListLines` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | значение |
-| `ListLines` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ListLines` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ListVars` | AutoHotkey v2.0.19 | command | -- | 0 | значение |
-| `ListVars` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ListVars` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `ListViewGetContent` | AutoHotkey v2.0.19 | command | -- | 0 to 6 | значение |
 | `Gui.MarginX` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
 | `Gui.MarginY` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
 | `Gui.Maximize` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
 | `Menu` | AutoHotkey v2.0.19 | class | -- | -- | значение |
-| `Menu` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `Menu` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.MenuBar` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
 | `MenuFromHandle` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
-| `MenuGetHandle` | AutoHotkey v1.1.37.02 | function | -- | 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `MenuGetName` | AutoHotkey v1.1.37.02 | function | -- | 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `MenuGetHandle` | AutoHotkey v1.1.37.02 | function | -- | 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `MenuGetName` | AutoHotkey v1.1.37.02 | function | -- | 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `MenuSelect` | AutoHotkey v2.0.19 | command | -- | 0 to 11 | значение |
 | `Gui.Minimize` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
 | `Gui.ListView.Modify` | AutoHotkey v2.0.19 | method | Gui.ListView | -- | значение |
@@ -234,13 +234,13 @@
 | `Gui.Opt` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
 | `Gui.Control.Opt` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
 | `PostMessage` | AutoHotkey v2.0.19 | command | -- | 1 to 8 | значение |
-| `PostMessage` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `Progress` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `PostMessage` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `Progress` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Control.Redraw` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
-| `RegisterCallback` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `RegisterCallback` | AutoHotkey v1.1.37.02 | function | -- | 1 to 4 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Menu.Rename` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
 | `Gui.Restore` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
-| `ScriptHwnd` | AutoHotkey v2.0.19 | variable | -- | -- | отказано: у этой среды выполнения нет собственного окна: это скрипт, который выполняется и заканчивается. |
+| `ScriptHwnd` | AutoHotkey v2.0.19 | variable | -- | -- | отказано: this runtime has no window of its own: it is a script that runs and ends. |
 | `SendMessage` | AutoHotkey v2.0.19 | command | -- | 1 to 9 | значение |
 | `Gui.Menu.SetColor` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
 | `SetControlDelay` | AutoHotkey v2.0.19 | command | -- | 1 | значение |
@@ -264,11 +264,11 @@
 | `SetWinDelay` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
 | `Gui.Show` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
 | `Gui.Menu.Show` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
-| `SplashTextOn` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `SplashTextOn` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `StatusBarGetText` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |
-| `StatusBarGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `StatusBarGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `StatusBarWait` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | значение |
-| `StatusBarWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `StatusBarWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Submit` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
 | `Gui.Control.Text` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
 | `Gui.Title` | AutoHotkey v2.0.19 | method | Gui | -- | значение |
@@ -277,91 +277,91 @@
 | `Gui.Menu.ToggleCheck` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
 | `Gui.Menu.ToggleEnable` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
 | `ToolTip` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `ToolTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `ToolTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `TrayMenu` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `TraySetIcon` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | значение |
 | `TrayTip` | AutoHotkey v2.0.19 | command | -- | 0 to 3 | значение |
-| `TrayTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `TrayTip` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `Gui.Menu.Uncheck` | AutoHotkey v2.0.19 | method | Gui.Menu | -- | значение |
 | `Gui.Control.UseTab` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
 | `Gui.Control.Value` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
 | `Gui.Control.Visible` | AutoHotkey v2.0.19 | method | Gui.Control | -- | значение |
 | `WinActivate` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinActivate` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinActivateBottom` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinActivateBottom` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinActivateBottom` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinActive` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | значение |
 | `WinActive` | AutoHotkey v1.1.37.02 | function | -- | 0 to 4 | значение |
 | `WinClose` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |
-| `WinClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinDelay` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `WinDir` | AutoHotkey v2.0.19 | variable | -- | -- | значение |
 | `WinExist` | AutoHotkey v2.0.19 | function | -- | 0 to 4 | значение |
 | `WinExist` | AutoHotkey v1.1.37.02 | function | -- | 0 to 4 | значение |
 | `WinFromPoint` | KeySharp | function | -- | -- | значение |
-| `WinGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `WinGetActiveStats` | AutoHotkey v1.1.37.02 | command | -- | up to 5 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `WinGetActiveTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinGet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetActiveStats` | AutoHotkey v1.1.37.02 | command | -- | up to 5 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `WinGetActiveTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetAlwaysOnTop` | KeySharp | function | -- | -- | значение |
 | `WinGetClass` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinGetClass` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinGetClass` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetClientPos` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | значение |
 | `WinGetControls` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetControlsHwnd` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetCount` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetEnabled` | KeySharp | function | -- | -- | значение |
-| `WinGetExStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinGetExStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetID` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetIDLast` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetList` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetMinMax` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetPID` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetPos` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | значение |
-| `WinGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinGetPos` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetProcessName` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetProcessPath` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinGetStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinGetStyle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetText` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinGetText` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetTitle` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinGetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | значение |
-| `WinGetTransColor` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinGetTransColor` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinGetTransparent` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinHide` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinHide` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinHide` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinKill` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |
-| `WinKill` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinKill` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinMaximize` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinMaximize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `WinMenuSelectItem` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinMaximize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `WinMenuSelectItem` | AutoHotkey v1.1.37.02 | command | -- | up to 3 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimize` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinMinimize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinMinimize` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimizeAll` | AutoHotkey v2.0.19 | command | -- | 0 | значение |
-| `WinMinimizeAll` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinMinimizeAll` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinMinimizeAllUndo` | AutoHotkey v2.0.19 | command | -- | 0 | значение |
 | `WinMove` | AutoHotkey v2.0.19 | command | -- | 0 to 8 | значение |
-| `WinMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinMove` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinMoveBottom` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinMoveTop` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinRedraw` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
 | `WinRestore` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinRestore` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `WinSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinRestore` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `WinSet` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetAlwaysOnTop` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |
 | `WinSetEnabled` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
-| `WinSetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinSetExStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetRegion` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |
-| `WinSetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinSetStyle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetTitle` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
-| `WinSetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
-| `WinSetTransColor` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinSetTitle` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
+| `WinSetTransColor` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinSetTransparent` | AutoHotkey v2.0.19 | command | -- | 1 to 5 | значение |
 | `WinShow` | AutoHotkey v2.0.19 | command | -- | 0 to 4 | значение |
-| `WinShow` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinShow` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinWait` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |
-| `WinWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitActive` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |
-| `WinWaitActive` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinWaitActive` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitClose` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |
-| `WinWaitClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: это имя Windows, а этот рабочий стол — не Windows. |
+| `WinWaitClose` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | отказано: this is a name of Windows, and this desktop is not Windows. |
 | `WinWaitNotActive` | AutoHotkey v2.0.19 | command | -- | 0 to 5 | значение |

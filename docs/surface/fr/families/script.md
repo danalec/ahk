@@ -1,6 +1,6 @@
 # L'analyseur et l'exécution du script
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Langue: Français
 
@@ -73,7 +73,7 @@ Les noms de la famille **L'analyseur et l'exécution du script** dans les trois 
 | `A_RealThread` | KeySharp | variable | -- | -- | valeur |
 | `A_ScriptDir` | AutoHotkey v1.1.37.02 | variable | -- | -- | valeur |
 | `A_ScriptFullPath` | AutoHotkey v1.1.37.02 | variable | -- | -- | valeur |
-| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | refusé : ce runtime n'a pas de fenêtre à lui : c'est un script qui s'exécute et finit. |
+| `A_ScriptHwnd` | AutoHotkey v1.1.37.02 | variable | -- | -- | refusé : this runtime has no window of its own: it is a script that runs and ends. |
 | `A_ScriptName` | AutoHotkey v1.1.37.02 | variable | -- | -- | valeur |
 | `A_Space` | AutoHotkey v1.1.37.02 | variable | -- | -- | valeur |
 | `A_Tab` | AutoHotkey v1.1.37.02 | variable | -- | -- | valeur |
@@ -89,8 +89,8 @@ Les noms de la famille **L'analyseur et l'exécution du script** dans les trois 
 | `CompileScript` | KeySharp | function | -- | -- | valeur |
 | `CoordMode` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valeur |
 | `CoordMode` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
-| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | refusé : ce runtime exécute un script dans un seul fil, et il ne peut pas le rendre critique. |
-| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : ce runtime exécute un script dans un seul fil, et il ne peut pas le rendre critique. |
+| `Critical` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | refusé : this runtime runs one script in one thread, and it cannot make it critical. |
+| `Critical` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : this runtime runs one script in one thread, and it cannot make it critical. |
 | `Thread.Critical` | KeySharp | method | Thread | -- | valeur |
 | `Else` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | valeur |
 | `EndChar` | AutoHotkey v2.0.19 | variable | -- | -- | valeur |
@@ -125,13 +125,13 @@ Les noms de la famille **L'analyseur et l'exécution du script** dans les trois 
 | `OnError` | AutoHotkey v1.1.37.02 | function | -- | 1 to 2 | valeur |
 | `OnExit` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | valeur |
 | `OnMessage` | AutoHotkey v2.0.19 | command | -- | 2 to 3 | valeur |
-| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `OnMessage` | AutoHotkey v1.1.37.02 | function | -- | 1 to 3 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `OutputDebugLine` | KeySharp | function | -- | -- | valeur |
 | `Pause` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valeur |
-| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `Pause` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `Persistent` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valeur |
-| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | refusé : ce runtime exécute un script une fois, et il ne peut pas s'exécuter encore. |
-| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `Reload` | AutoHotkey v2.0.19 | command | -- | 0 | refusé : this runtime runs one script once, and it cannot run itself again. |
+| `Reload` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `RequestCapabilities` | KeySharp | function | -- | -- | valeur |
 | `RunScript` | KeySharp | function | -- | -- | valeur |
 | `ScriptDir` | AutoHotkey v2.0.19 | variable | -- | -- | valeur |
@@ -147,10 +147,10 @@ Les noms de la famille **L'analyseur et l'exécution du script** dans les trois 
 | `Sleep` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | valeur |
 | `Space` | AutoHotkey v2.0.19 | variable | -- | -- | valeur |
 | `Suspend` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | valeur |
-| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : c'est un nom de Windows, et ce bureau n'est pas Windows. |
+| `Suspend` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | refusé : this is a name of Windows, and this desktop is not Windows. |
 | `Tab` | AutoHotkey v2.0.19 | variable | -- | -- | valeur |
 | `ThisFunc` | AutoHotkey v2.0.19 | variable | -- | -- | valeur |
-| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | refusé : ce runtime exécute un script dans un seul fil, et il ne peut pas en lancer un autre. |
-| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refusé : ce runtime exécute un script dans un seul fil, et il ne peut pas en lancer un autre. |
+| `Thread` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | refusé : this runtime runs one script in one thread, and it cannot start another. |
+| `Thread` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | refusé : this runtime runs one script in one thread, and it cannot start another. |
 | `ValidateScript` | KeySharp | function | -- | -- | valeur |
 | `WorkingDir` | AutoHotkey v2.0.19 | variable | -- | -- | valeur |

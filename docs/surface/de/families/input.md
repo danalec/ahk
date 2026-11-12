@@ -1,6 +1,6 @@
 # Hotkeys, Hotstrings und Eingabe
 
-| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文](../zh/index.md) |
+| [English](../index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Deutsch](index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
 
 Sprache: Deutsch
 
@@ -18,7 +18,7 @@ Die Namen der Familie **Hotkeys, Hotstrings und Eingabe** in den drei Dialekten,
 | `A_CoordModeMouse` | AutoHotkey v1.1.37.02 | variable | -- | -- | Wert |
 | `A_CoordModePixel` | AutoHotkey v1.1.37.02 | variable | -- | -- | Wert |
 | `A_CoordModeToolTip` | AutoHotkey v1.1.37.02 | variable | -- | -- | Wert |
-| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | verweigert: diese Laufzeitumgebung liest die Form des Mauszeigers der Maschine nicht. |
+| `A_Cursor` | AutoHotkey v1.1.37.02 | variable | -- | -- | verweigert: the shape of the cursor of the machine is not read by this runtime. |
 | `A_DefaultHotstringCaseSensitive` | KeySharp | variable | -- | -- | Wert |
 | `A_DefaultHotstringConformToCase` | KeySharp | variable | -- | -- | Wert |
 | `A_DefaultHotstringDetectWhenInsideWord` | KeySharp | variable | -- | -- | Wert |
@@ -56,7 +56,7 @@ Die Namen der Familie **Hotkeys, Hotstrings und Eingabe** in den drei Dialekten,
 | `Hotkey.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | Hotkey | -- | Wert |
 | `InputHook.BackspaceIsUndo` | AutoHotkey v2.0.19 | method | InputHook | -- | Wert |
 | `BlockInput` | AutoHotkey v2.0.19 | command | -- | 1 | Wert |
-| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `BlockInput` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `InputHook.BufferLengthMax` | KeySharp | method | InputHook | -- | Wert |
 | `CallbackCreate` | AutoHotkey v2.0.19 | command | -- | 1 to 3 | Wert |
 | `CallbackFree` | AutoHotkey v2.0.19 | command | -- | 1 | Wert |
@@ -67,10 +67,10 @@ Die Namen der Familie **Hotkeys, Hotstrings und Eingabe** in den drei Dialekten,
 | `ClipCursor` | KeySharp | function | -- | -- | Wert |
 | `ClipWait` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | Wert |
 | `ClipWait` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | Wert |
-| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `ControlGet` | AutoHotkey v1.1.37.02 | command | -- | up to 2 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `CoordModeMouse` | AutoHotkey v2.0.19 | variable | -- | -- | Wert |
 | `CoordModePixel` | AutoHotkey v2.0.19 | variable | -- | -- | Wert |
-| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | verweigert: diese Laufzeitumgebung liest die Form des Mauszeigers der Maschine nicht. |
+| `Cursor` | AutoHotkey v2.0.19 | variable | -- | -- | verweigert: the shape of the cursor of the machine is not read by this runtime. |
 | `DefaultMouseSpeed` | AutoHotkey v2.0.19 | variable | -- | -- | Wert |
 | `InputHook.EndCharMode` | KeySharp | method | InputHook | -- | Wert |
 | `Hotkey.EndKey` | AutoHotkey v2.0.19 | method | Hotkey | -- | Wert |
@@ -106,7 +106,7 @@ Die Namen der Familie **Hotkeys, Hotstrings und Eingabe** in den drei Dialekten,
 | `Hotkey.Input` | AutoHotkey v2.0.19 | method | Hotkey | -- | Wert |
 | `InputHook.Input` | AutoHotkey v2.0.19 | method | InputHook | -- | Wert |
 | `InputHook` | AutoHotkey v2.0.19 | class | -- | -- | Wert |
-| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `InputHook` | AutoHotkey v1.1.37.02 | function | -- | 0 to 3 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `InstallKeybdHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | Wert |
 | `InstallMouseHook` | AutoHotkey v2.0.19 | command | -- | 0 to 2 | Wert |
 | `IsLabel` | AutoHotkey v2.0.19 | command | -- | 1 | Wert |
@@ -116,13 +116,13 @@ Die Namen der Familie **Hotkeys, Hotstrings und Eingabe** in den drei Dialekten,
 | `KeyDuration` | AutoHotkey v2.0.19 | variable | -- | -- | Wert |
 | `KeyDurationPlay` | AutoHotkey v2.0.19 | variable | -- | -- | Wert |
 | `KeyHistory` | AutoHotkey v2.0.19 | command | -- | 0 to 1 | Wert |
-| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `KeyHistory` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.KeyOpt` | AutoHotkey v2.0.19 | method | Hotkey | -- | Wert |
 | `InputHook.KeyOpt` | AutoHotkey v2.0.19 | method | InputHook | -- | Wert |
 | `KeyWait` | AutoHotkey v2.0.19 | command | -- | 1 to 2 | Wert |
 | `KeyWait` | AutoHotkey v1.1.37.02 | command | -- | up to 1 | Wert |
 | `ListHotkeys` | AutoHotkey v2.0.19 | command | -- | 0 | Wert |
-| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | verweigert: ist ein Name von Windows, und dieser Desktop ist nicht Windows. |
+| `ListHotkeys` | AutoHotkey v1.1.37.02 | command | -- | up to 0 | verweigert: this is a name of Windows, and this desktop is not Windows. |
 | `Hotkey.Match` | AutoHotkey v2.0.19 | method | Hotkey | -- | Wert |
 | `InputHook.Match` | AutoHotkey v2.0.19 | method | InputHook | -- | Wert |
 | `MaxHotkeysPerInterval` | AutoHotkey v2.0.19 | variable | -- | -- | Wert |
