@@ -46,10 +46,16 @@ jobs:
     # what checks that. The pull request of a stranger still does not spend
     # the owner's minutes.
     #
+    # The question is about the *author* of the pull request and not about
+    # the actor of the event: the actor is who pushed the branch, and the
+    # owner pushes it when the master is rewritten and the branch of the
+    # bot has to be rebased on it. The author of the pull request is the
+    # bot either way.
+    #
     # The expression is on one line on purpose: a YAML folded scalar does not
     # fold a line that is indented further than the first, and a newline
     # inside an expression is not an expression the runner reads.
-    if: github.event_name != 'pull_request' || github.actor == 'dependabot[bot]' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    if: github.event_name != 'pull_request' || github.event.pull_request.user.login == 'dependabot[bot]' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -100,7 +106,7 @@ jobs:
     name: no-std (${{ matrix.target }})
     # The same gate as the job above: the owner and the collaborators, and
     # nobody else.
-    if: github.event_name != 'pull_request' || github.actor == 'dependabot[bot]' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    if: github.event_name != 'pull_request' || github.event.pull_request.user.login == 'dependabot[bot]' || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
