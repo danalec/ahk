@@ -1,0 +1,24 @@
+cases: 111
+
+verdict	count
+MATCH	98
+KEYS-DIFFERS	10
+RUST-DIFFERS	0
+BOTH-DIFFER	3
+ERROR	0
+
+family	MATCH	KEYS-DIFFERS	RUST-DIFFERS	BOTH-DIFFER	ERROR	total
+classes	7	0	0	0	0	7
+control	10	0	0	0	0	10
+errors	7	5	0	2	0	14
+expr	6	1	0	0	0	7
+fileio	8	0	0	0	0	8
+funcs	6	0	0	1	0	7
+hotkeys	7	1	0	0	0	8
+hotstrings	5	0	0	0	0	5
+misc	9	2	0	0	0	11
+numbers	7	0	0	0	0	7
+objects	8	1	0	0	0	9
+strings	10	0	0	0	0	10
+suspend	2	0	0	0	0	2
+vars	6	0	0	0	0	6

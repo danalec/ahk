@@ -1,0 +1,112 @@
+script	family	verdict	ahk_out	keysharp_out	rust_out	normalized_note
+cl01_new	classes	MATCH	C1=7|3|4|Point	C1=7|3|4|Point	C1=7|3|4|Point	
+cl02_extends_super	classes	MATCH	C2=Rex speaks woof|Rex	C2=Rex speaks woof|Rex	C2=Rex speaks woof|Rex	
+cl03_static	classes	MATCH	C3=5|8|8	C3=5|8|8	C3=5|8|8	
+cl04_property	classes	MATCH	C4=100|212.0	C4=100|212.0	C4=100|212.0	
+cl05_meta_get	classes	MATCH	C5=GET:foo|GET:bar	C5=GET:foo|GET:bar	C5=GET:foo|GET:bar	
+cl06_meta_call	classes	MATCH	C6=CALL:anything(2)|CALL:other(0)	C6=CALL:anything(2)|CALL:other(0)	C6=CALL:anything(2)|CALL:other(0)	
+cl07_item	classes	MATCH	C7=ERR IndexError: Invalid index.\nC8=ERR IndexError: Invalid index.	C7=ERR IndexError: Invalid index.\nC8=ERR IndexError: Invalid index.	C7=ERR IndexError: Invalid index.\nC8=ERR IndexError: Invalid index.	
+co01_loop_index	control	MATCH	K1=12345\nK2=1	K1=12345\nK2=1	K1=12345\nK2=1	
+co02_break_continue	control	MATCH	K3=13	K3=13	K3=13	
+co03_while	control	MATCH	K4=123|3	K4=123|3	K4=123|3	
+co04_loop_until	control	MATCH	K5=123	K5=123	K5=123	
+co05_loop_parse	control	MATCH	K6=[a][b][][c]\nK7=abc	K6=[a][b][][c]\nK7=abc	K6=[a][b][][c]\nK7=abc	
+co06_switch	control	MATCH	K8=B\nK9=high	K8=B\nK9=high	K8=B\nK9=high	
+co07_try_typed	control	MATCH	K10=ValueError|bad\nK11=TypeError\nK12=ERR ValueError: x	K10=ValueError|bad\nK11=TypeError\nK12=ERR ValueError: x	K10=ValueError|bad\nK11=TypeError\nK12=ERR ValueError: x	
+co08_for_in	control	MATCH	K13=10-20-30-\nK14=a=1;b=2;	K13=10-20-30-\nK14=a=1;b=2;	K13=10-20-30-\nK14=a=1;b=2;	
+co09_truthiness	control	MATCH	K15=1x	K15=1x	K15=1x	
+co10_loop_else	control	MATCH	LE=L0-else,L1-body,W-else,F-else,P-else,	LE=L0-else,L1-body,W-else,F-else,P-else,	LE=L0-else,L1-body,W-else,F-else,P-else,	
+er01_divzero	errors	KEYS-DIFFERS	R1=ZeroDivisionError|Divide by zero.|	R1=ZeroDivisionError|Right side operand of floating point division was 0.|	R1=ZeroDivisionError|Divide by zero.|	
+er02_index	errors	MATCH	R2=IndexError|Invalid index.|5	R2=IndexError|Invalid index.|5	R2=IndexError|Invalid index.|5	
+er03_map_missing	errors	MATCH	R3=UnsetItemError|Item has no value.|zz	R3=UnsetItemError|Item has no value.|zz	R3=UnsetItemError|Item has no value.|zz	
+er04_unset_var	errors	KEYS-DIFFERS	R4=UnsetError|This global variable has not been assigned a value.|UnsetThing	R4=UnsetError|Left side operand of addition was unset.|	R4=UnsetError|This global variable has not been assigned a value.|UnsetThing	warn-stripped; rust-warn-elements-dropped=1
+er05_chr	errors	MATCH	R5=ValueError|Parameter #1 of Chr is invalid.|-1	R5=ValueError|Parameter #1 of Chr is invalid.|-1	R5=ValueError|Parameter #1 of Chr is invalid.|-1	
+er06_str_plus	errors	MATCH	R6=TypeError|Expected a Number but got a String.|abc	R6=TypeError|Expected a Number but got a String.|abc	R6=TypeError|Expected a Number but got a String.|abc	
+er07_prop_chain	errors	MATCH	R7=PropertyError|This value of type "Object" has no property named "b".|	R7=PropertyError|This value of type "Object" has no property named "b".|	R7=PropertyError|This value of type "Object" has no property named "b".|	
+er08_convert	errors	KEYS-DIFFERS	R8=TypeError|Parameter #1 of Integer.Call requires a Number, but received a String.|abc	R8=TypeError|Expected a Number but got a String.|abc	R8=TypeError|Parameter #1 of Integer.Call requires a Number, but received a String.|abc	
+er09_arity	errors	BOTH-DIFFER	STDERR:Too few parameters passed to function.\n     Specifically: Abs	R9=ArgumentError|Too few parameters passed to function.|Abs	R9=Error|Too few parameters passed to function.\n     Specifically: Abs|	real-err-loc-normalized; real-answer=stderr
+er10_unknown_func	errors	BOTH-DIFFER	R10=UnsetError|This global variable has not been assigned a value.|NoSuchFunc	R10=UnsetError|The function being called was unset.|	R10=UnsetError|This global variable has not been assigned a value.|nosuchfunc	warn-stripped
+er11_buffer_neg	errors	KEYS-DIFFERS	R11=ValueError|Invalid value.|	R11=ValueError|Invalid value.|-1	R11=ValueError|Invalid value.|	
+er12_strget	errors	KEYS-DIFFERS	R12=ValueError|Parameter #1 of StrGet is invalid.|0	R12=ValueError|No valid address or buffer was supplied.|	R12=ValueError|Parameter #1 of StrGet is invalid.|0	
+er13_call_nonfunc	errors	MATCH	R13=MethodError|This value of type "Integer" has no method named "Call".|	R13=MethodError|This value of type "Integer" has no method named "Call".|	R13=MethodError|This value of type "Integer" has no method named "Call".|	
+er14_custom_throw	errors	MATCH	R14=TypeError|custom	R14=TypeError|custom	R14=TypeError|custom	
+ex01_precedence	expr	MATCH	A1=7|9|512|-4|4\nA2=5|13|8|4\nA3=26|5.0|19	A1=7|9|512|-4|4\nA2=5|13|8|4\nA3=26|5.0|19	A1=7|9|512|-4|4\nA2=5|13|8|4\nA3=26|5.0|19	
+ex02_implicit_concat	expr	MATCH	B1=x3|3d|ab|abc\nB2=n=42|42=42|v3w\nB3=0.33333333333333331|2.0|5.0|16	B1=x3|3d|ab|abc\nB2=n=42|42=42|v3w\nB3=0.33333333333333331|2.0|5.0|16	B1=x3|3d|ab|abc\nB2=n=42|42=42|v3w\nB3=0.33333333333333331|2.0|5.0|16	
+ex03_comparison	expr	MATCH	C1=1|1|1|1|0|1\nC2=0|1|1|0|0\nC3=ERR TypeError: Expected a Number but got a String.	C1=1|1|1|1|0|1\nC2=0|1|1|0|0\nC3=ERR TypeError: Expected a Number but got a String.	C1=1|1|1|1|0|1\nC2=0|1|1|0|0\nC3=ERR TypeError: Expected a Number but got a String.	
+ex04_logical_ternary	expr	MATCH	D1=big|1|1|1|0|1\nD2=2|3|fallback|0	D1=big|1|1|1|0|1\nD2=2|3|fallback|0	D1=big|1|1|1|0|1\nD2=2|3|fallback|0	
+ex05_bitwise	expr	MATCH	E1=1|7|4|-6\nE2=1024|128|15|255|240\nE3=1|0|-1|9223372036854775807	E1=1|7|4|-6\nE2=1024|128|15|255|240\nE3=1|0|-1|9223372036854775807	E1=1|7|4|-6\nE2=1024|128|15|255|240\nE3=1|0|-1|9223372036854775807	
+ex06_assign_ops	expr	MATCH	F1=18\nF2=8\nF3=abcd\nF4=5\nF5=16	F1=18\nF2=8\nF3=abcd\nF4=5\nF5=16	F1=18\nF2=8\nF3=abcd\nF4=5\nF5=16	
+ex07_null_coalesce	expr	KEYS-DIFFERS	STDERR:Syntax error.\n     Specifically: ?? 9) "|" ("x" ?? "y"))	G1=default\nG2=\nG3=0|x	ERROR:Syntax error.\n     Specifically: ?? 9) "|" ("x" ?? "y"))	real-err-loc-normalized; real-answer=stderr; rust-answer=report.error
+fi01_append_read	fileio	MATCH	G1=line1|line2|\nG2=tailmore	G1=line1|line2|\nG2=tailmore	G1=line1|line2|\nG2=tailmore	
+fi02_fileopen	fileio	MATCH	G3=hello|5	G3=hello|5	G3=hello|5	
+fi03_seek	fileio	MATCH	G4=012|6789|1|10	G4=012|6789|1|10	G4=012|6789|1|10	
+fi04_ini	fileio	MATCH	G5=bar|def	G5=bar|def	G5=bar|def	
+fi05_loop_read	fileio	MATCH	G6=[a][b][c]	G6=[a][b][c]	G6=[a][b][c]	
+fi06_loop_files	fileio	MATCH	G7=f1.txt|f2.txt||2	G7=f1.txt|f2.txt||2	G7=f1.txt|f2.txt||2	
+fi07_fileexist	fileio	MATCH	G8=1|1|D	G8=1|1|D	G8=1|1|D	
+fi08_file_length	fileio	MATCH	G9=6	G9=6	G9=6	
+fu01_defaults_varargs	funcs	MATCH	F1=31|23|6\nF2=10|0	F1=31|23|6\nF2=10|0	F1=31|23|6\nF2=10|0	
+fu02_recursion	funcs	MATCH	F3=120|55	F3=120|55	F3=120|55	
+fu03_nested_closure	funcs	MATCH	F4=13	F4=13	F4=13	rust-warn-elements-dropped=1
+fu04_func_object	funcs	BOTH-DIFFER	F5=ERR ValueError: Invalid base.	F5=ERR TypeError: Cannot use the string "Double" as a function. Pass the function itself, or %"Double"% to resolve a name at run time.	F5=ERR Error: Invalid base.	
+fu05_boundfunc	funcs	MATCH	F6=15\nF7=1|BoundFunc	F6=15\nF7=1|BoundFunc	F6=15\nF7=1|BoundFunc	
+fu06_fat_arrow	funcs	MATCH	F8=42\nF9=5	F8=42\nF9=5	F8=42\nF9=5	rust-warn-elements-dropped=3
+fu07_func_as_value	funcs	MATCH	F10=42|5	F10=42|5	F10=42|5	rust-warn-elements-dropped=1
+hk01_hotkey_one_line_body	hotkeys	MATCH	HK1	HK1	HK1	
+hk02_hotkey_brace_on_the_line	hotkeys	MATCH	HK2	HK2	HK2	
+hk03_hotkey_block_on_the_next_line	hotkeys	MATCH	HK3	HK3	HK3	
+hk04_hotkey_return_body	hotkeys	MATCH	HK4	HK4	HK4	
+hk05_hotkey_modifier_chord	hotkeys	MATCH	HK5	HK5	HK5	
+hk06_hotstring	hotkeys	MATCH	HK6	HK6	HK6	
+hk07_hotstring_with_colons	hotkeys	MATCH	HK7	HK7	HK7	
+hk08_hotkey_literal_empty_brace	hotkeys	KEYS-DIFFERS	STDERR:This line does not contain a recognized action.\n     Specifically: { }	HK8	ERROR:This line does not contain a recognized action.\n     Specifically: { }	real-err-loc-normalized; real-answer=stderr; rust-answer=report.error
+hs01_hotstring_star_option	hotstrings	MATCH	HS1	HS1	HS1	
+hs02_hotstring_question_option	hotstrings	MATCH	HS2	HS2	HS2	
+hs03_hotstring_quoted_trigger	hotstrings	MATCH	HS3	HS3	HS3	
+hs04_hotstring_semicolon	hotstrings	MATCH	HS4	HS4	HS4	
+hs05_hotstring_continuation	hotstrings	MATCH	HS5	HS5	HS5	
+mi01_sort_string	misc	MATCH	M1=a|b|c\nM2=40|233\nM3=A|a|b\nM4=A|a|b\nM5=a|b\nM6=a|b|c	M1=a|b|c\nM2=40|233\nM3=A|a|b\nM4=A|a|b\nM5=a|b\nM6=a|b|c	M1=a|b|c\nM2=40|233\nM3=A|a|b\nM4=A|a|b\nM5=a|b\nM6=a|b|c	
+mi02_format_time	misc	MATCH	M7=2020-01-02 03:04:05|20200102\nM8=01/02/2020|1999-12-31	M7=2020-01-02 03:04:05|20200102\nM8=01/02/2020|1999-12-31	M7=2020-01-02 03:04:05|20200102\nM8=01/02/2020|1999-12-31	
+mi03_date_add	misc	MATCH	M9=20200201000000|20200101010000|20200101000130|20191231000000\nM9B=20200102000000|20200101010000|20200101000100|20200101000001	M9=20200201000000|20200101010000|20200101000130|20191231000000\nM9B=20200102000000|20200101010000|20200101000100|20200101000001	M9=20200201000000|20200101010000|20200101000130|20191231000000\nM9B=20200102000000|20200101010000|20200101000100|20200101000001	
+mi04_date_diff	misc	MATCH	M10=9|60|366\nM10B=24|0|1|0	M10=9|60|366\nM10B=24|0|1|0	M10=9|60|366\nM10B=24|0|1|0	
+mi05_str_capacity	misc	MATCH	M11=64|1\nM12=Integer|1	M11=64|1\nM12=Integer|1	M11=64|1\nM12=Integer|1	
+mi06_ord_chr	misc	MATCH	M13=65|A|B|97	M13=65|A|B|97	M13=65|A|B|97	
+mi07_vercompare	misc	MATCH	M14=1|-1|1	M14=1|-1|1	M14=1|-1|1	
+mi08_version	misc	KEYS-DIFFERS	M15=2.0.19	M15=2.1-alpha.37	M15=2.0.19	
+mi09_strptr_ref	misc	KEYS-DIFFERS	M16=ERR TypeError: Expected a String but got a VarRef.	M16=Integer	M16=ERR TypeError: Expected a String but got a VarRef.	
+nu01_intdiv_mod	numbers	MATCH	N1=3|-3|-3|1|-1|1\nN2=0|1|1|0|1\nN3=3.5|4.0|0.25	N1=3|-3|-3|1|-1|1\nN2=0|1|1|0|1\nN3=3.5|4.0|0.25	N1=3|-3|-3|1|-1|1\nN2=0|1|1|0|1\nN3=3.5|4.0|0.25	
+nu02_exponent	numbers	MATCH	N4=1024|1.4142135623730951|0.5|27\nN5=4.0|1.4142135623730951|2.0	N4=1024|1.4142135623730951|0.5|27\nN5=4.0|1.4142135623730951|2.0	N4=1024|1.4142135623730951|0.5|27\nN5=4.0|1.4142135623730951|2.0	
+nu03_float_render	numbers	MATCH	N6=0.30000000000000004|0.33333333333333331|0.66666666666666663\nN7=1.0|25.0|10000000000.0|2.5\nN8=-0.5|0.099999999999999978|2.5	N6=0.30000000000000004|0.33333333333333331|0.66666666666666663\nN7=1.0|25.0|10000000000.0|2.5\nN8=-0.5|0.099999999999999978|2.5	N6=0.30000000000000004|0.33333333333333331|0.66666666666666663\nN7=1.0|25.0|10000000000.0|2.5\nN8=-0.5|0.099999999999999978|2.5	
+nu04_hex	numbers	MATCH	N9=16|255|17|240\nN10=31|42|2.5|7\nN11=ff|FF|42	N9=16|255|17|240\nN10=31|42|2.5|7\nN11=ff|FF|42	N9=16|255|17|240\nN10=31|42|2.5|7\nN11=ff|FF|42	
+nu05_round	numbers	MATCH	N12=2|3|4|-3|2.57\nN13=2|1|-1|2.35	N12=2|3|4|-3|2.57\nN13=2|1|-1|2.35	N12=2|3|4|-3|2.57\nN13=2|1|-1|2.35	
+nu06_math_funcs	numbers	MATCH	N14=3|2.5|7\nN15=9|2|3|2\nN16=1|-1|1	N14=3|2.5|7\nN15=9|2|3|2\nN16=1|-1|1	N14=3|2.5|7\nN15=9|2|3|2\nN16=1|-1|1	
+nu07_types	numbers	MATCH	N17=Integer|Float|Float|Integer|String\nN18=1|0|0|0|1\nN19=2|2.0|16|1	N17=Integer|Float|Float|Integer|String\nN18=1|0|0|0|1\nN19=2|2.0|16|1	N17=Integer|Float|Float|Integer|String\nN18=1|0|0|0|1\nN19=2|2.0|16|1	
+ob01_object_literal	objects	MATCH	O1=1|two|1|0\nO2=9	O1=1|two|1|0\nO2=9	O1=1|two|1|0\nO2=9	
+ob02_defineprop	objects	MATCH	O3=7\nO4=changed	O3=7\nO4=changed	O3=7\nO4=changed	
+ob03_map	objects	MATCH	O5=3|1|1|0|2\nO6=0|v	O5=3|1|1|0|2\nO6=0|v	O5=3|1|1|0|2\nO6=0|v	
+ob04_map_default	objects	MATCH	O7=99|7|99	O7=99|7|99	O7=99|7|99	
+ob05_array	objects	MATCH	O8=4|10|40|1\nO9=ERR IndexError: Invalid index.	O8=4|10|40|1\nO9=ERR IndexError: Invalid index.	O8=4|10|40|1\nO9=ERR IndexError: Invalid index.	
+ob06_array_mutate	objects	MATCH	O10=2|1|3|x	O10=2|1|3|x	O10=2|1|3|x	
+ob07_buffer	objects	MATCH	O11=8|42|7\nO12=65	O11=8|42|7\nO12=65	O11=8|42|7\nO12=65	
+ob08_clone	objects	MATCH	O13=2|3\nO14=1|2	O13=2|3\nO14=1|2	O13=2|3\nO14=1|2	
+ob09_map_keys	objects	KEYS-DIFFERS	O15=2|int|str|str	O15=3|int|float|str	O15=2|int|str|str	
+pa01_optional_param	misc	MATCH	PA1=unset|set:2|0|1\nPA2=unset|set:8	PA1=unset|set:2|0|1\nPA2=unset|set:8	PA1=unset|set:2|0|1\nPA2=unset|set:8	
+pa02_dynamic_name	misc	MATCH	PD1=5\nPD2=9\nPD3=5|7|7	PD1=5\nPD2=9\nPD3=5|7|7	PD1=5\nPD2=9\nPD3=5|7|7	
+st01_substr	strings	MATCH	S1=bcdef|bcd|ef|\nS2=bcde|f||	S1=bcdef|bcd|ef|\nS2=bcde|f||	S1=bcdef|bcd|ef|\nS2=bcde|f||	
+st02_instr	strings	MATCH	S3=5|8|0\nS4=1|0|5	S3=5|8|0\nS4=1|0|5	S3=5|8|0\nS4=1|0|5	
+st03_strreplace	strings	MATCH	S5=a+b+c|xxx|abc\nS6=bbb|ac|a2b2	S5=a+b+c|xxx|abc\nS6=bbb|ac|a2b2	S5=a+b+c|xxx|abc\nS6=bbb|ac|a2b2	
+st04_trim	strings	MATCH	S7=hi|hi|hi|hi\nS8=hi|hi|abc	S7=hi|hi|hi|hi\nS8=hi|hi|abc	S7=hi|hi|hi|hi\nS8=hi|hi|abc	
+st05_splitpath	strings	MATCH	S9=file.txt|C:\dir\nS10=file.txt|C:\dir|txt|file|C:	S9=file.txt|C:\dir\nS10=file.txt|C:\dir|txt|file|C:	S9=file.txt|C:\dir\nS10=file.txt|C:\dir|txt|file|C:	
+st06_case_convert	strings	MATCH	S11=ABC|abc|5|0\nS12=AB|A1B2|a1b2	S11=ABC|abc|5|0\nS12=AB|A1B2|a1b2	S11=ABC|abc|5|0\nS12=AB|A1B2|a1b2	
+st07_strsplit	strings	MATCH	S13=3|a|c\nS14=5| 	S13=3|a|c\nS14=5| 	S13=3|a|c\nS14=5| 	
+st08_regex_match	strings	MATCH	S15=1|0\nS16=4|123|123	S15=1|0\nS16=4|123|123	S15=1|0\nS16=4|123|123	
+st09_regex_replace	strings	MATCH	S17=a#b#|X\nS18=ac|a-b-c	S17=a#b#|X\nS18=ac|a-b-c	S17=a#b#|X\nS18=ac|a-b-c	
+st10_format	strings	MATCH	S19=3.14|a and b|2.5\nS20=00042|ff|2	S19=3.14|a and b|2.5\nS20=00042|ff|2	S19=3.14|a and b|2.5\nS20=00042|ff|2	
+su01_suspend_state	suspend	MATCH	before=0\nafter1=1\nafter0=0	before=0\nafter1=1\nafter0=0	before=0\nafter1=1\nafter0=0	
+su02_suspend_exempt	suspend	MATCH	exempt=0\nsuspended=1	exempt=0\nsuspended=1	exempt=0\nsuspended=1	
+va01_global	vars	MATCH	V1=changed|changed	V1=changed|changed	V1=changed|changed	
+va02_local	vars	MATCH	V2=local|local	V2=local|local	V2=local|local	
+va03_static	vars	MATCH	V3=1|2|3	V3=1|2|3	V3=1|2|3	
+va04_byref	vars	MATCH	V4=2|1\nV5=right|left	V4=2|1\nV5=right|left	V4=2|1\nV5=right|left	
+va05_unset	vars	MATCH	V6=0\nV7=1|0	V6=0\nV7=1|0	V6=0\nV7=1|0	rust-warn-elements-dropped=1
+va06_incdec	vars	MATCH	V8=5|5|7|7|5\nV9=2	V8=5|5|7|7|5\nV9=2	V8=5|5|7|7|5\nV9=2	
