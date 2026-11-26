@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=ahk
+GenericName=AutoHotkey interpreter
+Comment=Run an AutoHotkey script
+# The runner takes the script as its one argument, and it writes the report
+# on the standard output: the entry opens a terminal for that.
+Exec=ahk %f
+Icon=ahk
+Terminal=true
+Categories=Development;Utility;
+MimeType=text/x-autohotkey;
+Keywords=ahk;autohotkey;script;

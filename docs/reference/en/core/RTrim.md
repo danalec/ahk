@@ -1,0 +1,40 @@
+# `RTrim`
+
+| [English](index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+
+English
+
+*AutoHotkey v2.0.31* · function · The core of the language: text, math and patterns
+
+## Description
+
+The text without the characters at its right end.
+
+## Syntax
+
+```ahk
+S := RTrim(String, OmitChars)
+```
+
+## Parameters
+
+- **String** — The text.
+- **OmitChars** — Default space+tab.
+
+## Return value
+
+the text without the trailing characters of the set; the set is the space and the tab when the caller does not name one
+
+## Errors
+
+none.
+
+## Example
+
+```ahk
+RTrim("  hello  ")
+```
+
+## Related
+
+[`Trim`](Trim.md), [`LTrim`](LTrim.md)

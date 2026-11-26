@@ -1,0 +1,38 @@
+# `Else`
+
+| [English](index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+
+English
+
+*AutoHotkey v1.1.37.02* · command · Parser and script execution
+
+## Description
+
+The other side of an if. Else if chains the conditions, and the first one that matches runs.
+
+## Syntax
+
+```ahk
+Else …
+```
+
+## Parameters
+
+a statement or a block
+
+## Return value
+
+nothing
+
+## Errors
+
+none.
+
+## Example
+
+```ahk
+if (0)
+    MsgBox "no"
+else
+    MsgBox "yes"
+```

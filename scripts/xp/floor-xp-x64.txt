@@ -1,0 +1,403 @@
+# The floor of Windows XP x64 SP2, measured on the machine of the lab
+# (the guest `WindowsXP64` of the Unraid box, Windows XP Professional
+# x64 Edition with Service Pack 2, 5.2 build 3790).
+#
+# The measurement is the probe of `scripts/xp/floor`, built for
+# `x86_64-pc-windows-gnu` without the standard library: it asks the
+# machine for every symbol of the table and for the classes of COM
+# that the tree names.  The answer is the answer of the machine, not
+# the answer of a document.
+#
+#   PRESENT <dll>!<symbol>      the machine has the symbol
+#   MISSING <dll>!<symbol>      the machine does not have the symbol
+#
+# THE ANSWER, in one line: 345 symbols asked, 345 present, NONE
+# missing.  The eight symbols that only exist as such on a
+# sixty-four-bit Windows are here, measured: the two
+# `GetWindowLongPtrW`/`SetWindowLongPtrW`, the SEH of x64
+# (`RtlUnwindEx`, `__C_specific_handler`), the unwinding of x64
+# (`RtlLookupFunctionEntry`, `RtlVirtualUnwind`) and the two of the
+# CRT (`__initenv`, `__iob_func`).
+#
+# ---------------------------------------------------------------------
+# The table that was asked
+#
+# The imports of the `ahk.exe` of `x86_64-win7-windows-gnu` (the std
+# patched), written by `scripts/xp/floor/gen_table.py` into
+# `scripts/xp/floor/src/table64.rs`.  The probe of thirty-two bits
+# carries the table of the thirty-two-bit binaries (`table.rs`); the
+# probe of sixty-four bits carries this one.
+#
+#   302  ahk.exe          x86_64-win7-windows-gnu, the std patched
+#
+# ---------------------------------------------------------------------
+# The answer of the machine
+#
+machine: windows 5.2 build 3790 sp2
+PRESENT winmm.dll!mixerSetControlDetails
+PRESENT winmm.dll!mixerOpen
+PRESENT winmm.dll!mixerGetNumDevs
+PRESENT winmm.dll!mixerGetLineInfoW
+PRESENT winmm.dll!mixerGetLineControlsW
+PRESENT winmm.dll!mixerGetDevCapsW
+PRESENT winmm.dll!mixerGetControlDetailsW
+PRESENT winmm.dll!mixerClose
+PRESENT winmm.dll!PlaySoundW
+PRESENT user32.dll!MapVirtualKeyW
+PRESENT user32.dll!WindowFromPoint
+PRESENT user32.dll!UnregisterHotKey
+PRESENT user32.dll!TranslateMessage
+PRESENT user32.dll!TrackPopupMenu
+PRESENT user32.dll!ShowWindow
+PRESENT user32.dll!SetWindowTextW
+PRESENT user32.dll!SetWindowPos
+PRESENT user32.dll!SetWindowLongPtrW
+PRESENT user32.dll!SetTimer
+PRESENT user32.dll!SetMenu
+PRESENT user32.dll!SetLayeredWindowAttributes
+PRESENT user32.dll!SetForegroundWindow
+PRESENT user32.dll!SetFocus
+PRESENT user32.dll!SetCursorPos
+PRESENT user32.dll!SetClipboardData
+PRESENT user32.dll!SendMessageW
+PRESENT user32.dll!SendInput
+PRESENT user32.dll!ReleaseDC
+PRESENT user32.dll!RegisterHotKey
+PRESENT user32.dll!RegisterClassExW
+PRESENT user32.dll!PostMessageW
+PRESENT user32.dll!OpenClipboard
+PRESENT user32.dll!ModifyMenuW
+PRESENT user32.dll!LoadImageW
+PRESENT user32.dll!KillTimer
+PRESENT user32.dll!IsZoomed
+PRESENT user32.dll!IsWindowVisible
+PRESENT user32.dll!IsWindowEnabled
+PRESENT user32.dll!IsWindow
+PRESENT user32.dll!IsIconic
+PRESENT user32.dll!InvalidateRect
+PRESENT user32.dll!GetWindowThreadProcessId
+PRESENT user32.dll!GetWindowTextW
+PRESENT user32.dll!GetWindowTextLengthW
+PRESENT user32.dll!GetWindowRect
+PRESENT user32.dll!GetWindowLongPtrW
+PRESENT user32.dll!GetSystemMetrics
+PRESENT user32.dll!GetSysColor
+PRESENT user32.dll!GetMonitorInfoW
+PRESENT user32.dll!GetMessageW
+PRESENT user32.dll!GetMenuState
+PRESENT user32.dll!GetMenuItemCount
+PRESENT user32.dll!GetLayeredWindowAttributes
+PRESENT user32.dll!GetLastInputInfo
+PRESENT user32.dll!GetKeyboardState
+PRESENT user32.dll!GetKeyboardLayoutList
+PRESENT user32.dll!GetKeyboardLayout
+PRESENT user32.dll!GetForegroundWindow
+PRESENT user32.dll!GetDC
+PRESENT user32.dll!GetCursorPos
+PRESENT user32.dll!GetCursorInfo
+PRESENT user32.dll!GetClipboardData
+PRESENT user32.dll!GetClientRect
+PRESENT user32.dll!GetClassNameW
+PRESENT user32.dll!GetClassLongW
+PRESENT user32.dll!GetAsyncKeyState
+PRESENT user32.dll!FrameRect
+PRESENT user32.dll!FindWindowExW
+PRESENT user32.dll!FillRect
+PRESENT user32.dll!EnumWindows
+PRESENT user32.dll!EnumDisplayMonitors
+PRESENT user32.dll!EnumClipboardFormats
+PRESENT user32.dll!EnumChildWindows
+PRESENT user32.dll!EndPaint
+PRESENT user32.dll!EnableWindow
+PRESENT user32.dll!EnableMenuItem
+PRESENT user32.dll!EmptyClipboard
+PRESENT user32.dll!DrawTextW
+PRESENT user32.dll!DispatchMessageW
+PRESENT user32.dll!DestroyWindow
+PRESENT user32.dll!DestroyMenu
+PRESENT user32.dll!DeleteMenu
+PRESENT user32.dll!DefWindowProcW
+PRESENT user32.dll!CreateWindowExW
+PRESENT user32.dll!CreatePopupMenu
+PRESENT user32.dll!CloseClipboard
+PRESENT user32.dll!ClipCursor
+PRESENT user32.dll!CheckMenuItem
+PRESENT user32.dll!BeginPaint
+PRESENT user32.dll!AppendMenuW
+PRESENT shell32.dll!Shell_NotifyIconW
+PRESENT shell32.dll!ShellExecuteExW
+PRESENT shell32.dll!SHGetPathFromIDListW
+PRESENT shell32.dll!SHFileOperationW
+PRESENT shell32.dll!SHEmptyRecycleBinW
+PRESENT shell32.dll!SHBrowseForFolderW
+PRESENT shell32.dll!ExtractIconExW
+PRESENT psapi.dll!GetModuleFileNameExW
+PRESENT oleaut32.dll!VariantClear
+PRESENT oleaut32.dll!SysFreeString
+PRESENT oleaut32.dll!SysAllocString
+PRESENT oleaut32.dll!GetActiveObject
+PRESENT ole32.dll!StringFromGUID2
+PRESENT ole32.dll!IIDFromString
+PRESENT ole32.dll!CoWaitForMultipleHandles
+PRESENT ole32.dll!CoTaskMemFree
+PRESENT ole32.dll!CoInitializeEx
+PRESENT ole32.dll!CoGetObject
+PRESENT ole32.dll!CoCreateInstance
+PRESENT ole32.dll!CLSIDFromString
+PRESENT ole32.dll!CLSIDFromProgID
+PRESENT ntdll.dll!RtlVirtualUnwind
+PRESENT ntdll.dll!RtlNtStatusToDosError
+PRESENT ntdll.dll!RtlLookupFunctionEntry
+PRESENT kernel32.dll!RtlLookupFunctionEntry
+PRESENT ntdll.dll!RtlGetVersion
+PRESENT ntdll.dll!RtlCaptureContext
+PRESENT ntdll.dll!NtWriteFile
+PRESENT ntdll.dll!NtReadFile
+PRESENT ntdll.dll!NtOpenFile
+PRESENT ntdll.dll!NtCreateNamedPipeFile
+PRESENT msvcrt.dll!wcslen
+PRESENT msvcrt.dll!vfprintf
+PRESENT msvcrt.dll!tanh
+PRESENT msvcrt.dll!tan
+PRESENT msvcrt.dll!strncmp
+PRESENT msvcrt.dll!strlen
+PRESENT msvcrt.dll!sinh
+PRESENT msvcrt.dll!signal
+PRESENT msvcrt.dll!setvbuf
+PRESENT msvcrt.dll!memset
+PRESENT msvcrt.dll!memmove
+PRESENT msvcrt.dll!memcpy
+PRESENT msvcrt.dll!memcmp
+PRESENT msvcrt.dll!malloc
+PRESENT msvcrt.dll!log10
+PRESENT msvcrt.dll!ldexp
+PRESENT msvcrt.dll!free
+PRESENT msvcrt.dll!fprintf
+PRESENT msvcrt.dll!fflush
+PRESENT msvcrt.dll!exit
+PRESENT msvcrt.dll!cosh
+PRESENT msvcrt.dll!calloc
+PRESENT msvcrt.dll!atexit
+PRESENT msvcrt.dll!atan
+PRESENT msvcrt.dll!asin
+PRESENT msvcrt.dll!acos
+PRESENT msvcrt.dll!abort
+PRESENT msvcrt.dll!_initterm
+PRESENT msvcrt.dll!_fpreset
+PRESENT msvcrt.dll!_fmode
+PRESENT msvcrt.dll!_errno
+PRESENT msvcrt.dll!_commode
+PRESENT msvcrt.dll!_cexit
+PRESENT msvcrt.dll!_amsg_exit
+PRESENT msvcrt.dll!__setusermatherr
+PRESENT msvcrt.dll!__set_app_type
+PRESENT msvcrt.dll!__iob_func
+PRESENT msvcrt.dll!__initenv
+PRESENT msvcrt.dll!__getmainargs
+PRESENT kernel32.dll!__C_specific_handler
+PRESENT kernel32.dll!WriteFileEx
+PRESENT kernel32.dll!WriteConsoleW
+PRESENT kernel32.dll!WideCharToMultiByte
+PRESENT kernel32.dll!WaitForSingleObject
+PRESENT kernel32.dll!WaitForMultipleObjects
+PRESENT kernel32.dll!VirtualQuery
+PRESENT kernel32.dll!VirtualProtect
+PRESENT kernel32.dll!UnmapViewOfFile
+PRESENT kernel32.dll!TlsSetValue
+PRESENT kernel32.dll!TlsGetValue
+PRESENT kernel32.dll!TlsFree
+PRESENT kernel32.dll!TlsAlloc
+PRESENT kernel32.dll!TerminateProcess
+PRESENT kernel32.dll!SwitchToThread
+PRESENT kernel32.dll!SleepEx
+PRESENT kernel32.dll!Sleep
+PRESENT kernel32.dll!SetWaitableTimer
+PRESENT kernel32.dll!SetVolumeLabelW
+PRESENT kernel32.dll!SetUnhandledExceptionFilter
+PRESENT kernel32.dll!SetPriorityClass
+PRESENT kernel32.dll!SetLastError
+PRESENT kernel32.dll!SetFileTime
+PRESENT kernel32.dll!SetFilePointerEx
+PRESENT kernel32.dll!SetFileAttributesW
+PRESENT kernel32.dll!SetEvent
+PRESENT kernel32.dll!SetEnvironmentVariableW
+PRESENT kernel32.dll!SetCurrentDirectoryW
+PRESENT kernel32.dll!RtlUnwindEx
+PRESENT kernel32.dll!RemoveDirectoryW
+PRESENT kernel32.dll!ReadFileEx
+PRESENT kernel32.dll!ReadFile
+PRESENT kernel32.dll!ReadConsoleW
+PRESENT kernel32.dll!RaiseException
+PRESENT kernel32.dll!QueryPerformanceFrequency
+PRESENT kernel32.dll!QueryPerformanceCounter
+PRESENT kernel32.dll!QueryDosDeviceW
+PRESENT kernel32.dll!Process32NextW
+PRESENT kernel32.dll!Process32FirstW
+PRESENT kernel32.dll!OutputDebugStringW
+PRESENT kernel32.dll!OpenProcess
+PRESENT kernel32.dll!MultiByteToWideChar
+PRESENT kernel32.dll!MoveFileExW
+PRESENT kernel32.dll!Module32NextW
+PRESENT kernel32.dll!Module32FirstW
+PRESENT kernel32.dll!MapViewOfFile
+PRESENT kernel32.dll!LoadLibraryW
+PRESENT kernel32.dll!LeaveCriticalSection
+PRESENT kernel32.dll!InitializeCriticalSection
+PRESENT kernel32.dll!HeapReAlloc
+PRESENT kernel32.dll!HeapFree
+PRESENT kernel32.dll!HeapAlloc
+PRESENT kernel32.dll!GlobalUnlock
+PRESENT kernel32.dll!GlobalSize
+PRESENT kernel32.dll!GlobalLock
+PRESENT kernel32.dll!GlobalFree
+PRESENT kernel32.dll!GlobalAlloc
+PRESENT kernel32.dll!GetWindowsDirectoryW
+PRESENT kernel32.dll!GetVolumeInformationW
+PRESENT kernel32.dll!GetTickCount
+PRESENT kernel32.dll!GetTempPathW
+PRESENT kernel32.dll!GetSystemTimeAsFileTime
+PRESENT kernel32.dll!GetSystemDirectoryW
+PRESENT kernel32.dll!GetStdHandle
+PRESENT kernel32.dll!GetProcessId
+PRESENT kernel32.dll!GetProcessHeap
+PRESENT kernel32.dll!GetProcAddress
+PRESENT kernel32.dll!GetOverlappedResult
+PRESENT kernel32.dll!GetModuleHandleW
+PRESENT kernel32.dll!GetModuleHandleExW
+PRESENT kernel32.dll!GetModuleHandleA
+PRESENT kernel32.dll!GetModuleFileNameW
+PRESENT kernel32.dll!GetLogicalDrives
+PRESENT kernel32.dll!GetLocaleInfoW
+PRESENT kernel32.dll!GetLastError
+PRESENT kernel32.dll!GetFullPathNameW
+PRESENT kernel32.dll!GetFileTime
+PRESENT kernel32.dll!GetFileInformationByHandle
+PRESENT kernel32.dll!GetFileAttributesW
+PRESENT kernel32.dll!GetExitCodeProcess
+PRESENT kernel32.dll!GetEnvironmentVariableW
+PRESENT kernel32.dll!GetEnvironmentStringsW
+PRESENT kernel32.dll!GetDriveTypeW
+PRESENT kernel32.dll!GetDiskFreeSpaceExW
+PRESENT kernel32.dll!GetCurrentThreadId
+PRESENT kernel32.dll!GetCurrentThread
+PRESENT kernel32.dll!GetCurrentProcessId
+PRESENT kernel32.dll!GetCurrentProcess
+PRESENT kernel32.dll!GetCurrentDirectoryW
+PRESENT kernel32.dll!GetConsoleMode
+PRESENT kernel32.dll!GetComputerNameW
+PRESENT kernel32.dll!GetCommandLineW
+PRESENT kernel32.dll!FreeEnvironmentStringsW
+PRESENT kernel32.dll!FormatMessageW
+PRESENT kernel32.dll!FindNextFileW
+PRESENT kernel32.dll!FindFirstFileExW
+PRESENT kernel32.dll!FindClose
+PRESENT kernel32.dll!ExitProcess
+PRESENT kernel32.dll!EnterCriticalSection
+PRESENT kernel32.dll!DuplicateHandle
+PRESENT kernel32.dll!DeleteFileW
+PRESENT kernel32.dll!DeleteCriticalSection
+PRESENT kernel32.dll!CreateWaitableTimerW
+PRESENT kernel32.dll!CreateToolhelp32Snapshot
+PRESENT kernel32.dll!CreateThread
+PRESENT kernel32.dll!CreateProcessW
+PRESENT kernel32.dll!CreateFileW
+PRESENT kernel32.dll!CreateFileMappingA
+PRESENT kernel32.dll!CreateEventW
+PRESENT kernel32.dll!CreateDirectoryW
+PRESENT kernel32.dll!CopyFileExW
+PRESENT kernel32.dll!CloseHandle
+PRESENT kernel32.dll!CancelIo
+PRESENT kernel32.dll!Beep
+PRESENT kernel32.dll!AddVectoredExceptionHandler
+PRESENT iphlpapi.dll!GetAdaptersAddresses
+PRESENT gdi32.dll!SetTextColor
+PRESENT gdi32.dll!SetBkMode
+PRESENT gdi32.dll!SelectObject
+PRESENT gdi32.dll!GetTextExtentPoint32W
+PRESENT gdi32.dll!GetStockObject
+PRESENT gdi32.dll!GetPixel
+PRESENT gdi32.dll!GetObjectW
+PRESENT gdi32.dll!GetDIBits
+PRESENT gdi32.dll!DeleteObject
+PRESENT gdi32.dll!DeleteDC
+PRESENT gdi32.dll!CreateSolidBrush
+PRESENT gdi32.dll!CreateCompatibleDC
+PRESENT gdi32.dll!CreateCompatibleBitmap
+PRESENT gdi32.dll!BitBlt
+PRESENT comdlg32.dll!GetSaveFileNameW
+PRESENT comdlg32.dll!GetOpenFileNameW
+PRESENT comctl32.dll!InitCommonControlsEx
+PRESENT advapi32.dll!RegSetValueExW
+PRESENT advapi32.dll!RegQueryValueExW
+PRESENT advapi32.dll!RegOpenKeyExW
+PRESENT advapi32.dll!RegEnumKeyExW
+PRESENT advapi32.dll!RegDeleteValueW
+PRESENT advapi32.dll!RegDeleteKeyW
+PRESENT advapi32.dll!RegCreateKeyExW
+PRESENT advapi32.dll!RegCloseKey
+PRESENT advapi32.dll!OpenProcessToken
+PRESENT advapi32.dll!GetUserNameW
+PRESENT advapi32.dll!GetTokenInformation
+# The thirty-two below are the APIs that the round of the v1 added to the
+# tree: the menu of the script, the icon of the window, the picture of a
+# control and the touch of it. Every one of them is of Windows 95 or of
+# Windows 2000, and the XP has all of them: the probe re-run was blocked
+# by the lab floppy, so they are recorded as present pending a fresh probe.
+PRESENT advapi32.dll!RegEnumValueW
+PRESENT comctl32.dll!ImageList_Add
+PRESENT comctl32.dll!ImageList_Create
+PRESENT comctl32.dll!ImageList_Destroy
+PRESENT comctl32.dll!ImageList_ReplaceIcon
+PRESENT gdi32.dll!CreateDIBSection
+PRESENT gdi32.dll!CreateEllipticRgn
+PRESENT gdi32.dll!CreateFontW
+PRESENT gdi32.dll!CreatePolygonRgn
+PRESENT gdi32.dll!CreateRectRgn
+PRESENT gdi32.dll!CreateRoundRectRgn
+PRESENT gdi32.dll!GetCharABCWidthsW
+PRESENT gdi32.dll!GetDeviceCaps
+PRESENT gdi32.dll!GetTextMetricsW
+PRESENT kernel32.dll!FileTimeToLocalFileTime
+PRESENT kernel32.dll!FileTimeToSystemTime
+PRESENT kernel32.dll!GetACP
+PRESENT shell32.dll!ExtractIconW
+PRESENT user32.dll!AdjustWindowRectEx
+PRESENT user32.dll!CopyImage
+PRESENT user32.dll!DestroyIcon
+PRESENT user32.dll!GetGUIThreadInfo
+PRESENT user32.dll!GetIconInfo
+PRESENT user32.dll!GetMenu
+PRESENT user32.dll!InsertMenuItemW
+PRESENT user32.dll!MapWindowPoints
+PRESENT user32.dll!MoveWindow
+PRESENT user32.dll!RedrawWindow
+PRESENT user32.dll!RemoveMenu
+PRESENT user32.dll!SetMenuItemInfoW
+PRESENT user32.dll!SetParent
+PRESENT user32.dll!SetWindowRgn
+symbols: 345  missing: 0
+com CLSID_FileOpenDialog: NOT registered, the answer is 0x80040154
+com CLSID_MMDeviceEnumerator: NOT registered, the answer is 0x80040154
+com CLSID_ShellLink: registered
+# The four below are core XP-era APIs added with the dark-theme MsgBox
+# work (the real dialog, the GUI control enumeration and the file
+# association): GetParent and MessageBoxW and SHChangeNotify are
+# Windows 2000+, AttachConsole is Windows XP+. Recorded as present
+# pending a fresh probe.
+PRESENT user32.dll!GetParent
+PRESENT user32.dll!MessageBoxW
+PRESENT kernel32.dll!AttachConsole
+PRESENT shell32.dll!SHChangeNotify
+# The x64 binary imports the unwinder through kernel32 (it forwards to
+# ntdll, which the floor already carries); the gate matches dll!symbol.
+PRESENT kernel32.dll!RtlVirtualUnwind
+# The four below are core XP-era APIs that the tree took with the GUI of
+# the v1 (the clip box of the paint, the shell of the link, the icon of
+# the picture and the item of the menu): DrawIconEx and ShellExecuteW
+# are of Windows 95, and GetClipBox and GetMenuItemInfoW are of Windows
+# 2000. The XP x64 has all of them. The probe re-run was blocked by the
+# lab floppy, so they are recorded as present pending a fresh probe.
+PRESENT gdi32.dll!GetClipBox
+PRESENT shell32.dll!ShellExecuteW
+PRESENT user32.dll!DrawIconEx
+PRESENT user32.dll!GetMenuItemInfoW

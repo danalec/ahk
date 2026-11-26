@@ -1,0 +1,69 @@
+[package]
+name = "ahk-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "The lab box as a script target: a uinput keyboard of our own, grim captures, and exact text"
+repository.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/ahk-box"
+keywords = ["autohotkey", "uinput", "wayland", "desktop", "automation"]
+categories = ["api-bindings"]
+# The contracts of the review loop are working documents, not source.
+exclude = ["EGM.md", "src/EGM.md"]
+
+[dependencies]
+ahk = { workspace = true }
+
+# The X11 backend (`src/x11.rs`, Linux and FreeBSD only) adds NO dependency:
+# it declares `dlopen`/`dlsym` by hand in `unsafe extern "C"`, resolves
+# libX11.so.6 / libXtst.so.6 at runtime, and encodes captures with the `png`
+# crate already listed above. It is selected with AHK_DESKTOP=x11 and is
+# additive — the uinput/Wayland path and its dependencies are unchanged.
+
+# The Wayland protocols of the box are Linux-only: the crate of the client
+# is Unix-only, and the compositor is a Linux one. The dependency is
+# therefore declared for Linux alone, so that the crate keeps building on
+# the other systems and answers there that it has no Wayland.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.60", features = [
+    "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_Graphics_Gdi",
+    "Win32_Media_Audio",
+    "Win32_Media_KernelStreaming",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_WinSock",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_IO",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Registry",
+    "Win32_System_Time",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_System_Variant",
+    "Win32_System_WindowsProgramming",
+    "Win32_UI_Controls",
+    "Win32_UI_Controls_Dialogs",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+wayland-backend = "0.3"
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-scanner = "0.31"

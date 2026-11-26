@@ -1,0 +1,48 @@
+operator	kind	form
+++ (postfix)	9	postfix
+-- (postfix)	10	postfix
+,	18	symbol
+:=	19	symbol
++=	20	symbol
+-=	21	symbol
+*=	22	symbol
+/=	23	symbol
+//=	24	symbol
+|=	25	symbol
+^=	26	symbol
+&=	27	symbol
+<<=	28	symbol
+>>=	29	symbol
+>>>=	30	symbol
+:	32	symbol
+?	33	symbol
+??	34	symbol
+||	35	symbol
+&&	36	symbol
+==	38	symbol
+===	39	symbol
+!=	40	symbol
+!==	41	symbol
+<	43	symbol
+>=	44	symbol
+<=	45	symbol
+~=	46	symbol
+(	47	
+%	48	symbol
+|	49	symbol
+^	50	symbol
+&	51	symbol
+>	53	symbol
+>>	54	symbol
+//	55	symbol
++ (binary)	56	binary
+- (binary)	57	binary
+*	58	symbol
+**	60	symbol
+- (prefix)	62	prefix
++ (prefix)	63	prefix
+& (prefix)	64	prefix
+!	65	symbol
+~	66	symbol
+++ (prefix)	68	prefix
+-- (prefix)	69	prefix

@@ -1,0 +1,40 @@
+# `RTrim`
+
+| [English](../en/index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](index.md) |
+
+한국어
+
+*AutoHotkey v2.0.31* · function · 언어의 핵심: 텍스트, 수학, 패턴
+
+## 설명
+
+The text without the characters at its right end.
+
+## 구문
+
+```ahk
+S := RTrim(String, OmitChars)
+```
+
+## 매개변수
+
+- **String** — The text.
+- **OmitChars** — Default space+tab.
+
+## 반환 값
+
+the text without the trailing characters of the set; the set is the space and the tab when the caller does not name one
+
+## 오류
+
+none.
+
+## 예제
+
+```ahk
+RTrim("  hello  ")
+```
+
+## 관련
+
+[`Trim`](Trim.md), [`LTrim`](LTrim.md)

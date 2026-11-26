@@ -1,0 +1,14 @@
+[package]
+name = "ahk-xp-floor"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[profile.release]
+panic = "abort"
+
+# The probe of the floor is a program of its own, built apart from the
+# tree, with the script of the floor:
+#
+#   powershell -NoProfile -ExecutionPolicy Bypass scripts/xp/build.ps1 -Manifest scripts/xp/floor/Cargo.toml
+[workspace]

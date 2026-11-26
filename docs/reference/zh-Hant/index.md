@@ -1,0 +1,1138 @@
+# 每個名字的參考
+
+| [English](../en/index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](index.md) | [한국어](../ko/index.md) |
+
+繁體中文
+
+三個方言的每個名字一頁：描述、語法、參數、傳回值、錯誤、備註、範例、相關。本樹原創，含自身行為與跨平台說明。
+
+
+## 剪貼簿
+
+- [`#ClipboardTimeout`](clipboard/#ClipboardTimeout.md) — v1
+- [`A_Clipboard`](clipboard/A_Clipboard.md) — v1
+- [`Clipboard`](clipboard/Clipboard.md) — v2, v1
+- [`ClipboardAll`](clipboard/ClipboardAll.md) — v2
+- [`OnClipboardChange`](clipboard/OnClipboardChange.md) — v2
+- [`Ptr`](clipboard/Ptr.md) — v2
+- [`Size`](clipboard/Size.md) — v2
+
+## COM 自動化 (ComObject)
+
+- [`ComCall`](com/ComCall.md) — v2
+- [`ComObjActive`](com/ComObjActive.md) — v2, v1
+- [`ComObjArray`](com/ComObjArray.md) — v1
+- [`ComObjConnect`](com/ComObjConnect.md) — v2, v1
+- [`ComObjCreate`](com/ComObjCreate.md) — v1
+- [`ComObjError`](com/ComObjError.md) — v1
+- [`ComObjFlags`](com/ComObjFlags.md) — v2, v1
+- [`ComObjFromPtr`](com/ComObjFromPtr.md) — v2
+- [`ComObjGet`](com/ComObjGet.md) — v2, v1
+- [`ComObjQuery`](com/ComObjQuery.md) — v2, v1
+- [`ComObjType`](com/ComObjType.md) — v2, v1
+- [`ComObjValue`](com/ComObjValue.md) — v2, v1
+- [`ComObject`](com/ComObject.md) — v2
+- [`ComValue`](com/ComValue.md) — v2
+- [`ObjBindMethod`](com/ObjBindMethod.md) — v2, v1
+- [`ObjFromPtr`](com/ObjFromPtr.md) — v2
+- [`ObjFromPtrAddRef`](com/ObjFromPtrAddRef.md) — v2
+- [`ObjPtr`](com/ObjPtr.md) — v2
+- [`ObjPtrAddRef`](com/ObjPtrAddRef.md) — v2
+- [`ObjRelease`](com/ObjRelease.md) — v2
+- [`Ptr`](com/Ptr.md) — v2
+
+## 語言核心：文字、數學與模式
+
+- [`ACos`](core/ACos.md) — v2, v1
+- [`ASin`](core/ASin.md) — v2, v1
+- [`ATan`](core/ATan.md) — v2, v1
+- [`ATan2`](core/ATan2.md) — ks, ks
+- [`A_FormatFloat`](core/A_FormatFloat.md) — v1
+- [`A_FormatInteger`](core/A_FormatInteger.md) — v1
+- [`A_LoopRegValue`](core/A_LoopRegValue.md) — ks
+- [`A_NewLine`](core/A_NewLine.md) — ks
+- [`A_OSArch`](core/A_OSArch.md) — ks
+- [`A_OSType`](core/A_OSType.md) — ks
+- [`A_ProcessArch`](core/A_ProcessArch.md) — ks
+- [`A_StringCaseSense`](core/A_StringCaseSense.md) — v1
+- [`Abs`](core/Abs.md) — v2, v1
+- [`Any`](core/Any.md) — v2
+- [`ArgumentError`](core/ArgumentError.md) — ks
+- [`Asc`](core/Asc.md) — v1
+- [`AutoTrim`](core/AutoTrim.md) — v1
+- [`Base`](core/Base.md) — v2
+- [`Call`](core/Call.md) — v2
+- [`Ceil`](core/Ceil.md) — v2, v1
+- [`Chr`](core/Chr.md) — v2, v1
+- [`Class`](core/Class.md) — v2
+- [`Cos`](core/Cos.md) — v2, v1
+- [`Cosh`](core/Cosh.md) — ks
+- [`EndsWith`](core/EndsWith.md) — ks
+- [`Error`](core/Error.md) — v2
+- [`Exp`](core/Exp.md) — v2, v1
+- [`Extra`](core/Extra.md) — v2
+- [`False`](core/False.md) — ks
+- [`Float`](core/Float.md) — v2
+- [`Float32`](core/Float32.md) — ks
+- [`Float64`](core/Float64.md) — ks
+- [`Floor`](core/Floor.md) — v2, v1
+- [`Format`](core/Format.md) — v2, v1
+- [`GetMethod`](core/GetMethod.md) — v2, v2
+- [`HasBase`](core/HasBase.md) — v2, v2
+- [`HasMethod`](core/HasMethod.md) — v2, v2
+- [`HasProp`](core/HasProp.md) — v2, v2
+- [`InStr`](core/InStr.md) — v2, v1
+- [`IndexError`](core/IndexError.md) — v2
+- [`Int16`](core/Int16.md) — ks
+- [`Int32`](core/Int32.md) — ks
+- [`Int64`](core/Int64.md) — ks
+- [`Int8`](core/Int8.md) — ks
+- [`IntPtr`](core/IntPtr.md) — ks
+- [`Integer`](core/Integer.md) — v2
+- [`IsAlnum`](core/IsAlnum.md) — v2
+- [`IsAlpha`](core/IsAlpha.md) — v2
+- [`IsByRef`](core/IsByRef.md) — v1
+- [`IsDigit`](core/IsDigit.md) — v2
+- [`IsFloat`](core/IsFloat.md) — v2
+- [`IsInteger`](core/IsInteger.md) — v2
+- [`IsLower`](core/IsLower.md) — v2
+- [`IsNumber`](core/IsNumber.md) — v2
+- [`IsObject`](core/IsObject.md) — v2, v1
+- [`IsSet`](core/IsSet.md) — ks
+- [`IsSetRef`](core/IsSetRef.md) — v2
+- [`IsSpace`](core/IsSpace.md) — v2
+- [`IsTime`](core/IsTime.md) — v2
+- [`IsUpper`](core/IsUpper.md) — v2
+- [`IsXDigit`](core/IsXDigit.md) — v2
+- [`LTrim`](core/LTrim.md) — v2
+- [`Line`](core/Line.md) — v2
+- [`Ln`](core/Ln.md) — v2, v1
+- [`Log`](core/Log.md) — v2, v1
+- [`Max`](core/Max.md) — v2, v1
+- [`MemberError`](core/MemberError.md) — v2
+- [`MemoryError`](core/MemoryError.md) — v2
+- [`Message`](core/Message.md) — v2
+- [`MethodError`](core/MethodError.md) — v2
+- [`Mod`](core/Mod.md) — v2, v1
+- [`Number`](core/Number.md) — v2
+- [`OSError`](core/OSError.md) — v2
+- [`Ord`](core/Ord.md) — v2, v1
+- [`Primitive`](core/Primitive.md) — v2
+- [`PropertyError`](core/PropertyError.md) — v2
+- [`Prototype`](core/Prototype.md) — v2
+- [`RTrim`](core/RTrim.md) — v2
+- [`Random`](core/Random.md) — v2, v1
+- [`RandomSeed`](core/RandomSeed.md) — ks
+- [`RegExMatch`](core/RegExMatch.md) — v2, v1
+- [`RegExReplace`](core/RegExReplace.md) — v2, v1
+- [`ReplaceLineEndings`](core/ReplaceLineEndings.md) — ks
+- [`Round`](core/Round.md) — v2, v1
+- [`SetFormat`](core/SetFormat.md) — v1
+- [`Sin`](core/Sin.md) — v2, v1
+- [`Sinh`](core/Sinh.md) — ks
+- [`Sort`](core/Sort.md) — v2, v1, ks
+- [`Sqrt`](core/Sqrt.md) — v2, v1
+- [`Stack`](core/Stack.md) — v2
+- [`StartsWith`](core/StartsWith.md) — ks
+- [`StrCompare`](core/StrCompare.md) — v2
+- [`StrGet`](core/StrGet.md) — v2, v1
+- [`StrLen`](core/StrLen.md) — v2, v1
+- [`StrLower`](core/StrLower.md) — v2
+- [`StrPtr`](core/StrPtr.md) — v2
+- [`StrPut`](core/StrPut.md) — v2, v1
+- [`StrReplace`](core/StrReplace.md) — v2, v1
+- [`StrSplit`](core/StrSplit.md) — v2, v1
+- [`StrTitle`](core/StrTitle.md) — v2
+- [`StrUpper`](core/StrUpper.md) — v2
+- [`String`](core/String.md) — v2
+- [`StringCaseSense`](core/StringCaseSense.md) — v1
+- [`StringLeft`](core/StringLeft.md) — v1
+- [`StringLen`](core/StringLen.md) — v1
+- [`StringLower`](core/StringLower.md) — v1
+- [`StringMid`](core/StringMid.md) — v1
+- [`StringReplace`](core/StringReplace.md) — v1
+- [`StringSplit`](core/StringSplit.md) — v1
+- [`StringTrimLeft`](core/StringTrimLeft.md) — v1
+- [`SubStr`](core/SubStr.md) — v2, v1
+- [`Tan`](core/Tan.md) — v2, v1
+- [`Tanh`](core/Tanh.md) — ks
+- [`TargetError`](core/TargetError.md) — v2
+- [`Throw`](core/Throw.md) — ks
+- [`TimeoutError`](core/TimeoutError.md) — v2
+- [`Transform`](core/Transform.md) — v1
+- [`Trim`](core/Trim.md) — v2, v1
+- [`True`](core/True.md) — ks
+- [`Type`](core/Type.md) — v2, v2
+- [`TypeError`](core/TypeError.md) — v2
+- [`UInt16`](core/UInt16.md) — ks
+- [`UInt32`](core/UInt32.md) — ks
+- [`UInt8`](core/UInt8.md) — ks
+- [`UnsetError`](core/UnsetError.md) — v2
+- [`UnsetItemError`](core/UnsetItemError.md) — v2
+- [`UnsupportedError`](core/UnsupportedError.md) — ks
+- [`ValueError`](core/ValueError.md) — v2
+- [`VarSetCapacity`](core/VarSetCapacity.md) — v1
+- [`VerCompare`](core/VerCompare.md) — v2, v1
+- [`What`](core/What.md) — v2
+- [`ZeroDivisionError`](core/ZeroDivisionError.md) — v2
+- [`__Init`](core/__Init.md) — v2
+
+## 檔案與目錄操作
+
+- [`A_DD`](files/A_DD.md) — v1
+- [`A_DDD`](files/A_DDD.md) — v1
+- [`A_DDDD`](files/A_DDDD.md) — v1
+- [`A_DirSeparator`](files/A_DirSeparator.md) — ks
+- [`A_LoopField`](files/A_LoopField.md) — v1
+- [`A_LoopFileName`](files/A_LoopFileName.md) — v1
+- [`A_LoopReadLine`](files/A_LoopReadLine.md) — v1
+- [`AtEOF`](files/AtEOF.md) — v2
+- [`Close`](files/Close.md) — v2
+- [`DirCopy`](files/DirCopy.md) — v2
+- [`DirCreate`](files/DirCreate.md) — v2
+- [`DirDelete`](files/DirDelete.md) — v2
+- [`DirExist`](files/DirExist.md) — v2
+- [`DirMove`](files/DirMove.md) — v2
+- [`DirSelect`](files/DirSelect.md) — v2
+- [`Download`](files/Download.md) — v2
+- [`DriveEject`](files/DriveEject.md) — v2
+- [`DriveGetCapacity`](files/DriveGetCapacity.md) — v2
+- [`DriveGetFilesystem`](files/DriveGetFilesystem.md) — v2
+- [`DriveGetLabel`](files/DriveGetLabel.md) — v2
+- [`DriveGetList`](files/DriveGetList.md) — v2
+- [`DriveGetSerial`](files/DriveGetSerial.md) — v2
+- [`DriveGetSpaceFree`](files/DriveGetSpaceFree.md) — v2
+- [`DriveGetStatus`](files/DriveGetStatus.md) — v2
+- [`DriveGetStatusCD`](files/DriveGetStatusCD.md) — v2
+- [`DriveGetType`](files/DriveGetType.md) — v2
+- [`DriveLock`](files/DriveLock.md) — v2
+- [`DriveRetract`](files/DriveRetract.md) — v2
+- [`DriveSetLabel`](files/DriveSetLabel.md) — v2
+- [`DriveUnlock`](files/DriveUnlock.md) — v2
+- [`Encoding`](files/Encoding.md) — v2, v2
+- [`File`](files/File.md) — v2, v2
+- [`FileAppend`](files/FileAppend.md) — v2, v1
+- [`FileCopy`](files/FileCopy.md) — v2, v1
+- [`FileCopyDir`](files/FileCopyDir.md) — v1
+- [`FileCreateDir`](files/FileCreateDir.md) — v1
+- [`FileCreateShortcut`](files/FileCreateShortcut.md) — v2, v1
+- [`FileCreateTemp`](files/FileCreateTemp.md) — ks
+- [`FileDelete`](files/FileDelete.md) — v2, v1
+- [`FileEncoding`](files/FileEncoding.md) — v2, v2, v1
+- [`FileExist`](files/FileExist.md) — v2, v1
+- [`FileFullPath`](files/FileFullPath.md) — ks
+- [`FileGetAttrib`](files/FileGetAttrib.md) — v2, v1
+- [`FileGetShortcut`](files/FileGetShortcut.md) — v2, v1
+- [`FileGetSize`](files/FileGetSize.md) — v2, v1
+- [`FileGetTime`](files/FileGetTime.md) — v2, v1
+- [`FileGetVersion`](files/FileGetVersion.md) — v2, v1
+- [`FileInstall`](files/FileInstall.md) — v2, v1
+- [`FileMove`](files/FileMove.md) — v2, v1
+- [`FileMoveDir`](files/FileMoveDir.md) — v1
+- [`FileOpen`](files/FileOpen.md) — v2, v1
+- [`FileRead`](files/FileRead.md) — v2, v1
+- [`FileReadLine`](files/FileReadLine.md) — v1
+- [`FileRecycle`](files/FileRecycle.md) — v2, v1
+- [`FileRecycleEmpty`](files/FileRecycleEmpty.md) — v2, v1
+- [`FileRemoveDir`](files/FileRemoveDir.md) — v1
+- [`FileSelect`](files/FileSelect.md) — v2
+- [`FileSelectFile`](files/FileSelectFile.md) — v1
+- [`FileSelectFolder`](files/FileSelectFolder.md) — v1
+- [`FileSetAttrib`](files/FileSetAttrib.md) — v2, v1
+- [`FileSetTime`](files/FileSetTime.md) — v2, v1
+- [`Flush`](files/Flush.md) — ks
+- [`Handle`](files/Handle.md) — v2
+- [`IniDelete`](files/IniDelete.md) — v2, v1
+- [`IniRead`](files/IniRead.md) — v2, v1
+- [`IniWrite`](files/IniWrite.md) — v2, v1
+- [`Length`](files/Length.md) — v2, v2
+- [`LoopField`](files/LoopField.md) — v2
+- [`LoopFileAttrib`](files/LoopFileAttrib.md) — v2
+- [`LoopFileDir`](files/LoopFileDir.md) — v2
+- [`LoopFileExt`](files/LoopFileExt.md) — v2
+- [`LoopFileFullPath`](files/LoopFileFullPath.md) — v2
+- [`LoopFileName`](files/LoopFileName.md) — v2
+- [`LoopFilePath`](files/LoopFilePath.md) — v2
+- [`LoopFileShortName`](files/LoopFileShortName.md) — v2
+- [`LoopFileShortPath`](files/LoopFileShortPath.md) — v2
+- [`LoopFileSize`](files/LoopFileSize.md) — v2
+- [`LoopFileSizeKB`](files/LoopFileSizeKB.md) — v2
+- [`LoopFileSizeMB`](files/LoopFileSizeMB.md) — v2
+- [`LoopFileTimeAccessed`](files/LoopFileTimeAccessed.md) — v2
+- [`LoopFileTimeCreated`](files/LoopFileTimeCreated.md) — v2
+- [`LoopFileTimeModified`](files/LoopFileTimeModified.md) — v2
+- [`LoopReadLine`](files/LoopReadLine.md) — v2
+- [`Pos`](files/Pos.md) — v2, v2
+- [`RawRead`](files/RawRead.md) — v2
+- [`RawWrite`](files/RawWrite.md) — v2
+- [`Read`](files/Read.md) — v2
+- [`ReadChar`](files/ReadChar.md) — v2
+- [`ReadDouble`](files/ReadDouble.md) — v2
+- [`ReadFloat`](files/ReadFloat.md) — v2
+- [`ReadInt`](files/ReadInt.md) — v2
+- [`ReadInt64`](files/ReadInt64.md) — v2
+- [`ReadLine`](files/ReadLine.md) — v2
+- [`ReadShort`](files/ReadShort.md) — v2
+- [`ReadUChar`](files/ReadUChar.md) — v2
+- [`ReadUInt`](files/ReadUInt.md) — v2
+- [`ReadUShort`](files/ReadUShort.md) — v2
+- [`Seek`](files/Seek.md) — v2
+- [`SplitPath`](files/SplitPath.md) — v2, v1
+- [`StringGetPos`](files/StringGetPos.md) — v1
+- [`Write`](files/Write.md) — v2
+- [`WriteChar`](files/WriteChar.md) — v2
+- [`WriteDouble`](files/WriteDouble.md) — v2
+- [`WriteFloat`](files/WriteFloat.md) — v2
+- [`WriteInt`](files/WriteInt.md) — v2
+- [`WriteInt64`](files/WriteInt64.md) — v2
+- [`WriteLine`](files/WriteLine.md) — v2
+- [`WriteShort`](files/WriteShort.md) — v2
+- [`WriteUChar`](files/WriteUChar.md) — v2
+- [`WriteUInt`](files/WriteUInt.md) — v2
+- [`WriteUShort`](files/WriteUShort.md) — v2
+
+## GUI 視窗與視窗自動化
+
+- [`A_ControlDelay`](gui/A_ControlDelay.md) — v1
+- [`A_DetectHiddenText`](gui/A_DetectHiddenText.md) — v1
+- [`A_DetectHiddenWindows`](gui/A_DetectHiddenWindows.md) — v1
+- [`A_Gui`](gui/A_Gui.md) — v1
+- [`A_GuiControl`](gui/A_GuiControl.md) — v1
+- [`A_GuiControlEvent`](gui/A_GuiControlEvent.md) — v1
+- [`A_GuiEvent`](gui/A_GuiEvent.md) — v1
+- [`A_GuiHeight`](gui/A_GuiHeight.md) — v1
+- [`A_GuiTheme`](gui/A_GuiTheme.md) — ks
+- [`A_GuiWidth`](gui/A_GuiWidth.md) — v1
+- [`A_GuiX`](gui/A_GuiX.md) — v1
+- [`A_GuiY`](gui/A_GuiY.md) — v1
+- [`A_IconFile`](gui/A_IconFile.md) — v1
+- [`A_IconHidden`](gui/A_IconHidden.md) — v1
+- [`A_IconNumber`](gui/A_IconNumber.md) — v1
+- [`A_IconTip`](gui/A_IconTip.md) — v1
+- [`A_TitleMatchMode`](gui/A_TitleMatchMode.md) — v1
+- [`A_TitleMatchModeSpeed`](gui/A_TitleMatchModeSpeed.md) — v1
+- [`A_WinDelay`](gui/A_WinDelay.md) — v1
+- [`A_WinDir`](gui/A_WinDir.md) — v1
+- [`Add`](gui/Add.md) — v2, v2, v2, v2, v2
+- [`AddActiveX`](gui/AddActiveX.md) — v2
+- [`AddButton`](gui/AddButton.md) — v2
+- [`AddCheckBox`](gui/AddCheckBox.md) — v2
+- [`AddComboBox`](gui/AddComboBox.md) — v2
+- [`AddCustom`](gui/AddCustom.md) — v2
+- [`AddDDL`](gui/AddDDL.md) — v2
+- [`AddDateTime`](gui/AddDateTime.md) — v2
+- [`AddDropDownList`](gui/AddDropDownList.md) — v2
+- [`AddEdit`](gui/AddEdit.md) — v2
+- [`AddGroupBox`](gui/AddGroupBox.md) — v2
+- [`AddHotkey`](gui/AddHotkey.md) — v2
+- [`AddLink`](gui/AddLink.md) — v2
+- [`AddListBox`](gui/AddListBox.md) — v2
+- [`AddListView`](gui/AddListView.md) — v2
+- [`AddMonthCal`](gui/AddMonthCal.md) — v2
+- [`AddPic`](gui/AddPic.md) — v2
+- [`AddPicture`](gui/AddPicture.md) — v2
+- [`AddProgress`](gui/AddProgress.md) — v2
+- [`AddRadio`](gui/AddRadio.md) — v2
+- [`AddSlider`](gui/AddSlider.md) — v2
+- [`AddStandard`](gui/AddStandard.md) — v2
+- [`AddStatusBar`](gui/AddStatusBar.md) — v2
+- [`AddTab`](gui/AddTab.md) — v2
+- [`AddTab2`](gui/AddTab2.md) — v2
+- [`AddTab3`](gui/AddTab3.md) — v2
+- [`AddText`](gui/AddText.md) — v2
+- [`AddTreeView`](gui/AddTreeView.md) — v2
+- [`AddUpDown`](gui/AddUpDown.md) — v2
+- [`BackColor`](gui/BackColor.md) — v2, v2
+- [`CaretGetPos`](gui/CaretGetPos.md) — v2
+- [`Check`](gui/Check.md) — v2
+- [`Choose`](gui/Choose.md) — v2
+- [`ClassNN`](gui/ClassNN.md) — v2
+- [`ClickCount`](gui/ClickCount.md) — v2, v2
+- [`Control`](gui/Control.md) — v1
+- [`ControlAddItem`](gui/ControlAddItem.md) — v2
+- [`ControlChooseIndex`](gui/ControlChooseIndex.md) — v2
+- [`ControlChooseString`](gui/ControlChooseString.md) — v2
+- [`ControlClick`](gui/ControlClick.md) — v2, v1
+- [`ControlDelay`](gui/ControlDelay.md) — v2
+- [`ControlDeleteItem`](gui/ControlDeleteItem.md) — v2
+- [`ControlFindItem`](gui/ControlFindItem.md) — v2
+- [`ControlFocus`](gui/ControlFocus.md) — v2, v1
+- [`ControlGetChecked`](gui/ControlGetChecked.md) — v2
+- [`ControlGetChoice`](gui/ControlGetChoice.md) — v2
+- [`ControlGetClassNN`](gui/ControlGetClassNN.md) — v2
+- [`ControlGetEnabled`](gui/ControlGetEnabled.md) — v2
+- [`ControlGetExStyle`](gui/ControlGetExStyle.md) — v2
+- [`ControlGetFocus`](gui/ControlGetFocus.md) — v2, v1
+- [`ControlGetHwnd`](gui/ControlGetHwnd.md) — v2
+- [`ControlGetIndex`](gui/ControlGetIndex.md) — v2
+- [`ControlGetItems`](gui/ControlGetItems.md) — v2
+- [`ControlGetPos`](gui/ControlGetPos.md) — v2, v1
+- [`ControlGetStyle`](gui/ControlGetStyle.md) — v2
+- [`ControlGetText`](gui/ControlGetText.md) — v2, v1
+- [`ControlGetVisible`](gui/ControlGetVisible.md) — v2
+- [`ControlHide`](gui/ControlHide.md) — v2
+- [`ControlHideDropDown`](gui/ControlHideDropDown.md) — v2
+- [`ControlMove`](gui/ControlMove.md) — v2, v1
+- [`ControlSend`](gui/ControlSend.md) — v2, v1
+- [`ControlSendText`](gui/ControlSendText.md) — v2
+- [`ControlSetChecked`](gui/ControlSetChecked.md) — v2
+- [`ControlSetEnabled`](gui/ControlSetEnabled.md) — v2
+- [`ControlSetExStyle`](gui/ControlSetExStyle.md) — v2
+- [`ControlSetStyle`](gui/ControlSetStyle.md) — v2
+- [`ControlSetText`](gui/ControlSetText.md) — v2, v1
+- [`ControlShow`](gui/ControlShow.md) — v2
+- [`ControlShowDropDown`](gui/ControlShowDropDown.md) — v2
+- [`CoordModeCaret`](gui/CoordModeCaret.md) — v2
+- [`CoordModeMenu`](gui/CoordModeMenu.md) — v2
+- [`CoordModeToolTip`](gui/CoordModeToolTip.md) — v2
+- [`Default`](gui/Default.md) — v2, v2
+- [`Delete`](gui/Delete.md) — v2, v2, v2, v2
+- [`DeleteCol`](gui/DeleteCol.md) — v2
+- [`Destroy`](gui/Destroy.md) — v2
+- [`DetectHiddenText`](gui/DetectHiddenText.md) — v2, v2, v1
+- [`DetectHiddenWindows`](gui/DetectHiddenWindows.md) — v2, v2, v1
+- [`Disable`](gui/Disable.md) — v2
+- [`Edit`](gui/Edit.md) — v2, v1
+- [`EditGetCurrentCol`](gui/EditGetCurrentCol.md) — v2
+- [`EditGetCurrentLine`](gui/EditGetCurrentLine.md) — v2
+- [`EditGetLine`](gui/EditGetLine.md) — v2
+- [`EditGetLineCount`](gui/EditGetLineCount.md) — v2
+- [`EditGetSelectedText`](gui/EditGetSelectedText.md) — v2
+- [`EditPaste`](gui/EditPaste.md) — v2
+- [`Enable`](gui/Enable.md) — v2
+- [`Enabled`](gui/Enabled.md) — v2, v2
+- [`Flash`](gui/Flash.md) — v2
+- [`Focus`](gui/Focus.md) — v2
+- [`Focused`](gui/Focused.md) — v2
+- [`FocusedCtrl`](gui/FocusedCtrl.md) — v2
+- [`Get`](gui/Get.md) — v2
+- [`GetChild`](gui/GetChild.md) — v2
+- [`GetClientPos`](gui/GetClientPos.md) — v2
+- [`GetCount`](gui/GetCount.md) — v2, v2
+- [`GetNext`](gui/GetNext.md) — v2, v2
+- [`GetParent`](gui/GetParent.md) — v2
+- [`GetPos`](gui/GetPos.md) — v2, v2
+- [`GetPrev`](gui/GetPrev.md) — v2
+- [`GetSelection`](gui/GetSelection.md) — v2
+- [`GetText`](gui/GetText.md) — v2, v2
+- [`GroupActivate`](gui/GroupActivate.md) — v2, v1
+- [`GroupAdd`](gui/GroupAdd.md) — v2, v1
+- [`GroupClose`](gui/GroupClose.md) — v2, v1
+- [`GroupDeactivate`](gui/GroupDeactivate.md) — v2, v1
+- [`Gui`](gui/Gui.md) — v2, v2, v1
+- [`Gui.ActiveX`](gui/Gui_ActiveX.md) — v2
+- [`Gui.Button`](gui/Gui_Button.md) — v2
+- [`Gui.CheckBox`](gui/Gui_CheckBox.md) — v2
+- [`Gui.ComboBox`](gui/Gui_ComboBox.md) — v2
+- [`Gui.Control`](gui/Gui_Control.md) — v2
+- [`Gui.Custom`](gui/Gui_Custom.md) — v2
+- [`Gui.DDL`](gui/Gui_DDL.md) — v2
+- [`Gui.DateTime`](gui/Gui_DateTime.md) — v2
+- [`Gui.Edit`](gui/Gui_Edit.md) — v2
+- [`Gui.GroupBox`](gui/Gui_GroupBox.md) — v2
+- [`Gui.Hotkey`](gui/Gui_Hotkey.md) — v2
+- [`Gui.Link`](gui/Gui_Link.md) — v2
+- [`Gui.List`](gui/Gui_List.md) — v2
+- [`Gui.ListBox`](gui/Gui_ListBox.md) — v2
+- [`Gui.ListView`](gui/Gui_ListView.md) — v2
+- [`Gui.MonthCal`](gui/Gui_MonthCal.md) — v2
+- [`Gui.Pic`](gui/Gui_Pic.md) — v2
+- [`Gui.Progress`](gui/Gui_Progress.md) — v2
+- [`Gui.Radio`](gui/Gui_Radio.md) — v2
+- [`Gui.Slider`](gui/Gui_Slider.md) — v2
+- [`Gui.StatusBar`](gui/Gui_StatusBar.md) — v2
+- [`Gui.Tab`](gui/Gui_Tab.md) — v2
+- [`Gui.Text`](gui/Gui_Text.md) — v2
+- [`Gui.TreeView`](gui/Gui_TreeView.md) — v2
+- [`Gui.UpDown`](gui/Gui_UpDown.md) — v2
+- [`GuiControl`](gui/GuiControl.md) — v1
+- [`GuiControlGet`](gui/GuiControlGet.md) — v1
+- [`GuiCtrlFromHwnd`](gui/GuiCtrlFromHwnd.md) — v2
+- [`GuiFromHwnd`](gui/GuiFromHwnd.md) — v2
+- [`Handle`](gui/Handle.md) — v2
+- [`Hide`](gui/Hide.md) — v2
+- [`Hwnd`](gui/Hwnd.md) — v2, v2
+- [`IL_Add`](gui/IL_Add.md) — v2
+- [`IL_Create`](gui/IL_Create.md) — v2
+- [`IL_Destroy`](gui/IL_Destroy.md) — v2
+- [`IconFile`](gui/IconFile.md) — v2
+- [`IconHidden`](gui/IconHidden.md) — v2
+- [`IconNumber`](gui/IconNumber.md) — v2
+- [`IconTip`](gui/IconTip.md) — v2
+- [`InputBox`](gui/InputBox.md) — v2, v1
+- [`Insert`](gui/Insert.md) — v2, v2
+- [`InsertCol`](gui/InsertCol.md) — v2
+- [`ListLines`](gui/ListLines.md) — v2, v2, v1
+- [`ListVars`](gui/ListVars.md) — v2, v1
+- [`ListViewGetContent`](gui/ListViewGetContent.md) — v2
+- [`MarginX`](gui/MarginX.md) — v2, v2
+- [`MarginY`](gui/MarginY.md) — v2, v2
+- [`Maximize`](gui/Maximize.md) — v2
+- [`Menu`](gui/Menu.md) — v2, v1
+- [`MenuBar`](gui/MenuBar.md) — v2, v2
+- [`MenuFromHandle`](gui/MenuFromHandle.md) — v2
+- [`MenuGetHandle`](gui/MenuGetHandle.md) — v1
+- [`MenuGetName`](gui/MenuGetName.md) — v1
+- [`MenuSelect`](gui/MenuSelect.md) — v2
+- [`Minimize`](gui/Minimize.md) — v2
+- [`Modify`](gui/Modify.md) — v2, v2
+- [`ModifyCol`](gui/ModifyCol.md) — v2
+- [`MonitorGet`](gui/MonitorGet.md) — v2
+- [`MonitorGetCount`](gui/MonitorGetCount.md) — v2
+- [`MonitorGetName`](gui/MonitorGetName.md) — v2
+- [`MonitorGetPrimary`](gui/MonitorGetPrimary.md) — v2
+- [`MonitorGetWorkArea`](gui/MonitorGetWorkArea.md) — v2
+- [`Move`](gui/Move.md) — v2, v2
+- [`MsgBox`](gui/MsgBox.md) — v2, v1
+- [`Name`](gui/Name.md) — v2, v2, v2, v2
+- [`OnCommand`](gui/OnCommand.md) — v2
+- [`OnEvent`](gui/OnEvent.md) — v2, v2
+- [`OnNotify`](gui/OnNotify.md) — v2
+- [`Opt`](gui/Opt.md) — v2, v2
+- [`PostMessage`](gui/PostMessage.md) — v2, v1
+- [`Progress`](gui/Progress.md) — v1
+- [`Redraw`](gui/Redraw.md) — v2
+- [`RegisterCallback`](gui/RegisterCallback.md) — v1
+- [`Rename`](gui/Rename.md) — v2
+- [`Restore`](gui/Restore.md) — v2
+- [`ScriptHwnd`](gui/ScriptHwnd.md) — v2
+- [`SendMessage`](gui/SendMessage.md) — v2
+- [`SetColor`](gui/SetColor.md) — v2
+- [`SetControlDelay`](gui/SetControlDelay.md) — v2, v1
+- [`SetFont`](gui/SetFont.md) — v2, v2
+- [`SetFormat`](gui/SetFormat.md) — v2
+- [`SetIcon`](gui/SetIcon.md) — v2, v2
+- [`SetImageList`](gui/SetImageList.md) — v2, v2
+- [`SetParts`](gui/SetParts.md) — v2
+- [`SetText`](gui/SetText.md) — v2
+- [`SetTitleMatchMode`](gui/SetTitleMatchMode.md) — v2, v1
+- [`SetWinDelay`](gui/SetWinDelay.md) — v2, v1
+- [`Show`](gui/Show.md) — v2, v2
+- [`SplashTextOn`](gui/SplashTextOn.md) — v1
+- [`StatusBarGetText`](gui/StatusBarGetText.md) — v2, v1
+- [`StatusBarWait`](gui/StatusBarWait.md) — v2, v1
+- [`Submit`](gui/Submit.md) — v2
+- [`Text`](gui/Text.md) — v2, v2
+- [`Title`](gui/Title.md) — v2, v2
+- [`TitleMatchMode`](gui/TitleMatchMode.md) — v2
+- [`TitleMatchModeSpeed`](gui/TitleMatchModeSpeed.md) — v2
+- [`ToggleCheck`](gui/ToggleCheck.md) — v2
+- [`ToggleEnable`](gui/ToggleEnable.md) — v2
+- [`ToolTip`](gui/ToolTip.md) — v2, v1
+- [`TrayMenu`](gui/TrayMenu.md) — v2
+- [`TraySetIcon`](gui/TraySetIcon.md) — v2
+- [`TrayTip`](gui/TrayTip.md) — v2, v1
+- [`Uncheck`](gui/Uncheck.md) — v2
+- [`UseTab`](gui/UseTab.md) — v2
+- [`Value`](gui/Value.md) — v2, v2
+- [`Visible`](gui/Visible.md) — v2, v2
+- [`WinActivate`](gui/WinActivate.md) — v2, v1
+- [`WinActivateBottom`](gui/WinActivateBottom.md) — v2, v1
+- [`WinActive`](gui/WinActive.md) — v2, v1
+- [`WinClose`](gui/WinClose.md) — v2, v1
+- [`WinDelay`](gui/WinDelay.md) — v2
+- [`WinDir`](gui/WinDir.md) — v2
+- [`WinExist`](gui/WinExist.md) — v2, v1
+- [`WinFromPoint`](gui/WinFromPoint.md) — ks
+- [`WinGet`](gui/WinGet.md) — v1
+- [`WinGetActiveStats`](gui/WinGetActiveStats.md) — v1
+- [`WinGetActiveTitle`](gui/WinGetActiveTitle.md) — v1
+- [`WinGetAlwaysOnTop`](gui/WinGetAlwaysOnTop.md) — ks
+- [`WinGetClass`](gui/WinGetClass.md) — v2, v1
+- [`WinGetClientPos`](gui/WinGetClientPos.md) — v2
+- [`WinGetControls`](gui/WinGetControls.md) — v2
+- [`WinGetControlsHwnd`](gui/WinGetControlsHwnd.md) — v2
+- [`WinGetCount`](gui/WinGetCount.md) — v2
+- [`WinGetEnabled`](gui/WinGetEnabled.md) — ks
+- [`WinGetExStyle`](gui/WinGetExStyle.md) — v2
+- [`WinGetID`](gui/WinGetID.md) — v2
+- [`WinGetIDLast`](gui/WinGetIDLast.md) — v2
+- [`WinGetList`](gui/WinGetList.md) — v2
+- [`WinGetMinMax`](gui/WinGetMinMax.md) — v2
+- [`WinGetPID`](gui/WinGetPID.md) — v2
+- [`WinGetPos`](gui/WinGetPos.md) — v2, v1
+- [`WinGetProcessName`](gui/WinGetProcessName.md) — v2
+- [`WinGetProcessPath`](gui/WinGetProcessPath.md) — v2
+- [`WinGetStyle`](gui/WinGetStyle.md) — v2
+- [`WinGetText`](gui/WinGetText.md) — v2, v1
+- [`WinGetTitle`](gui/WinGetTitle.md) — v2, v1
+- [`WinGetTransColor`](gui/WinGetTransColor.md) — v2
+- [`WinGetTransparent`](gui/WinGetTransparent.md) — v2
+- [`WinHide`](gui/WinHide.md) — v2, v1
+- [`WinKill`](gui/WinKill.md) — v2, v1
+- [`WinMaximize`](gui/WinMaximize.md) — v2, v1
+- [`WinMenuSelectItem`](gui/WinMenuSelectItem.md) — v1
+- [`WinMinimize`](gui/WinMinimize.md) — v2, v1
+- [`WinMinimizeAll`](gui/WinMinimizeAll.md) — v2, v1
+- [`WinMinimizeAllUndo`](gui/WinMinimizeAllUndo.md) — v2
+- [`WinMove`](gui/WinMove.md) — v2, v1
+- [`WinMoveBottom`](gui/WinMoveBottom.md) — v2
+- [`WinMoveTop`](gui/WinMoveTop.md) — v2
+- [`WinRedraw`](gui/WinRedraw.md) — v2
+- [`WinRestore`](gui/WinRestore.md) — v2, v1
+- [`WinSet`](gui/WinSet.md) — v1
+- [`WinSetAlwaysOnTop`](gui/WinSetAlwaysOnTop.md) — v2
+- [`WinSetEnabled`](gui/WinSetEnabled.md) — v2
+- [`WinSetExStyle`](gui/WinSetExStyle.md) — v2
+- [`WinSetRegion`](gui/WinSetRegion.md) — v2
+- [`WinSetStyle`](gui/WinSetStyle.md) — v2
+- [`WinSetTitle`](gui/WinSetTitle.md) — v2, v1
+- [`WinSetTransColor`](gui/WinSetTransColor.md) — v2
+- [`WinSetTransparent`](gui/WinSetTransparent.md) — v2
+- [`WinShow`](gui/WinShow.md) — v2, v1
+- [`WinWait`](gui/WinWait.md) — v2, v1
+- [`WinWaitActive`](gui/WinWaitActive.md) — v2, v1
+- [`WinWaitClose`](gui/WinWaitClose.md) — v2, v1
+- [`WinWaitNotActive`](gui/WinWaitNotActive.md) — v2
+- [`__Enum`](gui/__Enum.md) — v2
+- [`__Item`](gui/__Item.md) — v2
+- [`__New`](gui/__New.md) — v2
+
+## 熱鍵、熱字串與輸入
+
+- [`A_CaretX`](input/A_CaretX.md) — v1
+- [`A_CaretY`](input/A_CaretY.md) — v1
+- [`A_ClipboardTimeout`](input/A_ClipboardTimeout.md) — ks
+- [`A_CoordModeCaret`](input/A_CoordModeCaret.md) — v1
+- [`A_CoordModeMenu`](input/A_CoordModeMenu.md) — v1
+- [`A_CoordModeMouse`](input/A_CoordModeMouse.md) — v1
+- [`A_CoordModePixel`](input/A_CoordModePixel.md) — v1
+- [`A_CoordModeToolTip`](input/A_CoordModeToolTip.md) — v1
+- [`A_Cursor`](input/A_Cursor.md) — v1
+- [`A_DefaultHotstringCaseSensitive`](input/A_DefaultHotstringCaseSensitive.md) — ks
+- [`A_DefaultHotstringConformToCase`](input/A_DefaultHotstringConformToCase.md) — ks
+- [`A_DefaultHotstringDetectWhenInsideWord`](input/A_DefaultHotstringDetectWhenInsideWord.md) — ks
+- [`A_DefaultHotstringDoBackspace`](input/A_DefaultHotstringDoBackspace.md) — ks
+- [`A_DefaultHotstringDoReset`](input/A_DefaultHotstringDoReset.md) — ks
+- [`A_DefaultHotstringEndCharRequired`](input/A_DefaultHotstringEndCharRequired.md) — ks
+- [`A_DefaultHotstringEndChars`](input/A_DefaultHotstringEndChars.md) — ks
+- [`A_DefaultHotstringKeyDelay`](input/A_DefaultHotstringKeyDelay.md) — ks
+- [`A_DefaultHotstringNoMouse`](input/A_DefaultHotstringNoMouse.md) — ks
+- [`A_DefaultHotstringOmitEndChar`](input/A_DefaultHotstringOmitEndChar.md) — ks
+- [`A_DefaultHotstringPriority`](input/A_DefaultHotstringPriority.md) — ks
+- [`A_DefaultHotstringSendMode`](input/A_DefaultHotstringSendMode.md) — ks
+- [`A_DefaultHotstringSendRaw`](input/A_DefaultHotstringSendRaw.md) — ks
+- [`A_HotIf`](input/A_HotIf.md) — ks
+- [`A_HotIfTimeout`](input/A_HotIfTimeout.md) — ks
+- [`A_KeyDelay`](input/A_KeyDelay.md) — v1
+- [`A_KeyDelayPlay`](input/A_KeyDelayPlay.md) — v1
+- [`A_KeyDuration`](input/A_KeyDuration.md) — v1
+- [`A_KeyDurationPlay`](input/A_KeyDurationPlay.md) — v1
+- [`A_MouseDelay`](input/A_MouseDelay.md) — v1
+- [`A_MouseDelayPlay`](input/A_MouseDelayPlay.md) — v1
+- [`A_PeekFrequency`](input/A_PeekFrequency.md) — ks
+- [`A_PriorHotkey`](input/A_PriorHotkey.md) — v1
+- [`A_PriorKey`](input/A_PriorKey.md) — v1
+- [`A_SendLevel`](input/A_SendLevel.md) — v1
+- [`A_SendMode`](input/A_SendMode.md) — v1
+- [`A_StoreCapsLockMode`](input/A_StoreCapsLockMode.md) — v1
+- [`A_ThisHotkey`](input/A_ThisHotkey.md) — v1
+- [`A_TimeIdle`](input/A_TimeIdle.md) — v1
+- [`A_TimeIdleKeyboard`](input/A_TimeIdleKeyboard.md) — v1
+- [`A_TimeIdleMouse`](input/A_TimeIdleMouse.md) — v1
+- [`A_TimeIdlePhysical`](input/A_TimeIdlePhysical.md) — v1
+- [`A_TimeSincePriorHotkey`](input/A_TimeSincePriorHotkey.md) — v1
+- [`A_TimeSinceThisHotkey`](input/A_TimeSinceThisHotkey.md) — v1
+- [`BackspaceIsUndo`](input/BackspaceIsUndo.md) — v2, v2, v2, v2
+- [`BlockInput`](input/BlockInput.md) — v2, v1
+- [`BufferLengthMax`](input/BufferLengthMax.md) — ks
+- [`CallbackCreate`](input/CallbackCreate.md) — v2
+- [`CallbackFree`](input/CallbackFree.md) — v2
+- [`CaseSensitive`](input/CaseSensitive.md) — v2, v2, v2, v2
+- [`Click`](input/Click.md) — v2, v1
+- [`ClipCursor`](input/ClipCursor.md) — ks
+- [`ClipWait`](input/ClipWait.md) — v2, v1
+- [`ControlGet`](input/ControlGet.md) — v1
+- [`CoordModeMouse`](input/CoordModeMouse.md) — v2
+- [`CoordModePixel`](input/CoordModePixel.md) — v2
+- [`Cursor`](input/Cursor.md) — v2
+- [`DefaultMouseSpeed`](input/DefaultMouseSpeed.md) — v2
+- [`EndCharMode`](input/EndCharMode.md) — ks
+- [`EndKey`](input/EndKey.md) — v2, v2
+- [`EndMods`](input/EndMods.md) — v2, v2
+- [`EndReason`](input/EndReason.md) — v2, v2
+- [`EventInfo`](input/EventInfo.md) — v2
+- [`FindAnywhere`](input/FindAnywhere.md) — v2, v2, v2, v2
+- [`GetKeyInfo`](input/GetKeyInfo.md) — ks
+- [`GetKeyName`](input/GetKeyName.md) — v2
+- [`GetKeySC`](input/GetKeySC.md) — v2
+- [`GetKeyState`](input/GetKeyState.md) — v2, v1, v1
+- [`GetKeyVK`](input/GetKeyVK.md) — v2
+- [`GetKeyboardLayout`](input/GetKeyboardLayout.md) — ks
+- [`HotIf`](input/HotIf.md) — v2
+- [`HotIfWinActive`](input/HotIfWinActive.md) — v2
+- [`HotIfWinExist`](input/HotIfWinExist.md) — v2
+- [`HotIfWinNotActive`](input/HotIfWinNotActive.md) — v2
+- [`HotIfWinNotExist`](input/HotIfWinNotExist.md) — v2
+- [`Hotkey`](input/Hotkey.md) — v2, v1
+- [`HotkeyInterval`](input/HotkeyInterval.md) — v2
+- [`HotkeyModifierTimeout`](input/HotkeyModifierTimeout.md) — v2
+- [`Hotstring`](input/Hotstring.md) — v2, v1
+- [`InProgress`](input/InProgress.md) — v2, v2
+- [`Input`](input/Input.md) — v2, v2, v1
+- [`InputHook`](input/InputHook.md) — v2, v1
+- [`InstallKeybdHook`](input/InstallKeybdHook.md) — v2
+- [`InstallMouseHook`](input/InstallMouseHook.md) — v2
+- [`IsLabel`](input/IsLabel.md) — v2, v1
+- [`KeyDelay`](input/KeyDelay.md) — v2
+- [`KeyDelayPlay`](input/KeyDelayPlay.md) — v2
+- [`KeyDuration`](input/KeyDuration.md) — v2
+- [`KeyDurationPlay`](input/KeyDurationPlay.md) — v2
+- [`KeyHistory`](input/KeyHistory.md) — v2, v1
+- [`KeyOpt`](input/KeyOpt.md) — v2, v2
+- [`KeyWait`](input/KeyWait.md) — v2, v1
+- [`ListHotkeys`](input/ListHotkeys.md) — v2, v1
+- [`Match`](input/Match.md) — v2, v2
+- [`MaxHotkeysPerInterval`](input/MaxHotkeysPerInterval.md) — v2
+- [`MenuMaskKey`](input/MenuMaskKey.md) — v2
+- [`MinSendLevel`](input/MinSendLevel.md) — v2, v2, v2, v2
+- [`MouseClick`](input/MouseClick.md) — v2, v1
+- [`MouseClickDrag`](input/MouseClickDrag.md) — v2, v1
+- [`MouseDelay`](input/MouseDelay.md) — v2
+- [`MouseDelayPlay`](input/MouseDelayPlay.md) — v2
+- [`MouseGetPos`](input/MouseGetPos.md) — v2, v1
+- [`MouseMove`](input/MouseMove.md) — v2, v1
+- [`NotifyNonText`](input/NotifyNonText.md) — v2, v2, v2, v2
+- [`OnChar`](input/OnChar.md) — v2, v2, v2, v2
+- [`OnEnd`](input/OnEnd.md) — v2, v2, v2, v2
+- [`OnKeyDown`](input/OnKeyDown.md) — v2, v2, v2, v2
+- [`OnKeyUp`](input/OnKeyUp.md) — v2, v2, v2, v2
+- [`OnMouseDown`](input/OnMouseDown.md) — ks
+- [`OnMouseMove`](input/OnMouseMove.md) — ks
+- [`OnMouseUp`](input/OnMouseUp.md) — ks
+- [`PriorHotkey`](input/PriorHotkey.md) — v2
+- [`PriorKey`](input/PriorKey.md) — v2
+- [`Send`](input/Send.md) — v2, v1
+- [`SendEvent`](input/SendEvent.md) — v2
+- [`SendInput`](input/SendInput.md) — v2
+- [`SendLevel`](input/SendLevel.md) — v2, v2, v1
+- [`SendMode`](input/SendMode.md) — v2, v2, v1
+- [`SendPlay`](input/SendPlay.md) — v2
+- [`SendText`](input/SendText.md) — v2
+- [`SetCapsLockState`](input/SetCapsLockState.md) — v2
+- [`SetDefaultMouseSpeed`](input/SetDefaultMouseSpeed.md) — v2, v1
+- [`SetKeyDelay`](input/SetKeyDelay.md) — v2, v1
+- [`SetMouseDelay`](input/SetMouseDelay.md) — v2, v1
+- [`SetNumLockState`](input/SetNumLockState.md) — v2
+- [`SetScrollLockState`](input/SetScrollLockState.md) — v2
+- [`SetStoreCapsLockMode`](input/SetStoreCapsLockMode.md) — v2, v1
+- [`Start`](input/Start.md) — v2, v2
+- [`Stop`](input/Stop.md) — v2, v2
+- [`StoreCapsLockMode`](input/StoreCapsLockMode.md) — v2
+- [`ThisHotkey`](input/ThisHotkey.md) — v2
+- [`TimeIdle`](input/TimeIdle.md) — v2
+- [`TimeIdleKeyboard`](input/TimeIdleKeyboard.md) — v2
+- [`TimeIdleMouse`](input/TimeIdleMouse.md) — v2
+- [`TimeIdlePhysical`](input/TimeIdlePhysical.md) — v2
+- [`TimeSincePriorHotkey`](input/TimeSincePriorHotkey.md) — v2
+- [`TimeSinceThisHotkey`](input/TimeSinceThisHotkey.md) — v2
+- [`Timeout`](input/Timeout.md) — v2, v2, v2, v2
+- [`TranscribeModifiedKeys`](input/TranscribeModifiedKeys.md) — ks
+- [`VisibleMouseMove`](input/VisibleMouseMove.md) — ks
+- [`VisibleNonText`](input/VisibleNonText.md) — v2, v2, v2, v2
+- [`VisibleText`](input/VisibleText.md) — v2, v2, v2, v2
+- [`Wait`](input/Wait.md) — v2, v2
+- [`__New`](input/__New.md) — v2, v2
+
+## 機器、行程與環境
+
+- [`A_AppData`](machine/A_AppData.md) — v1
+- [`A_AppDataCommon`](machine/A_AppDataCommon.md) — v1
+- [`A_Args`](machine/A_Args.md) — v1
+- [`A_ComSpec`](machine/A_ComSpec.md) — v1
+- [`A_ComputerName`](machine/A_ComputerName.md) — v1
+- [`A_DefaultMouseSpeed`](machine/A_DefaultMouseSpeed.md) — v1
+- [`A_Desktop`](machine/A_Desktop.md) — v1
+- [`A_DesktopCommon`](machine/A_DesktopCommon.md) — v1
+- [`A_EventInfo`](machine/A_EventInfo.md) — v1
+- [`A_FileEncoding`](machine/A_FileEncoding.md) — v1
+- [`A_IPAddress1`](machine/A_IPAddress1.md) — v1
+- [`A_Language`](machine/A_Language.md) — v1
+- [`A_MDay`](machine/A_MDay.md) — v1
+- [`A_MM`](machine/A_MM.md) — v1
+- [`A_MMM`](machine/A_MMM.md) — v1
+- [`A_MMMM`](machine/A_MMMM.md) — v1
+- [`A_MyDocuments`](machine/A_MyDocuments.md) — v1
+- [`A_NoTrayIcon`](machine/A_NoTrayIcon.md) — ks
+- [`A_NowMs`](machine/A_NowMs.md) — ks
+- [`A_NowUTCMs`](machine/A_NowUTCMs.md) — ks
+- [`A_ProgramFiles`](machine/A_ProgramFiles.md) — v1
+- [`A_Programs`](machine/A_Programs.md) — v1
+- [`A_ProgramsCommon`](machine/A_ProgramsCommon.md) — v1
+- [`A_StartMenu`](machine/A_StartMenu.md) — v1
+- [`A_StartMenuCommon`](machine/A_StartMenuCommon.md) — v1
+- [`A_Startup`](machine/A_Startup.md) — v1
+- [`A_StartupCommon`](machine/A_StartupCommon.md) — v1
+- [`A_Temp`](machine/A_Temp.md) — v1
+- [`A_Thread`](machine/A_Thread.md) — ks
+- [`A_TickCount`](machine/A_TickCount.md) — v1
+- [`A_UserName`](machine/A_UserName.md) — v1
+- [`A_WinActivateForce`](machine/A_WinActivateForce.md) — ks
+- [`A_YWeek`](machine/A_YWeek.md) — v1
+- [`AhkPath`](machine/AhkPath.md) — v2
+- [`AhkVersion`](machine/AhkVersion.md) — v2
+- [`AllowTimers`](machine/AllowTimers.md) — ks
+- [`AppData`](machine/AppData.md) — v2
+- [`AppDataCommon`](machine/AppDataCommon.md) — v2
+- [`Args`](machine/Args.md) — ks
+- [`At`](machine/At.md) — ks
+- [`ComSpec`](machine/ComSpec.md) — v2, v1
+- [`ComputerName`](machine/ComputerName.md) — v2
+- [`Desktop`](machine/Desktop.md) — v2
+- [`DesktopCommon`](machine/DesktopCommon.md) — v2
+- [`Drive`](machine/Drive.md) — v1
+- [`DriveGet`](machine/DriveGet.md) — v1
+- [`DriveSpaceFree`](machine/DriveSpaceFree.md) — v1
+- [`Elapsed`](machine/Elapsed.md) — ks
+- [`Empty`](machine/Empty.md) — ks
+- [`EnvAdd`](machine/EnvAdd.md) — v1
+- [`EnvDiv`](machine/EnvDiv.md) — v1
+- [`EnvMult`](machine/EnvMult.md) — v1
+- [`EnvSub`](machine/EnvSub.md) — v1
+- [`EnvUpdate`](machine/EnvUpdate.md) — v1, ks
+- [`ExitCode`](machine/ExitCode.md) — ks, ks
+- [`ExitTime`](machine/ExitTime.md) — ks
+- [`HasExited`](machine/HasExited.md) — ks
+- [`Id`](machine/Id.md) — ks
+- [`IsActive`](machine/IsActive.md) — ks
+- [`IsInterruptible`](machine/IsInterruptible.md) — ks
+- [`Kill`](machine/Kill.md) — ks
+- [`Kind`](machine/Kind.md) — ks
+- [`Language`](machine/Language.md) — v2
+- [`MyDocuments`](machine/MyDocuments.md) — v2
+- [`OSVersion`](machine/OSVersion.md) — v2
+- [`OutputDebug`](machine/OutputDebug.md) — v2, v1
+- [`Paused`](machine/Paused.md) — ks
+- [`Priority`](machine/Priority.md) — ks
+- [`Process`](machine/Process.md) — v1
+- [`ProcessClose`](machine/ProcessClose.md) — v2
+- [`ProcessExist`](machine/ProcessExist.md) — v2
+- [`ProcessGetName`](machine/ProcessGetName.md) — v2
+- [`ProcessGetParent`](machine/ProcessGetParent.md) — v2
+- [`ProcessGetPath`](machine/ProcessGetPath.md) — v2
+- [`ProcessSetPriority`](machine/ProcessSetPriority.md) — v2
+- [`ProcessWait`](machine/ProcessWait.md) — v2
+- [`ProcessWaitClose`](machine/ProcessWaitClose.md) — v2
+- [`ProgramFiles`](machine/ProgramFiles.md) — v2, v1
+- [`Programs`](machine/Programs.md) — v2
+- [`ProgramsCommon`](machine/ProgramsCommon.md) — v2
+- [`Run`](machine/Run.md) — v2, v1
+- [`RunAs`](machine/RunAs.md) — v2, v1
+- [`RunWait`](machine/RunWait.md) — v2, v1
+- [`ScriptProcess`](machine/ScriptProcess.md) — ks
+- [`SetEnv`](machine/SetEnv.md) — v1
+- [`Shutdown`](machine/Shutdown.md) — v2, v1
+- [`StartMenu`](machine/StartMenu.md) — v2
+- [`StartMenuCommon`](machine/StartMenuCommon.md) — v2
+- [`Startup`](machine/Startup.md) — v2
+- [`StartupCommon`](machine/StartupCommon.md) — v2
+- [`StdErr`](machine/StdErr.md) — ks
+- [`StdIn`](machine/StdIn.md) — ks
+- [`StdOut`](machine/StdOut.md) — ks
+- [`SysGet`](machine/SysGet.md) — v2, v1
+- [`SysGetIPAddresses`](machine/SysGetIPAddresses.md) — v2
+- [`Target`](machine/Target.md) — ks
+- [`Temp`](machine/Temp.md) — v2
+- [`URLDownloadToFile`](machine/URLDownloadToFile.md) — v1
+- [`Underlying`](machine/Underlying.md) — ks
+- [`UserName`](machine/UserName.md) — v2
+
+## 原生函式呼叫 (DllCall)
+
+- [`Buffer`](native/Buffer.md) — v2
+- [`DllCall`](native/DllCall.md) — v2, v1
+- [`LastError`](native/LastError.md) — v2
+- [`NumGet`](native/NumGet.md) — v2, v1
+- [`NumPut`](native/NumPut.md) — v2, v1
+- [`ObjCreateWithDataPtr`](native/ObjCreateWithDataPtr.md) — ks
+- [`ObjGetDataPtr`](native/ObjGetDataPtr.md) — ks
+- [`ObjGetDataSize`](native/ObjGetDataSize.md) — ks
+- [`ObjSetDataPtr`](native/ObjSetDataPtr.md) — ks
+- [`Ptr`](native/Ptr.md) — v2
+- [`PtrSize`](native/PtrSize.md) — v2
+- [`Size`](native/Size.md) — v2
+- [`VarSetStrCapacity`](native/VarSetStrCapacity.md) — v2
+- [`__New`](native/__New.md) — v2
+
+## 網路與郵件
+
+- [`Mail`](network/Mail.md) — ks
+
+## 語言的物件：Array、Map 與 Func
+
+- [`A_Args`](objects/A_Args.md) — ks
+- [`Array`](objects/Array.md) — v2
+- [`Base`](objects/Base.md) — v2
+- [`BeforeHotkeys`](objects/BeforeHotkeys.md) — ks
+- [`Bind`](objects/Bind.md) — v2
+- [`BoundFunc`](objects/BoundFunc.md) — v2
+- [`Call`](objects/Call.md) — v2, v2
+- [`Capacity`](objects/Capacity.md) — v2, v2
+- [`CaseSense`](objects/CaseSense.md) — v2
+- [`Clear`](objects/Clear.md) — v2
+- [`Clone`](objects/Clone.md) — v2, v2, v2, v2
+- [`Closure`](objects/Closure.md) — v2
+- [`Contains`](objects/Contains.md) — ks
+- [`Count`](objects/Count.md) — v2
+- [`DefineProp`](objects/DefineProp.md) — v2, v2
+- [`Delete`](objects/Delete.md) — v2, v2
+- [`DeleteProp`](objects/DeleteProp.md) — v2, v2
+- [`Enumerator`](objects/Enumerator.md) — v2
+- [`Filter`](objects/Filter.md) — ks
+- [`FindIndex`](objects/FindIndex.md) — ks
+- [`Func`](objects/Func.md) — v2, v1
+- [`Get`](objects/Get.md) — v2, v2
+- [`GetOwnPropDesc`](objects/GetOwnPropDesc.md) — v2, v2
+- [`Has`](objects/Has.md) — v2, v2
+- [`HasOwnProp`](objects/HasOwnProp.md) — v2, v2
+- [`IndexOf`](objects/IndexOf.md) — ks
+- [`InsertAt`](objects/InsertAt.md) — v2
+- [`IsBuiltIn`](objects/IsBuiltIn.md) — v2
+- [`IsByRef`](objects/IsByRef.md) — v2
+- [`IsClosure`](objects/IsClosure.md) — ks
+- [`IsMethod`](objects/IsMethod.md) — ks
+- [`IsOptional`](objects/IsOptional.md) — v2
+- [`IsVariadic`](objects/IsVariadic.md) — v2
+- [`Join`](objects/Join.md) — ks
+- [`Length`](objects/Length.md) — v2
+- [`Map`](objects/Map.md) — v2, ks
+- [`MaxParams`](objects/MaxParams.md) — v2
+- [`MinParams`](objects/MinParams.md) — v2
+- [`Name`](objects/Name.md) — v2
+- [`ObjAddRef`](objects/ObjAddRef.md) — v2, v1
+- [`ObjGetBase`](objects/ObjGetBase.md) — v2
+- [`ObjGetCapacity`](objects/ObjGetCapacity.md) — v2
+- [`ObjHasOwnProp`](objects/ObjHasOwnProp.md) — v2
+- [`ObjOwnPropCount`](objects/ObjOwnPropCount.md) — v2
+- [`ObjOwnProps`](objects/ObjOwnProps.md) — v2
+- [`ObjSetBase`](objects/ObjSetBase.md) — v2
+- [`ObjSetCapacity`](objects/ObjSetCapacity.md) — v2
+- [`Object`](objects/Object.md) — v2, v1
+- [`OwnProps`](objects/OwnProps.md) — v2, v2
+- [`Params`](objects/Params.md) — ks
+- [`Pop`](objects/Pop.md) — v2
+- [`PropRef`](objects/PropRef.md) — ks
+- [`Props`](objects/Props.md) — ks
+- [`Push`](objects/Push.md) — v2
+- [`RegExMatchInfo`](objects/RegExMatchInfo.md) — v2
+- [`Remove`](objects/Remove.md) — ks
+- [`RemoveAt`](objects/RemoveAt.md) — v2
+- [`Set`](objects/Set.md) — v2
+- [`Struct`](objects/Struct.md) — ks
+- [`ToString`](objects/ToString.md) — ks, ks
+- [`VarRef`](objects/VarRef.md) — ks
+- [`__Enum`](objects/__Enum.md) — v2, v2
+- [`__Item`](objects/__Item.md) — v2, v2
+- [`__New`](objects/__New.md) — v2, v2
+
+## 登錄檔 API
+
+- [`A_LoopRegName`](registry/A_LoopRegName.md) — v1
+- [`A_RegView`](registry/A_RegView.md) — v1
+- [`LoopRegKey`](registry/LoopRegKey.md) — v2
+- [`LoopRegName`](registry/LoopRegName.md) — v2
+- [`LoopRegTimeModified`](registry/LoopRegTimeModified.md) — v2
+- [`LoopRegType`](registry/LoopRegType.md) — v2
+- [`RegCreateKey`](registry/RegCreateKey.md) — v2
+- [`RegDelete`](registry/RegDelete.md) — v2, v1
+- [`RegDeleteKey`](registry/RegDeleteKey.md) — v2
+- [`RegRead`](registry/RegRead.md) — v2, v1
+- [`RegView`](registry/RegView.md) — v2
+- [`RegWrite`](registry/RegWrite.md) — v2, v1
+- [`SetRegView`](registry/SetRegView.md) — v2, v1
+
+## 螢幕擷取與像素函式
+
+- [`A_ScreenDPI`](screen/A_ScreenDPI.md) — v1
+- [`A_ScreenHeight`](screen/A_ScreenHeight.md) — v1
+- [`A_ScreenWidth`](screen/A_ScreenWidth.md) — v1
+- [`ImageSearch`](screen/ImageSearch.md) — v2, v1
+- [`LoadPicture`](screen/LoadPicture.md) — v2, v1
+- [`PixelGetColor`](screen/PixelGetColor.md) — v2, v1
+- [`PixelSearch`](screen/PixelSearch.md) — v2, v1
+- [`ScreenDPI`](screen/ScreenDPI.md) — v2
+- [`ScreenHeight`](screen/ScreenHeight.md) — v2
+- [`ScreenWidth`](screen/ScreenWidth.md) — v2
+
+## 解析器與腳本執行
+
+- [`#CommentFlag`](script/#CommentFlag.md) — v1
+- [`#ErrorStdOut`](script/#ErrorStdOut.md) — v1
+- [`#EscapeChar`](script/#EscapeChar.md) — v1
+- [`#HotkeyInterval`](script/#HotkeyInterval.md) — v1
+- [`#HotkeyModifierTimeout`](script/#HotkeyModifierTimeout.md) — v1
+- [`#Hotstring`](script/#Hotstring.md) — v1
+- [`#If`](script/#If.md) — v1
+- [`#IfTimeout`](script/#IfTimeout.md) — v1
+- [`#IfWinActive`](script/#IfWinActive.md) — v1
+- [`#Include`](script/#Include.md) — v1
+- [`#InputLevel`](script/#InputLevel.md) — v1
+- [`#InstallKeybdHook`](script/#InstallKeybdHook.md) — v1
+- [`#InstallMouseHook`](script/#InstallMouseHook.md) — v1
+- [`#KeyHistory`](script/#KeyHistory.md) — v1
+- [`#MaxHotkeysPerInterval`](script/#MaxHotkeysPerInterval.md) — v1
+- [`#MaxMem`](script/#MaxMem.md) — v1
+- [`#MaxThreads`](script/#MaxThreads.md) — v1
+- [`#MaxThreadsBuffer`](script/#MaxThreadsBuffer.md) — v1
+- [`#MaxThreadsPerHotkey`](script/#MaxThreadsPerHotkey.md) — v1
+- [`#MenuMaskKey`](script/#MenuMaskKey.md) — v1
+- [`#NoEnv`](script/#NoEnv.md) — v1
+- [`#NoTrayIcon`](script/#NoTrayIcon.md) — v1
+- [`#Persistent`](script/#Persistent.md) — v1
+- [`#Requires`](script/#Requires.md) — v1
+- [`#SingleInstance`](script/#SingleInstance.md) — v1
+- [`#UseHook`](script/#UseHook.md) — v1
+- [`#Warn`](script/#Warn.md) — v1
+- [`#WinActivateForce`](script/#WinActivateForce.md) — v1
+- [`A_AhkPath`](script/A_AhkPath.md) — v1
+- [`A_AhkVersion`](script/A_AhkVersion.md) — v1
+- [`A_AutoTrim`](script/A_AutoTrim.md) — v1
+- [`A_BatchLines`](script/A_BatchLines.md) — v1
+- [`A_DefaultGui`](script/A_DefaultGui.md) — v1
+- [`A_DefaultListView`](script/A_DefaultListView.md) — v1
+- [`A_DefaultTreeView`](script/A_DefaultTreeView.md) — v1
+- [`A_EndChar`](script/A_EndChar.md) — v1
+- [`A_ExitReason`](script/A_ExitReason.md) — v1
+- [`A_Index`](script/A_Index.md) — v1
+- [`A_InitialWorkingDir`](script/A_InitialWorkingDir.md) — v1
+- [`A_Is64bitOS`](script/A_Is64bitOS.md) — v1
+- [`A_IsAdmin`](script/A_IsAdmin.md) — v1
+- [`A_IsCompiled`](script/A_IsCompiled.md) — v1
+- [`A_IsCritical`](script/A_IsCritical.md) — v1
+- [`A_IsPaused`](script/A_IsPaused.md) — v1
+- [`A_IsSuspended`](script/A_IsSuspended.md) — v1
+- [`A_IsUnicode`](script/A_IsUnicode.md) — v1
+- [`A_KeybdHookInstalled`](script/A_KeybdHookInstalled.md) — ks
+- [`A_KsCorePath`](script/A_KsCorePath.md) — ks
+- [`A_KsVersion`](script/A_KsVersion.md) — ks
+- [`A_LastError`](script/A_LastError.md) — v1
+- [`A_LineFile`](script/A_LineFile.md) — v1
+- [`A_LineNumber`](script/A_LineNumber.md) — v1
+- [`A_ListLines`](script/A_ListLines.md) — v1
+- [`A_MaxThreads`](script/A_MaxThreads.md) — ks
+- [`A_MaxThreadsBuffer`](script/A_MaxThreadsBuffer.md) — ks
+- [`A_MaxThreadsPerHotkey`](script/A_MaxThreadsPerHotkey.md) — ks
+- [`A_MouseHookInstalled`](script/A_MouseHookInstalled.md) — ks
+- [`A_NumBatchLines`](script/A_NumBatchLines.md) — v1
+- [`A_OSType`](script/A_OSType.md) — v1
+- [`A_OSVersion`](script/A_OSVersion.md) — v1
+- [`A_Persistent`](script/A_Persistent.md) — ks
+- [`A_PtrSize`](script/A_PtrSize.md) — v1
+- [`A_RealThread`](script/A_RealThread.md) — ks
+- [`A_ScriptDir`](script/A_ScriptDir.md) — v1
+- [`A_ScriptFullPath`](script/A_ScriptFullPath.md) — v1
+- [`A_ScriptHwnd`](script/A_ScriptHwnd.md) — v1
+- [`A_ScriptName`](script/A_ScriptName.md) — v1
+- [`A_Space`](script/A_Space.md) — v1
+- [`A_Tab`](script/A_Tab.md) — v1
+- [`A_ThisFunc`](script/A_ThisFunc.md) — v1
+- [`A_ThisLabel`](script/A_ThisLabel.md) — v1
+- [`A_ThisMenu`](script/A_ThisMenu.md) — v1
+- [`A_ThisMenuItem`](script/A_ThisMenuItem.md) — v1
+- [`A_ThisMenuItemPos`](script/A_ThisMenuItemPos.md) — v1
+- [`A_Timers`](script/A_Timers.md) — ks
+- [`A_WorkingDir`](script/A_WorkingDir.md) — v1
+- [`AllowMainWindow`](script/AllowMainWindow.md) — v2
+- [`Collect`](script/Collect.md) — ks
+- [`CompileScript`](script/CompileScript.md) — ks
+- [`CoordMode`](script/CoordMode.md) — v2, v1
+- [`Critical`](script/Critical.md) — v2, v1, ks
+- [`Else`](script/Else.md) — v1
+- [`EndChar`](script/EndChar.md) — v2
+- [`EnvGet`](script/EnvGet.md) — v2, v1
+- [`EnvSet`](script/EnvSet.md) — v2, v1
+- [`ErrorLevel`](script/ErrorLevel.md) — v1
+- [`Exit`](script/Exit.md) — v2, v1, ks
+- [`ExitApp`](script/ExitApp.md) — v2, v1
+- [`IfInString`](script/IfInString.md) — v1
+- [`IfMsgBox`](script/IfMsgBox.md) — v1
+- [`IfNotInString`](script/IfNotInString.md) — v1
+- [`Index`](script/Index.md) — v2, ks
+- [`InitialWorkingDir`](script/InitialWorkingDir.md) — v2
+- [`Is64bitOS`](script/Is64bitOS.md) — v2
+- [`IsAdmin`](script/IsAdmin.md) — v2
+- [`IsCompiled`](script/IsCompiled.md) — v2
+- [`IsComponentAvailable`](script/IsComponentAvailable.md) — ks
+- [`IsCritical`](script/IsCritical.md) — v2
+- [`IsFunc`](script/IsFunc.md) — v1
+- [`IsPaused`](script/IsPaused.md) — v2
+- [`IsSet`](script/IsSet.md) — v1
+- [`IsSuspended`](script/IsSuspended.md) — v2
+- [`LineFile`](script/LineFile.md) — v2
+- [`LineNumber`](script/LineNumber.md) — v2
+- [`OnError`](script/OnError.md) — v2, v1
+- [`OnExit`](script/OnExit.md) — v2
+- [`OnMessage`](script/OnMessage.md) — v2, v1
+- [`OutputDebugLine`](script/OutputDebugLine.md) — ks
+- [`Pause`](script/Pause.md) — v2, v1
+- [`Persistent`](script/Persistent.md) — v2
+- [`Reload`](script/Reload.md) — v2, v1
+- [`RequestCapabilities`](script/RequestCapabilities.md) — ks
+- [`RunScript`](script/RunScript.md) — ks
+- [`ScriptDir`](script/ScriptDir.md) — v2
+- [`ScriptFullPath`](script/ScriptFullPath.md) — v2
+- [`ScriptName`](script/ScriptName.md) — v2
+- [`SetBatchLines`](script/SetBatchLines.md) — v1
+- [`SetTimer`](script/SetTimer.md) — v2, v1
+- [`SetWorkingDir`](script/SetWorkingDir.md) — v2, v1
+- [`ShowDebug`](script/ShowDebug.md) — ks
+- [`Sleep`](script/Sleep.md) — v2, v1
+- [`Space`](script/Space.md) — v2
+- [`Suspend`](script/Suspend.md) — v2, v1
+- [`Tab`](script/Tab.md) — v2
+- [`ThisFunc`](script/ThisFunc.md) — v2
+- [`Thread`](script/Thread.md) — v2, v1
+- [`ValidateScript`](script/ValidateScript.md) — ks
+- [`WorkingDir`](script/WorkingDir.md) — v2
+
+## 聲音
+
+- [`SoundBeep`](sound/SoundBeep.md) — v2, v1
+- [`SoundGet`](sound/SoundGet.md) — v1
+- [`SoundGetInterface`](sound/SoundGetInterface.md) — v2
+- [`SoundGetMute`](sound/SoundGetMute.md) — v2
+- [`SoundGetName`](sound/SoundGetName.md) — v2
+- [`SoundGetVolume`](sound/SoundGetVolume.md) — v2
+- [`SoundGetWaveVolume`](sound/SoundGetWaveVolume.md) — v1
+- [`SoundPlay`](sound/SoundPlay.md) — v2, v1
+- [`SoundSet`](sound/SoundSet.md) — v1
+- [`SoundSetMute`](sound/SoundSetMute.md) — v2
+- [`SoundSetVolume`](sound/SoundSetVolume.md) — v2
+- [`SoundSetWaveVolume`](sound/SoundSetWaveVolume.md) — v1
+
+## 日期與時間
+
+- [`A_Hour`](time/A_Hour.md) — v1
+- [`A_MSec`](time/A_MSec.md) — v1
+- [`A_Min`](time/A_Min.md) — v1
+- [`A_Mon`](time/A_Mon.md) — v1
+- [`A_Now`](time/A_Now.md) — v1
+- [`A_NowUTC`](time/A_NowUTC.md) — v1
+- [`A_Sec`](time/A_Sec.md) — v1
+- [`A_WDay`](time/A_WDay.md) — v1
+- [`A_YDay`](time/A_YDay.md) — v1
+- [`A_YYYY`](time/A_YYYY.md) — v1
+- [`A_Year`](time/A_Year.md) — v1
+- [`DD`](time/DD.md) — v2
+- [`DDD`](time/DDD.md) — v2
+- [`DDDD`](time/DDDD.md) — v2
+- [`DateAdd`](time/DateAdd.md) — v2
+- [`DateDiff`](time/DateDiff.md) — v2
+- [`FormatTime`](time/FormatTime.md) — v2, v1
+- [`Hour`](time/Hour.md) — v2
+- [`MDay`](time/MDay.md) — v2
+- [`MM`](time/MM.md) — v2
+- [`MMM`](time/MMM.md) — v2
+- [`MMMM`](time/MMMM.md) — v2
+- [`MSec`](time/MSec.md) — v2
+- [`Min`](time/Min.md) — v2, v2, v1
+- [`Mon`](time/Mon.md) — v2
+- [`Now`](time/Now.md) — v2
+- [`NowUTC`](time/NowUTC.md) — v2
+- [`Sec`](time/Sec.md) — v2
+- [`TickCount`](time/TickCount.md) — v2
+- [`WDay`](time/WDay.md) — v2
+- [`YDay`](time/YDay.md) — v2
+- [`YWeek`](time/YWeek.md) — v2
+- [`YYYY`](time/YYYY.md) — v2
+- [`Year`](time/Year.md) — v2

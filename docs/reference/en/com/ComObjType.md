@@ -1,0 +1,36 @@
+# `ComObjType`
+
+| [English](index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+
+English
+
+*AutoHotkey v1.1.37.02* · function · COM automation (ComObject)
+
+## Description
+
+Reads the type/name of a COM object.
+
+## Syntax
+
+```ahk
+S := ComObjType(Obj, What)
+```
+
+## Parameters
+
+- **Obj** — The object.
+- **What** — Name/Class/IID/...
+
+## Return value
+
+The requested string.
+
+## Example
+
+```ahk
+n := ComObjType(o, "Name")
+```
+
+## Related
+
+[`ComObject`](ComObject.md), [`ComObjValue`](ComObjValue.md)
