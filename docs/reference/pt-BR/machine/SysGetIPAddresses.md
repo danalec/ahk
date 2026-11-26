@@ -1,0 +1,35 @@
+# `SysGetIPAddresses`
+
+| [English](../en/index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+
+Português (Brasil)
+
+*AutoHotkey v2.0.31* · command · A máquina, os processos e o ambiente
+
+## Descrição
+
+An Array of the machine's IP addresses.
+
+## Sintaxe
+
+```ahk
+A := SysGetIPAddresses()
+```
+
+## Parâmetros
+
+0.
+
+## Valor de retorno
+
+The Array.
+
+## Exemplo
+
+```ahk
+ips := SysGetIPAddresses()
+```
+
+## Relacionados
+
+[`A_IPAddress1`](A_IPAddress1.md)

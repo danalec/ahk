@@ -1,0 +1,41 @@
+# `FileCopy`
+
+| [English](../en/index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+
+Português (Brasil)
+
+*AutoHotkey v1.1.37.02* · command · Operações de arquivos e diretórios
+
+## Descrição
+
+Copia um arquivo, ou todos os arquivos que um padrão nomeia. Um destino que termina em separador, ou que é uma pasta, é a pasta para onde os arquivos são copiados.
+
+## Sintaxe
+
+```ahk
+FileCopy Source, Dest, Overwrite
+```
+
+## Parâmetros
+
+- **Source** — Path/wildcard.
+- **Dest** — Destination.
+- **Overwrite** — 1 to overwrite.
+
+## Valor de retorno
+
+nada
+
+## Erros
+
+Error `Failed` when the source is not there, or when the destination is there and the overwrite is not asked for.
+
+## Exemplo
+
+```ahk
+FileCopy "a.txt", "b.txt"
+```
+
+## Relacionados
+
+[`FileMove`](FileMove.md), [`DirCopy`](DirCopy.md)

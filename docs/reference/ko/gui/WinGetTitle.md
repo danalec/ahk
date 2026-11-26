@@ -1,0 +1,39 @@
+# `WinGetTitle`
+
+| [English](../en/index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](index.md) |
+
+한국어
+
+*AutoHotkey v1.1.37.02* · command · GUI 창과 창 자동화
+
+## 설명
+
+The title of the active window, or of the window that matches the text that was given.
+
+## 구문
+
+```ahk
+T := WinGetTitle(WinTitle, WinText)
+```
+
+## 매개변수
+
+- **WinTitle** — The criteria; omitted = last found.
+
+## 반환 값
+
+the title of the window
+
+## 오류
+
+a window that was named and is not there answers 'Target window not found.'; the text of the window and the exclusions are not carried yet.
+
+## 예제
+
+```ahk
+title := WinGetTitle()
+```
+
+## 관련
+
+[`WinGetText`](WinGetText.md), [`WinGetPos`](WinGetPos.md)

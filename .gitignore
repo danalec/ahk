@@ -1,0 +1,33 @@
+.cache/
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+target/
+dist/
+
+egm-review/
+EGM.md
+egm-review-doc-language/
+
+# the helper of the raven is built on the box, and the build is not in the tree
+crates/ahk-box/helper/helper.exe
+crates/ahk-box/helper/helper32.exe
+crates/ahk-box/helper/libkernel32.a
+crates/ahk-box/helper/libkernel32_32.a
+
+scripts/differential/raw/
+scripts/differential/_subset/
+scripts/differential/cases/*.txt
+scripts/differential/cases/*.ini
+scripts/perf/*.txt
+scripts/v1-probes/*.txt
+
+.agents/
+AGENTS.md
+
+# artifacts of the agent sessions
+.playwright-mcp/
+nul

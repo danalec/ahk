@@ -1,0 +1,43 @@
+# `InputBox`
+
+| [English](../en/index.md) | [Español](../es/index.md) | [Português (Brasil)](../pt-BR/index.md) | [Français](index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+
+Français
+
+*AutoHotkey v1.1.37.02* · command · Fenêtres d'interface et automatisation des fenêtres
+
+## Description
+
+Asks the user for a text in a dialog of the desktop and answers an object with the text in its Value and the way the dialog was closed in its Result.
+
+## Syntaxe
+
+```ahk
+Result := InputBox(Prompt, Title, Options, Default)
+```
+
+## Paramètres
+
+- **Prompt** — The question.
+- **Title** — The window title.
+- **Options** — Password/size/timeout.
+- **Default** — The initial text.
+
+## Valeur de retour
+
+an object with the properties Value and Result, where Result is "OK", "Cancel" or "Timeout"
+
+## Erreurs
+
+an option the dialect does not know is refused with "Invalid option.".
+
+## Exemple
+
+```ahk
+answer := InputBox("your name?", "hello")
+MsgBox answer.Value
+```
+
+## Voir aussi
+
+[`MsgBox`](MsgBox.md), [`FileSelect`](FileSelect.md)

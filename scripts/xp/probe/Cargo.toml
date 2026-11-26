@@ -1,0 +1,25 @@
+# The probe of the XP floor: a binary of Rust with no standard library,
+# for i686-pc-windows-gnu, that asks the machine three questions and
+# writes the answers on the console.
+#
+# It is the smallest thing that proves the floor of `docs/windows-legacy.md`:
+# a binary of Rust with no `std` runs on Windows XP SP3.
+#
+# The build of it is the script of the floor, because it needs the
+# nightly and the `-Z build-std`:
+#
+#   powershell -NoProfile -ExecutionPolicy Bypass scripts/xp/build.ps1
+#
+# The linker is the MinGW of thirty-two bits with the `msvcrt` runtime --
+# see `scripts/xp/README.md`.
+[package]
+name = "ahk-xp-probe"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[profile.release]
+panic = "abort"
+
+# The probe is a program of its own, built apart from the tree.
+[workspace]

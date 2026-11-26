@@ -1,0 +1,1 @@
+Obj := StructClass.At(Address)

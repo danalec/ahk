@@ -1,0 +1,399 @@
+---
+name: Release
+
+# The binary of the runner, built for every platform the tree is written to
+# build on, attached to the GitHub release of the pushed tag.
+#
+#   git tag v0.1.0 && git push origin v0.1.0     # builds and publishes
+#
+# Each asset is one archive, named after the platform it carries, and it holds
+# the runner and the licence. The name is the one of the conventions of the
+# tree: `ahk-v<version>-<asset>.<zip|tar.gz>`.
+
+on:
+  # The tag that names the release asks for it: the tag is pushed and the
+  # workflow builds the assets of it and publishes them.
+  push:
+    tags: ["v*"]
+  # The release can also be asked for by hand, and it runs the CI gate
+  # before it builds: a release that does not pass CI is not a release.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag to build and publish (e.g. v0.6.6)"
+        required: true
+        type: string
+
+# The release is written, and nothing else. A build job reads the tree; the
+# publish job writes the release of the tag that asked for it.
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY: ahk
+
+jobs:
+  # The gate runs first: the release builds and publishes only if CI passes.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: ${{ matrix.asset }}
+    needs: ci
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- Windows ---
+          - asset: x86_64-windows
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
+            archive: zip
+            binary: ahk.exe
+
+          # --- Linux ---
+          # The Linux binary is built inside the bullseye image and not on the
+          # runner: glibc 2.31 is the floor the release notes promise, and the
+          # runner's own image (ubuntu-24.04, glibc 2.39) would make a binary
+          # that does not run on the older systems. The `build_image` field is
+          # what marks an entry as one of these.
+          - asset: x86_64-linux-gnu
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            binary: ahk
+            build_image: rust:1.98-slim-bullseye
+          - asset: aarch64-linux-gnu
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+            binary: ahk
+            build_image: rust:1.98-slim-bullseye
+
+          # --- macOS ---
+          # Both macOS binaries are built on the Intel runner: the ARM
+          # runner (macos-15) is scarce and its queue cancels the job. The
+          # SDK of the Intel runner carries both architectures, so the
+          # aarch64 binary is cross-compiled here, and no smoke test runs
+          # it on the wrong architecture.
+          - asset: x86_64-macos
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            archive: tar.gz
+            binary: ahk
+          - asset: aarch64-macos
+            os: macos-15-intel
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            binary: ahk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: The version of the tag
+        id: version
+        shell: bash
+        run: |
+          # The dispatch names the tag: `v0.6.6` is `0.6.6`. A push of the
+          # tag names it too: the tag of the run is the name of it. The
+          # assets carry the version in the name, and an asset with no
+          # version in the name is an asset that the packaging cannot
+          # point at.
+          version="${{ inputs.tag }}"
+          if [ -z "$version" ]; then
+            version="${GITHUB_REF_NAME:-${GITHUB_REF#refs/tags/}}"
+          fi
+          version="${version#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo ">> version $version"
+
+      - name: Build inside the image (Linux)
+        if: matrix.build_image
+        shell: bash
+        run: |
+          docker run --rm \
+            -v "$PWD":/w -w /w \
+            -e CARGO_TERM_COLOR=always \
+            "${{ matrix.build_image }}" \
+            cargo build --release --locked -p ahk-cli --target "${{ matrix.target }}"
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
+
+      - name: Install Rust toolchain
+        if: ${{ !matrix.build_image }}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        if: ${{ !matrix.build_image }}
+        uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build
+        if: ${{ !matrix.build_image }}
+        shell: bash
+        run: cargo build --release --locked -p ahk-cli --target "${{ matrix.target }}"
+
+      - name: Pack
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ASSET: ${{ matrix.asset }}
+          ARCHIVE: ${{ matrix.archive }}
+          BINARY: ${{ matrix.binary }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -eu
+          name="ahk-v${VERSION}-${ASSET}"
+          mkdir -p "dist/$name"
+          cp "target/${TARGET}/release/${BINARY}" "dist/$name/${BINARY}"
+          cp LICENSE "dist/$name/LICENSE"
+          # The notes of the runner travel with it: a binary with no document
+          # that says what the flags are is a binary a reader has to guess at.
+          cp README.md "dist/$name/README.md"
+          # The icons of Linux: the theme of the desktop is a set of PNGs,
+          # one per size, and the archive carries them for the packaging to
+          # install. The archive of macOS has none: a program of the
+          # terminal has no icon there, and the archive of Windows has the
+          # icon inside the binary.
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            mkdir -p "dist/$name/share/icons"
+            cp -r resources/icons/hicolor "dist/$name/share/icons/hicolor"
+            # The entry of the menu: it names the icon of the theme, and it
+            # runs the script that the file of the mouse carries.
+            mkdir -p "dist/$name/share/applications"
+            cp resources/desktop/ahk.desktop "dist/$name/share/applications/ahk.desktop"
+          fi
+          cd dist
+          if [ "$ARCHIVE" = "zip" ]; then
+            # The archive of Windows is made by the shell of Windows, which is
+            # on the runner and is one program fewer to depend on. The path is
+            # relative, so the same command works from the folder the step is
+            # already in.
+            powershell -NoProfile -Command \
+              "Compress-Archive -Path '${name}' -DestinationPath '${name}.zip'"
+          else
+            tar -czf "${name}.tar.gz" "$name"
+          fi
+          # The checksum is what a user checks the download against, so it is
+          # made here, beside the file it describes.
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${name}.${ARCHIVE}" > "${name}.${ARCHIVE}.sha256"
+          else
+            shasum -a 256 "${name}.${ARCHIVE}" > "${name}.${ARCHIVE}.sha256"
+          fi
+          ls -la
+
+      - name: Smoke test (Linux)
+        if: matrix.archive == 'tar.gz' && runner.os == 'Linux'
+        shell: bash
+        run: |
+          # The binary that was just built answers with a report, and it says
+          # which surfaces it carries: a release that does not run is not a
+          # release, and this step is what says so before it is attached.
+          set -eu
+          "./target/${{ matrix.target }}/release/ahk" --surface | tail -n 1
+          echo 'FileAppend "release", "*"' | "./target/${{ matrix.target }}/release/ahk" | grep -q '"output":\["release"\]'
+          echo ">> the binary runs"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  # The binary of the Windows XP floor: the tier-3 `win7` target with the
+  # standard library emended for the era of XP, built on a pinned nightly
+  # and gated over the measured floor. The script `scripts/xp/release.ps1`
+  # is the build and the gate in one. The binary runs on the modern
+  # Windows too, so the smoke test of the runner answers here as well.
+  build-xp:
+    name: ${{ matrix.asset }}
+    needs: ci
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - asset: i686-windows-xp
+            target: i686-win7-windows-gnu
+          - asset: x86_64-windows-xp
+            target: x86_64-win7-windows-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: The version of the tag
+        id: version
+        shell: bash
+        run: |
+          # The dispatch names the tag, and a push of the tag names it too:
+          # the assets of the floor carry the version in the name.
+          version="${{ inputs.tag }}"
+          if [ -z "$version" ]; then
+            version="${GITHUB_REF_NAME:-${GITHUB_REF#refs/tags/}}"
+          fi
+          version="${version#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo ">> version $version"
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Cache the MinGW of the floor
+        uses: actions/cache@v6
+        with:
+          path: ~/tools
+          key: xp-mingw-${{ matrix.target }}-${{ hashFiles('scripts/xp/release.ps1') }}
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          key: xp-${{ matrix.target }}
+
+      - name: Build and gate (XP)
+        shell: powershell
+        run: .\scripts\xp\release.ps1 -Target ${{ matrix.target }}
+
+      - name: Smoke test (XP)
+        shell: bash
+        run: |
+          set -eu
+          bin="target/${{ matrix.target }}/release/ahk.exe"
+          "$bin" --surface | tail -n 1
+          "$bin" --surface --dialect=v1 | tail -n 1
+          echo 'FileAppend "release", "*"' | "$bin" | grep -q '"output":\["release"\]'
+          echo ">> the binary of the XP floor runs"
+
+      - name: Pack
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ASSET: ${{ matrix.asset }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -eu
+          name="ahk-v${VERSION}-${ASSET}"
+          mkdir -p "dist/$name"
+          cp "target/${TARGET}/release/ahk.exe" "dist/$name/ahk.exe"
+          cp LICENSE "dist/$name/LICENSE"
+          cp README.md "dist/$name/README.md"
+          cd dist
+          powershell -NoProfile -Command \
+            "Compress-Archive -Path '${name}' -DestinationPath '${name}.zip'"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${name}.zip" > "${name}.zip.sha256"
+          else
+            shasum -a 256 "${name}.zip" > "${name}.zip.sha256"
+          fi
+          ls -la
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: [build, build-xp]
+    # A dispatch publishes the tag it was asked for, once CI and the builds
+    # have passed.
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: .dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          # The dispatch names the tag, and a push of the tag names it too:
+          # the release is the one of the tag that asked for it.
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          files: .dist/*
+          fail_on_unmatched_files: true
+
+  # The crates of the tree go to the crates.io in the version of the tag,
+  # and the order of the publication is the order of the dependencies:
+  # `ahk` depends on nothing, `ahk-box` depends on `ahk`, and `ahk-cli`
+  # depends on the two. The `cargo publish` waits for the registry to
+  # serve the crate that came before, so the order of the publication is
+  # the order of the dependencies.
+  #
+  # The token is the secret `CARGO_REGISTRY_TOKEN` of the repository: a
+  # token of the crates.io with the right to publish, and nothing else.
+  publish-crates:
+    name: Publish the crates (crates.io)
+    needs: [ci, build, build-xp]
+    # The crates only go up when the whole release is good: the release
+    # page and the crates are the same release.
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          key: crates-${{ github.ref_name }}
+
+      - name: The version of the tag
+        id: version
+        shell: bash
+        run: |
+          # The dispatch names the tag, and a push of the tag names it too:
+          # the version of the crates is the version of the tag.
+          version="${{ inputs.tag }}"
+          if [ -z "$version" ]; then
+            version="${GITHUB_REF_NAME:-${GITHUB_REF#refs/tags/}}"
+          fi
+          version="${version#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo ">> version $version"
+
+      - name: Publish the crates
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eu
+          # The version of the tree is the version of the crates, and it
+          # has to be the version of the tag: a release that names another
+          # version publishes another crate, and the crate of the tree
+          # stays behind.
+          version_of_the_tree="$(cargo metadata --no-deps --format-version 1 \
+            | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "ahk"))')"
+          if [ "$version_of_the_tree" != "$VERSION" ]; then
+            echo ">> the tree is $version_of_the_tree and the tag names $VERSION"
+            exit 1
+          fi
+          # A crate that the registry already carries in this version is a
+          # crate that a run before it published: the publication is not
+          # repeated, and a run that repeats does not fail because of it.
+          for crate in ahk ahk-box ahk-cli; do
+            if curl -fsS -H 'User-Agent: ahk-release' \
+              "https://crates.io/api/v1/crates/$crate/$VERSION" >/dev/null 2>&1; then
+              echo ">> the $crate $VERSION is already in the registry"
+              continue
+            fi
+            echo ">> publishing the $crate $VERSION"
+            cargo publish -p "$crate" --locked
+          done

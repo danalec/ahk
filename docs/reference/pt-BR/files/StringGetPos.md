@@ -1,0 +1,35 @@
+# `StringGetPos`
+
+| [English](../en/index.md) | [Español](../es/index.md) | [Português (Brasil)](index.md) | [Français](../fr/index.md) | [Italiano](../it/index.md) | [Polski](../pl/index.md) | [Türkçe](../tr/index.md) | [Deutsch](../de/index.md) | [Русский](../ru/index.md) | [日本語](../ja/index.md) | [中文（简体）](../zh/index.md) | [繁體中文](../zh-Hant/index.md) | [한국어](../ko/index.md) |
+
+Português (Brasil)
+
+*AutoHotkey v1.1.37.02* · command · Operações de arquivos e diretórios
+
+## Descrição
+
+The position of a substring (v1, 0-based).
+
+## Sintaxe
+
+```ahk
+StringGetPos Out, Haystack, Needle
+```
+
+## Parâmetros
+
+3..255.
+
+## Valor de retorno
+
+Nothing; 0-based pos or -1.
+
+## Exemplo
+
+```ahk
+StringGetPos p, s, "x"
+```
+
+## Relacionados
+
+[`InStr`](InStr.md)

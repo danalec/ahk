@@ -1,0 +1,1 @@
+PtrClass := StructClass.Ptr

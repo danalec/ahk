@@ -1,0 +1,25 @@
+[workspace]
+resolver = "3"
+members = ["crates/ahk", "crates/ahk-box", "crates/ahk-cli"]
+
+[workspace.package]
+version = "0.6.7"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/danalec/ahk"
+
+[workspace.dependencies]
+# The crates of this workspace are published, so the dependency of one on
+# another names the version as well as the path: `cargo publish` drops the
+# path and keeps the version, and a crate that can only be built from the
+# folder beside it is a crate nobody else can use.
+ahk = { path = "crates/ahk", version = "0.6.7" }
+ahk-box = { path = "crates/ahk-box", version = "0.6.7" }
+
+[profile.release]
+# The LTO joins the code into one file: it is what ties the functions
+# of the floor of the API to the binary of the laboratory, and it is
+# what the linker sees. The binary of the modern Windows gets the
+# better binary for it.
+lto = true
